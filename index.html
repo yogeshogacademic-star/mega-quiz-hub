@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V10.13 (Ultimate Sniper Engine)</title>
+    <title>Yogesh's Mega Quiz Hub - V10.15 (Sovereign Matrix)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -55,9 +55,9 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V10.13</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V10.15</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Ultimate Sniper Engine & Matrix</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Sovereign Subject Sandboxing & Sniper Engine</p>
                 </div>
                 
                 <div class="flex items-center gap-4 w-full xl:w-auto justify-start xl:justify-end">
@@ -332,7 +332,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v10.13" };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v10.15" };
         
         fetch(CLOUD_URL, {
             method: 'POST',
@@ -560,7 +560,7 @@
     });
 
     window.exportBackup = () => {
-        const blob = new Blob([JSON.stringify({ version: "v10.13", subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb })], { type: "application/json" });
+        const blob = new Blob([JSON.stringify({ version: "v10.15", subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb })], { type: "application/json" });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Yogesh_MegaHub_Backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
     };
 
@@ -645,6 +645,8 @@
             if (!quiz || !quiz.title) return;
             if (quiz.title.includes("🔥") || quiz.title.includes("🎯")) return; 
             
+            let fallbackSub = quiz.subject || 'Miscellaneous';
+
             if(quiz.questions) {
                 quiz.questions.forEach(q => {
                     let qText = q.question;
@@ -662,7 +664,7 @@
                     
                     let matchesTopic = false;
                     tags.forEach(tag => {
-                        let mapping = normalizeTag(tag, quiz.subject || 'Miscellaneous');
+                        let mapping = normalizeTag(tag, fallbackSub);
                         if(mapping.sub === targetSub && mapping.topic === targetTopic) {
                             matchesTopic = true;
                         }
@@ -681,7 +683,7 @@
             return;
         }
 
-        const shuffled = pool.sort(() => 0.5 - Math.random()).slice(0, 50); // Cap at 50 questions per sniper mock
+        const shuffled = pool.sort(() => 0.5 - Math.random()).slice(0, 50);
         db['quiz_topic_revision'] = { 
             title: `🎯 ${targetTopic} Revision`, 
             subject: targetSub, 
@@ -952,10 +954,14 @@
             }
 
             let tags = [];
-            if(q.topic) tags.push(q.topic);
-            const tagMatches = (q.solution || '').match(/#(\w+)/g);
-            if(tagMatches) tagMatches.forEach(t => tags.push(t.substring(1)));
-            if(tags.length === 0) tags.push(db[currentQuizId] ? db[currentQuizId].subject : 'Uncategorized');
+            if(q.tags && Array.isArray(q.tags)) {
+                tags = [...q.tags];
+            }
+            if(tags.length === 0) {
+                const tagMatches = (q.solution || '').match(/#(\w+)/g);
+                if(tagMatches) tagMatches.forEach(t => tags.push(t.substring(1)));
+                if(tags.length === 0) tags.push('Untagged');
+            }
 
             fullReviewHTML += genDeepReviewCard({question: q.question, solution: q.solution}, status, uText, cText, "");
             historicalReviewData.push({ question: q.question, status: status, uText: uText, cText: cText, solution: q.solution, tags: [...new Set(tags)] });
@@ -975,7 +981,7 @@
 
         if(!currentQuizId.includes('quiz_redemption') && !currentQuizId.includes('quiz_topic_revision')) {
             historyDb.unshift({ 
-                date: new Date().toLocaleDateString(), title: displayTitle, subject: db[currentQuizId] ? db[currentQuizId].subject : "Mixed", 
+                date: new Date().toLocaleDateString(), title: displayTitle, subject: db[currentQuizId] ? db[currentQuizId].subject : "Miscellaneous", 
                 score: parseFloat(score.toFixed(2)), accuracy: Math.round((correct / activeQuestions.length) * 100),
                 candidateName: candName, attemptNumber: currentAttemptNum, totalCorrect: correct, totalWrong: wrong, totalSkipped: skipped, reviewData: historicalReviewData
             });
@@ -1070,185 +1076,199 @@
 
     window.closeQuizHistory = () => document.getElementById('screen-quiz-history').classList.add('hidden');
 
-    // V10.13: Bulletproof Normalization & Universal Fallback
     const normalizeTag = (rawTag, fallbackSub) => {
-        if (!rawTag) return { sub: fallbackSub || 'Miscellaneous', topic: 'Miscellaneous Topics' };
-        
         const t = String(rawTag).toLowerCase().replace(/[^a-z0-9]/g, '');
 
-        // --- 1. KILL "MIXED" & "MISCELLANEOUS" DEAD ---
-        if(t === 'mixed' || t === 'miscellaneous') return { sub: 'Miscellaneous', topic: 'Mixed/General Questions' };
+        const SSC_SYLLABUS = {
+            "Arithmetic": [
+                { regex: /percent/, name: "Percentage" },
+                { regex: /profit|loss|discount|faulty|dishonest/, name: "Profit, Loss & Discount" },
+                { regex: /ratio|proportion|age|coin/, name: "Ratio, Proportion & Ages" },
+                { regex: /mixture|alligation|alloy/, name: "Mixture & Alligation" },
+                { regex: /average|mean/, name: "Average" },
+                { regex: /interest|si|ci|compound|simple/, name: "Simple & Compound Interest" },
+                { regex: /work|pipe|cistern|wage/, name: "Time & Work" },
+                { regex: /speed|distance|train|boat|stream|relative/, name: "Speed, Time & Distance" },
+                { regex: /partner/, name: "Partnership" },
+                { regex: /lcm|hcf|number|divisibility|remainder|decimal|fraction|surd|indice|bodmas|simplification/, name: "Number System & Simplification" }
+            ],
+            "Advanced Maths": [
+                { regex: /algebra|polynomial|equation|root|identity|quadratic/, name: "Algebra" },
+                { regex: /geometry|circle|triangle|collinear|polygon|angle|tangent|chord|orthocenter|centroid/, name: "Geometry" },
+                { regex: /mensuration|area|volume|cone|cylinder|sphere|pyramid|prism|cube|cuboid|hemisphere/, name: "Mensuration (2D & 3D)" },
+                { regex: /trigo|sin|cos|tan|sec|cosec|cot|height/, name: "Trigonometry" },
+                { regex: /coordinate|slope|intercept|quadrant/, name: "Coordinate Geometry" },
+                { regex: /di|data|chart|graph|pie|bar|tabular|histogram/, name: "Data Interpretation" }
+            ],
+            "English": [
+                { regex: /rc|comprehension|passage/, name: "Reading Comprehension" },
+                { regex: /cloze/, name: "Cloze Test" },
+                { regex: /error|spotting|grammar|noun|pronoun|verb|tense|adjective|adverb|preposition|conjunction/, name: "Grammar & Error Spotting" },
+                { regex: /fill|blank/, name: "Fill in the Blanks" },
+                { regex: /improve|sentence/, name: "Sentence Improvement" },
+                { regex: /voice|active|passive/, name: "Active & Passive Voice" },
+                { regex: /narration|direct|indirect|speech/, name: "Direct & Indirect Speech" },
+                { regex: /jumble|pqrs|para/, name: "Para Jumbles" },
+                { regex: /synonym|antonym|vocab|meaning/, name: "Synonyms & Antonyms" },
+                { regex: /idiom|phrase/, name: "Idioms & Phrases" },
+                { regex: /ows|oneword|substitution/, name: "One Word Substitution" },
+                { regex: /spell/, name: "Spelling Errors" }
+            ],
+            "Reasoning": [
+                { regex: /analogy/, name: "Analogy" },
+                { regex: /classification|odd/, name: "Classification (Odd One Out)" },
+                { regex: /series|missing/, name: "Number & Alphabet Series" },
+                { regex: /coding|decoding/, name: "Coding-Decoding" },
+                { regex: /blood|relation/, name: "Blood Relations" },
+                { regex: /direction|distance/, name: "Direction & Distance" },
+                { regex: /syllogism|statement|conclusion|assumption|argument|logic/, name: "Syllogism & Logical Reasoning" },
+                { regex: /venn/, name: "Venn Diagrams" },
+                { regex: /dice|cube/, name: "Dice & Cubes" },
+                { regex: /figure|count/, name: "Figure Counting" },
+                { regex: /mirror|water|image|paper|embed|fold|cut|nonverbal/, name: "Non-Verbal Reasoning" },
+                { regex: /puzzle|seating/, name: "Puzzles & Seating Arrangement" },
+                { regex: /clock|calendar/, name: "Clocks & Calendars" }
+            ],
+            "Polity": [
+                { regex: /court|judge|judiciary|writ|sc|hc|pil|justice|tribunal|supreme|highcourt/, name: "Judiciary (SC, HC, Subordinate)" },
+                { regex: /article|amendment|schedule|part|clause/, name: "Articles, Schedules & Amendments" },
+                { regex: /parliament|ls|rs|president|pm|council|minister|cabinet|loksabha|rajyasabha/, name: "Union Executive & Legislature" },
+                { regex: /governor|cm|state|vidhan/, name: "State Executive & Legislature" },
+                { regex: /fundamental|dpsp|duty|rights/, name: "Fundamental Rights, Duties & DPSP" },
+                { regex: /panchayat|municipal|local/, name: "Local Government" },
+                { regex: /election|cag|ec|upsc|financecommission|body|commission|attorney/, name: "Constitutional & Non-Constitutional Bodies" },
+                { regex: /constitution|preamble|citizen|polity/, name: "Making of Constitution & Citizenship" }
+            ],
+            "Ancient History": [
+                { regex: /ivc|indus|harappa|prehistoric|stoneage/, name: "Indus Valley & Pre-History" },
+                { regex: /vedic|aryan|rigveda|upanishad/, name: "Vedic Age" },
+                { regex: /buddh|jain|mahajanapada|magadha/, name: "Buddhism, Jainism & Mahajanapadas" },
+                { regex: /maury|ashoka|bindusara/, name: "Mauryan Empire" },
+                { regex: /gupta|harshavardhana|postmauryan|satavahana|ancient/, name: "Gupta Empire & Post-Mauryan" }
+            ],
+            "Medieval History": [
+                { regex: /delhi|sultan|slave|khilji|tughlaq|lodi|mamluk/, name: "Delhi Sultanate" },
+                { regex: /mughal|akbar|babur|shahjahan|suri|humayun/, name: "Mughal Empire" },
+                { regex: /maratha|shivaji|peshwa/, name: "Maratha Empire" },
+                { regex: /vijayanagar|bahmani|chola|cheras|pandya|southern/, name: "Southern Kingdoms" },
+                { regex: /bhakti|sufi|sikh|medieval/, name: "Bhakti/Sufi & Sikhism" }
+            ],
+            "Modern History": [
+                { regex: /european|eastindia|plassey|buxar|french|dutch/, name: "Advent of Europeans & British Conquest" },
+                { regex: /revolt|1857|mutiny|sepoy/, name: "Revolt of 1857" },
+                { regex: /viceroy|governor|reform|act|charter|pitt/, name: "Viceroys & British Acts" },
+                { regex: /congress|inc|moderate|extremist|swadeshi/, name: "Indian National Congress" },
+                { regex: /gandhi|movement|satyagraha|noncooperation|civil|quit/, name: "Gandhian Era & Mass Movements" },
+                { regex: /freedom|revolution|bose|bhagatsingh|modern|history/, name: "Freedom Struggle & Revolutionaries" }
+            ],
+            "Geography": [
+                { regex: /solar|universe|planet|earth|galaxy/, name: "Solar System & Universe" },
+                { regex: /rock|earthquake|volcano|interior|geomorph/, name: "Physical Geography" },
+                { regex: /atmosphere|climat|wind|cyclone/, name: "Climatology & Atmosphere" },
+                { regex: /ocean|tide|current|salinity/, name: "Oceanography" },
+                { regex: /mountain|pass|peak|himalaya|plateau|island|coastal/, name: "Indian Physical Geography" },
+                { regex: /river|drainage|lake|dam|project|tributary/, name: "Indian Drainage System" },
+                { regex: /monsoon|weather|season/, name: "Indian Climate & Monsoon" },
+                { regex: /soil|agriculture|crop|farming/, name: "Soils & Agriculture" },
+                { regex: /mineral|industry|resource|mining/, name: "Minerals, Energy & Industries" },
+                { regex: /transport|highway|rail|port|waterway/, name: "Transport & Communication" },
+                { regex: /census|demograph|tribe|population|literacy|sexratio|geography/, name: "Census & Demographics" }
+            ],
+            "Economics": [
+                { regex: /micro|demand|supply|cost|production|elasticity/, name: "Microeconomics" },
+                { regex: /macro|income|gdp|gnp|ndp|nnp/, name: "National Income & Macroeconomics" },
+                { regex: /inflation|deflation|index|cpi|wpi/, name: "Inflation & Deflation" },
+                { regex: /rbi|monetary|bank|credit|money|repo/, name: "Banking & Monetary Policy" },
+                { regex: /tax|gst|budget|fiscal|revenue|deficit|custom|excise|tariff/, name: "Budget, Taxation & Fiscal Policy" },
+                { regex: /plan|niti|aayog|fiveyear/, name: "Economic Planning & NITI Aayog" },
+                { regex: /poverty|unemployment|development|index|inequality/, name: "Poverty, Employment & Development" },
+                { regex: /imf|wb|wto|internationaltrade|forex|bop|economic/, name: "International Trade & Organizations" }
+            ],
+            "Science": [
+                { regex: /unit|dimension|measure|scalar|vector/, name: "Units & Measurements" },
+                { regex: /motion|force|work|energy|power|gravitation|friction|newton/, name: "Mechanics (Physics)" },
+                { regex: /sound|wave|oscillation|frequency/, name: "Sound & Waves" },
+                { regex: /light|optic|reflection|refraction|lens|mirror/, name: "Optics (Light)" },
+                { regex: /heat|thermodynamic|temperature|thermal/, name: "Heat & Thermodynamics" },
+                { regex: /electric|magnet|current|voltage|resistance/, name: "Electricity & Magnetism" },
+                { regex: /matter|state|solid|liquid|gas|plasma/, name: "States of Matter" },
+                { regex: /atom|molecule|isotope|nucleus|electron|proton/, name: "Atomic Structure" },
+                { regex: /acid|base|salt|ph/, name: "Acids, Bases & Salts" },
+                { regex: /metal|nonmetal|alloy|ore/, name: "Metals, Non-Metals & Alloys" },
+                { regex: /carbon|organic|polymer|fuel/, name: "Carbon & Organic Chemistry" },
+                { regex: /periodictable|element|chemistry/, name: "Periodic Table & Chemistry" },
+                { regex: /cell|tissue|organelle|mitochondria/, name: "Cell Biology" },
+                { regex: /digest|respirat|circulat|nervous|endocrin|hormone|gland|reproduct|skeleton/, name: "Human Anatomy & Physiology" },
+                { regex: /disease|pathogen|virus|bacteria|vaccine|fungi/, name: "Human Diseases & Health" },
+                { regex: /vitamin|nutrition|protein|carbohydrate|fat/, name: "Nutrition & Vitamins" },
+                { regex: /plant|botany|photosynthesis|xylem|phloem/, name: "Plant Biology (Botany)" },
+                { regex: /animal|zoology|kingdom|vertebrat|science/, name: "Animal Kingdom (Zoology)" }
+            ],
+            "Environment": [
+                { regex: /environ|ecolog|ecosystem|foodchain|biome/, name: "Ecology & Ecosystem" },
+                { regex: /biodivers|flora|fauna|conservation/, name: "Biodiversity & Conservation" },
+                { regex: /pollut|climate|globalwarming|greenhouse|ozon/, name: "Pollution & Climate Change" },
+                { regex: /treaty|protocol|convention|summit/, name: "International Treaties & Conventions" }
+            ],
+            "Static GK": [
+                { regex: /dance|classical|folk|garba|bihu|bhangra/, name: "Classical & Folk Dances" },
+                { regex: /festival|fair|mela/, name: "Festivals & Fairs" },
+                { regex: /music|instrument|singer|gharana/, name: "Music & Instruments" },
+                { regex: /temple|architecture|monument|painting|cave/, name: "Art & Architecture" },
+                { regex: /book|author|writer|literature/, name: "Books & Authors" },
+                { regex: /award|honour|nobel|bharatratna|padma/, name: "Awards & Honours" },
+                { regex: /sport|fide|olympic|cricket|football|trophy|cup|tennis/, name: "Sports & Trophies" },
+                { regex: /day|theme|date|celebrat/, name: "Important Days & Themes" },
+                { regex: /nationalpark|wildlife|biosphere|tigerreserve|sanctuary/, name: "National Parks & Sanctuaries" },
+                { regex: /hq|headquarter|un|who|ilo|unesco/, name: "International Organizations & HQ" },
+                { regex: /first|largest|longest|highest|superlative|staticgk/, name: "Superlatives (India & World)" }
+            ],
+            "Current Affairs": [
+                { regex: /scheme|yojana|abhiyan|portal|pmjuga/, name: "Government Schemes & Portals" },
+                { regex: /conference|meet/, name: "Summits & Conferences" },
+                { regex: /defence|military|exercise|missile|army/, name: "Defence & Military Exercises" },
+                { regex: /isro|space|nasa|satellite|tech|nuclear/, name: "Science, Tech & Space (ISRO)" },
+                { regex: /index|report|rank/, name: "Indices & Reports" },
+                { regex: /appointment|resign/, name: "Recent Appointments" },
+                { regex: /current|news/, name: "Current Events (General)" }
+            ]
+        };
 
-        // --- 2. EXHAUSTIVE SUBJECT ROUTER ---
-
-        // QUANT: ARITHMETIC
-        if(t.match(/percent/)) return { sub: 'Arithmetic', topic: 'Percentage' };
-        if(t.match(/profit|loss|discount|faulty|dishonest/)) return { sub: 'Arithmetic', topic: 'Profit, Loss & Discount' };
-        if(t.match(/ratio|proportion|age|coin/)) return { sub: 'Arithmetic', topic: 'Ratio, Proportion & Ages' };
-        if(t.match(/mixture|alligation|alloy/)) return { sub: 'Arithmetic', topic: 'Mixture & Alligation' };
-        if(t.match(/average|mean/)) return { sub: 'Arithmetic', topic: 'Average' };
-        if(t.match(/interest|si|ci|compound|simple/)) return { sub: 'Arithmetic', topic: 'Simple & Compound Interest' };
-        if(t.match(/work|timeandwork|pipe|cistern|wage/)) return { sub: 'Arithmetic', topic: 'Time & Work' };
-        if(t.match(/speed|distance|train|boat|stream|relative/)) return { sub: 'Arithmetic', topic: 'Speed, Time & Distance' };
-        if(t.match(/partner/)) return { sub: 'Arithmetic', topic: 'Partnership' };
-        if(t.match(/lcm|hcf|number|divisibility|remainder|decimal|fraction|surd|indice|bodmas|simplification/)) return { sub: 'Arithmetic', topic: 'Number System & Simplification' };
-        if(t.match(/arithmetic|quant/)) return { sub: 'Arithmetic', topic: 'General Arithmetic' };
-
-        // QUANT: ADVANCED MATHS
-        if(t.match(/algebra|polynomial|equation|roots|identity|quadratic/)) return { sub: 'Advanced Maths', topic: 'Algebra' };
-        if(t.match(/geometry|circle|triangle|collinear|polygon|angle|tangent|chord|orthocenter|centroid/)) return { sub: 'Advanced Maths', topic: 'Geometry' };
-        if(t.match(/mensuration|area|volume|cone|cylinder|sphere|pyramid|prism|cube|cuboid|hemisphere/)) return { sub: 'Advanced Maths', topic: 'Mensuration (2D & 3D)' };
-        if(t.match(/trigo|sin|cos|tan|sec|cosec|cot|height/)) return { sub: 'Advanced Maths', topic: 'Trigonometry' };
-        if(t.match(/coordinate|slope|intercept|quadrant/)) return { sub: 'Advanced Maths', topic: 'Coordinate Geometry' };
-        if(t.match(/di|data|chart|graph|pie|bar|tabular|histogram/)) return { sub: 'Advanced Maths', topic: 'Data Interpretation' };
-        if(t.match(/advancedmath|maths/)) return { sub: 'Advanced Maths', topic: 'General Advanced Maths' };
-
-        // ENGLISH
-        if(t.match(/rc|comprehension|passage/)) return { sub: 'English', topic: 'Reading Comprehension' };
-        if(t.match(/cloze/)) return { sub: 'English', topic: 'Cloze Test' };
-        if(t.match(/error|spotting|grammar|noun|pronoun|verb|tense|adjective|adverb|preposition|conjunction/)) return { sub: 'English', topic: 'Grammar & Error Spotting' };
-        if(t.match(/fill|blank/)) return { sub: 'English', topic: 'Fill in the Blanks' };
-        if(t.match(/improve|sentence/)) return { sub: 'English', topic: 'Sentence Improvement' };
-        if(t.match(/voice|active|passive/)) return { sub: 'English', topic: 'Active & Passive Voice' };
-        if(t.match(/narration|direct|indirect|speech/)) return { sub: 'English', topic: 'Direct & Indirect Speech' };
-        if(t.match(/jumble|pqrs|para/)) return { sub: 'English', topic: 'Para Jumbles' };
-        if(t.match(/synonym|antonym|vocab|meaning/)) return { sub: 'English', topic: 'Synonyms & Antonyms' };
-        if(t.match(/idiom|phrase/)) return { sub: 'English', topic: 'Idioms & Phrases' };
-        if(t.match(/ows|oneword|substitution/)) return { sub: 'English', topic: 'One Word Substitution' };
-        if(t.match(/spell/)) return { sub: 'English', topic: 'Spelling Errors' };
-        if(t.match(/english/)) return { sub: 'English', topic: 'General English' };
-
-        // REASONING
-        if(t.match(/analogy/)) return { sub: 'Reasoning', topic: 'Analogy' };
-        if(t.match(/classification|odd|out/)) return { sub: 'Reasoning', topic: 'Classification (Odd One Out)' };
-        if(t.match(/series|missing/)) return { sub: 'Reasoning', topic: 'Number & Alphabet Series' };
-        if(t.match(/coding|decoding/)) return { sub: 'Reasoning', topic: 'Coding-Decoding' };
-        if(t.match(/blood|relation/)) return { sub: 'Reasoning', topic: 'Blood Relations' };
-        if(t.match(/direction|distance/)) return { sub: 'Reasoning', topic: 'Direction & Distance' };
-        if(t.match(/syllogism|statement|conclusion|assumption|argument|logic/)) return { sub: 'Reasoning', topic: 'Syllogism & Logical Reasoning' };
-        if(t.match(/venn/)) return { sub: 'Reasoning', topic: 'Venn Diagrams' };
-        if(t.match(/dice|cube/)) return { sub: 'Reasoning', topic: 'Dice & Cubes' };
-        if(t.match(/figure|count/)) return { sub: 'Reasoning', topic: 'Figure Counting' };
-        if(t.match(/mirror|water|image|paper|embed|fold|cut|nonverbal/)) return { sub: 'Reasoning', topic: 'Non-Verbal Reasoning' };
-        if(t.match(/puzzle|seating/)) return { sub: 'Reasoning', topic: 'Puzzles & Seating Arrangement' };
-        if(t.match(/clock|calendar/)) return { sub: 'Reasoning', topic: 'Clocks & Calendars' };
-        if(t.match(/reasoning/)) return { sub: 'Reasoning', topic: 'General Reasoning' };
-
-        // POLITY
-        if(t.match(/court|judge|judiciary|writ|sc|hc|pil|justice|tribunal|supreme|highcourt/)) return { sub: 'Polity', topic: 'Judiciary (SC, HC, Subordinate)' };
-        if(t.match(/article|amendment|schedule|part|clause/)) return { sub: 'Polity', topic: 'Articles, Schedules & Amendments' };
-        if(t.match(/parliament|ls|rs|president|pm|council|minister|cabinet|loksabha|rajyasabha/)) return { sub: 'Polity', topic: 'Union Executive & Legislature' };
-        if(t.match(/governor|cm|state|vidhan/)) return { sub: 'Polity', topic: 'State Executive & Legislature' };
-        if(t.match(/fundamental|dpsp|duty|rights/)) return { sub: 'Polity', topic: 'Fundamental Rights, Duties & DPSP' };
-        if(t.match(/panchayat|municipal|local/)) return { sub: 'Polity', topic: 'Local Government' };
-        if(t.match(/election|cag|ec|upsc|financecommission|body|commission|attorney/)) return { sub: 'Polity', topic: 'Constitutional & Non-Constitutional Bodies' };
-        if(t.match(/constitution|preamble|citizen|polity/)) return { sub: 'Polity', topic: 'Making of Constitution & Citizenship' };
-
-        // ANCIENT HISTORY
-        if(t.match(/ivc|indus|harappa|prehistoric|stoneage/)) return { sub: 'Ancient History', topic: 'Indus Valley & Pre-History' };
-        if(t.match(/vedic|aryan|rigveda|upanishad/)) return { sub: 'Ancient History', topic: 'Vedic Age' };
-        if(t.match(/buddh|jain|mahajanapada|magadha/)) return { sub: 'Ancient History', topic: 'Buddhism, Jainism & Mahajanapadas' };
-        if(t.match(/maury|ashoka|bindusara/)) return { sub: 'Ancient History', topic: 'Mauryan Empire' };
-        if(t.match(/gupta|harshavardhana|postmauryan|satavahana|ancient/)) return { sub: 'Ancient History', topic: 'Gupta Empire & Post-Mauryan' };
-
-        // MEDIEVAL HISTORY
-        if(t.match(/delhi|sultan|slave|khilji|tughlaq|lodi|mamluk/)) return { sub: 'Medieval History', topic: 'Delhi Sultanate' };
-        if(t.match(/mughal|akbar|babur|shahjahan|suri|humayun/)) return { sub: 'Medieval History', topic: 'Mughal Empire' };
-        if(t.match(/maratha|shivaji|peshwa/)) return { sub: 'Medieval History', topic: 'Maratha Empire' };
-        if(t.match(/vijayanagar|bahmani|chola|cheras|pandya|southern/)) return { sub: 'Medieval History', topic: 'Southern Kingdoms' };
-        if(t.match(/bhakti|sufi|sikh|medieval/)) return { sub: 'Medieval History', topic: 'Bhakti/Sufi & Sikhism' };
-
-        // MODERN HISTORY
-        if(t.match(/european|eastindia|plassey|buxar|french|dutch/)) return { sub: 'Modern History', topic: 'Advent of Europeans & British Conquest' };
-        if(t.match(/revolt|1857|mutiny|sepoy/)) return { sub: 'Modern History', topic: 'Revolt of 1857' };
-        if(t.match(/viceroy|governor|reform|act|charter|pitt/)) return { sub: 'Modern History', topic: 'Viceroys & British Acts' };
-        if(t.match(/congress|inc|moderate|extremist|swadeshi/)) return { sub: 'Modern History', topic: 'Indian National Congress' };
-        if(t.match(/gandhi|movement|satyagraha|noncooperation|civil|quit/)) return { sub: 'Modern History', topic: 'Gandhian Era & Mass Movements' };
-        if(t.match(/freedom|revolution|bose|bhagatsingh|modern|history/)) return { sub: 'Modern History', topic: 'Freedom Struggle & Revolutionaries' };
-
-        // GEOGRAPHY
-        if(t.match(/solar|universe|planet|earth|galaxy/)) return { sub: 'Geography', topic: 'Solar System & Universe' };
-        if(t.match(/rock|earthquake|volcano|interior|geomorph/)) return { sub: 'Geography', topic: 'Physical Geography (Geomorphology)' };
-        if(t.match(/atmosphere|climat|wind|cyclone/)) return { sub: 'Geography', topic: 'Climatology & Atmosphere' };
-        if(t.match(/ocean|tide|current|salinity/)) return { sub: 'Geography', topic: 'Oceanography' };
-        if(t.match(/mountain|pass|peak|himalaya|plateau|island|coastal/)) return { sub: 'Geography', topic: 'Indian Physical Geography' };
-        if(t.match(/river|drainage|lake|dam|project|tributary/)) return { sub: 'Geography', topic: 'Indian Drainage System' };
-        if(t.match(/monsoon|weather|season/)) return { sub: 'Geography', topic: 'Indian Climate & Monsoon' };
-        if(t.match(/soil|agriculture|crop|farming/)) return { sub: 'Geography', topic: 'Soils & Agriculture' };
-        if(t.match(/mineral|industry|resource|mining/)) return { sub: 'Geography', topic: 'Minerals, Energy & Industries' };
-        if(t.match(/transport|highway|rail|port|waterway/)) return { sub: 'Geography', topic: 'Transport & Communication' };
-        if(t.match(/census|demograph|tribe|population|literacy|sexratio|geography/)) return { sub: 'Geography', topic: 'Census & Demographics' };
-
-        // ECONOMICS
-        if(t.match(/micro|demand|supply|cost|production|elasticity/)) return { sub: 'Economics', topic: 'Microeconomics' };
-        if(t.match(/macro|income|gdp|gnp|ndp|nnp/)) return { sub: 'Economics', topic: 'National Income & Macroeconomics' };
-        if(t.match(/inflation|deflation|index|cpi|wpi/)) return { sub: 'Economics', topic: 'Inflation & Deflation' };
-        if(t.match(/rbi|monetary|bank|credit|money|repo/)) return { sub: 'Economics', topic: 'Banking & Monetary Policy' };
-        if(t.match(/tax|gst|budget|fiscal|revenue|deficit|custom|excise|tariff/)) return { sub: 'Economics', topic: 'Budget, Taxation & Fiscal Policy' };
-        if(t.match(/plan|niti|aayog|fiveyear/)) return { sub: 'Economics', topic: 'Economic Planning & NITI Aayog' };
-        if(t.match(/poverty|unemployment|development|index|inequality/)) return { sub: 'Economics', topic: 'Poverty, Employment & Development' };
-        if(t.match(/imf|wb|wto|internationaltrade|forex|bop|economic/)) return { sub: 'Economics', topic: 'International Trade & Organizations' };
-
-        // SCIENCE
-        if(t.match(/unit|dimension|measure|scalar|vector/)) return { sub: 'Science', topic: 'Units & Measurements' };
-        if(t.match(/motion|force|work|energy|power|gravitation|friction|newton/)) return { sub: 'Science', topic: 'Mechanics (Physics)' };
-        if(t.match(/sound|wave|oscillation|frequency/)) return { sub: 'Science', topic: 'Sound & Waves' };
-        if(t.match(/light|optic|reflection|refraction|lens|mirror/)) return { sub: 'Science', topic: 'Optics (Light)' };
-        if(t.match(/heat|thermodynamic|temperature|thermal/)) return { sub: 'Science', topic: 'Heat & Thermodynamics' };
-        if(t.match(/electric|magnet|current|voltage|resistance/)) return { sub: 'Science', topic: 'Electricity & Magnetism' };
-        if(t.match(/matter|state|solid|liquid|gas|plasma/)) return { sub: 'Science', topic: 'States of Matter' };
-        if(t.match(/atom|molecule|isotope|nucleus|electron|proton/)) return { sub: 'Science', topic: 'Atomic Structure' };
-        if(t.match(/acid|base|salt|ph/)) return { sub: 'Science', topic: 'Acids, Bases & Salts' };
-        if(t.match(/metal|nonmetal|alloy|ore/)) return { sub: 'Science', topic: 'Metals, Non-Metals & Alloys' };
-        if(t.match(/carbon|organic|polymer|fuel/)) return { sub: 'Science', topic: 'Carbon & Organic Chemistry' };
-        if(t.match(/periodictable|element|chemistry/)) return { sub: 'Science', topic: 'Periodic Table & Chemistry' };
-        if(t.match(/cell|tissue|organelle|mitochondria/)) return { sub: 'Science', topic: 'Cell Biology' };
-        if(t.match(/digest|respirat|circulat|nervous|endocrin|hormone|gland|reproduct|skeleton/)) return { sub: 'Science', topic: 'Human Anatomy & Physiology' };
-        if(t.match(/disease|pathogen|virus|bacteria|vaccine|fungi/)) return { sub: 'Science', topic: 'Human Diseases & Health' };
-        if(t.match(/vitamin|nutrition|protein|carbohydrate|fat/)) return { sub: 'Science', topic: 'Nutrition & Vitamins' };
-        if(t.match(/plant|botany|photosynthesis|xylem|phloem/)) return { sub: 'Science', topic: 'Plant Biology (Botany)' };
-        if(t.match(/animal|zoology|kingdom|vertebrat|science/)) return { sub: 'Science', topic: 'Animal Kingdom (Zoology)' };
-
-        // ENVIRONMENT
-        if(t.match(/environ|ecolog|ecosystem|foodchain|biome/)) return { sub: 'Environment', topic: 'Ecology & Ecosystem' };
-        if(t.match(/biodivers|flora|fauna|conservation/)) return { sub: 'Environment', topic: 'Biodiversity & Conservation' };
-        if(t.match(/pollut|climate|globalwarming|greenhouse|ozon/)) return { sub: 'Environment', topic: 'Pollution & Climate Change' };
-        if(t.match(/treaty|protocol|convention|summit/)) return { sub: 'Environment', topic: 'International Treaties & Conventions' };
-
-        // STATIC GK
-        if(t.match(/dance|classical|folk|garba|bihu|bhangra/)) return { sub: 'Static GK', topic: 'Classical & Folk Dances' };
-        if(t.match(/festival|fair|mela/)) return { sub: 'Static GK', topic: 'Festivals & Fairs' };
-        if(t.match(/music|instrument|singer|gharana/)) return { sub: 'Static GK', topic: 'Music & Instruments' };
-        if(t.match(/temple|architecture|monument|painting|cave/)) return { sub: 'Static GK', topic: 'Art & Architecture' };
-        if(t.match(/book|author|writer|literature/)) return { sub: 'Static GK', topic: 'Books & Authors' };
-        if(t.match(/award|honour|nobel|bharatratna|padma/)) return { sub: 'Static GK', topic: 'Awards & Honours' };
-        if(t.match(/sport|fide|olympic|cricket|football|trophy|cup|tennis/)) return { sub: 'Static GK', topic: 'Sports & Trophies' };
-        if(t.match(/day|theme|date|celebrat/)) return { sub: 'Static GK', topic: 'Important Days & Themes' };
-        if(t.match(/nationalpark|wildlife|biosphere|tigerreserve|sanctuary/)) return { sub: 'Static GK', topic: 'National Parks & Sanctuaries' };
-        if(t.match(/hq|headquarter|un|who|ilo|unesco/)) return { sub: 'Static GK', topic: 'International Organizations & HQ' };
-        if(t.match(/first|largest|longest|highest|superlative|staticgk/)) return { sub: 'Static GK', topic: 'Superlatives (India & World)' };
-
-        // CURRENT AFFAIRS
-        if(t.match(/scheme|yojana|abhiyan|portal|pmjuga/)) return { sub: 'Current Affairs', topic: 'Government Schemes & Portals' };
-        if(t.match(/conference|meet/)) return { sub: 'Current Affairs', topic: 'Summits & Conferences' };
-        if(t.match(/defence|military|exercise|missile|army/)) return { sub: 'Current Affairs', topic: 'Defence & Military Exercises' };
-        if(t.match(/isro|space|nasa|satellite|tech|nuclear/)) return { sub: 'Current Affairs', topic: 'Science, Tech & Space (ISRO)' };
-        if(t.match(/index|report|rank/)) return { sub: 'Current Affairs', topic: 'Indices & Reports' };
-        if(t.match(/appointment|resign/)) return { sub: 'Current Affairs', topic: 'Recent Appointments' };
-        if(t.match(/current|news/)) return { sub: 'Current Affairs', topic: 'Current Events (General)' };
-
-        // --- 3. THE ULTIMATE FALLBACK ---
-        const knownSubs = ["Arithmetic", "Advanced Maths", "Reasoning", "English", "Polity", "Economics", "Geography", "Ancient History", "Medieval History", "Modern History", "Science", "Environment", "Static GK", "Current Affairs", "Miscellaneous"];
+        const knownSubs = Object.keys(SSC_SYLLABUS);
         
-        let fSub = fallbackSub;
-        if(!knownSubs.includes(fSub)) {
-            if(String(fSub).toLowerCase().includes('math') || String(fSub).toLowerCase().includes('quant')) fSub = 'Arithmetic';
-            else if(String(fSub).toLowerCase().includes('gs') || String(fSub).toLowerCase().includes('gk')) fSub = 'Static GK';
-            else fSub = 'Miscellaneous';
+        let fb = String(fallbackSub || 'Miscellaneous');
+        let finalSub = fb;
+        
+        if (fb.toLowerCase().includes('quant') || fb.toLowerCase().includes('math') || fb.toLowerCase().includes('arithmetic')) {
+            finalSub = 'Arithmetic';
+        } else if (fb.toLowerCase().includes('gs') || fb.toLowerCase().includes('gk') || fb.toLowerCase().includes('general')) {
+            finalSub = 'Static GK'; 
         }
 
-        let genericTopic = `Miscellaneous ${fSub} Topics`;
-        return { sub: fSub, topic: genericTopic };
+        if (knownSubs.includes(finalSub) && finalSub !== 'Static GK') {
+            for (let obj of SSC_SYLLABUS[finalSub]) {
+                if (obj.regex.test(t)) return { sub: finalSub, topic: obj.name };
+            }
+            return { sub: finalSub, topic: `Miscellaneous ${finalSub} Topics` };
+        }
+
+        if (finalSub === 'Arithmetic' || finalSub === 'Advanced Maths') {
+            for (let obj of SSC_SYLLABUS["Arithmetic"]) {
+                if (obj.regex.test(t)) return { sub: "Arithmetic", topic: obj.name };
+            }
+            for (let obj of SSC_SYLLABUS["Advanced Maths"]) {
+                if (obj.regex.test(t)) return { sub: "Advanced Maths", topic: obj.name };
+            }
+            return { sub: "Arithmetic", topic: "Miscellaneous Arithmetic Topics" };
+        }
+
+        for (let sub of knownSubs) {
+            for (let obj of SSC_SYLLABUS[sub]) {
+                if (obj.regex.test(t)) return { sub: sub, topic: obj.name };
+            }
+        }
+
+        return { sub: "Miscellaneous", topic: "Miscellaneous Topics" };
     };
 
     window.showAnalytics = () => {
@@ -1314,11 +1334,10 @@
                 let topicData = data.topics[tag];
                 let acc = Math.round((topicData.correct / topicData.total) * 100);
                 
-                // V10.13: Bulletproof URI Encoded Click Handler
-                const safeSub = encodeURIComponent(sub);
-                const safeTag = encodeURIComponent(tag);
-
-                let pill = `<button onclick="startTopicQuiz(decodeURIComponent('${safeSub}'), decodeURIComponent('${safeTag}'))" title="Click to practice all ${tag} questions" class="cursor-pointer hover:scale-105 hover:shadow-md transition-all inline-block px-3 py-1.5 m-1 text-[10px] font-black uppercase tracking-widest rounded-lg border shadow-sm ${acc >= 80 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800/50' : acc >= 50 ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/50' : 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800/50'}">${tag} (${acc}%)</button>`;
+                let cleanSub = sub.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                let cleanTag = tag.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                
+                let pill = `<button onclick="startTopicQuiz('${cleanSub}', '${cleanTag}')" title="Click to practice all ${tag} questions" class="cursor-pointer hover:scale-105 hover:shadow-md transition-all inline-block px-3 py-1.5 m-1 text-[10px] font-black uppercase tracking-widest rounded-lg border shadow-sm ${acc >= 80 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800/50' : acc >= 50 ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/50' : 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800/50'}">${tag} (${acc}%)</button>`;
                 
                 if(acc >= 80) strongHtml += pill;
                 else if(acc >= 50) practiceHtml += pill;
@@ -1390,7 +1409,7 @@
     
     window.factoryReset = async () => {
         requireAuth(async () => {
-            if(confirm("MAMBA CRITICAL WARNING: This will permanently delete all quizzes, history, and custom subjects locally AND in the Cloud.\n\nType 'DELETE' to confirm:")) {
+            if(confirm("MAMBA CRITICAL WARNING: This will permanently delete all quizzes, history, and custom subjects locally AND in the Cloud.\\n\\nType 'DELETE' to confirm:")) {
                 const conf = prompt("Last warning. Type 'DELETE' exactly:");
                 if(conf === "DELETE") {
                     SUBJECTS = ["Ancient History", "Medieval History", "Modern History", "Geography", "Economics", "Static GK", "Arithmetic", "Advanced Maths", "English", "Reasoning", "Current Affairs", "Polity", "Science", "Environment", "Miscellaneous"];
