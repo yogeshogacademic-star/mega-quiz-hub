@@ -1,1395 +1,177 @@
 <!DOCTYPE html>
-<html lang="en" class="light">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V10.12 (Sniper Revision Active)</title>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: { extend: { fontFamily: { sans: ['"Nunito Sans"', 'sans-serif'], mono: ['"JetBrains Mono"', 'monospace'] } } }
-        }
-    </script>
+    <title>Mamba Deep-Scan Upgrader</title>
     <style>
-        body { font-family: 'Nunito Sans', sans-serif; user-select: none; transition: background-color 0.3s, color 0.3s; }
-        .subject-card, .mamba-card { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .subject-card:hover, .mamba-card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
-        
-        .palette-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 12px; font-weight: 700; border: 2px solid; transition: all 0.2s; cursor: pointer; }
-        .palette-unanswered { background-color: #f1f5f9; border-color: #cbd5e1; color: #475569; }
-        .dark .palette-unanswered { background-color: #334155; border-color: #475569; color: #cbd5e1; }
-        .palette-answered { background-color: #10b981; border-color: #10b981; color: white; }
-        .palette-marked { background-color: #a855f7; border-color: #a855f7; color: white; }
-        .palette-answered-marked { background-color: #10b981; border-color: #a855f7; color: white; border-width: 3px; }
-        .palette-active { box-shadow: 0 0 0 3px #fbbf24; transform: scale(1.1); }
-
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        .dark ::-webkit-scrollbar-thumb { background: #475569; }
-
-        mark { background-color: rgba(251, 191, 36, 0.4); color: inherit; padding: 0 2px; border-radius: 4px; font-weight: 900; box-shadow: 0 0 8px rgba(251, 191, 36, 0.3); }
-        .dark mark { background-color: rgba(245, 158, 11, 0.5); }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: #f8fafc; text-align: center; padding: 50px; }
+        .box { background: #1e293b; padding: 40px; border-radius: 20px; max-width: 750px; margin: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #334155; }
+        h1 { color: #10b981; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
+        p { color: #94a3b8; line-height: 1.6; margin-bottom: 30px; font-size: 15px; }
+        input[type="file"] { display: none; }
+        .btn { background: #10b981; color: #064e3b; padding: 15px 30px; font-size: 16px; font-weight: 900; border-radius: 12px; cursor: pointer; border: none; text-transform: uppercase; }
+        #status { margin-top: 25px; font-size: 14px; font-weight: bold; background: #0f172a; padding: 20px; border-radius: 10px; text-align: left; max-height: 300px; overflow-y: auto;}
+        .success { color: #10b981; display:block; margin-bottom:4px; }
+        .error { color: #ef4444; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 dark:bg-[#0a0f1c] dark:text-slate-200 min-h-screen flex flex-col pb-20">
-
-    <input type="file" id="global-file-input" accept=".json, .txt" class="hidden">
-    <input type="file" id="backup-file-input" accept=".json" class="hidden">
-
-    <div id="screen-dashboard" class="max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 flex-1 w-full block">
-        <header class="bg-slate-900 dark:bg-slate-900 text-white rounded-[2rem] p-6 sm:p-10 mb-10 shadow-2xl relative overflow-hidden border border-slate-800 group">
-            <div class="absolute inset-0 bg-cover bg-center opacity-60 dark:opacity-70 transition-transform duration-1000 group-hover:scale-105" style="background-image: url('wp2550249-kobe-bryant-wallpaper.jpg'); pointer-events: none;"></div>
-            <div class="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-900/50 to-transparent dark:from-[#0a0f1c]/90 dark:via-[#0a0f1c]/60 pointer-events-none"></div>
-
-            <div class="absolute -top-32 -right-32 w-96 h-96 bg-emerald-500 rounded-full mix-blend-multiply filter blur-[100px] opacity-40 animate-pulse pointer-events-none"></div>
-            <div class="absolute -bottom-32 -left-32 w-96 h-96 bg-indigo-600 rounded-full mix-blend-multiply filter blur-[100px] opacity-40 animate-pulse pointer-events-none" style="animation-delay: 2s;"></div>
-
-            <div id="sync-status" class="absolute top-6 right-6 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full bg-slate-800/80 text-slate-400 border border-slate-700 flex items-center gap-2 z-20 backdrop-blur-md shadow-lg">
-                <span class="w-2 h-2 rounded-full bg-slate-500 animate-pulse"></span> Connecting...
-            </div>
-
-            <div class="relative z-10 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mt-4 md:mt-0">
-                <div class="w-full xl:w-auto overflow-hidden">
-                    <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
-                        Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V10.12</span>
-                    </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">SSC Syllabus & Sniper Engine Active</p>
-                </div>
-                
-                <div class="flex items-center gap-4 w-full xl:w-auto justify-start xl:justify-end">
-                    <button onclick="toggleDarkMode()" class="bg-white/10 hover:bg-white/20 p-4 rounded-2xl backdrop-blur-md transition-all border border-white/10 shadow-inner hover:scale-105" title="Toggle Dark Mode">🌙</button>
-                    <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-8 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400">📈 Skill Matrix</button>
-                </div>
-            </div>
-
-            <div class="w-full mt-10 relative group z-10">
-                <div class="absolute inset-0 bg-gradient-to-r from-emerald-400 to-indigo-500 rounded-2xl blur-md opacity-30 group-hover:opacity-50 transition duration-500"></div>
-                <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
-                        <span class="text-slate-400 text-xl">🔍</span>
-                    </div>
-                    <input type="text" id="omni-search" oninput="performSearch(this.value)" placeholder="Omni-Search: Find any question, formula, or topic..." class="w-full pl-16 pr-14 py-5 bg-white/95 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-2xl shadow-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-bold text-lg placeholder-slate-400 dark:placeholder-slate-500 backdrop-blur-xl">
-                    <button onclick="clearSearch()" id="clear-search-btn" class="hidden absolute inset-y-0 right-0 pr-5 flex items-center text-slate-400 hover:text-red-500 font-black text-2xl transition-colors cursor-pointer" title="Clear Search">&times;</button>
-                </div>
-            </div>
-        </header>
-
-        <div id="search-results-container" class="hidden mb-16 max-w-5xl mx-auto space-y-6"></div>
-
-        <div id="dashboard-main-content">
-            <div onclick="generateRedemptionQuiz()" class="bg-gradient-to-r from-purple-600 via-indigo-600 to-indigo-700 rounded-[2rem] p-6 md:p-8 mb-10 cursor-pointer shadow-[0_10px_30px_rgba(79,70,229,0.3)] hover:shadow-[0_15px_40px_rgba(79,70,229,0.5)] transition-all transform hover:-translate-y-1.5 flex justify-between items-center group border border-purple-500/50">
-                <div>
-                    <h2 class="text-2xl md:text-3xl font-black text-white mb-2 tracking-tight drop-shadow-md">🔥 The Redemption Engine</h2>
-                    <p class="text-purple-100 font-bold text-sm md:text-base">Generate a custom test using only the questions you've previously gotten wrong.</p>
-                </div>
-                <div class="text-white font-black text-3xl group-hover:translate-x-3 transition-transform drop-shadow-lg">→</div>
-            </div>
-
-            <div id="dashboard-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-16"></div>
-            
-            <div class="mt-auto text-center pb-10 border-t border-slate-200 dark:border-slate-800/50 pt-10">
-                <div class="text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em] text-[10px] mb-8 flex items-center justify-center gap-4">
-                    <span class="w-10 h-px bg-slate-200 dark:bg-slate-700"></span>
-                    System Administration (Secured)
-                    <span class="w-10 h-px bg-slate-200 dark:bg-slate-700"></span>
-                </div>
-                
-                <div class="flex justify-center gap-4 flex-wrap">
-                    <button onclick="exportMistakesToAnki()" class="bg-slate-200 text-slate-700 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md">📥 Export All Mistakes</button>
-                    <button onclick="exportBackup()" class="bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-blue-100 dark:border-blue-900/30">💾 Backup Database</button>
-                    <button onclick="triggerRestore()" class="bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-amber-100 dark:border-amber-900/30">📂 Restore Backup 🔒</button>
-                    <button onclick="factoryReset()" class="bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-red-100 dark:border-red-900/30">⚠️ Reset System 🔒</button>
-                </div>
-            </div>
-        </div>
+<body>
+    <div class="box">
+        <h1>🐍 V10.22 Master Upgrader</h1>
+        <p>Uses the Option-Scanner to build an Iron Wall between Quant and GS.</p>
+        <label class="btn">
+            📂 Upload Original Backup File
+            <input type="file" id="fileInput" accept=".json">
+        </label>
+        <div id="status">Awaiting backup...</div>
     </div>
 
-    <div id="screen-lobby" class="hidden max-w-3xl mx-auto p-6 pt-10 w-full flex-1">
-        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-indigo-500"></div>
+    <script>
+        function determineTag(qObj, quizTitle, quizSubject) {
+            let text = (qObj.question + " " + (qObj.solution || "")).toLowerCase();
+            let options = qObj.options || [];
             
-            <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-8 flex items-center gap-2 transition-colors">← Back to Hub</button>
-            <h2 id="lobby-title" class="text-4xl font-black text-slate-800 dark:text-slate-100 mb-2 tracking-tight">Quiz Title</h2>
-            <p id="lobby-meta" class="text-sm font-bold text-emerald-600 dark:text-emerald-400 mb-8 uppercase tracking-widest">0 Questions</p>
-
-            <div class="mb-8 p-6 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
-                <div class="flex flex-col md:flex-row gap-6 items-center justify-between">
-                    <div class="w-full md:w-1/2">
-                        <label class="block text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mb-3">Candidate Name</label>
-                        <input type="text" id="candidate-name" class="w-full p-4 rounded-xl border border-indigo-200 dark:border-indigo-700/50 bg-white dark:bg-slate-950 font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm" placeholder="Enter your name...">
-                    </div>
-                    <div class="w-full md:w-1/2 md:text-right">
-                        <div id="attempt-info" class="text-sm font-bold text-slate-600 dark:text-slate-400"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="space-y-6">
-                <div class="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-700/50">
-                    <label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4">⏱️ Overall Time Limit</label>
-                    <div class="flex gap-3 flex-wrap">
-                        <button onclick="setLobbyTime('default')" id="btn-time-default" class="time-btn flex-1 bg-emerald-100 text-emerald-800 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Default</button>
-                        <button onclick="setLobbyTime('15')" id="btn-time-15" class="time-btn flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">15 Min</button>
-                        <button onclick="setLobbyTime('30')" id="btn-time-30" class="time-btn flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">30 Min</button>
-                        <button onclick="setLobbyTime('custom')" id="btn-time-custom" class="time-btn flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">Custom</button>
-                    </div>
-                    <input type="number" id="custom-time-input" class="hidden w-full mt-4 p-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-950 font-bold text-lg shadow-inner" placeholder="Enter minutes...">
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="toggleLobbyMode('shuffle')">
-                        <span class="font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-[10px]">🔀 Shuffle Q's</span>
-                        <div id="toggle-shuffle" class="w-12 h-6 bg-emerald-500 rounded-full relative transition-colors shadow-inner"><div class="absolute right-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div>
-                    </div>
-                    <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="toggleLobbyMode('exam')">
-                        <span class="font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-[10px]">Strict Exam</span>
-                        <div id="toggle-exam" class="w-12 h-6 bg-emerald-500 rounded-full relative transition-colors shadow-inner"><div class="absolute right-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div>
-                    </div>
-                    <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="toggleLobbyMode('blind')">
-                        <span class="font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-[10px]">🙈 Blind Mode</span>
-                        <div id="toggle-blind" class="w-12 h-6 bg-slate-300 dark:bg-slate-700 rounded-full relative transition-colors shadow-inner"><div class="absolute left-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div>
-                    </div>
-                    <div class="bg-indigo-50 dark:bg-indigo-900/20 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/30 flex justify-between items-center cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors" onclick="toggleLobbyMode('perQTimer')">
-                        <span class="font-black text-indigo-700 dark:text-indigo-300 uppercase tracking-widest text-[10px]">⏱️ Per-Q Timer</span>
-                        <div id="toggle-perQTimer" class="w-12 h-6 bg-slate-300 dark:bg-slate-700 rounded-full relative transition-colors shadow-inner"><div class="absolute left-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div>
-                    </div>
-                </div>
-                <input type="number" id="per-q-time-input" class="hidden w-full p-4 rounded-xl border border-indigo-300 dark:border-indigo-600 bg-white dark:bg-slate-950 font-bold text-lg shadow-inner text-indigo-800 dark:text-indigo-300 placeholder-indigo-300 dark:placeholder-indigo-700" placeholder="Enter Seconds per Question (e.g., 60)">
-            </div>
-
-            <button onclick="startQuizFromLobby()" class="w-full mt-10 bg-slate-900 dark:bg-emerald-500 text-white dark:text-slate-900 font-black text-xl py-5 rounded-2xl shadow-[0_10px_20px_rgba(0,0,0,0.2)] dark:shadow-[0_10px_20px_rgba(16,185,129,0.3)] hover:-translate-y-1 transition-all tracking-widest uppercase">LAUNCH EXAM</button>
-        </div>
-    </div>
-
-    <div id="screen-quiz" class="hidden max-w-6xl mx-auto p-4 pt-6 relative w-full flex-1">
-        <div id="pause-overlay" class="hidden fixed inset-0 z-[100] bg-slate-100/95 dark:bg-slate-950/95 backdrop-blur-lg flex flex-col justify-center items-center">
-            <h2 class="text-5xl md:text-7xl font-black text-slate-800 dark:text-slate-100 mb-10 uppercase tracking-tighter drop-shadow-sm">Exam Paused</h2>
-            <button onclick="togglePause()" class="bg-emerald-500 text-white font-black text-2xl md:text-3xl px-16 py-6 rounded-3xl shadow-[0_10px_30px_rgba(16,185,129,0.4)] hover:scale-105 hover:bg-emerald-400 transition-all uppercase tracking-widest border border-emerald-400">▶ Resume</button>
-        </div>
-
-        <div class="flex justify-between items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 px-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 mb-6 sticky top-4 z-50">
-            <button onclick="showScreen('dashboard'); clearInterval(quizState.interval);" class="text-slate-400 font-bold hover:text-red-500 uppercase tracking-widest text-[10px] transition-colors">← Abort</button>
-            <div class="flex gap-4 items-center">
-                <button onclick="togglePause()" id="pause-btn" class="bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black px-5 py-2.5 rounded-xl text-xs uppercase tracking-widest transition-colors hover:bg-slate-300 dark:hover:bg-slate-700">⏸ Pause (P)</button>
-                <div id="quiz-timer" class="font-mono font-black text-2xl bg-slate-100 dark:bg-slate-950 px-6 py-2 rounded-xl text-slate-800 dark:text-emerald-400 border border-slate-200 dark:border-slate-800 shadow-inner tracking-widest">00:00</div>
-            </div>
-        </div>
-
-        <div class="bg-indigo-50/80 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-300 text-[10px] uppercase tracking-widest font-black p-3 rounded-xl mb-6 flex justify-center gap-8 hidden md:flex">
-            <span>⌨️ SHORTCUTS:</span>
-            <span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">◀</kbd> <kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">▶</kbd> Prev/Next</span>
-            <span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">M</kbd> Mark</span>
-            <span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-4 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">SPACE</kbd> Reveal</span>
-        </div>
-
-        <div class="flex flex-col lg:flex-row gap-6 items-start">
-            <div id="quiz-container" class="flex-1 w-full space-y-8"></div>
+            // PILLAR 1: OPTION SCANNER (Math vs GS)
+            let mathOptCount = 0;
+            options.forEach(opt => {
+                let txt = (opt.text || "").toLowerCase();
+                if (/[\d\.\/%₹x²x³√=]/.test(txt) || /^(rs|cm|m|km|kg|sec|min|hrs|days)/.test(txt)) mathOptCount++;
+            });
             
-            <div class="w-full lg:w-80 bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-md border border-slate-200 dark:border-slate-800 lg:sticky lg:top-28">
-                <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
-                    <h3 class="font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight">Question Palette</h3>
-                    <span id="answered-count" class="text-xs font-black bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded text-slate-500 dark:text-slate-400">0 / 0</span>
-                </div>
-                <div id="palette-grid" class="grid grid-cols-5 sm:grid-cols-8 lg:grid-cols-5 gap-2.5 mb-8 max-h-[30vh] lg:max-h-[45vh] overflow-y-auto pr-2"></div>
-                <button onclick="submitQuiz()" class="w-full bg-emerald-500 text-white font-black py-4 rounded-xl shadow-[0_5px_15px_rgba(16,185,129,0.3)] hover:bg-emerald-400 hover:-translate-y-0.5 transition-all uppercase tracking-widest">Submit Test</button>
-            </div>
-        </div>
-    </div>
+            let isMath = (quizSubject || "").toUpperCase().includes('QUANT') || 
+                         (quizTitle || "").toLowerCase().includes('quant') || 
+                         (options.length > 0 && mathOptCount >= (options.length / 2));
 
-    <div id="screen-results" class="hidden max-w-5xl mx-auto p-4 sm:p-6 pt-10 w-full flex-1">
-        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-indigo-500"></div>
-            
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
-                <div>
-                    <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
-                    <h2 id="results-title" class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Performance Report</h2>
-                </div>
-                <button onclick="exportToAnki()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50 font-black px-6 py-3 rounded-xl shadow-sm uppercase tracking-widest text-[10px] transition-colors border border-indigo-100 dark:border-indigo-800/30">📥 Export Mistakes</button>
-            </div>
-            
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-14 text-center">
-                <div class="bg-slate-900 dark:bg-slate-950 text-white p-6 rounded-2xl shadow-lg border border-slate-800 relative overflow-hidden">
-                    <div class="absolute inset-0 bg-emerald-500 opacity-5 blur-xl"></div>
-                    <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 relative z-10">Total Score</div>
-                    <div id="res-score" class="text-5xl font-black text-emerald-400 tracking-tighter relative z-10">0</div>
-                </div>
-                <div class="bg-emerald-50 border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50 p-6 rounded-2xl">
-                    <div class="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-500 mb-2">Correct (+2)</div>
-                    <div id="res-correct" class="text-4xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter">0</div>
-                </div>
-                <div class="bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800/50 p-6 rounded-2xl">
-                    <div class="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-500 mb-2">Wrong (-0.66)</div>
-                    <div id="res-wrong" class="text-4xl font-black text-red-600 dark:text-red-400 tracking-tighter">0</div>
-                </div>
-                <div class="bg-slate-50 border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700/50 p-6 rounded-2xl">
-                    <div class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Skipped (0)</div>
-                    <div id="res-skipped" class="text-4xl font-black text-slate-600 dark:text-slate-300 tracking-tighter">0</div>
-                </div>
-            </div>
-
-            <div class="border-b-2 border-slate-100 dark:border-slate-800 pb-5 mb-8 flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
-                <div>
-                    <h3 class="text-2xl font-black text-slate-800 dark:text-slate-200 tracking-tight">🔍 Deep Review Vault</h3>
-                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Complete Test Analysis</span>
-                </div>
-                <div class="flex gap-2 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-xl shadow-inner w-full md:w-auto overflow-x-auto">
-                    <button onclick="filterReview('all')" id="btn-filt-all" class="filter-btn active-filt flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-white">All</button>
-                    <button onclick="filterReview('correct')" id="btn-filt-correct" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700">Correct</button>
-                    <button onclick="filterReview('wrong')" id="btn-filt-wrong" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700">Wrong</button>
-                    <button onclick="filterReview('skipped')" id="btn-filt-skipped" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700">Skipped</button>
-                </div>
-            </div>
-            
-            <div id="revision-container" class="space-y-6"></div>
-            
-            <div class="mt-12 text-center border-t border-slate-100 dark:border-slate-800 pt-10">
-                <button onclick="showScreen('dashboard')" class="bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 hover:scale-105 transition-transform font-black py-4 px-12 rounded-xl uppercase tracking-widest shadow-xl">Return to Dashboard</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="screen-analytics" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl max-h-[90vh] flex flex-col">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
-                <div>
-                    <h2 class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">SSC Topic-Wise Skill Matrix</h2>
-                    <p class="text-xs font-bold text-emerald-500 uppercase tracking-widest mt-1">🎯 Click any topic pill below to launch a targeted sniper revision mock.</p>
-                </div>
-                <button onclick="closeAnalytics()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
-            </div>
-            <div class="flex-1 overflow-y-auto pr-2" id="mastery-grid"></div>
-        </div>
-    </div>
-
-    <div id="screen-quiz-history" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl max-h-[80vh] flex flex-col">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
-                <h2 id="quiz-history-title" class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Quiz History</h2>
-                <button onclick="closeQuizHistory()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
-            </div>
-            <div class="flex-1 overflow-y-auto pr-2 space-y-3" id="quiz-history-list"></div>
-        </div>
-    </div>
-
-<script>
-    const CLOUD_URL = "https://script.google.com/macros/s/AKfycbyuAFvjWZHAlkDx00DsDoHiPgFMq-CmGgHKyQXq_6cfi1QwmnwUVp3ZNLrtpnLPhOXB/exec";
-    
-    let SUBJECTS = ["Ancient History", "Medieval History", "Modern History", "Geography", "Economics", "Static GK", "Arithmetic", "Advanced Maths", "English", "Reasoning", "Current Affairs", "Polity", "Science", "Environment", "Miscellaneous"];
-    let db = {}; 
-    let historyDb = [];
-    let mistakesDb = []; 
-    
-    let currentQuizId = null;
-    let currentAttemptNum = 1;
-    let activeQuestions = []; 
-    let quizState = { answers: {}, marked: {}, revealed: {}, locked: {}, qTimeLeft: 0, submitted: false, interval: null, isPaused: false, currentFocus: 0 };
-    let lobbySettings = { timeMode: 'default', customMinutes: 0, shuffle: true, exam: true, blind: false, perQTimer: false };
-    let targetImportSubject = ""; 
-
-    window.requireAuth = (callback) => {
-        const pwd = prompt("🔒 SYSTEM SECURED\n\nEnter the master password to authorize changes:");
-        if (pwd === "KOBE") {
-            callback();
-        } else if (pwd !== null) {
-            alert("❌ ACCESS DENIED. Incorrect password.");
-        }
-    };
-
-    function updateLocalCache() {
-        localStorage.setItem('megaQuizSubjects_v5', JSON.stringify(SUBJECTS));
-        localStorage.setItem('megaQuizDB_v4', JSON.stringify(db));
-        localStorage.setItem('megaQuizHistory_v5', JSON.stringify(historyDb)); 
-        localStorage.setItem('megaQuizMistakes_v5', JSON.stringify(mistakesDb));
-    }
-
-    function loadLocalFallback() {
-        if (localStorage.getItem('megaQuizSubjects_v5')) SUBJECTS = JSON.parse(localStorage.getItem('megaQuizSubjects_v5'));
-        if (localStorage.getItem('megaQuizDB_v4')) db = JSON.parse(localStorage.getItem('megaQuizDB_v4'));
-        if (localStorage.getItem('megaQuizHistory_v5')) historyDb = JSON.parse(localStorage.getItem('megaQuizHistory_v5'));
-        else if (localStorage.getItem('megaQuizHistory_v4')) historyDb = JSON.parse(localStorage.getItem('megaQuizHistory_v4')); 
-        if (localStorage.getItem('megaQuizMistakes_v5')) mistakesDb = JSON.parse(localStorage.getItem('megaQuizMistakes_v5'));
-    }
-
-    function showSyncStatus(state) {
-        const el = document.getElementById('sync-status');
-        if(state === 'syncing') {
-            el.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> Syncing...`;
-            el.className = "absolute top-6 right-6 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full bg-slate-800/80 text-amber-400 border border-slate-700 flex items-center gap-2 z-20 backdrop-blur-md shadow-lg";
-        } else if(state === 'synced') {
-            el.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Cloud Synced`;
-            el.className = "absolute top-6 right-6 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full bg-emerald-900/60 text-emerald-400 border border-emerald-800/50 flex items-center gap-2 z-20 shadow-[0_0_15px_rgba(16,185,129,0.3)] backdrop-blur-md";
-        } else if(state === 'error') {
-            el.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> Offline Mode`;
-            el.className = "absolute top-6 right-6 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full bg-red-900/60 text-red-400 border border-red-800/50 flex items-center gap-2 z-20 shadow-lg backdrop-blur-md";
-        }
-    }
-
-    function saveData() {
-        updateLocalCache();
-        showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v10.12" };
-        
-        fetch(CLOUD_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'text/plain' }, 
-            body: JSON.stringify(payload)
-        }).then(() => showSyncStatus('synced')).catch(() => showSyncStatus('error'));
-    }
-
-    async function initializeSystem() {
-        if(localStorage.getItem('megaTheme') === 'dark') document.documentElement.classList.add('dark');
-        loadLocalFallback();
-        renderDashboard();
-        showSyncStatus('syncing');
-
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000); 
-
-            const response = await fetch(CLOUD_URL, { signal: controller.signal });
-            clearTimeout(timeoutId);
-            const data = await response.json();
-            
-            if (data && Object.keys(data).length > 0 && data.db) {
-                if (data.subjects) SUBJECTS = data.subjects;
-                if (data.db) db = data.db;
-                if (data.history) historyDb = data.history;
-                if (data.mistakes) mistakesDb = data.mistakes;
-                
-                updateLocalCache();
-                renderDashboard();
-                showSyncStatus('synced');
+            // PILLAR 2: STRICT MULTI-WORD MATCHING
+            if (isMath) {
+                if (/\b(piece of work|days to complete|time and work|working together|efficiency|can complete the work)\b/i.test(text)) return "Time & Work";
+                if (/\b(speed|km\/h|train|relative speed|distance between)\b/i.test(text)) return "Speed, Time & Distance";
+                if (/\b(profit|loss|discount|cost price|selling price|marked price|dishonest dealer)\b/i.test(text)) return "Profit, Loss & Discount";
+                if (/\b(simple interest|compound interest|compounded annually|rate per annum)\b/i.test(text)) return "Simple & Compound Interest";
+                if (/\b(ratio of their ages|ratio of the ages|mixture|alloy|milk and water)\b/i.test(text)) return "Ratio, Proportion & Ages";
+                if (/\b(percentage|percent reduction|percent increase)\b/i.test(text) || text.includes('%')) return "Percentage";
+                if (/\b(average|mean)\b/i.test(text)) return "Average";
+                if (/\b(partnership|invested|business with rs)\b/i.test(text)) return "Partnership";
+                if (/\b(triangle|circle|collinear|hexagon|angle bisector|chord|tangent)\b/i.test(text)) return "Geometry";
+                if (/\b(volume|surface area|cone|cylinder|sphere|pyramid|prism)\b/i.test(text)) return "Mensuration (2D & 3D)";
+                if (/\b(sin|cos|tan|cosec|sec|cot|trigonometry)\b/i.test(text)) return "Trigonometry";
+                if (/\b(polynomial|quadratic|algebra|x²|x³)\b/i.test(text)) return "Algebra";
+                if (/\b(lcm|hcf|divisibility|remainder|perfect square|recurring decimal)\b/i.test(text)) return "Number System & Simplification";
+                return "Miscellaneous Quant Topics";
             } else {
-                showSyncStatus('error');
-            }
-        } catch (error) {
-            showSyncStatus('error');
-        }
-    }
-
-    function toggleDarkMode() {
-        document.documentElement.classList.toggle('dark');
-        localStorage.setItem('megaTheme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
-    }
-
-    function highlightText(text, term) {
-        if(!text) return "";
-        if(!term || term.trim() === "") return text; 
-        try {
-            const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const regex = new RegExp(`(${escapeRegExp(term)})`, "gi");
-            return text.replace(regex, `<mark>$1</mark>`);
-        } catch(e) {
-            return text;
-        }
-    }
-
-    window.clearSearch = () => {
-        document.getElementById('omni-search').value = '';
-        performSearch('');
-    };
-
-    window.performSearch = (query) => {
-        const term = query.toLowerCase().trim();
-        const resContainer = document.getElementById('search-results-container');
-        const dashGrid = document.getElementById('dashboard-main-content');
-        const clearBtn = document.getElementById('clear-search-btn');
-        
-        if (!term) {
-            resContainer.classList.add('hidden');
-            dashGrid.classList.remove('hidden');
-            if(clearBtn) clearBtn.classList.add('hidden');
-            return;
-        }
-        
-        if(clearBtn) clearBtn.classList.remove('hidden');
-        dashGrid.classList.add('hidden');
-        resContainer.classList.remove('hidden');
-        
-        let resultsHTML = `
-            <div class="flex justify-between items-end border-b border-slate-200 dark:border-slate-800 pb-3 mt-4">
-                <h2 class="text-2xl md:text-3xl font-black text-slate-800 dark:text-slate-100 tracking-tight">🔍 Mamba Vault Search</h2>
-                <span class="text-[10px] font-black text-emerald-500 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1 rounded shadow-sm border border-emerald-100 dark:border-emerald-800/30">Searching: "${query}"</span>
-            </div>`;
-        
-        let matchCount = 0;
-        
-        Object.keys(db).forEach(quizId => {
-            const quiz = db[quizId];
-            if(!quiz || !quiz.title) return;
-            if(quiz.title.includes("Master Mock") || quiz.title.includes("Redemption") || quiz.title.includes("Revision")) return; 
-            if(!quiz.questions) return;
-
-            quiz.questions.forEach((q) => {
-                const qText = q.question || "";
-                const sText = q.solution || "";
-                const oText = q.options ? q.options.map(o=>o.text).join(" ") : "";
-                const searchStr = (qText + " " + sText + " " + oText).toLowerCase();
+                if (/\b(supreme court|high court|district judge|writ of|habeas corpus|mandamus|certiorari|quo warranto|prohibition|public interest litigation|lok adalat)\b/i.test(text)) return "Judiciary (SC, HC, Subordinate)";
+                if (/\b(parliament|president of india|prime minister|lok sabha|rajya sabha)\b/i.test(text)) return "Union Executive & Legislature";
+                if (/\b(article \d+|amendment to the constitution|schedule)\b/i.test(text)) return "Articles, Schedules & Amendments";
+                if (/\b(fundamental right|dpsp|directive principle|fundamental duty)\b/i.test(text)) return "Fundamental Rights, Duties & DPSP";
                 
-                if (searchStr.includes(term)) {
-                    matchCount++;
-                    const cText = (q.options && q.options.find(o=>o.correct)?.text) || "N/A";
+                if (/\b(gst|goods and services tax|fiscal deficit|revenue deficit|customs duty|excise duty|cess|surcharge|direct tax|indirect tax)\b/i.test(text)) return "Budget, Taxation & Fiscal Policy";
+                if (/\b(economic planning|mahalanobis|niti aayog|five year plan)\b/i.test(text)) return "Economic Planning & NITI Aayog";
+
+                if (/\b(sex ratio|census 2011|population density)\b/i.test(text)) return "Census & Demographics";
+                if (/\b(river|drainage|tributary|himalayan river|wainganga)\b/i.test(text)) return "Indian Drainage System";
+
+                if (/\b(total internal reflection|refraction|mirror|lens)\b/i.test(text)) return "Optics (Light)";
+                if (/\b(hormone|gland|thyroid|pituitary|testes|disease)\b/i.test(text)) return "Human Anatomy & Physiology";
+
+                if (/\b(ecological efficiency|food chain|trophic level|ecosystem)\b/i.test(text)) return "Ecology & Ecosystem";
+
+                if (/\b(olympic|fide|chess federation|gold medallist|sport)\b/i.test(text)) return "Sports & Trophies";
+                if (/\b(hornbill festival|losar|pongal|mela)\b/i.test(text)) return "Festivals & Fairs";
+                if (/\b(united nations|agency|opec|who|ilo)\b/i.test(text)) return "International Organizations & HQ";
+
+                if (/\b(pradhan mantri|yojana|abhiyan|scheme|prayas)\b/i.test(text)) return "Government Schemes & Portals";
+
+                return "Miscellaneous GS Topics";
+            }
+        }
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const statusEl = document.getElementById('status');
+            statusEl.innerHTML = "<span style='color:#fbbf24'>Executing Iron Wall Deep-Scan...</span><br><br>";
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    let data = JSON.parse(event.target.result);
+                    data.version = "v10.22"; 
+                    let memory = {}; 
+
+                    if(data.db) {
+                        Object.keys(data.db).forEach(quizId => {
+                            let quiz = data.db[quizId];
+                            
+                            // Safely fix the array bug without losing the name
+                            if (Array.isArray(quiz)) {
+                                let realTitle = (quiz[0] && quiz[0].category) ? quiz[0].category : "QUANT MOCK 1";
+                                let realSubj = realTitle.toUpperCase().includes("QUANT") ? "QUANT MOCK QUESTIONS" : "GS MOCK QUESTIONS";
+                                data.db[quizId] = { title: realTitle, subject: realSubj, timeInMinutes: 20, questions: quiz };
+                                quiz = data.db[quizId];
+                            }
+
+                            if(quiz.questions) {
+                                quiz.questions.forEach(q => {
+                                    let tag = determineTag(q, quiz.title, quiz.subject);
+                                    q.tags = [tag];
+                                    if (q.solution) {
+                                        q.solution = q.solution.split('<br><br><b>Tags:</b>')[0];
+                                        q.solution = q.solution.split('<br><b>Tags:</b>')[0];
+                                        q.solution += "<br><br><b>Tags:</b> #" + tag.replace(/[^a-zA-Z0-9]/g, '');
+                                    }
+                                    memory[q.question.trim().substring(0,30)] = tag;
+                                });
+                                statusEl.innerHTML += `<span class='success'>[LOCKED] ${quiz.title}</span>`;
+                            }
+                        });
+                    }
                     
-                    resultsHTML += `
-                        <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-700 shadow-lg hover:border-emerald-400 dark:hover:border-emerald-500 transition-colors relative overflow-hidden">
-                            <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-400"></div>
-                            <div class="flex justify-between items-start mb-4">
-                                <span class="text-[10px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 px-3 py-1 rounded border border-indigo-100 dark:border-indigo-800/50">${quiz.subject} • ${quiz.title}</span>
-                            </div>
-                            <div class="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 mb-6 leading-relaxed">${highlightText(q.question, term)}</div>
-                            <div class="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800/50 mb-6 inline-block shadow-inner">
-                                <span class="block text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Correct Answer</span>
-                                <span class="text-sm font-bold text-slate-800 dark:text-slate-200">${highlightText(cText, term)}</span>
-                            </div>
-                            <div class="text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 p-5 rounded-xl border border-slate-100 dark:border-slate-800 shadow-inner">
-                                <span class="font-black text-slate-800 dark:text-slate-200 block mb-2 uppercase tracking-wide text-xs">📖 Detailed Solution:</span>
-                                <div class="leading-relaxed font-medium">${highlightText(q.solution || 'No detailed solution provided.', term)}</div>
-                            </div>
-                        </div>`;
+                    if(data.history) {
+                        data.history.forEach(attempt => {
+                            if(attempt.reviewData) {
+                                attempt.reviewData.forEach(q => {
+                                    let key = q.question.trim().substring(0,30);
+                                    let tag = memory[key] || determineTag(q, attempt.title, attempt.subject);
+                                    q.tags = [tag];
+                                    if(q.solution) {
+                                        q.solution = q.solution.split('<br><br><b>Tags:</b>')[0];
+                                        q.solution = q.solution.split('<br><b>Tags:</b>')[0];
+                                        q.solution += "<br><br><b>Tags:</b> #" + tag.replace(/[^a-zA-Z0-9]/g, '');
+                                    }
+                                });
+                            }
+                        });
+                        statusEl.innerHTML += `<span class='success'>[HISTORY SYNCED] Perfectly Mapped.</span>`;
+                    }
+                    
+                    if(data.mistakes) {
+                        data.mistakes.forEach(q => {
+                            let key = q.question.trim().substring(0,30);
+                            let tag = memory[key] || determineTag(q, "", "");
+                            q.tags = [tag];
+                            if(q.solution) {
+                                q.solution = q.solution.split('<br><br><b>Tags:</b>')[0];
+                                q.solution = q.solution.split('<br><b>Tags:</b>')[0];
+                                q.solution += "<br><br><b>Tags:</b> #" + tag.replace(/[^a-zA-Z0-9]/g, '');
+                            }
+                        });
+                        statusEl.innerHTML += `<span class='success'>[MISTAKES SYNCED] Perfectly Mapped.</span>`;
+                    }
+
+                    const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+                    const a = document.createElement('a'); 
+                    a.href = URL.createObjectURL(blob); 
+                    a.download = `Yogesh_MegaHub_V10.22_Flawless.json`; 
+                    a.click();
+                    
+                    statusEl.innerHTML += `<br><span class='success' style='font-size:18px;'>🎉 FLAWLESS UPGRADE COMPLETE!</span><br><span style='color:#94a3b8;'>File Downloaded. Update your index.html next!</span>`;
+                } catch (err) {
+                    statusEl.innerHTML += `<br><span class='error'>❌ Error: Invalid JSON File.</span>`;
+                    console.error(err);
                 }
-            });
+            };
+            reader.readAsText(file);
         });
-        
-        if(matchCount === 0) {
-            resultsHTML += `<div class="text-center text-slate-400 font-bold py-16 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl mt-4">No questions found matching "${query}" in the vault.</div>`;
-        }
-        
-        resContainer.innerHTML = resultsHTML;
-    };
-
-    const getCategoryClass = (s) => {
-        s = s.toLowerCase();
-        if(s.includes('history')) return 'border-amber-500';
-        if(s.includes('geography') || s.includes('environment')) return 'border-blue-500';
-        if(s.includes('polity')) return 'border-purple-500';
-        if(s.includes('economics')) return 'border-emerald-500';
-        if(s.includes('science')) return 'border-cyan-500';
-        if(s.includes('math') || s.includes('arithmetic')) return 'border-red-500';
-        if(s.includes('english')) return 'border-pink-500';
-        return 'border-orange-500'; 
-    };
-
-    function renderDashboard() {
-        const grid = document.getElementById('dashboard-grid'); grid.innerHTML = '';
-        
-        const mambaCard = document.createElement('div');
-        mambaCard.className = 'col-span-1 md:col-span-2 xl:col-span-1 mamba-card rounded-3xl bg-slate-950 border border-slate-800 shadow-2xl relative overflow-hidden flex flex-col p-8 group min-h-[300px] xl:min-h-[auto]';
-        mambaCard.innerHTML = `
-            <div class="absolute inset-0 bg-cover bg-center opacity-40 group-hover:opacity-60 group-hover:scale-105 transition-all duration-700 mix-blend-luminosity" style="background-image: url('wp2550249-kobe-bryant-wallpaper.jpg');"></div>
-            <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/80 to-transparent"></div>
-            <div class="absolute inset-0 bg-gradient-to-r from-purple-900/20 to-amber-500/10 mix-blend-overlay"></div>
-            <div class="relative z-10 flex-1 flex flex-col justify-end">
-                <div class="text-[10px] text-amber-400 bg-black/50 border border-amber-500/30 backdrop-blur-md font-black px-3 py-1 rounded inline-block uppercase tracking-widest mb-4 shadow-lg w-max">Daily Grind</div>
-                <h2 class="text-3xl font-black text-white leading-tight tracking-tight mb-3 drop-shadow-lg">Mamba Mentality</h2>
-                <blockquote class="text-slate-200 text-sm font-bold border-l-4 border-amber-400 pl-4 mb-3 italic drop-shadow-md">
-                    "Great things come from hard work and perseverance. No excuses."
-                </blockquote>
-                <div class="text-xs font-black text-amber-400 tracking-widest uppercase">#24</div>
-            </div>`;
-        grid.appendChild(mambaCard);
-        
-        SUBJECTS.forEach(subject => {
-            const subjectQuizzes = Object.keys(db).filter(id => db[id].subject === subject && !db[id].title.includes("Master Mock") && !db[id].title.includes("Revision"));
-            let listHTML = subjectQuizzes.length === 0 ? `<div class="text-xs text-slate-400 font-bold py-4 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg mb-2">No quizzes imported yet.</div>` : '';
-            
-            subjectQuizzes.forEach(id => {
-                listHTML += `
-                    <div class="mt-2 flex flex-col gap-2 group/row bg-slate-50 dark:bg-slate-800/80 p-3 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-emerald-400 transition-colors shadow-sm">
-                        <div onclick="openLobby('${id}')" class="cursor-pointer flex justify-between items-center w-full">
-                            <div class="w-full"><div class="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">${db[id].title}</div><div class="text-[10px] font-black text-slate-400 uppercase mt-1 tracking-widest">${db[id].questions.length} Qs • ${db[id].timeInMinutes} Mins</div></div>
-                        </div>
-                        <div class="grid grid-cols-4 gap-2 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700/50">
-                            <button onclick="openTargetedHistory('${id}')" class="col-span-1 bg-amber-50 hover:bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-amber-100 dark:border-amber-800/30" title="View Past Attempts">📊 Hist</button>
-                            <button onclick="exportSingleQuizToAnki('${id}')" class="col-span-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-indigo-100 dark:border-indigo-800/30" title="Export to Anki">🃏 Anki</button>
-                            <button onclick="exportSingleQuizToJSON('${id}')" class="col-span-1 bg-sky-50 hover:bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400 dark:hover:bg-sky-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-sky-100 dark:border-sky-800/30" title="Export as JSON">💾 JSON</button>
-                            <button onclick="deleteQuiz('${id}')" class="col-span-1 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-red-100 dark:border-red-800/30" title="Delete Quiz 🔒">🗑️ Del</button>
-                        </div>
-                    </div>`;
-            });
-
-            const card = document.createElement('div'); card.className = `bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-lg border border-slate-200 dark:border-slate-800 flex flex-col subject-card relative overflow-hidden`;
-            card.innerHTML = `
-                <div class="absolute top-0 left-0 w-full h-1.5 ${getCategoryClass(subject)}"></div>
-                <div class="flex justify-between items-center pb-3 mb-3 mt-1 border-b border-slate-100 dark:border-slate-800/50">
-                    <h2 class="text-xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">${subject}</h2>
-                    <button onclick="deleteSubject('${subject}')" class="text-slate-400 hover:text-red-500 transition-colors bg-slate-100 dark:bg-slate-800 p-1.5 rounded-lg" title="Delete Subject & Quizzes 🔒">🗑️</button>
-                </div>
-                <div class="flex-1 overflow-y-auto pr-2 mb-3 max-h-64 space-y-1">${listHTML}</div>
-                
-                <div class="flex gap-2 mt-auto pt-3 border-t border-slate-100 dark:border-slate-800/50">
-                    <button onclick="triggerImport('${subject}')" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 text-slate-600 dark:text-slate-300 hover:text-emerald-700 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm">➕ Add 🔒</button>
-                    <button onclick="generateSubjectMock('${subject}')" class="flex-1 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-400 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm border border-indigo-100 dark:border-indigo-800/30" title="Combine all questions in this subject into one massive test">🧠 Master</button>
-                </div>`;
-            grid.appendChild(card);
-        });
-
-        const addCard = document.createElement('div');
-        addCard.className = 'bg-slate-50 dark:bg-slate-900/50 rounded-3xl p-6 border-2 border-dashed border-slate-300 dark:border-slate-700 flex flex-col justify-center items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors min-h-[200px] shadow-sm group';
-        addCard.onclick = () => {
-            requireAuth(() => {
-                const newSub = prompt("Enter new subject name:");
-                if (newSub && newSub.trim() && !SUBJECTS.includes(newSub.trim())) {
-                    SUBJECTS.push(newSub.trim()); saveData(); renderDashboard();
-                } else if (newSub && newSub.trim()) alert("Subject already exists!");
-            });
-        };
-        addCard.innerHTML = `<div class="w-14 h-14 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 font-black text-3xl mb-4 shadow-sm group-hover:scale-110 transition-transform group-hover:text-emerald-500 border border-slate-200 dark:border-slate-700">+</div><h2 class="text-lg font-black text-slate-600 dark:text-slate-400 uppercase tracking-tight">Add Subject 🔒</h2><p class="text-xs text-slate-400 font-bold mt-2 text-center tracking-widest uppercase">Custom Category</p>`;
-        grid.appendChild(addCard);
-    }
-
-    window.triggerImport = (sub) => { requireAuth(() => { targetImportSubject = sub; document.getElementById('global-file-input').click(); }); };
-    window.deleteQuiz = (id) => { requireAuth(() => { if (confirm("Delete this quiz forever?")) { delete db[id]; saveData(); renderDashboard(); } }); };
-    window.deleteSubject = (sub) => { requireAuth(() => { if (prompt(`WARNING: Delete "${sub}" AND all quizzes inside it?\n\nType "DELETE" to confirm:`) === "DELETE") { SUBJECTS = SUBJECTS.filter(s => s !== sub); Object.keys(db).forEach(id => { if (db[id].subject === sub) delete db[id]; }); saveData(); renderDashboard(); } }); };
-
-    document.getElementById('global-file-input').addEventListener('change', function(e) {
-        const file = e.target.files[0]; if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            try {
-                let text = event.target.result.replace(/```json/g, '').replace(/```/g, '').trim();
-                const newQuiz = JSON.parse(text); newQuiz.subject = targetImportSubject; db['quiz_' + Date.now()] = newQuiz;
-                saveData(); e.target.value = ''; renderDashboard();
-            } catch (err) { alert(`Import Error.`); e.target.value = ''; }
-        }; reader.readAsText(file);
-    });
-
-    window.exportBackup = () => {
-        const blob = new Blob([JSON.stringify({ version: "v10.12", subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb })], { type: "application/json" });
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Yogesh_MegaHub_Backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
-    };
-
-    window.triggerRestore = () => { requireAuth(() => { if(confirm("WARNING: Overwrite all current quizzes and history?")) document.getElementById('backup-file-input').click(); }); };
-
-    document.getElementById('backup-file-input').addEventListener('change', async function(e) {
-        const file = e.target.files[0]; if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            try {
-                const backup = JSON.parse(event.target.result);
-                if (backup.subjects && backup.db) {
-                    SUBJECTS = backup.subjects; db = backup.db;
-                    if (backup.history) historyDb = backup.history;
-                    if (backup.mistakes) mistakesDb = backup.mistakes;
-                    saveData(); alert("Restored!"); location.reload();
-                } else alert("Invalid Backup File.");
-                e.target.value = '';
-            } catch (err) { alert(`Restore Error.`); e.target.value = ''; }
-        }; reader.readAsText(file);
-    });
-
-    function generateAnkiTSV(qArray) { return qArray.map(q => `"${q.question.replace(/\n/g, '<br>').replace(/"/g, '""')}"\t"${(q.solution||"No sol").replace(/\n/g, '<br>').replace(/"/g, '""')}"\n`).join(''); }
-
-    window.exportMistakesToAnki = () => {
-        if(mistakesDb.length === 0) return alert("Mistakes Vault is empty!");
-        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([generateAnkiTSV(mistakesDb)], { type: 'text/plain' })); a.download = `Anki_Mistakes_${new Date().toISOString().slice(0,10)}.txt`; a.click();
-    };
-
-    window.exportSingleQuizToAnki = (id) => {
-        if (!db[id] || !db[id].questions.length) return alert("Quiz empty!");
-        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([generateAnkiTSV(db[id].questions)], { type: 'text/plain' })); a.download = `Anki_Quiz_${db[id].title.replace(/[^a-z0-9]/gi, '_')}.txt`; a.click();
-    };
-
-    window.exportSingleQuizToJSON = (id) => {
-        if (!db[id]) return alert("Quiz not found!");
-        const blob = new Blob([JSON.stringify(db[id], null, 2)], { type: "application/json" });
-        const a = document.createElement('a'); 
-        a.href = URL.createObjectURL(blob); 
-        a.download = `Quiz_${db[id].title.replace(/[^a-z0-9]/gi, '_')}.json`; 
-        a.click();
-    };
-
-    function openLobby(id) {
-        currentQuizId = id; const q = db[id];
-        document.getElementById('lobby-title').textContent = q.title;
-        document.getElementById('lobby-meta').textContent = `${q.questions.length} Questions | Default Time: ${q.timeInMinutes} Mins`;
-        
-        const lastStoredName = localStorage.getItem('megaQuizCandidateName') || "Yogesh";
-        document.getElementById('candidate-name').value = lastStoredName;
-
-        let prev = historyDb.filter(h => h.title === q.title); currentAttemptNum = prev.length + 1;
-        let lastScoreText = prev.length > 0 ? `Previous Score: ${prev[0].score} (${prev[0].accuracy}% ACC)` : "First Attempt";
-
-        document.getElementById('attempt-info').innerHTML = `<div class="text-xl font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tight">Attempt #${currentAttemptNum}</div><div class="text-[11px] font-black uppercase tracking-widest text-slate-500 mt-1">${lastScoreText}</div>`;
-        setLobbyTime('default'); showScreen('lobby');
-    }
-
-    window.generateRedemptionQuiz = () => {
-        if(mistakesDb.length === 0) return alert("Mistakes Vault empty!");
-        const shuffled = [...mistakesDb].sort(() => 0.5 - Math.random()).slice(0, 30);
-        db['quiz_redemption'] = { title: "🔥 Redemption Mock Test", subject: "Mixed Revision", timeInMinutes: Math.ceil(shuffled.length * 1.5), questions: shuffled };
-        openLobby('quiz_redemption');
-    };
-
-    window.generateSubjectMock = (subject) => {
-        let pool = [];
-        Object.values(db).forEach(q => { if(q.subject === subject && !q.title.includes("🔥") && !q.title.includes("🎯")) pool.push(...q.questions); });
-        if(pool.length === 0) return alert("Import quizzes into this subject first!");
-        
-        const uniqueQs = Array.from(new Map(pool.map(q => [q.question, q])).values());
-        const shuffled = uniqueQs.sort(() => 0.5 - Math.random()).slice(0, 50);
-        db['quiz_subject_master'] = { title: `🔥 ${subject} Master Mock`, subject: subject, timeInMinutes: Math.ceil(shuffled.length * 1.5), questions: shuffled };
-        openLobby('quiz_subject_master');
-    };
-
-    window.startTopicQuiz = (targetSub, targetTopic) => {
-        let pool = [];
-        let seenQs = new Set();
-
-        Object.values(db).forEach(quiz => {
-            if (quiz.title.includes("🔥") || quiz.title.includes("🎯")) return; 
-            if(quiz.questions) {
-                quiz.questions.forEach(q => {
-                    let qText = q.question;
-                    if(seenQs.has(qText)) return; 
-
-                    let tags = q.tags || [];
-                    if(tags.length === 0) {
-                        const m = (q.solution || '').match(/#(\w+)/g);
-                        if(m) m.forEach(t => tags.push(t.substring(1)));
-                        else tags.push('Untagged');
-                    }
-                    
-                    let matchesTopic = false;
-                    tags.forEach(tag => {
-                        let mapping = normalizeTag(tag, quiz.subject || 'Miscellaneous');
-                        if(mapping.sub === targetSub && mapping.topic === targetTopic) {
-                            matchesTopic = true;
-                        }
-                    });
-
-                    if(matchesTopic) {
-                        pool.push(q);
-                        seenQs.add(qText);
-                    }
-                });
-            }
-        });
-
-        if(pool.length === 0) {
-            alert(`No questions found for ${targetTopic} in your vault!`);
-            return;
-        }
-
-        const shuffled = pool.sort(() => 0.5 - Math.random());
-        db['quiz_topic_revision'] = { 
-            title: `🎯 ${targetTopic} Revision`, 
-            subject: targetSub, 
-            timeInMinutes: Math.ceil(shuffled.length * 1.5), 
-            questions: shuffled 
-        };
-        
-        closeAnalytics();
-        openLobby('quiz_topic_revision');
-    };
-
-    function setLobbyTime(mode) {
-        lobbySettings.timeMode = mode;
-        document.querySelectorAll('.time-btn').forEach(btn => btn.className = 'time-btn flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600');
-        document.getElementById('btn-time-' + mode).className = 'time-btn flex-1 bg-emerald-100 text-emerald-800 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-md';
-        document.getElementById('custom-time-input').style.display = mode === 'custom' ? 'block' : 'none';
-    }
-
-    window.toggleLobbyMode = (setting) => {
-        lobbySettings[setting] = !lobbySettings[setting];
-        const t = document.getElementById('toggle-' + setting);
-        if (lobbySettings[setting]) { 
-            t.classList.replace('bg-slate-300', 'bg-emerald-500'); 
-            t.classList.replace('dark:bg-slate-700', 'bg-emerald-500'); 
-            t.children[0].style.left = 'auto'; 
-            t.children[0].style.right = '2px'; 
-        } 
-        else { 
-            t.classList.replace('bg-emerald-500', 'bg-slate-300'); 
-            t.classList.replace('dark:bg-emerald-500', 'dark:bg-slate-700'); 
-            t.children[0].style.right = 'auto'; 
-            t.children[0].style.left = '2px'; 
-        }
-        if (setting === 'perQTimer') {
-            const input = document.getElementById('per-q-time-input');
-            if(lobbySettings[setting]) input.classList.remove('hidden');
-            else input.classList.add('hidden');
-        }
-    };
-
-    function startQuizFromLobby() {
-        const quiz = db[currentQuizId];
-        quizState = { answers: {}, marked: {}, revealed: {}, locked: {}, qTimeLeft: 0, submitted: false, interval: null, isPaused: false, currentFocus: 0 };
-        
-        localStorage.setItem('megaQuizCandidateName', document.getElementById('candidate-name').value.trim() || "Anonymous");
-        activeQuestions = quiz.questions.map((q, i) => ({...q, originalIndex: i}));
-        if (lobbySettings.shuffle) activeQuestions.sort(() => Math.random() - 0.5);
-
-        renderQuizView();
-        
-        if (lobbySettings.perQTimer) {
-            quizState.qTimeLeft = parseInt(document.getElementById('per-q-time-input').value) || 60;
-            document.getElementById('quiz-timer').textContent = formatTime(quizState.qTimeLeft);
-        } else {
-            let mins = lobbySettings.timeMode === 'custom' ? (parseInt(document.getElementById('custom-time-input').value) || quiz.timeInMinutes) : (lobbySettings.timeMode === 'default' ? quiz.timeInMinutes : parseInt(lobbySettings.timeMode));
-            document.getElementById('quiz-timer').textContent = formatTime(mins * 60);
-        }
-
-        setFocus(0);
-        
-        let totalSecs = (lobbySettings.timeMode === 'custom' ? (parseInt(document.getElementById('custom-time-input').value) || quiz.timeInMinutes) : (lobbySettings.timeMode === 'default' ? quiz.timeInMinutes : parseInt(lobbySettings.timeMode))) * 60;
-        startTimer(totalSecs);
-        
-        showScreen('quiz'); window.scrollTo(0,0);
-    }
-
-    window.speakText = (text) => { window.speechSynthesis.cancel(); window.speechSynthesis.speak(new SpeechSynthesisUtterance(text.replace(/<[^>]*>?/gm, ' '))); };
-
-    window.togglePause = () => {
-        if(quizState.submitted) return;
-        quizState.isPaused = !quizState.isPaused;
-        if(quizState.isPaused) {
-            clearInterval(quizState.interval); document.getElementById('pause-overlay').classList.remove('hidden'); document.getElementById('pause-btn').textContent = "▶ Resume";
-        } else {
-            const timeParts = document.getElementById('quiz-timer').textContent.split(':');
-            let timeRemaining = (parseInt(timeParts[0], 10) * 60) + parseInt(timeParts[1], 10);
-            startTimer(timeRemaining);
-            document.getElementById('pause-overlay').classList.add('hidden'); document.getElementById('pause-btn').textContent = "⏸ Pause (P)";
-        }
-    };
-
-    function startTimer(totalSecs) {
-        clearInterval(quizState.interval);
-        let globalSecs = totalSecs;
-        quizState.interval = setInterval(() => {
-            if (lobbySettings.perQTimer) {
-                quizState.qTimeLeft--;
-                document.getElementById('quiz-timer').textContent = formatTime(quizState.qTimeLeft);
-                if (quizState.qTimeLeft <= 0) {
-                    if (quizState.currentFocus >= activeQuestions.length - 1) {
-                        submitQuiz();
-                    } else {
-                        setFocus(quizState.currentFocus + 1);
-                    }
-                }
-            } else {
-                globalSecs--;
-                document.getElementById('quiz-timer').textContent = formatTime(globalSecs);
-                if (globalSecs <= 0) submitQuiz();
-            }
-        }, 1000);
-    }
-
-    function setFocus(idx) {
-        if (lobbySettings.perQTimer) {
-            if (idx < quizState.currentFocus) return; 
-            if (quizState.currentFocus !== undefined && quizState.currentFocus !== null) {
-                const oldCard = document.getElementById(`qcard-${quizState.currentFocus}`);
-                if (oldCard) oldCard.classList.add('hidden');
-                quizState.locked[quizState.currentFocus] = true;
-            }
-            quizState.qTimeLeft = parseInt(document.getElementById('per-q-time-input').value) || 60; 
-        }
-
-        quizState.currentFocus = idx;
-        document.querySelectorAll('.palette-btn').forEach(btn => btn.classList.remove('palette-active'));
-        document.getElementById(`pal-${idx}`).classList.add('palette-active');
-        
-        if (lobbySettings.perQTimer) {
-            const newCard = document.getElementById(`qcard-${idx}`);
-            if (newCard) newCard.classList.remove('hidden');
-        } else {
-            document.getElementById(`qcard-${idx}`).scrollIntoView({behavior: 'smooth', block: 'center'});
-        }
-    }
-
-    window.revealOptions = (idx) => {
-        if(quizState.submitted || quizState.isPaused) return;
-        quizState.revealed[idx] = true;
-        const cont = document.getElementById(`opts-cont-${idx}`); const over = document.getElementById(`blind-over-${idx}`);
-        if(cont) cont.classList.remove('blur-md', 'pointer-events-none', 'select-none', 'opacity-30');
-        if(over) over.remove();
-    };
-
-    document.addEventListener('keydown', (e) => {
-        if(!document.getElementById('screen-quiz').classList.contains('hidden')) {
-            const k = e.key.toLowerCase();
-            if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-            if (k === 'p') togglePause();
-            if (quizState.isPaused || quizState.submitted) return;
-            if (k === 'arrowright' || k === 'arrowdown') { e.preventDefault(); setFocus(Math.min(quizState.currentFocus + 1, activeQuestions.length - 1)); }
-            if (k === 'arrowleft' || k === 'arrowup') { e.preventDefault(); setFocus(Math.max(quizState.currentFocus - 1, 0)); }
-            if (k === 'm') toggleMark(quizState.currentFocus);
-            if (k === ' ') { e.preventDefault(); if (lobbySettings.blind && !quizState.revealed[quizState.currentFocus]) revealOptions(quizState.currentFocus); }
-        }
-    });
-
-    function renderQuizView() {
-        const container = document.getElementById('quiz-container'); const palette = document.getElementById('palette-grid');
-        container.innerHTML = ''; palette.innerHTML = '';
-
-        activeQuestions.forEach((q, qIndex) => {
-            const pBtn = document.createElement('button');
-            pBtn.id = `pal-${qIndex}`; pBtn.className = `palette-btn palette-unanswered shadow-sm`; pBtn.textContent = qIndex + 1;
-            pBtn.onclick = () => { if (!lobbySettings.perQTimer) setFocus(qIndex); }; 
-            palette.appendChild(pBtn);
-
-            let optsHTML = q.options.map((opt, oIndex) => `
-                <div id="opt-${qIndex}-${oIndex}" onclick="selectOption(${qIndex}, ${oIndex})" class="option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-slate-100 dark:border-slate-800 hover:border-emerald-400 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm hover:shadow-md">
-                    <span class="min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-slate-100 dark:bg-slate-700 text-slate-500 transition-colors">${String.fromCharCode(65+oIndex)}</span><span class="mt-0.5">${opt.text}</span>
-                </div>`).join('');
-                
-            let isBlind = lobbySettings.blind && !quizState.revealed[qIndex];
-            let blindOverlay = isBlind ? `<div id="blind-over-${qIndex}" class="absolute inset-0 flex items-center justify-center cursor-pointer z-10" onclick="revealOptions(${qIndex})"><div class="bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 font-black px-8 py-5 rounded-2xl shadow-2xl flex items-center gap-2 hover:scale-105 transition-transform uppercase tracking-widest border border-slate-700 dark:border-white">👁️ Reveal Options (Space)</div></div>` : '';
-            let speechTxt = q.question + ". " + q.options.map((o,i) => `Option ${String.fromCharCode(65+i)}: ${o.text}. `).join('');
-
-            const card = document.createElement('div'); card.id = `qcard-${qIndex}`;
-            card.className = `bg-white dark:bg-slate-900 p-6 sm:p-10 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-lg ${lobbySettings.perQTimer ? 'hidden' : ''}`;
-            card.innerHTML = `
-                <div class="flex justify-between items-center mb-8 border-b border-slate-100 dark:border-slate-800 pb-4">
-                    <div class="flex items-center gap-4"><span class="text-xs font-black text-emerald-500 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/30 px-4 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-800/30">Question ${qIndex + 1}</span><button onclick="speakText('${speechTxt.replace(/'/g, "\\'")}')" class="text-xl hover:scale-110 transition-transform bg-slate-50 dark:bg-slate-800 p-2 rounded-full" title="Read Aloud">🎧</button></div>
-                    <button onclick="toggleMark(${qIndex})" id="markBtn-${qIndex}" class="text-xs font-black text-slate-400 hover:text-purple-500 flex items-center gap-2 transition-colors uppercase px-4 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg"><span class="text-lg leading-none">📌</span> Mark (M)</button>
-                </div>
-                <div class="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100 mb-8 leading-relaxed">${q.question}</div>
-                <div class="relative"><div id="opts-cont-${qIndex}" class="space-y-2 transition-all duration-300 ${isBlind ? 'blur-xl opacity-20 pointer-events-none select-none' : ''}">${optsHTML}</div>${blindOverlay}</div>
-                ${!lobbySettings.exam ? `<div class="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 text-right"><button onclick="document.getElementById('sol-${qIndex}').classList.toggle('hidden')" class="text-[10px] font-black text-emerald-500 hover:text-emerald-600 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 rounded-lg">Show Solution</button></div><div id="sol-${qIndex}" class="hidden mt-4 p-6 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 text-sm font-bold rounded-xl border border-emerald-100 dark:border-emerald-800/50 leading-relaxed">${q.solution}</div>` : ''}
-            `;
-            container.appendChild(card);
-        });
-        updatePaletteAndCounts();
-    }
-
-    window.selectOption = (qIdx, oIdx) => {
-        if (quizState.submitted || quizState.isPaused || quizState.locked[qIdx] || (lobbySettings.blind && !quizState.revealed[qIdx])) return;
-        quizState.answers[qIdx] = oIdx; 
-        
-        activeQuestions[qIdx].options.forEach((_, i) => {
-            const el = document.getElementById(`opt-${qIdx}-${i}`);
-            if (i === oIdx) {
-                el.className = 'option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-100 shadow-md transform scale-[1.01]';
-                el.children[0].className = 'min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-emerald-500 text-white shadow-inner';
-            } else {
-                el.className = 'option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-slate-100 dark:border-slate-800 hover:border-emerald-400 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm';
-                el.children[0].className = 'min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-slate-100 dark:bg-slate-700 text-slate-500';
-            }
-        });
-        
-        if (lobbySettings.perQTimer) {
-            if (qIdx >= activeQuestions.length - 1) submitQuiz();
-            else setFocus(qIdx + 1);
-        } else {
-            setFocus(Math.min(qIdx + 1, activeQuestions.length - 1));
-        }
-        updatePaletteAndCounts();
-    };
-
-    window.toggleMark = (qIdx) => {
-        if (quizState.submitted || quizState.isPaused || quizState.locked[qIdx]) return;
-        quizState.marked[qIdx] = !quizState.marked[qIdx]; setFocus(qIdx);
-        
-        const btn = document.getElementById(`markBtn-${qIdx}`);
-        if(quizState.marked[qIdx]) {
-            btn.className = "text-xs font-black text-purple-600 dark:text-purple-400 flex items-center gap-2 transition-colors uppercase bg-purple-100 dark:bg-purple-900/30 px-4 py-1.5 rounded-lg border border-purple-200 dark:border-purple-800/50";
-        } else {
-            btn.className = "text-xs font-black text-slate-400 hover:text-purple-500 flex items-center gap-2 transition-colors uppercase px-4 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg";
-        }
-        updatePaletteAndCounts();
-    };
-
-    function updatePaletteAndCounts() {
-        let ansCount = 0;
-        activeQuestions.forEach((_, i) => {
-            const answered = quizState.answers[i] !== undefined; const marked = quizState.marked[i];
-            document.getElementById(`pal-${i}`).className = 'palette-btn ' + (i===quizState.currentFocus?'palette-active ':'') + (answered && marked ? 'palette-answered-marked' : marked ? 'palette-marked' : answered ? 'palette-answered' : 'palette-unanswered');
-            if(answered) ansCount++;
-        });
-        document.getElementById('answered-count').textContent = `${ansCount} / ${activeQuestions.length}`;
-    }
-
-    window.filterReview = (type) => {
-        const colors = {
-            'all': 'bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-white',
-            'correct': 'bg-white dark:bg-slate-700 shadow-sm text-emerald-600 dark:text-emerald-400',
-            'wrong': 'bg-white dark:bg-slate-700 shadow-sm text-red-600 dark:text-red-400',
-            'skipped': 'bg-white dark:bg-slate-700 shadow-sm text-slate-600 dark:text-slate-300'
-        };
-
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.className = `filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700`;
-        });
-        
-        const activeBtn = document.getElementById('btn-filt-' + type);
-        activeBtn.className = `filter-btn active-filt flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${colors[type]}`;
-
-        document.querySelectorAll('.review-card').forEach(card => {
-            if (type === 'all' || card.classList.contains('filter-' + type)) card.style.display = 'block';
-            else card.style.display = 'none';
-        });
-    };
-
-    function submitQuiz() {
-        if (quizState.submitted) return;
-        quizState.submitted = true; clearInterval(quizState.interval); window.speechSynthesis.cancel();
-
-        let correct = 0, wrong = 0, skipped = 0, fullReviewHTML = '';
-        let currentQuizMistakes = [];
-        let historicalReviewData = [];
-
-        activeQuestions.forEach((q, i) => {
-            const sel = quizState.answers[i]; let isMistake = false; let status = ''; let uText = 'Skipped'; let cText = q.options.find(o=>o.correct)?.text || "N/A";
-            if (sel === undefined) { skipped++; isMistake = true; status = 'skipped'; } 
-            else if (q.options[sel].correct) { correct++; status = 'correct'; uText = q.options[sel].text; } 
-            else { wrong++; isMistake = true; status = 'wrong'; uText = q.options[sel].text; }
-
-            if(isMistake) {
-                currentQuizMistakes.push(q);
-                if (!currentQuizId.includes('quiz_redemption') && !currentQuizId.includes('quiz_topic_revision') && !mistakesDb.some(m => m.question === q.question)) { mistakesDb.push(q); }
-            }
-
-            let tags = [];
-            if(q.topic) tags.push(q.topic);
-            const tagMatches = (q.solution || '').match(/#(\w+)/g);
-            if(tagMatches) tagMatches.forEach(t => tags.push(t.substring(1)));
-            if(tags.length === 0) tags.push(db[currentQuizId] ? db[currentQuizId].subject : 'Uncategorized');
-
-            fullReviewHTML += genDeepReviewCard({question: q.question, solution: q.solution}, status, uText, cText, "");
-            historicalReviewData.push({ question: q.question, status: status, uText: uText, cText: cText, solution: q.solution, tags: [...new Set(tags)] });
-        });
-
-        if(currentQuizId.includes('quiz_redemption')) activeQuestions.forEach((q, i) => { if(quizState.answers[i] !== undefined && q.options[quizState.answers[i]].correct) mistakesDb = mistakesDb.filter(m => m.question !== q.question); });
-
-        const score = (correct * 2) - (wrong * 0.66);
-        document.getElementById('res-score').textContent = score.toFixed(2); document.getElementById('res-correct').textContent = correct;
-        document.getElementById('res-wrong').textContent = wrong; document.getElementById('res-skipped').textContent = skipped;
-        document.getElementById('revision-container').innerHTML = fullReviewHTML;
-
-        window.lastQuizMistakes = currentQuizMistakes;
-        const candName = localStorage.getItem('megaQuizCandidateName') || "Anonymous";
-        let displayTitle = db[currentQuizId] ? db[currentQuizId].title : "Custom Test";
-        document.getElementById('results-title').textContent = `${candName}'s Report - Attempt #${currentAttemptNum}`;
-
-        if(!currentQuizId.includes('quiz_redemption') && !currentQuizId.includes('quiz_topic_revision')) {
-            historyDb.unshift({ 
-                date: new Date().toLocaleDateString(), title: displayTitle, subject: db[currentQuizId] ? db[currentQuizId].subject : "Mixed", 
-                score: parseFloat(score.toFixed(2)), accuracy: Math.round((correct / activeQuestions.length) * 100),
-                candidateName: candName, attemptNumber: currentAttemptNum, totalCorrect: correct, totalWrong: wrong, totalSkipped: skipped, reviewData: historicalReviewData
-            });
-        }
-        
-        saveData(); showScreen('results'); window.scrollTo(0,0);
-        filterReview('all'); 
-    }
-
-    function genDeepReviewCard(q, status, uText, cText, term = "") { 
-        const styles = {
-            'correct': { border: 'bg-emerald-400', badge: 'text-emerald-700 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800/50', box: 'border-emerald-200 dark:border-emerald-800' },
-            'wrong': { border: 'bg-red-400', badge: 'text-red-700 bg-red-100 dark:text-red-400 dark:bg-red-900/30 border-red-200 dark:border-red-800/50', box: 'border-red-200 dark:border-red-800' },
-            'skipped': { border: 'bg-slate-400', badge: 'text-slate-700 bg-slate-200 dark:text-slate-400 dark:bg-slate-800 border-slate-300 dark:border-slate-700', box: 'border-slate-200 dark:border-slate-700' }
-        };
-        const s = styles[status];
-
-        return `<div class="review-card filter-${status} bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-800 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-            <div class="absolute top-0 left-0 w-1.5 h-full ${s.border}"></div>
-            <div class="flex justify-between items-center mb-4">
-                <span class="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-md border ${s.badge}">${status}</span>
-            </div>
-            <div class="font-bold text-slate-800 dark:text-slate-200 mb-6 text-lg md:text-xl leading-relaxed">${highlightText(q.question, term)}</div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div class="bg-slate-50 dark:bg-slate-950/50 p-5 rounded-xl border ${s.box} shadow-inner">
-                    <div class="text-[10px] font-black uppercase tracking-widest mb-1 ${s.badge.split(' ')[0]}">You Selected</div>
-                    <div class="text-sm font-bold text-slate-700 dark:text-slate-300">${highlightText(uText, term)}</div>
-                </div>
-                <div class="bg-emerald-50/50 dark:bg-emerald-900/10 p-5 rounded-xl border border-emerald-200 dark:border-emerald-800/50 shadow-inner">
-                    <div class="text-[10px] font-black tracking-widest text-emerald-600 dark:text-emerald-500 uppercase mb-1">Correct Answer</div>
-                    <div class="text-sm font-bold text-slate-700 dark:text-slate-300">${highlightText(cText, term)}</div>
-                </div>
-            </div>
-            <div class="bg-slate-50 dark:bg-slate-800/50 p-5 md:p-6 rounded-xl text-sm text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800 shadow-inner">
-                <span class="font-black text-slate-800 dark:text-slate-200 block mb-2 uppercase tracking-widest text-[10px]">📖 Detailed Solution:</span>
-                <div class="leading-relaxed font-medium">${highlightText(q.solution || 'No detailed solution provided.', term)}</div>
-            </div>
-        </div>`; 
-    }
-
-    window.openHistoryReview = (index) => {
-        closeQuizHistory(); closeAnalytics();   
-        const attempt = historyDb[index];
-        if (!attempt.reviewData) return alert("This test is from an older version of the Hub and does not have Deep Review data saved.");
-        
-        document.getElementById('results-title').textContent = `${attempt.candidateName || 'Yogesh'}'s Report - Attempt #${attempt.attemptNumber || 1}`;
-        document.getElementById('res-score').textContent = attempt.score;
-        document.getElementById('res-correct').textContent = attempt.totalCorrect || 0;
-        document.getElementById('res-wrong').textContent = attempt.totalWrong || 0;
-        document.getElementById('res-skipped').textContent = attempt.totalSkipped || 0;
-
-        let fullReviewHTML = '';
-        attempt.reviewData.forEach(data => { fullReviewHTML += genDeepReviewCard(data, data.status, data.uText, data.cText, ""); });
-
-        document.getElementById('revision-container').innerHTML = fullReviewHTML;
-        showScreen('results'); window.scrollTo(0,0);
-        filterReview('all'); 
-    };
-
-    window.openTargetedHistory = (quizId) => {
-        const quizTitle = db[quizId].title;
-        document.getElementById('quiz-history-title').textContent = `${quizTitle} - History`;
-        const list = document.getElementById('quiz-history-list'); list.innerHTML = '';
-        
-        let found = false;
-        historyDb.forEach((h, index) => {
-            if (h.title === quizTitle) {
-                found = true;
-                const attText = h.attemptNumber ? `ATTEMPT #${h.attemptNumber}` : `ATTEMPT #1`;
-                const nameText = h.candidateName ? h.candidateName : "Yogesh";
-                const reviewBtn = h.reviewData ? `<button onclick="openHistoryReview(${index})" class="mt-4 w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50 font-black text-[10px] uppercase tracking-widest py-3 rounded-xl transition-colors border border-indigo-100 dark:border-indigo-800/30">🔍 View Full Report</button>` : `<div class="mt-4 w-full bg-slate-100 dark:bg-slate-800 text-slate-400 font-bold text-[10px] uppercase tracking-widest py-3 rounded-xl text-center">No Deep Data</div>`;
-
-                list.innerHTML += `<div class="bg-white dark:bg-slate-900 p-6 rounded-2xl flex flex-col border border-slate-200 dark:border-slate-800 shadow-sm">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <div class="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30 uppercase tracking-widest inline-block px-3 py-1 rounded-md">${nameText} • ${attText}</div>
-                            <div class="text-sm font-bold text-slate-500 mt-3">${h.date}</div>
-                        </div>
-                        <div class="text-right">
-                            <div class="text-4xl font-black text-emerald-500 leading-none tracking-tighter">${h.score}</div>
-                            <div class="text-[10px] uppercase font-black text-slate-400 mt-2 tracking-widest">${h.accuracy}% ACC</div>
-                        </div>
-                    </div>
-                    ${reviewBtn}
-                </div>`;
-            }
-        });
-
-        if (!found) list.innerHTML = `<div class="text-center text-slate-400 font-bold py-10 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl uppercase tracking-widest text-[10px]">No History Found</div>`;
-        document.getElementById('screen-quiz-history').classList.remove('hidden');
-    };
-
-    window.closeQuizHistory = () => document.getElementById('screen-quiz-history').classList.add('hidden');
-
-    // V10.12 Ultimate SSC Tag Normalization Engine with Perfect Miscellaneous Fallback
-    const normalizeTag = (rawTag, fallbackSub) => {
-        const t = rawTag.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-        // --- QUANT: ARITHMETIC ---
-        if(t.match(/percent/)) return { sub: 'Arithmetic', topic: 'Percentage' };
-        if(t.match(/profit|loss|discount|faulty|dishonest/)) return { sub: 'Arithmetic', topic: 'Profit, Loss & Discount' };
-        if(t.match(/ratio|proportion|age|coin/)) return { sub: 'Arithmetic', topic: 'Ratio, Proportion & Ages' };
-        if(t.match(/mixture|alligation|alloy/)) return { sub: 'Arithmetic', topic: 'Mixture & Alligation' };
-        if(t.match(/average|mean/)) return { sub: 'Arithmetic', topic: 'Average' };
-        if(t.match(/interest|si|ci|compound|simple/)) return { sub: 'Arithmetic', topic: 'Simple & Compound Interest' };
-        if(t.match(/work|timeandwork|pipe|cistern|wage/)) return { sub: 'Arithmetic', topic: 'Time & Work' };
-        if(t.match(/speed|distance|train|boat|stream|relative/)) return { sub: 'Arithmetic', topic: 'Speed, Time & Distance' };
-        if(t.match(/partner/)) return { sub: 'Arithmetic', topic: 'Partnership' };
-        if(t.match(/lcm|hcf|number|divisibility|remainder|decimal|fraction|surd|indice|bodmas|simplification/)) return { sub: 'Arithmetic', topic: 'Number System & Simplification' };
-        if(t.match(/arithmetic|quant/)) return { sub: 'Arithmetic', topic: 'General Arithmetic' };
-
-        // --- QUANT: ADVANCED MATHS ---
-        if(t.match(/algebra|polynomial|equation|roots|identity|quadratic/)) return { sub: 'Advanced Maths', topic: 'Algebra' };
-        if(t.match(/geometry|circle|triangle|collinear|polygon|angle|tangent|chord|orthocenter|centroid/)) return { sub: 'Advanced Maths', topic: 'Geometry' };
-        if(t.match(/mensuration|area|volume|cone|cylinder|sphere|pyramid|prism|cube|cuboid|hemisphere/)) return { sub: 'Advanced Maths', topic: 'Mensuration (2D & 3D)' };
-        if(t.match(/trigo|sin|cos|tan|sec|cosec|cot|height/)) return { sub: 'Advanced Maths', topic: 'Trigonometry' };
-        if(t.match(/coordinate|slope|intercept|quadrant/)) return { sub: 'Advanced Maths', topic: 'Coordinate Geometry' };
-        if(t.match(/di|data|chart|graph|pie|bar|tabular|histogram/)) return { sub: 'Advanced Maths', topic: 'Data Interpretation' };
-        if(t.match(/advancedmath|maths/)) return { sub: 'Advanced Maths', topic: 'General Advanced Maths' };
-
-        // --- ENGLISH ---
-        if(t.match(/rc|comprehension|passage/)) return { sub: 'English', topic: 'Reading Comprehension' };
-        if(t.match(/cloze/)) return { sub: 'English', topic: 'Cloze Test' };
-        if(t.match(/error|spotting|grammar|noun|pronoun|verb|tense|adjective|adverb|preposition|conjunction/)) return { sub: 'English', topic: 'Grammar & Error Spotting' };
-        if(t.match(/fill|blank/)) return { sub: 'English', topic: 'Fill in the Blanks' };
-        if(t.match(/improve|sentence/)) return { sub: 'English', topic: 'Sentence Improvement' };
-        if(t.match(/voice|active|passive/)) return { sub: 'English', topic: 'Active & Passive Voice' };
-        if(t.match(/narration|direct|indirect|speech/)) return { sub: 'English', topic: 'Direct & Indirect Speech' };
-        if(t.match(/jumble|pqrs|para/)) return { sub: 'English', topic: 'Para Jumbles' };
-        if(t.match(/synonym|antonym|vocab|meaning/)) return { sub: 'English', topic: 'Synonyms & Antonyms' };
-        if(t.match(/idiom|phrase/)) return { sub: 'English', topic: 'Idioms & Phrases' };
-        if(t.match(/ows|oneword|substitution/)) return { sub: 'English', topic: 'One Word Substitution' };
-        if(t.match(/spell/)) return { sub: 'English', topic: 'Spelling Errors' };
-        if(t.match(/english/)) return { sub: 'English', topic: 'General English' };
-
-        // --- REASONING ---
-        if(t.match(/analogy/)) return { sub: 'Reasoning', topic: 'Analogy' };
-        if(t.match(/classification|odd|out/)) return { sub: 'Reasoning', topic: 'Classification (Odd One Out)' };
-        if(t.match(/series|missing/)) return { sub: 'Reasoning', topic: 'Number & Alphabet Series' };
-        if(t.match(/coding|decoding/)) return { sub: 'Reasoning', topic: 'Coding-Decoding' };
-        if(t.match(/blood|relation/)) return { sub: 'Reasoning', topic: 'Blood Relations' };
-        if(t.match(/direction|distance/)) return { sub: 'Reasoning', topic: 'Direction & Distance' };
-        if(t.match(/syllogism|statement|conclusion|assumption|argument|logic/)) return { sub: 'Reasoning', topic: 'Syllogism & Logical Reasoning' };
-        if(t.match(/venn/)) return { sub: 'Reasoning', topic: 'Venn Diagrams' };
-        if(t.match(/dice|cube/)) return { sub: 'Reasoning', topic: 'Dice & Cubes' };
-        if(t.match(/figure|count/)) return { sub: 'Reasoning', topic: 'Figure Counting' };
-        if(t.match(/mirror|water|image|paper|embed|fold|cut|nonverbal/)) return { sub: 'Reasoning', topic: 'Non-Verbal Reasoning' };
-        if(t.match(/puzzle|seating/)) return { sub: 'Reasoning', topic: 'Puzzles & Seating Arrangement' };
-        if(t.match(/clock|calendar/)) return { sub: 'Reasoning', topic: 'Clocks & Calendars' };
-        if(t.match(/reasoning/)) return { sub: 'Reasoning', topic: 'General Reasoning' };
-
-        // --- POLITY ---
-        if(t.match(/court|judge|judiciary|writ|sc|hc|pil|justice|tribunal|supreme|highcourt/)) return { sub: 'Polity', topic: 'Judiciary (SC, HC, Subordinate)' };
-        if(t.match(/article|amendment|schedule|part|clause/)) return { sub: 'Polity', topic: 'Articles, Schedules & Amendments' };
-        if(t.match(/parliament|ls|rs|president|pm|council|minister|cabinet|loksabha|rajyasabha/)) return { sub: 'Polity', topic: 'Union Executive & Legislature' };
-        if(t.match(/governor|cm|state|vidhan/)) return { sub: 'Polity', topic: 'State Executive & Legislature' };
-        if(t.match(/fundamental|dpsp|duty|rights/)) return { sub: 'Polity', topic: 'Fundamental Rights, Duties & DPSP' };
-        if(t.match(/panchayat|municipal|local/)) return { sub: 'Polity', topic: 'Local Government' };
-        if(t.match(/election|cag|ec|upsc|financecommission|body|commission|attorney/)) return { sub: 'Polity', topic: 'Constitutional & Non-Constitutional Bodies' };
-        if(t.match(/constitution|preamble|citizen|polity/)) return { sub: 'Polity', topic: 'Making of Constitution & Citizenship' };
-
-        // --- ANCIENT HISTORY ---
-        if(t.match(/ivc|indus|harappa|prehistoric|stoneage/)) return { sub: 'Ancient History', topic: 'Indus Valley & Pre-History' };
-        if(t.match(/vedic|aryan|rigveda|upanishad/)) return { sub: 'Ancient History', topic: 'Vedic Age' };
-        if(t.match(/buddh|jain|mahajanapada|magadha/)) return { sub: 'Ancient History', topic: 'Buddhism, Jainism & Mahajanapadas' };
-        if(t.match(/maury|ashoka|bindusara/)) return { sub: 'Ancient History', topic: 'Mauryan Empire' };
-        if(t.match(/gupta|harshavardhana|postmauryan|satavahana|ancient/)) return { sub: 'Ancient History', topic: 'Gupta Empire & Post-Mauryan' };
-
-        // --- MEDIEVAL HISTORY ---
-        if(t.match(/delhi|sultan|slave|khilji|tughlaq|lodi|mamluk/)) return { sub: 'Medieval History', topic: 'Delhi Sultanate' };
-        if(t.match(/mughal|akbar|babur|shahjahan|suri|humayun/)) return { sub: 'Medieval History', topic: 'Mughal Empire' };
-        if(t.match(/maratha|shivaji|peshwa/)) return { sub: 'Medieval History', topic: 'Maratha Empire' };
-        if(t.match(/vijayanagar|bahmani|chola|cheras|pandya|southern/)) return { sub: 'Medieval History', topic: 'Southern Kingdoms' };
-        if(t.match(/bhakti|sufi|sikh|medieval/)) return { sub: 'Medieval History', topic: 'Bhakti/Sufi & Sikhism' };
-
-        // --- MODERN HISTORY ---
-        if(t.match(/european|eastindia|plassey|buxar|french|dutch/)) return { sub: 'Modern History', topic: 'Advent of Europeans & British Conquest' };
-        if(t.match(/revolt|1857|mutiny|sepoy/)) return { sub: 'Modern History', topic: 'Revolt of 1857' };
-        if(t.match(/viceroy|governor|reform|act|charter|pitt/)) return { sub: 'Modern History', topic: 'Viceroys & British Acts' };
-        if(t.match(/congress|inc|moderate|extremist|swadeshi/)) return { sub: 'Modern History', topic: 'Indian National Congress' };
-        if(t.match(/gandhi|movement|satyagraha|noncooperation|civil|quit/)) return { sub: 'Modern History', topic: 'Gandhian Era & Mass Movements' };
-        if(t.match(/freedom|revolution|bose|bhagatsingh|modern|history/)) return { sub: 'Modern History', topic: 'Freedom Struggle & Revolutionaries' };
-
-        // --- GEOGRAPHY ---
-        if(t.match(/solar|universe|planet|earth|galaxy/)) return { sub: 'Geography', topic: 'Solar System & Universe' };
-        if(t.match(/rock|earthquake|volcano|interior|geomorph/)) return { sub: 'Geography', topic: 'Physical Geography (Geomorphology)' };
-        if(t.match(/atmosphere|climat|wind|cyclone/)) return { sub: 'Geography', topic: 'Climatology & Atmosphere' };
-        if(t.match(/ocean|tide|current|salinity/)) return { sub: 'Geography', topic: 'Oceanography' };
-        if(t.match(/mountain|pass|peak|himalaya|plateau|island|coastal/)) return { sub: 'Geography', topic: 'Indian Physical Geography' };
-        if(t.match(/river|drainage|lake|dam|project|tributary/)) return { sub: 'Geography', topic: 'Indian Drainage System' };
-        if(t.match(/monsoon|weather|season/)) return { sub: 'Geography', topic: 'Indian Climate & Monsoon' };
-        if(t.match(/soil|agriculture|crop|farming/)) return { sub: 'Geography', topic: 'Soils & Agriculture' };
-        if(t.match(/mineral|industry|resource|mining/)) return { sub: 'Geography', topic: 'Minerals, Energy & Industries' };
-        if(t.match(/transport|highway|rail|port|waterway/)) return { sub: 'Geography', topic: 'Transport & Communication' };
-        if(t.match(/census|demograph|tribe|population|literacy|sexratio|geography/)) return { sub: 'Geography', topic: 'Census & Demographics' };
-
-        // --- ECONOMICS ---
-        if(t.match(/micro|demand|supply|cost|production|elasticity/)) return { sub: 'Economics', topic: 'Microeconomics' };
-        if(t.match(/macro|income|gdp|gnp|ndp|nnp/)) return { sub: 'Economics', topic: 'National Income & Macroeconomics' };
-        if(t.match(/inflation|deflation|index|cpi|wpi/)) return { sub: 'Economics', topic: 'Inflation & Deflation' };
-        if(t.match(/rbi|monetary|bank|credit|money|repo/)) return { sub: 'Economics', topic: 'Banking & Monetary Policy' };
-        if(t.match(/tax|gst|budget|fiscal|revenue|deficit|custom|excise|tariff/)) return { sub: 'Economics', topic: 'Budget, Taxation & Fiscal Policy' };
-        if(t.match(/plan|niti|aayog|fiveyear/)) return { sub: 'Economics', topic: 'Economic Planning & NITI Aayog' };
-        if(t.match(/poverty|unemployment|development|index|inequality/)) return { sub: 'Economics', topic: 'Poverty, Employment & Development' };
-        if(t.match(/imf|wb|wto|internationaltrade|forex|bop|economic/)) return { sub: 'Economics', topic: 'International Trade & Organizations' };
-
-        // --- SCIENCE ---
-        if(t.match(/unit|dimension|measure|scalar|vector/)) return { sub: 'Science', topic: 'Units & Measurements' };
-        if(t.match(/motion|force|work|energy|power|gravitation|friction|newton/)) return { sub: 'Science', topic: 'Mechanics (Physics)' };
-        if(t.match(/sound|wave|oscillation|frequency/)) return { sub: 'Science', topic: 'Sound & Waves' };
-        if(t.match(/light|optic|reflection|refraction|lens|mirror/)) return { sub: 'Science', topic: 'Optics (Light)' };
-        if(t.match(/heat|thermodynamic|temperature|thermal/)) return { sub: 'Science', topic: 'Heat & Thermodynamics' };
-        if(t.match(/electric|magnet|current|voltage|resistance/)) return { sub: 'Science', topic: 'Electricity & Magnetism' };
-        if(t.match(/matter|state|solid|liquid|gas|plasma/)) return { sub: 'Science', topic: 'States of Matter' };
-        if(t.match(/atom|molecule|isotope|nucleus|electron|proton/)) return { sub: 'Science', topic: 'Atomic Structure' };
-        if(t.match(/acid|base|salt|ph/)) return { sub: 'Science', topic: 'Acids, Bases & Salts' };
-        if(t.match(/metal|nonmetal|alloy|ore/)) return { sub: 'Science', topic: 'Metals, Non-Metals & Alloys' };
-        if(t.match(/carbon|organic|polymer|fuel/)) return { sub: 'Science', topic: 'Carbon & Organic Chemistry' };
-        if(t.match(/periodictable|element|chemistry/)) return { sub: 'Science', topic: 'Periodic Table & Chemistry' };
-        if(t.match(/cell|tissue|organelle|mitochondria/)) return { sub: 'Science', topic: 'Cell Biology' };
-        if(t.match(/digest|respirat|circulat|nervous|endocrin|hormone|gland|reproduct|skeleton/)) return { sub: 'Science', topic: 'Human Anatomy & Physiology' };
-        if(t.match(/disease|pathogen|virus|bacteria|vaccine|fungi/)) return { sub: 'Science', topic: 'Human Diseases & Health' };
-        if(t.match(/vitamin|nutrition|protein|carbohydrate|fat/)) return { sub: 'Science', topic: 'Nutrition & Vitamins' };
-        if(t.match(/plant|botany|photosynthesis|xylem|phloem/)) return { sub: 'Science', topic: 'Plant Biology (Botany)' };
-        if(t.match(/animal|zoology|kingdom|vertebrat|science/)) return { sub: 'Science', topic: 'Animal Kingdom (Zoology)' };
-
-        // --- ENVIRONMENT ---
-        if(t.match(/environ|ecolog|ecosystem|foodchain|biome/)) return { sub: 'Environment', topic: 'Ecology & Ecosystem' };
-        if(t.match(/biodivers|flora|fauna|conservation/)) return { sub: 'Environment', topic: 'Biodiversity & Conservation' };
-        if(t.match(/pollut|climate|globalwarming|greenhouse|ozon/)) return { sub: 'Environment', topic: 'Pollution & Climate Change' };
-        if(t.match(/treaty|protocol|convention|summit/)) return { sub: 'Environment', topic: 'International Treaties & Conventions' };
-
-        // --- STATIC GK ---
-        if(t.match(/dance|classical|folk|garba|bihu|bhangra/)) return { sub: 'Static GK', topic: 'Classical & Folk Dances' };
-        if(t.match(/festival|fair|mela/)) return { sub: 'Static GK', topic: 'Festivals & Fairs' };
-        if(t.match(/music|instrument|singer|gharana/)) return { sub: 'Static GK', topic: 'Music & Instruments' };
-        if(t.match(/temple|architecture|monument|painting|cave/)) return { sub: 'Static GK', topic: 'Art & Architecture' };
-        if(t.match(/book|author|writer|literature/)) return { sub: 'Static GK', topic: 'Books & Authors' };
-        if(t.match(/award|honour|nobel|bharatratna|padma/)) return { sub: 'Static GK', topic: 'Awards & Honours' };
-        if(t.match(/sport|fide|olympic|cricket|football|trophy|cup|tennis/)) return { sub: 'Static GK', topic: 'Sports & Trophies' };
-        if(t.match(/day|theme|date|celebrat/)) return { sub: 'Static GK', topic: 'Important Days & Themes' };
-        if(t.match(/nationalpark|wildlife|biosphere|tigerreserve|sanctuary/)) return { sub: 'Static GK', topic: 'National Parks & Sanctuaries' };
-        if(t.match(/hq|headquarter|un|who|ilo|unesco/)) return { sub: 'Static GK', topic: 'International Organizations & HQ' };
-        if(t.match(/first|largest|longest|highest|superlative|staticgk/)) return { sub: 'Static GK', topic: 'Superlatives (India & World)' };
-
-        // --- CURRENT AFFAIRS ---
-        if(t.match(/scheme|yojana|abhiyan|portal|pmjuga/)) return { sub: 'Current Affairs', topic: 'Government Schemes & Portals' };
-        if(t.match(/conference|meet/)) return { sub: 'Current Affairs', topic: 'Summits & Conferences' };
-        if(t.match(/defence|military|exercise|missile|army/)) return { sub: 'Current Affairs', topic: 'Defence & Military Exercises' };
-        if(t.match(/isro|space|nasa|satellite|tech|nuclear/)) return { sub: 'Current Affairs', topic: 'Science, Tech & Space (ISRO)' };
-        if(t.match(/index|report|rank/)) return { sub: 'Current Affairs', topic: 'Indices & Reports' };
-        if(t.match(/appointment|resign/)) return { sub: 'Current Affairs', topic: 'Recent Appointments' };
-        if(t.match(/current|news/)) return { sub: 'Current Affairs', topic: 'Current Events (General)' };
-
-        // --- 3. THE ULTIMATE FALLBACK ---
-        // If a tag completely bypasses all 80+ regexes above (e.g. a random word like "#guitar")
-        // It will be forced into its parent subject's "Miscellaneous" folder to prevent messy bleeding.
-        
-        const knownSubs = ["Arithmetic", "Advanced Maths", "Reasoning", "English", "Polity", "Economics", "Geography", "Ancient History", "Medieval History", "Modern History", "Science", "Environment", "Static GK", "Current Affairs", "Miscellaneous"];
-        
-        let fSub = fallbackSub;
-        if(!knownSubs.includes(fSub)) {
-            if(fSub.toLowerCase().includes('math') || fSub.toLowerCase().includes('quant')) fSub = 'Arithmetic';
-            else if(fSub.toLowerCase().includes('gs') || fSub.toLowerCase().includes('gk')) fSub = 'Static GK';
-            else fSub = 'Miscellaneous';
-        }
-
-        let genericTopic = `Miscellaneous ${fSub} Topics`;
-        
-        return { sub: fSub, topic: genericTopic };
-    };
-
-    window.showAnalytics = () => {
-        document.getElementById('screen-analytics').classList.remove('hidden');
-        
-        const categorizedStats = {};
-        const orderedSubjects = ["Arithmetic", "Advanced Maths", "Reasoning", "English", "Polity", "Economics", "Geography", "Ancient History", "Medieval History", "Modern History", "Science", "Environment", "Static GK", "Current Affairs", "Miscellaneous"];
-        orderedSubjects.forEach(s => categorizedStats[s] = { correct: 0, total: 0, topics: {} });
-
-        historyDb.forEach(h => {
-            let fallbackSub = h.subject || 'Miscellaneous';
-            
-            if(h.reviewData) {
-                h.reviewData.forEach(rd => {
-                    let tags = rd.tags || [];
-                    if(tags.length === 0) {
-                        const m = (rd.solution || '').match(/#(\w+)/g);
-                        if(m) m.forEach(t => tags.push(t.substring(1)));
-                        else tags.push('Untagged');
-                    }
-                    
-                    let uniqueMappings = new Map();
-                    
-                    tags.forEach(tag => {
-                        let mapping = normalizeTag(tag, fallbackSub);
-                        uniqueMappings.set(`${mapping.sub}|${mapping.topic}`, mapping);
-                    });
-                    
-                    uniqueMappings.forEach(mapping => {
-                        let targetSub = mapping.sub;
-                        let targetTopic = mapping.topic;
-                        
-                        if(!categorizedStats[targetSub]) categorizedStats[targetSub] = { correct: 0, total: 0, topics: {} };
-                        if(!categorizedStats[targetSub].topics[targetTopic]) {
-                            categorizedStats[targetSub].topics[targetTopic] = { correct: 0, total: 0 };
-                        }
-                        
-                        categorizedStats[targetSub].topics[targetTopic].total++;
-                        categorizedStats[targetSub].total++;
-                        
-                        if(rd.status === 'correct') {
-                            categorizedStats[targetSub].topics[targetTopic].correct++;
-                            categorizedStats[targetSub].correct++;
-                        }
-                    });
-                });
-            }
-        });
-
-        let matrixHTML = '';
-        
-        orderedSubjects.forEach(sub => {
-            const data = categorizedStats[sub];
-            if(!data || data.total === 0) return; 
-            
-            let subAcc = Math.round((data.correct / data.total) * 100);
-            let subColor = subAcc >= 80 ? 'emerald' : subAcc >= 50 ? 'amber' : 'red';
-            
-            let strongHtml = '', practiceHtml = '', weakHtml = '';
-            
-            const sortedTopics = Object.keys(data.topics).sort();
-            sortedTopics.forEach(tag => {
-                let topicData = data.topics[tag];
-                let acc = Math.round((topicData.correct / topicData.total) * 100);
-                
-                // Clickable Sniper Pill
-                let pill = `<button onclick="startTopicQuiz('${sub}', '${tag}')" title="Click to practice all ${tag} questions" class="cursor-pointer hover:scale-105 hover:shadow-md transition-all inline-block px-3 py-1.5 m-1 text-[10px] font-black uppercase tracking-widest rounded-lg border shadow-sm ${acc >= 80 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800/50' : acc >= 50 ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/50' : 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800/50'}">${tag} (${acc}%)</button>`;
-                
-                if(acc >= 80) strongHtml += pill;
-                else if(acc >= 50) practiceHtml += pill;
-                else weakHtml += pill;
-            });
-            
-            matrixHTML += `
-                <div class="bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50 overflow-hidden mb-6 shadow-sm">
-                    <div class="flex justify-between items-center p-4 md:p-5 bg-${subColor}-50 dark:bg-${subColor}-900/20 border-b border-${subColor}-100 dark:border-${subColor}-800/30">
-                        <h3 class="text-lg font-black uppercase tracking-tight text-${subColor}-700 dark:text-${subColor}-400">${sub}</h3>
-                        <div class="text-2xl font-black text-${subColor}-600 dark:text-${subColor}-500">${subAcc}%</div>
-                    </div>
-                    <div class="p-4 md:p-5 space-y-5">
-                        ${weakHtml ? `<div><div class="text-[10px] font-black uppercase tracking-widest text-red-500 mb-2 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-500"></span> Urgent Revision (Lagging)</div><div class="flex flex-wrap">${weakHtml}</div></div>` : ''}
-                        ${practiceHtml ? `<div><div class="text-[10px] font-black uppercase tracking-widest text-amber-500 mb-2 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Needs Practice (50-79%)</div><div class="flex flex-wrap">${practiceHtml}</div></div>` : ''}
-                        ${strongHtml ? `<div><div class="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-2 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Mastered Chapters (80%+)</div><div class="flex flex-wrap">${strongHtml}</div></div>` : ''}
-                    </div>
-                </div>
-            `;
-        });
-
-        if(!matrixHTML) {
-            matrixHTML = '<div class="text-center text-slate-400 font-bold py-10 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl uppercase tracking-widest text-[10px]">No test data available for analysis.</div>';
-        }
-
-        document.getElementById('mastery-grid').innerHTML = `
-            <div class="mb-8">
-                ${matrixHTML}
-            </div>
-            <h3 class="font-black text-slate-800 dark:text-slate-200 mb-4 border-t border-slate-100 dark:border-slate-800 pt-6 uppercase tracking-widest text-xs">Recent Tests & Historical Reports</h3>
-            <div class="space-y-3">
-                ${historyDb.map((h, index) => {
-                    const attText = h.attemptNumber ? `ATTEMPT #${h.attemptNumber}` : `ATTEMPT #1`;
-                    const nameText = h.candidateName ? h.candidateName : "Yogesh";
-                    const reviewBtn = h.reviewData ? `<button onclick="openHistoryReview(${index})" class="mt-3 w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400 dark:hover:bg-indigo-900/40 font-black text-[10px] uppercase tracking-widest py-2 rounded-xl transition-colors border border-indigo-100 dark:border-indigo-800/30">🔍 View Full Report</button>` : '';
-
-                    return `<div class="bg-white dark:bg-slate-900 p-6 rounded-2xl flex flex-col border border-slate-200 dark:border-slate-800 shadow-sm">
-                        <div class="flex justify-between items-start w-full">
-                            <div>
-                                <div class="font-black text-slate-800 dark:text-slate-200 text-lg tracking-tight">${h.title}</div>
-                                <div class="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mt-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/30 inline-block px-3 py-1 rounded-md">${nameText} • ${attText}</div>
-                                <div class="text-xs font-bold text-slate-400 mt-3 tracking-wide">${h.subject} • ${h.date}</div>
-                            </div>
-                            <div class="text-right">
-                                <div class="text-4xl font-black text-emerald-500 tracking-tighter leading-none">${h.score}</div>
-                                <div class="text-[10px] uppercase font-black text-slate-400 mt-2 tracking-widest">${h.accuracy}% ACC</div>
-                            </div>
-                        </div>
-                        ${reviewBtn}
-                    </div>`;
-                }).join('') || '<div class="text-slate-400 text-center text-sm py-4">No test history found.</div>'}
-            </div>
-        `;
-    };
-    
-    window.closeAnalytics = () => document.getElementById('screen-analytics').classList.add('hidden');
-
-    function showScreen(s) { 
-        ['dashboard','lobby','quiz','results'].forEach(x => document.getElementById('screen-'+x).classList.add('hidden')); 
-        document.getElementById('screen-'+s).classList.remove('hidden'); 
-        if(s !== 'dashboard') {
-            document.getElementById('omni-search').value = '';
-            document.getElementById('search-results-container').classList.add('hidden');
-            document.getElementById('dashboard-main-content').classList.remove('hidden');
-        }
-    }
-    
-    function formatTime(s) { return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`; }
-    
-    window.factoryReset = async () => {
-        requireAuth(async () => {
-            if(confirm("MAMBA CRITICAL WARNING: This will permanently delete all quizzes, history, and custom subjects locally AND in the Cloud.\n\nType 'DELETE' to confirm:")) {
-                const conf = prompt("Last warning. Type 'DELETE' exactly:");
-                if(conf === "DELETE") {
-                    SUBJECTS = ["Ancient History", "Medieval History", "Modern History", "Geography", "Economics", "Static GK", "Arithmetic", "Advanced Maths", "English", "Reasoning", "Current Affairs", "Polity", "Science", "Environment", "Miscellaneous"];
-                    db = {}; historyDb = []; mistakesDb = []; localStorage.clear(); await saveData(); location.reload();
-                }
-            }
-        });
-    };
-
-    initializeSystem();
-</script>
+    </script>
 </body>
 </html>
