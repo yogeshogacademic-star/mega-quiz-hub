@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V10.13 (Ultimate Sniper Engine)</title>
+    <title>Yogesh's Mega Quiz Hub - V10.12 (Sniper Revision Active)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -55,9 +55,9 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V10.13</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V10.12</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Ultimate Sniper Engine & Matrix</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">SSC Syllabus & Sniper Engine Active</p>
                 </div>
                 
                 <div class="flex items-center gap-4 w-full xl:w-auto justify-start xl:justify-end">
@@ -332,7 +332,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v10.13" };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v10.12" };
         
         fetch(CLOUD_URL, {
             method: 'POST',
@@ -560,7 +560,7 @@
     });
 
     window.exportBackup = () => {
-        const blob = new Blob([JSON.stringify({ version: "v10.13", subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb })], { type: "application/json" });
+        const blob = new Blob([JSON.stringify({ version: "v10.12", subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb })], { type: "application/json" });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Yogesh_MegaHub_Backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
     };
 
@@ -642,18 +642,13 @@
         let seenQs = new Set();
 
         Object.values(db).forEach(quiz => {
-            if (!quiz || !quiz.title) return;
             if (quiz.title.includes("🔥") || quiz.title.includes("🎯")) return; 
-            
             if(quiz.questions) {
                 quiz.questions.forEach(q => {
                     let qText = q.question;
-                    if(!qText || seenQs.has(qText)) return; 
+                    if(seenQs.has(qText)) return; 
 
-                    let tags = [];
-                    if(q.tags && Array.isArray(q.tags)) {
-                        tags = [...q.tags];
-                    }
+                    let tags = q.tags || [];
                     if(tags.length === 0) {
                         const m = (q.solution || '').match(/#(\w+)/g);
                         if(m) m.forEach(t => tags.push(t.substring(1)));
@@ -677,11 +672,11 @@
         });
 
         if(pool.length === 0) {
-            alert(`No questions found for "${targetTopic}" in your current vault!\n\nThis happens if you deleted the original quiz containing these questions. Please import the JSON quiz files back into the Hub to practice this topic.`);
+            alert(`No questions found for ${targetTopic} in your vault!`);
             return;
         }
 
-        const shuffled = pool.sort(() => 0.5 - Math.random()).slice(0, 50); // Cap at 50 questions per sniper mock
+        const shuffled = pool.sort(() => 0.5 - Math.random());
         db['quiz_topic_revision'] = { 
             title: `🎯 ${targetTopic} Revision`, 
             subject: targetSub, 
@@ -1070,18 +1065,11 @@
 
     window.closeQuizHistory = () => document.getElementById('screen-quiz-history').classList.add('hidden');
 
-    // V10.13: Bulletproof Normalization & Universal Fallback
+    // V10.12 Ultimate SSC Tag Normalization Engine with Perfect Miscellaneous Fallback
     const normalizeTag = (rawTag, fallbackSub) => {
-        if (!rawTag) return { sub: fallbackSub || 'Miscellaneous', topic: 'Miscellaneous Topics' };
-        
-        const t = String(rawTag).toLowerCase().replace(/[^a-z0-9]/g, '');
+        const t = rawTag.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-        // --- 1. KILL "MIXED" & "MISCELLANEOUS" DEAD ---
-        if(t === 'mixed' || t === 'miscellaneous') return { sub: 'Miscellaneous', topic: 'Mixed/General Questions' };
-
-        // --- 2. EXHAUSTIVE SUBJECT ROUTER ---
-
-        // QUANT: ARITHMETIC
+        // --- QUANT: ARITHMETIC ---
         if(t.match(/percent/)) return { sub: 'Arithmetic', topic: 'Percentage' };
         if(t.match(/profit|loss|discount|faulty|dishonest/)) return { sub: 'Arithmetic', topic: 'Profit, Loss & Discount' };
         if(t.match(/ratio|proportion|age|coin/)) return { sub: 'Arithmetic', topic: 'Ratio, Proportion & Ages' };
@@ -1094,7 +1082,7 @@
         if(t.match(/lcm|hcf|number|divisibility|remainder|decimal|fraction|surd|indice|bodmas|simplification/)) return { sub: 'Arithmetic', topic: 'Number System & Simplification' };
         if(t.match(/arithmetic|quant/)) return { sub: 'Arithmetic', topic: 'General Arithmetic' };
 
-        // QUANT: ADVANCED MATHS
+        // --- QUANT: ADVANCED MATHS ---
         if(t.match(/algebra|polynomial|equation|roots|identity|quadratic/)) return { sub: 'Advanced Maths', topic: 'Algebra' };
         if(t.match(/geometry|circle|triangle|collinear|polygon|angle|tangent|chord|orthocenter|centroid/)) return { sub: 'Advanced Maths', topic: 'Geometry' };
         if(t.match(/mensuration|area|volume|cone|cylinder|sphere|pyramid|prism|cube|cuboid|hemisphere/)) return { sub: 'Advanced Maths', topic: 'Mensuration (2D & 3D)' };
@@ -1103,7 +1091,7 @@
         if(t.match(/di|data|chart|graph|pie|bar|tabular|histogram/)) return { sub: 'Advanced Maths', topic: 'Data Interpretation' };
         if(t.match(/advancedmath|maths/)) return { sub: 'Advanced Maths', topic: 'General Advanced Maths' };
 
-        // ENGLISH
+        // --- ENGLISH ---
         if(t.match(/rc|comprehension|passage/)) return { sub: 'English', topic: 'Reading Comprehension' };
         if(t.match(/cloze/)) return { sub: 'English', topic: 'Cloze Test' };
         if(t.match(/error|spotting|grammar|noun|pronoun|verb|tense|adjective|adverb|preposition|conjunction/)) return { sub: 'English', topic: 'Grammar & Error Spotting' };
@@ -1118,7 +1106,7 @@
         if(t.match(/spell/)) return { sub: 'English', topic: 'Spelling Errors' };
         if(t.match(/english/)) return { sub: 'English', topic: 'General English' };
 
-        // REASONING
+        // --- REASONING ---
         if(t.match(/analogy/)) return { sub: 'Reasoning', topic: 'Analogy' };
         if(t.match(/classification|odd|out/)) return { sub: 'Reasoning', topic: 'Classification (Odd One Out)' };
         if(t.match(/series|missing/)) return { sub: 'Reasoning', topic: 'Number & Alphabet Series' };
@@ -1134,7 +1122,7 @@
         if(t.match(/clock|calendar/)) return { sub: 'Reasoning', topic: 'Clocks & Calendars' };
         if(t.match(/reasoning/)) return { sub: 'Reasoning', topic: 'General Reasoning' };
 
-        // POLITY
+        // --- POLITY ---
         if(t.match(/court|judge|judiciary|writ|sc|hc|pil|justice|tribunal|supreme|highcourt/)) return { sub: 'Polity', topic: 'Judiciary (SC, HC, Subordinate)' };
         if(t.match(/article|amendment|schedule|part|clause/)) return { sub: 'Polity', topic: 'Articles, Schedules & Amendments' };
         if(t.match(/parliament|ls|rs|president|pm|council|minister|cabinet|loksabha|rajyasabha/)) return { sub: 'Polity', topic: 'Union Executive & Legislature' };
@@ -1144,21 +1132,21 @@
         if(t.match(/election|cag|ec|upsc|financecommission|body|commission|attorney/)) return { sub: 'Polity', topic: 'Constitutional & Non-Constitutional Bodies' };
         if(t.match(/constitution|preamble|citizen|polity/)) return { sub: 'Polity', topic: 'Making of Constitution & Citizenship' };
 
-        // ANCIENT HISTORY
+        // --- ANCIENT HISTORY ---
         if(t.match(/ivc|indus|harappa|prehistoric|stoneage/)) return { sub: 'Ancient History', topic: 'Indus Valley & Pre-History' };
         if(t.match(/vedic|aryan|rigveda|upanishad/)) return { sub: 'Ancient History', topic: 'Vedic Age' };
         if(t.match(/buddh|jain|mahajanapada|magadha/)) return { sub: 'Ancient History', topic: 'Buddhism, Jainism & Mahajanapadas' };
         if(t.match(/maury|ashoka|bindusara/)) return { sub: 'Ancient History', topic: 'Mauryan Empire' };
         if(t.match(/gupta|harshavardhana|postmauryan|satavahana|ancient/)) return { sub: 'Ancient History', topic: 'Gupta Empire & Post-Mauryan' };
 
-        // MEDIEVAL HISTORY
+        // --- MEDIEVAL HISTORY ---
         if(t.match(/delhi|sultan|slave|khilji|tughlaq|lodi|mamluk/)) return { sub: 'Medieval History', topic: 'Delhi Sultanate' };
         if(t.match(/mughal|akbar|babur|shahjahan|suri|humayun/)) return { sub: 'Medieval History', topic: 'Mughal Empire' };
         if(t.match(/maratha|shivaji|peshwa/)) return { sub: 'Medieval History', topic: 'Maratha Empire' };
         if(t.match(/vijayanagar|bahmani|chola|cheras|pandya|southern/)) return { sub: 'Medieval History', topic: 'Southern Kingdoms' };
         if(t.match(/bhakti|sufi|sikh|medieval/)) return { sub: 'Medieval History', topic: 'Bhakti/Sufi & Sikhism' };
 
-        // MODERN HISTORY
+        // --- MODERN HISTORY ---
         if(t.match(/european|eastindia|plassey|buxar|french|dutch/)) return { sub: 'Modern History', topic: 'Advent of Europeans & British Conquest' };
         if(t.match(/revolt|1857|mutiny|sepoy/)) return { sub: 'Modern History', topic: 'Revolt of 1857' };
         if(t.match(/viceroy|governor|reform|act|charter|pitt/)) return { sub: 'Modern History', topic: 'Viceroys & British Acts' };
@@ -1166,7 +1154,7 @@
         if(t.match(/gandhi|movement|satyagraha|noncooperation|civil|quit/)) return { sub: 'Modern History', topic: 'Gandhian Era & Mass Movements' };
         if(t.match(/freedom|revolution|bose|bhagatsingh|modern|history/)) return { sub: 'Modern History', topic: 'Freedom Struggle & Revolutionaries' };
 
-        // GEOGRAPHY
+        // --- GEOGRAPHY ---
         if(t.match(/solar|universe|planet|earth|galaxy/)) return { sub: 'Geography', topic: 'Solar System & Universe' };
         if(t.match(/rock|earthquake|volcano|interior|geomorph/)) return { sub: 'Geography', topic: 'Physical Geography (Geomorphology)' };
         if(t.match(/atmosphere|climat|wind|cyclone/)) return { sub: 'Geography', topic: 'Climatology & Atmosphere' };
@@ -1179,7 +1167,7 @@
         if(t.match(/transport|highway|rail|port|waterway/)) return { sub: 'Geography', topic: 'Transport & Communication' };
         if(t.match(/census|demograph|tribe|population|literacy|sexratio|geography/)) return { sub: 'Geography', topic: 'Census & Demographics' };
 
-        // ECONOMICS
+        // --- ECONOMICS ---
         if(t.match(/micro|demand|supply|cost|production|elasticity/)) return { sub: 'Economics', topic: 'Microeconomics' };
         if(t.match(/macro|income|gdp|gnp|ndp|nnp/)) return { sub: 'Economics', topic: 'National Income & Macroeconomics' };
         if(t.match(/inflation|deflation|index|cpi|wpi/)) return { sub: 'Economics', topic: 'Inflation & Deflation' };
@@ -1189,7 +1177,7 @@
         if(t.match(/poverty|unemployment|development|index|inequality/)) return { sub: 'Economics', topic: 'Poverty, Employment & Development' };
         if(t.match(/imf|wb|wto|internationaltrade|forex|bop|economic/)) return { sub: 'Economics', topic: 'International Trade & Organizations' };
 
-        // SCIENCE
+        // --- SCIENCE ---
         if(t.match(/unit|dimension|measure|scalar|vector/)) return { sub: 'Science', topic: 'Units & Measurements' };
         if(t.match(/motion|force|work|energy|power|gravitation|friction|newton/)) return { sub: 'Science', topic: 'Mechanics (Physics)' };
         if(t.match(/sound|wave|oscillation|frequency/)) return { sub: 'Science', topic: 'Sound & Waves' };
@@ -1209,13 +1197,13 @@
         if(t.match(/plant|botany|photosynthesis|xylem|phloem/)) return { sub: 'Science', topic: 'Plant Biology (Botany)' };
         if(t.match(/animal|zoology|kingdom|vertebrat|science/)) return { sub: 'Science', topic: 'Animal Kingdom (Zoology)' };
 
-        // ENVIRONMENT
+        // --- ENVIRONMENT ---
         if(t.match(/environ|ecolog|ecosystem|foodchain|biome/)) return { sub: 'Environment', topic: 'Ecology & Ecosystem' };
         if(t.match(/biodivers|flora|fauna|conservation/)) return { sub: 'Environment', topic: 'Biodiversity & Conservation' };
         if(t.match(/pollut|climate|globalwarming|greenhouse|ozon/)) return { sub: 'Environment', topic: 'Pollution & Climate Change' };
         if(t.match(/treaty|protocol|convention|summit/)) return { sub: 'Environment', topic: 'International Treaties & Conventions' };
 
-        // STATIC GK
+        // --- STATIC GK ---
         if(t.match(/dance|classical|folk|garba|bihu|bhangra/)) return { sub: 'Static GK', topic: 'Classical & Folk Dances' };
         if(t.match(/festival|fair|mela/)) return { sub: 'Static GK', topic: 'Festivals & Fairs' };
         if(t.match(/music|instrument|singer|gharana/)) return { sub: 'Static GK', topic: 'Music & Instruments' };
@@ -1228,7 +1216,7 @@
         if(t.match(/hq|headquarter|un|who|ilo|unesco/)) return { sub: 'Static GK', topic: 'International Organizations & HQ' };
         if(t.match(/first|largest|longest|highest|superlative|staticgk/)) return { sub: 'Static GK', topic: 'Superlatives (India & World)' };
 
-        // CURRENT AFFAIRS
+        // --- CURRENT AFFAIRS ---
         if(t.match(/scheme|yojana|abhiyan|portal|pmjuga/)) return { sub: 'Current Affairs', topic: 'Government Schemes & Portals' };
         if(t.match(/conference|meet/)) return { sub: 'Current Affairs', topic: 'Summits & Conferences' };
         if(t.match(/defence|military|exercise|missile|army/)) return { sub: 'Current Affairs', topic: 'Defence & Military Exercises' };
@@ -1238,16 +1226,20 @@
         if(t.match(/current|news/)) return { sub: 'Current Affairs', topic: 'Current Events (General)' };
 
         // --- 3. THE ULTIMATE FALLBACK ---
+        // If a tag completely bypasses all 80+ regexes above (e.g. a random word like "#guitar")
+        // It will be forced into its parent subject's "Miscellaneous" folder to prevent messy bleeding.
+        
         const knownSubs = ["Arithmetic", "Advanced Maths", "Reasoning", "English", "Polity", "Economics", "Geography", "Ancient History", "Medieval History", "Modern History", "Science", "Environment", "Static GK", "Current Affairs", "Miscellaneous"];
         
         let fSub = fallbackSub;
         if(!knownSubs.includes(fSub)) {
-            if(String(fSub).toLowerCase().includes('math') || String(fSub).toLowerCase().includes('quant')) fSub = 'Arithmetic';
-            else if(String(fSub).toLowerCase().includes('gs') || String(fSub).toLowerCase().includes('gk')) fSub = 'Static GK';
+            if(fSub.toLowerCase().includes('math') || fSub.toLowerCase().includes('quant')) fSub = 'Arithmetic';
+            else if(fSub.toLowerCase().includes('gs') || fSub.toLowerCase().includes('gk')) fSub = 'Static GK';
             else fSub = 'Miscellaneous';
         }
 
         let genericTopic = `Miscellaneous ${fSub} Topics`;
+        
         return { sub: fSub, topic: genericTopic };
     };
 
@@ -1314,11 +1306,8 @@
                 let topicData = data.topics[tag];
                 let acc = Math.round((topicData.correct / topicData.total) * 100);
                 
-                // V10.13: Bulletproof URI Encoded Click Handler
-                const safeSub = encodeURIComponent(sub);
-                const safeTag = encodeURIComponent(tag);
-
-                let pill = `<button onclick="startTopicQuiz(decodeURIComponent('${safeSub}'), decodeURIComponent('${safeTag}'))" title="Click to practice all ${tag} questions" class="cursor-pointer hover:scale-105 hover:shadow-md transition-all inline-block px-3 py-1.5 m-1 text-[10px] font-black uppercase tracking-widest rounded-lg border shadow-sm ${acc >= 80 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800/50' : acc >= 50 ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/50' : 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800/50'}">${tag} (${acc}%)</button>`;
+                // Clickable Sniper Pill
+                let pill = `<button onclick="startTopicQuiz('${sub}', '${tag}')" title="Click to practice all ${tag} questions" class="cursor-pointer hover:scale-105 hover:shadow-md transition-all inline-block px-3 py-1.5 m-1 text-[10px] font-black uppercase tracking-widest rounded-lg border shadow-sm ${acc >= 80 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800/50' : acc >= 50 ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/50' : 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800/50'}">${tag} (${acc}%)</button>`;
                 
                 if(acc >= 80) strongHtml += pill;
                 else if(acc >= 50) practiceHtml += pill;
