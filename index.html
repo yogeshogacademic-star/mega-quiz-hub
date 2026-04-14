@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V17.0 (Precision Topic Matrix)</title>
+    <title>Yogesh's Mega Quiz Hub - V17.2 (Segregated Matrix)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -55,13 +55,14 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V17.0</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V17.2</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Omni-Vault & Targeted Mini Matrix</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Omni-Vault & Segregated Mini Matrix Engine</p>
                 </div>
                 
                 <div class="flex items-center gap-4 w-full xl:w-auto justify-start xl:justify-end">
                     <button onclick="toggleDarkMode()" class="bg-white/10 hover:bg-white/20 p-4 rounded-2xl backdrop-blur-md transition-all border border-white/10 shadow-inner hover:scale-105" title="Toggle Dark Mode">🌙</button>
+                    <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-8 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400">📊 History & Reports</button>
                 </div>
             </div>
 
@@ -110,11 +111,9 @@
     <div id="screen-lobby" class="hidden max-w-3xl mx-auto p-6 pt-10 w-full flex-1">
         <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
             <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-indigo-500"></div>
-            
             <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-8 flex items-center gap-2 transition-colors">← Back to Hub</button>
             <h2 id="lobby-title" class="text-4xl font-black text-slate-800 dark:text-slate-100 mb-2 tracking-tight">Quiz Title</h2>
             <p id="lobby-meta" class="text-sm font-bold text-emerald-600 dark:text-emerald-400 mb-8 uppercase tracking-widest">0 Questions</p>
-
             <div class="mb-8 p-6 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
                 <div class="flex flex-col md:flex-row gap-6 items-center justify-between">
                     <div class="w-full md:w-1/2">
@@ -126,7 +125,6 @@
                     </div>
                 </div>
             </div>
-
             <div class="space-y-6">
                 <div class="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-700/50">
                     <label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4">⏱️ Overall Time Limit</label>
@@ -138,7 +136,6 @@
                     </div>
                     <input type="number" id="custom-time-input" class="hidden w-full mt-4 p-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-950 font-bold text-lg shadow-inner" placeholder="Enter minutes...">
                 </div>
-
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="toggleLobbyMode('shuffle')">
                         <span class="font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-[10px]">🔀 Shuffle Q's</span>
@@ -159,7 +156,6 @@
                 </div>
                 <input type="number" id="per-q-time-input" class="hidden w-full p-4 rounded-xl border border-indigo-300 dark:border-indigo-600 bg-white dark:bg-slate-950 font-bold text-lg shadow-inner text-indigo-800 dark:text-indigo-300 placeholder-indigo-300 dark:placeholder-indigo-700" placeholder="Enter Seconds per Question (e.g., 60)">
             </div>
-
             <button onclick="startQuizFromLobby()" class="w-full mt-10 bg-slate-900 dark:bg-emerald-500 text-white dark:text-slate-900 font-black text-xl py-5 rounded-2xl shadow-[0_10px_20px_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-all tracking-widest uppercase">LAUNCH EXAM</button>
         </div>
     </div>
@@ -252,6 +248,16 @@
         </div>
     </div>
 
+    <div id="screen-analytics" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
+                <h2 class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Global Quiz History & Reports</h2>
+                <button onclick="closeAnalytics()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
+            </div>
+            <div class="flex-1 overflow-y-auto pr-2" id="mastery-grid"></div>
+        </div>
+    </div>
+
     <div id="screen-quiz-history" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl max-h-[80vh] flex flex-col">
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
@@ -266,6 +272,11 @@
     const CLOUD_URL = "https://script.google.com/macros/s/AKfycbyuAFvjWZHAlkDx00DsDoHiPgFMq-CmGgHKyQXq_6cfi1QwmnwUVp3ZNLrtpnLPhOXB/exec";
     
     let SUBJECTS = ["Ancient History", "Medieval History", "Modern History", "Geography", "Economics", "Static GK", "Arithmetic", "Advanced Maths", "English", "Reasoning", "Current Affairs", "Polity", "Science", "Environment", "Miscellaneous", "GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS"];
+    
+    // V17.2 Matrix Config Tracking
+    let MATRIX_ENABLED = ["GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS"];
+    let SUBJECT_CATEGORIES = { "GS MOCK QUESTIONS": "GS", "QUANT MOCK QUESTIONS": "Maths" };
+
     let db = {}; 
     let historyDb = [];
     let mistakesDb = []; 
@@ -288,6 +299,8 @@
 
     function updateLocalCache() {
         localStorage.setItem('megaQuizSubjects_v5', JSON.stringify(SUBJECTS));
+        localStorage.setItem('megaQuizMatrixEnabled_v1', JSON.stringify(MATRIX_ENABLED));
+        localStorage.setItem('megaQuizSubCats_v1', JSON.stringify(SUBJECT_CATEGORIES));
         localStorage.setItem('megaQuizDB_v4', JSON.stringify(db));
         localStorage.setItem('megaQuizHistory_v5', JSON.stringify(historyDb)); 
         localStorage.setItem('megaQuizMistakes_v5', JSON.stringify(mistakesDb));
@@ -295,6 +308,8 @@
 
     function loadLocalFallback() {
         if (localStorage.getItem('megaQuizSubjects_v5')) SUBJECTS = JSON.parse(localStorage.getItem('megaQuizSubjects_v5'));
+        if (localStorage.getItem('megaQuizMatrixEnabled_v1')) MATRIX_ENABLED = JSON.parse(localStorage.getItem('megaQuizMatrixEnabled_v1'));
+        if (localStorage.getItem('megaQuizSubCats_v1')) SUBJECT_CATEGORIES = JSON.parse(localStorage.getItem('megaQuizSubCats_v1'));
         if (localStorage.getItem('megaQuizDB_v4')) db = JSON.parse(localStorage.getItem('megaQuizDB_v4'));
         if (localStorage.getItem('megaQuizHistory_v5')) historyDb = JSON.parse(localStorage.getItem('megaQuizHistory_v5'));
         else if (localStorage.getItem('megaQuizHistory_v4')) historyDb = JSON.parse(localStorage.getItem('megaQuizHistory_v4')); 
@@ -303,6 +318,7 @@
 
     function showSyncStatus(state) {
         const el = document.getElementById('sync-status');
+        if(!el) return;
         if(state === 'syncing') {
             el.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> Syncing...`;
             el.className = "absolute top-6 right-6 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full bg-slate-800/80 text-amber-400 border border-slate-700 flex items-center gap-2 z-20 backdrop-blur-md shadow-lg";
@@ -318,7 +334,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v17.0" };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v17.2", matrixEnabled: MATRIX_ENABLED, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST',
@@ -344,6 +360,8 @@
             
             if (data && Object.keys(data).length > 0 && data.db) {
                 if (data.subjects) SUBJECTS = data.subjects;
+                if (data.matrixEnabled) MATRIX_ENABLED = data.matrixEnabled;
+                if (data.categories) SUBJECT_CATEGORIES = data.categories;
                 if (data.db) db = data.db;
                 if (data.history) historyDb = data.history;
                 if (data.mistakes) mistakesDb = data.mistakes;
@@ -423,7 +441,7 @@
                     const cText = (q.options && q.options.find(o=>o.correct)?.text) || "N/A";
                     
                     resultsHTML += `
-                        <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-700 shadow-lg hover:border-emerald-400 dark:hover:border-emerald-500 transition-colors relative overflow-hidden">
+                        <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-700 shadow-lg hover:border-emerald-400 dark:hover:border-emerald-500 transition-colors relative overflow-hidden mt-4">
                             <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-400"></div>
                             <div class="flex justify-between items-start mb-4">
                                 <span class="text-[10px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 px-3 py-1 rounded border border-indigo-100 dark:border-indigo-800/50">${quiz.subject} • ${quiz.title}</span>
@@ -451,17 +469,18 @@
 
     const getCategoryClass = (s) => {
         s = s.toLowerCase();
-        if(s.includes('history')) return 'border-amber-500';
-        if(s.includes('geography') || s.includes('environment')) return 'border-blue-500';
-        if(s.includes('polity')) return 'border-purple-500';
-        if(s.includes('economics')) return 'border-emerald-500';
-        if(s.includes('science')) return 'border-cyan-500';
-        if(s.includes('math') || s.includes('arithmetic') || s.includes('quant')) return 'border-red-500';
-        if(s.includes('english')) return 'border-pink-500';
+        let cat = SUBJECT_CATEGORIES[s] ? SUBJECT_CATEGORIES[s].toLowerCase() : s;
+        if(cat.includes('history') || s.includes('history')) return 'border-amber-500';
+        if(cat.includes('geography') || cat.includes('environment') || s.includes('geography')) return 'border-blue-500';
+        if(cat.includes('polity') || s.includes('polity')) return 'border-purple-500';
+        if(cat.includes('economics') || s.includes('economics')) return 'border-emerald-500';
+        if(cat.includes('science') || s.includes('science')) return 'border-cyan-500';
+        if(cat.includes('math') || cat.includes('quant') || s.includes('math') || s.includes('quant')) return 'border-red-500';
+        if(cat.includes('english') || s.includes('english')) return 'border-pink-500';
         return 'border-orange-500'; 
     };
 
-    // V17.0: NEW TARGETED TOPIC GENERATOR
+    // V17.2: TARGETED TOPIC GENERATOR
     window.generateTopicMock = (parentSubject, targetTopic) => {
         let pool = [];
         Object.values(db).forEach(quiz => {
@@ -478,7 +497,7 @@
         if(pool.length === 0) return alert(`No questions found for topic: ${targetTopic}`);
 
         const uniqueQs = Array.from(new Map(pool.map(q => [q.question, q])).values());
-        const shuffled = uniqueQs.sort(() => 0.5 - Math.random()).slice(0, 30); // Max 30 questions for targeted practice
+        const shuffled = uniqueQs.sort(() => 0.5 - Math.random()).slice(0, 30);
 
         db['quiz_topic_practice'] = {
             title: `🎯 ${targetTopic} Practice`,
@@ -511,35 +530,46 @@
         SUBJECTS.forEach(subject => {
             const subjectQuizzes = Object.keys(db).filter(id => db[id].subject === subject && !db[id].title.includes("Master Mock") && !db[id].title.includes("🎯"));
             
-            // V17.0: MINI MATRIX LOGIC
-            let topics = {};
+            // V17.2: SEGREGATED MINI MATRIX LOGIC
+            let topicsByParent = {}; 
             historyDb.filter(h => h.subject === subject).forEach(h => {
                 if(h.reviewData) {
                     h.reviewData.forEach(rd => {
-                        let tag = "Miscellaneous";
-                        if (rd.tags && rd.tags.length > 1) {
-                            tag = rd.tags[1]; 
-                        } else if (rd.tags && rd.tags.length === 1) {
-                            tag = rd.tags[0]; 
+                        let primaryTag = rd.tags && rd.tags.length > 0 ? rd.tags[0] : "General";
+                        let secondaryTag = rd.tags && rd.tags.length > 1 ? rd.tags[1] : primaryTag;
+                        if (!rd.tags || rd.tags.length === 0) { primaryTag = "Miscellaneous"; secondaryTag = "Miscellaneous"; }
+                        
+                        // Anti-bleed for standalone subjects
+                        if (!MATRIX_ENABLED.includes(subject) && subject !== "Miscellaneous") {
+                            if (primaryTag.toUpperCase() !== subject.toUpperCase()) return;
                         }
-                        if (!tag || tag.trim() === "") tag = "Miscellaneous";
 
-                        if(!topics[tag]) topics[tag] = { c: 0, t: 0 };
-                        topics[tag].t++;
-                        if(rd.status === 'correct') topics[tag].c++;
+                        if(!topicsByParent[primaryTag]) topicsByParent[primaryTag] = {};
+                        if(!topicsByParent[primaryTag][secondaryTag]) topicsByParent[primaryTag][secondaryTag] = { c: 0, t: 0 };
+                        
+                        topicsByParent[primaryTag][secondaryTag].t++;
+                        if(rd.status === 'correct') topicsByParent[primaryTag][secondaryTag].c++;
                     });
                 }
             });
 
             let matrixHTML = '';
-            if (Object.keys(topics).length > 0 && (subject === "GS MOCK QUESTIONS" || subject === "QUANT MOCK QUESTIONS")) {
-                matrixHTML = Object.keys(topics).map(t => {
-                    let acc = Math.round((topics[t].c / topics[t].t) * 100);
-                    let colorClasses = acc >= 80 ? 'text-emerald-700 bg-emerald-100 border-emerald-300 dark:text-emerald-400 dark:bg-emerald-900/30 dark:border-emerald-800/50'
-                                     : acc >= 50 ? 'text-amber-700 bg-amber-100 border-amber-300 dark:text-amber-400 dark:bg-amber-900/30 dark:border-amber-800/50'
-                                     : 'text-red-700 bg-red-100 border-red-300 dark:text-red-400 dark:bg-red-900/30 dark:border-red-800/50';
-                    return `<button onclick="generateTopicMock('${subject}', '${t}')" class="px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-md border shadow-sm ${colorClasses} hover:scale-105 transition-transform cursor-pointer" title="Practice ${t} questions">${t}: ${acc}% ▶</button>`;
-                }).join('');
+            if (MATRIX_ENABLED.includes(subject) && Object.keys(topicsByParent).length > 0) {
+                Object.keys(topicsByParent).forEach(parentSub => {
+                    let pillsHTML = Object.keys(topicsByParent[parentSub]).map(t => {
+                        let acc = Math.round((topicsByParent[parentSub][t].c / topicsByParent[parentSub][t].t) * 100);
+                        let colorClasses = acc >= 80 ? 'text-emerald-700 bg-emerald-100 border-emerald-300 dark:text-emerald-400 dark:bg-emerald-900/30 dark:border-emerald-800/50'
+                                         : acc >= 50 ? 'text-amber-700 bg-amber-100 border-amber-300 dark:text-amber-400 dark:bg-amber-900/30 dark:border-amber-800/50'
+                                         : 'text-red-700 bg-red-100 border-red-300 dark:text-red-400 dark:bg-red-900/30 dark:border-red-800/50';
+                        return `<button onclick="generateTopicMock('${subject}', '${t}')" class="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded border shadow-sm ${colorClasses} hover:scale-105 transition-transform cursor-pointer" title="Practice ${t} questions">${t}: ${acc}% ▶</button>`;
+                    }).join('');
+                    
+                    matrixHTML += `
+                        <div class="mb-3 last:mb-0">
+                            <div class="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 border-b border-slate-200 dark:border-slate-700 pb-0.5">${parentSub}</div>
+                            <div class="flex flex-wrap gap-1.5">${pillsHTML}</div>
+                        </div>`;
+                });
             }
 
             let listHTML = subjectQuizzes.length === 0 ? `<div class="text-xs text-slate-400 font-bold py-4 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg mb-2">No quizzes imported yet.</div>` : '';
@@ -565,7 +595,7 @@
                     <h2 class="text-xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">${subject}</h2>
                     <button onclick="deleteSubject('${subject}')" class="text-slate-400 hover:text-red-500 transition-colors bg-slate-100 dark:bg-slate-800 p-1.5 rounded-lg" title="Delete Subject & Quizzes 🔒">🗑️</button>
                 </div>
-                ${matrixHTML ? `<div class="p-3 mb-3 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-slate-100 dark:border-slate-800 shadow-inner"><div class="text-[9px] font-black uppercase text-slate-400 mb-2 tracking-widest flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Topic Heatmap (Click to Practice)</div><div class="flex flex-wrap gap-1.5">${matrixHTML}</div></div>` : ''}
+                ${matrixHTML ? `<div class="p-3 mb-3 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-slate-100 dark:border-slate-800 shadow-inner"><div class="text-[10px] font-black uppercase text-slate-400 mb-2 tracking-widest flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Target Topics</div>${matrixHTML}</div>` : ''}
                 <div class="flex-1 overflow-y-auto pr-2 mb-3 max-h-64 space-y-1">${listHTML}</div>
                 
                 <div class="flex gap-2 mt-auto pt-3 border-t border-slate-100 dark:border-slate-800/50">
@@ -575,14 +605,26 @@
             grid.appendChild(card);
         });
 
+        // V17.2 New Add Subject Logic
         const addCard = document.createElement('div');
         addCard.className = 'bg-slate-50 dark:bg-slate-900/50 rounded-3xl p-6 border-2 border-dashed border-slate-300 dark:border-slate-700 flex flex-col justify-center items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors min-h-[200px] shadow-sm group';
         addCard.onclick = () => {
             requireAuth(() => {
                 const newSub = prompt("Enter new subject name:");
                 if (newSub && newSub.trim() && !SUBJECTS.includes(newSub.trim())) {
-                    SUBJECTS.push(newSub.trim()); saveData(); renderDashboard();
-                } else if (newSub && newSub.trim()) alert("Subject already exists!");
+                    let cleanSub = newSub.trim();
+                    SUBJECTS.push(cleanSub);
+                    
+                    if(confirm(`Do you want to enable the Mini-Matrix Tracker for "${cleanSub}"?\n\n(Click OK for Yes, Cancel for No)`)) {
+                        let cat = prompt(`Which core category does "${cleanSub}" belong to?\n(e.g., GS, Maths, English, Reasoning)`);
+                        MATRIX_ENABLED.push(cleanSub);
+                        if(cat && cat.trim()) SUBJECT_CATEGORIES[cleanSub] = cat.trim();
+                    }
+                    
+                    saveData(); renderDashboard();
+                } else if (newSub && newSub.trim()) {
+                    alert("Subject already exists!");
+                }
             });
         };
         addCard.innerHTML = `<div class="w-14 h-14 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 font-black text-3xl mb-4 shadow-sm group-hover:scale-110 transition-transform group-hover:text-emerald-500 border border-slate-200 dark:border-slate-700">+</div><h2 class="text-lg font-black text-slate-600 dark:text-slate-400 uppercase tracking-tight">Add Subject 🔒</h2><p class="text-xs text-slate-400 font-bold mt-2 text-center tracking-widest uppercase">Custom Category</p>`;
@@ -591,7 +633,7 @@
 
     window.triggerImport = (sub) => { requireAuth(() => { targetImportSubject = sub; document.getElementById('global-file-input').click(); }); };
     window.deleteQuiz = (id) => { requireAuth(() => { if (confirm("Delete this quiz forever?")) { delete db[id]; saveData(); renderDashboard(); } }); };
-    window.deleteSubject = (sub) => { requireAuth(() => { if (prompt(`WARNING: Delete "${sub}" AND all quizzes inside it?\n\nType "DELETE" to confirm:`) === "DELETE") { SUBJECTS = SUBJECTS.filter(s => s !== sub); Object.keys(db).forEach(id => { if (db[id].subject === sub) delete db[id]; }); saveData(); renderDashboard(); } }); };
+    window.deleteSubject = (sub) => { requireAuth(() => { if (prompt(`WARNING: Delete "${sub}" AND all quizzes inside it?\n\nType "DELETE" to confirm:`) === "DELETE") { SUBJECTS = SUBJECTS.filter(s => s !== sub); Object.keys(db).forEach(id => { if (db[id].subject === sub) delete db[id]; }); MATRIX_ENABLED = MATRIX_ENABLED.filter(s => s !== sub); delete SUBJECT_CATEGORIES[sub]; saveData(); renderDashboard(); } }); };
 
     document.getElementById('global-file-input').addEventListener('change', function(e) {
         const file = e.target.files[0]; if (!file) return;
@@ -606,7 +648,7 @@
     });
 
     window.exportBackup = () => {
-        const blob = new Blob([JSON.stringify({ version: "v17.0", subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb })], { type: "application/json" });
+        const blob = new Blob([JSON.stringify({ version: "v17.2", subjects: SUBJECTS, matrixEnabled: MATRIX_ENABLED, categories: SUBJECT_CATEGORIES, db: db, history: historyDb, mistakes: mistakesDb })], { type: "application/json" });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Yogesh_MegaHub_Backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
     };
 
@@ -619,7 +661,10 @@
             try {
                 const backup = JSON.parse(event.target.result);
                 if (backup.subjects && backup.db) {
-                    SUBJECTS = backup.subjects; db = backup.db;
+                    SUBJECTS = backup.subjects; 
+                    db = backup.db;
+                    if(backup.matrixEnabled) MATRIX_ENABLED = backup.matrixEnabled;
+                    if(backup.categories) SUBJECT_CATEGORIES = backup.categories;
                     if (backup.history) historyDb = backup.history;
                     if (backup.mistakes) mistakesDb = backup.mistakes;
                     saveData(); alert("Restored!"); location.reload();
@@ -932,12 +977,13 @@
                 if (currentQuizId !== 'quiz_redemption' && !mistakesDb.some(m => m.question === q.question)) { mistakesDb.push(q); }
             }
 
+            // V17.2: Tagging Logic for History Saving
             let tags = q.tags || [];
             if(tags.length === 0) {
                 const m = (q.solution || '').match(/#(\w+)/g);
                 if(m) m.forEach(t => tags.push(t.substring(1)));
             }
-            if(tags.length === 0) tags.push("Miscellaneous"); // V17.0 Fallback to Miscellaneous
+            if(tags.length === 0) tags.push("Miscellaneous");
 
             fullReviewHTML += genDeepReviewCard({question: q.question, solution: q.solution}, status, uText, cText, "");
             historicalReviewData.push({ question: q.question, status: status, uText: uText, cText: cText, solution: q.solution, tags: [...new Set(tags)] });
@@ -999,7 +1045,7 @@
     }
 
     window.openHistoryReview = (index) => {
-        closeQuizHistory();   
+        closeQuizHistory(); closeAnalytics();   
         const attempt = historyDb[index];
         if (!attempt.reviewData) return alert("This test is from an older version of the Hub and does not have Deep Review data saved.");
         
@@ -1052,6 +1098,40 @@
 
     window.closeQuizHistory = () => document.getElementById('screen-quiz-history').classList.add('hidden');
 
+    // V17.2: GLOBAL ANALYTICS MODAL (HISTORY ONLY)
+    window.showAnalytics = () => {
+        document.getElementById('screen-analytics').classList.remove('hidden');
+        
+        let historyHTML = `
+            <div class="space-y-3 mt-4">
+                ${historyDb.map((h, index) => {
+                    const attText = h.attemptNumber ? `ATTEMPT #${h.attemptNumber}` : `ATTEMPT #1`;
+                    const nameText = h.candidateName ? h.candidateName : "Yogesh";
+                    const reviewBtn = h.reviewData ? `<button onclick="openHistoryReview(${index})" class="mt-3 w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400 dark:hover:bg-indigo-900/40 font-black text-[10px] uppercase tracking-widest py-2 rounded-xl transition-colors border border-indigo-100 dark:border-indigo-800/30">🔍 View Full Report</button>` : '';
+
+                    return `<div class="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl flex flex-col border border-slate-200 dark:border-slate-800 shadow-sm">
+                        <div class="flex justify-between items-start w-full">
+                            <div>
+                                <div class="font-black text-slate-800 dark:text-slate-200 text-lg tracking-tight">${h.title}</div>
+                                <div class="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mt-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/30 inline-block px-3 py-1 rounded-md">${nameText} • ${attText}</div>
+                                <div class="text-xs font-bold text-slate-400 mt-3 tracking-wide">${h.subject} • ${h.date}</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-4xl font-black text-emerald-500 tracking-tighter leading-none">${h.score}</div>
+                                <div class="text-[10px] uppercase font-black text-slate-400 tracking-widest mt-2">${h.accuracy}% ACC</div>
+                            </div>
+                        </div>
+                        ${reviewBtn}
+                    </div>`;
+                }).join('') || '<div class="text-slate-400 text-center text-sm py-4 italic">No test history found. Go dominate a mock!</div>'}
+            </div>
+        `;
+
+        document.getElementById('mastery-grid').innerHTML = historyHTML;
+    };
+    
+    window.closeAnalytics = () => document.getElementById('screen-analytics').classList.add('hidden');
+
     function showScreen(s) { 
         ['dashboard','lobby','quiz','results'].forEach(x => document.getElementById('screen-'+x).classList.add('hidden')); 
         document.getElementById('screen-'+s).classList.remove('hidden'); 
@@ -1070,6 +1150,8 @@
                 const conf = prompt("Last warning. Type 'DELETE' exactly:");
                 if(conf === "DELETE") {
                     SUBJECTS = ["Ancient History", "Medieval History", "Modern History", "Geography", "Economics", "Static GK", "Arithmetic", "Advanced Maths", "English", "Reasoning", "Current Affairs", "Polity", "Science", "Environment", "Miscellaneous", "GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS"];
+                    MATRIX_ENABLED = ["GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS"];
+                    SUBJECT_CATEGORIES = { "GS MOCK QUESTIONS": "GS", "QUANT MOCK QUESTIONS": "Maths" };
                     db = {}; historyDb = []; mistakesDb = []; localStorage.clear(); await saveData(); location.reload();
                 }
             }
