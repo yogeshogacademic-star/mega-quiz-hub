@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V18.2 (Elite UI & Formula Vault)</title>
+    <title>Yogesh's Mega Quiz Hub - V18.5 (Elite Analytics & Smart Revision)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -32,6 +32,11 @@
 
         mark { background-color: rgba(251, 191, 36, 0.4); color: inherit; padding: 0 2px; border-radius: 4px; font-weight: 900; box-shadow: 0 0 8px rgba(251, 191, 36, 0.3); }
         .dark mark { background-color: rgba(245, 158, 11, 0.5); }
+
+        .formula-block { padding: 14px 18px; background-color: #f8fafc; border-left: 5px solid #10b981; margin-bottom: 12px; border-radius: 0 8px 8px 0; color: #334155; font-weight: 600; font-size: 15px; box-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.02); line-height: 1.5; }
+        .dark .formula-block { background-color: #0f172a; border-left-color: #34d399; color: #e2e8f0; }
+        .formula-title { color: #047857; font-weight: 900; margin-right: 8px; text-transform: uppercase; font-size: 12px; letter-spacing: 0.05em; display: block; margin-bottom: 4px; }
+        .dark .formula-title { color: #34d399; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-[#0a0f1c] dark:text-slate-200 min-h-screen flex flex-col pb-20">
@@ -55,14 +60,14 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V18.2</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V18.5</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Elite UI & Contextual Formula Engine</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Elite UI, Dynamic Formula Book & Smart Revision</p>
                 </div>
                 
                 <div class="flex items-center gap-4 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
                     <button onclick="toggleDarkMode()" class="bg-white/10 hover:bg-white/20 p-4 rounded-2xl backdrop-blur-md transition-all border border-white/10 shadow-inner hover:scale-105" title="Toggle Dark Mode">🌙</button>
-                    <button onclick="showFormulaVault()" class="bg-gradient-to-br from-pink-500 to-rose-600 hover:from-pink-400 hover:to-rose-500 text-white font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(244,63,94,0.4)] transition-transform hover:-translate-y-1 border border-pink-400 flex items-center gap-2">🧮 Formula Vault</button>
+                    <button onclick="showFormulaVault()" class="bg-gradient-to-br from-pink-500 to-rose-600 hover:from-pink-400 hover:to-rose-500 text-white font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(244,63,94,0.4)] transition-transform hover:-translate-y-1 border border-pink-400 flex items-center gap-2">🧮 Formula Book</button>
                     <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400 flex items-center gap-2">📊 History</button>
                 </div>
             </div>
@@ -110,6 +115,7 @@
             <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-8 flex items-center gap-2 transition-colors">← Back to Hub</button>
             <h2 id="lobby-title" class="text-4xl font-black text-slate-800 dark:text-slate-100 mb-2 tracking-tight">Quiz Title</h2>
             <p id="lobby-meta" class="text-sm font-bold text-emerald-600 dark:text-emerald-400 mb-8 uppercase tracking-widest">0 Questions</p>
+            
             <div class="mb-8 p-6 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
                 <div class="flex flex-col md:flex-row gap-6 items-center justify-between">
                     <div class="w-full md:w-1/2">
@@ -121,14 +127,23 @@
                     </div>
                 </div>
             </div>
+
+            <div id="lobby-mode-selection" class="hidden mb-6 p-6 bg-rose-50 dark:bg-rose-900/10 rounded-2xl border border-rose-100 dark:border-rose-800/30">
+                <label class="block text-[10px] font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-3 flex items-center gap-2">🧠 Smart Revision Mode</label>
+                <div class="flex gap-4 flex-wrap">
+                    <button id="btn-mode-full" onclick="setQuizMode('full')" class="time-btn flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Full Quiz</button>
+                    <button id="btn-mode-wrong" onclick="setQuizMode('wrong')" class="time-btn flex-1 bg-rose-100 text-rose-800 border-rose-500 dark:bg-rose-900/40 dark:text-rose-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Wrong/Skipped Only (<span id="wrong-count-badge">0</span>)</button>
+                </div>
+            </div>
+
             <div class="space-y-6">
                 <div class="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-700/50">
                     <label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4">⏱️ Overall Time Limit</label>
                     <div class="flex gap-3 flex-wrap">
-                        <button onclick="setLobbyTime('default')" id="btn-time-default" class="time-btn flex-1 bg-emerald-100 text-emerald-800 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Default</button>
-                        <button onclick="setLobbyTime('15')" id="btn-time-15" class="time-btn flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">15 Min</button>
-                        <button onclick="setLobbyTime('30')" id="btn-time-30" class="time-btn flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">30 Min</button>
-                        <button onclick="setLobbyTime('custom')" id="btn-time-custom" class="time-btn flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">Custom</button>
+                        <button onclick="setLobbyTime('default')" id="btn-time-default" class="time-btn-main flex-1 bg-emerald-100 text-emerald-800 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Default</button>
+                        <button onclick="setLobbyTime('15')" id="btn-time-15" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">15 Min</button>
+                        <button onclick="setLobbyTime('30')" id="btn-time-30" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">30 Min</button>
+                        <button onclick="setLobbyTime('custom')" id="btn-time-custom" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">Custom</button>
                     </div>
                     <input type="number" id="custom-time-input" class="hidden w-full mt-4 p-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-950 font-bold text-lg shadow-inner" placeholder="Enter minutes...">
                 </div>
@@ -268,8 +283,8 @@
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
                 <div>
-                    <h2 class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">🧮 Contextual Formula Vault</h2>
-                    <p class="text-xs font-bold text-emerald-500 uppercase tracking-widest mt-1">Extracted from your actual Quant Mocks</p>
+                    <h2 class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">🧮 Master Formula Book</h2>
+                    <p class="text-xs font-bold text-emerald-500 uppercase tracking-widest mt-1">Unlock topics by taking Quant Mocks</p>
                 </div>
                 <div class="flex items-center gap-4">
                     <button onclick="exportFormulaPDF()" class="bg-pink-50 hover:bg-pink-100 text-pink-600 dark:bg-pink-900/20 dark:text-pink-400 font-black text-xs uppercase tracking-widest px-4 py-2 rounded-xl transition-colors border border-pink-100 dark:border-pink-800/30 shadow-sm">📄 Export PDF</button>
@@ -277,6 +292,19 @@
                 </div>
             </div>
             <div class="flex-1 overflow-y-auto pr-2 space-y-6" id="formula-grid"></div>
+        </div>
+    </div>
+
+    <div id="screen-subject-analysis" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div>
+                    <h2 id="subject-analysis-title" class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Subject - Topic Analysis</h2>
+                    <p class="text-xs font-bold text-blue-500 uppercase tracking-widest mt-1">Performance breakdown by sub-topics</p>
+                </div>
+                <button onclick="closeSubjectAnalysis()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
+            </div>
+            <div class="flex-1 overflow-y-auto pr-2 space-y-4" id="subject-analysis-grid"></div>
         </div>
     </div>
 
@@ -294,14 +322,99 @@
     let currentQuizId = null;
     let currentAttemptNum = 1;
     let activeQuestions = []; 
-    // FIXED V18.2: currentFocus initialized to -1 to prevent premature locking of Question 1
     let quizState = { answers: {}, marked: {}, revealed: {}, locked: {}, qTimeLeft: 0, submitted: false, interval: null, isPaused: false, currentFocus: -1 };
     let lobbySettings = { timeMode: 'default', customMinutes: 0, shuffle: true, exam: true, blind: false, perQTimer: false };
     let targetImportSubject = ""; 
 
+    // V18.5: REVISION MODE
+    let lobbyQuizMode = 'full';
+    window.currentQuizWrongQs = [];
+
+    // V18.0 MASTER FORMULA DATABASE
+    const MASTER_FORMULAS = {
+        "Speed, Time & Distance": `
+            <div class='formula-block'><span class='formula-title'>Basic Formula</span> Speed = Distance / Time</div>
+            <div class='formula-block'><span class='formula-title'>Average Speed</span> If distance is same (going and returning), Avg Speed = (2xy) / (x + y)</div>
+            <div class='formula-block'><span class='formula-title'>Relative Speed</span> Same direction = |x - y| <br> Opposite direction = (x + y)</div>
+            <div class='formula-block'><span class='formula-title'>Trains Crossing</span> Time = (Length of Train 1 + Length of Object) / Relative Speed</div>
+            <div class='formula-block'><span class='formula-title'>Meeting Point</span> If A and B start towards each other and meet, then distance ratio = speed ratio.</div>
+        `,
+        "Time & Work": `
+            <div class='formula-block'><span class='formula-title'>Basic Formula</span> Total Work = Efficiency x Time</div>
+            <div class='formula-block'><span class='formula-title'>Chain Rule (MDH)</span> (M1 x D1 x H1) / W1 = (M2 x D2 x H2) / W2</div>
+            <div class='formula-block'><span class='formula-title'>Work & Wages</span> Wages are always distributed in proportion to the total work done (or efficiency, if time worked is equal).</div>
+            <div class='formula-block'><span class='formula-title'>Alternate Days</span> Find the 2-day cycle work, multiply close to total work, then calculate remaining fraction.</div>
+        `,
+        "Geometry": `
+            <div class='formula-block'><span class='formula-title'>Angle Bisector Theorem</span> If AD bisects ∠A in ΔABC, then AB / AC = BD / DC.</div>
+            <div class='formula-block'><span class='formula-title'>Incenter (Angle Bisectors)</span> Angle at Incenter: ∠BIC = 90° + (∠A / 2).</div>
+            <div class='formula-block'><span class='formula-title'>Circumcenter (Perp. Bisectors)</span> Angle at center is double the angle at circumference: ∠BOC = 2∠A.</div>
+            <div class='formula-block'><span class='formula-title'>Centroid (Medians)</span> Divides each median in a 2:1 ratio (vertex to base).</div>
+            <div class='formula-block'><span class='formula-title'>Similarity (AA, SAS, SSS)</span> If ΔABC ~ ΔXYZ, then Area ratio = square of side ratio.</div>
+        `,
+        "Mensuration (2D)": `
+            <div class='formula-block'><span class='formula-title'>Equilateral Triangle</span> Area = (√3 / 4)a² <br> Height = (√3 / 2)a</div>
+            <div class='formula-block'><span class='formula-title'>Inradius (Equilateral)</span> r = a / (2√3)</div>
+            <div class='formula-block'><span class='formula-title'>Circumradius (Equilateral)</span> R = a / √3  <br> Note: R = 2r</div>
+            <div class='formula-block'><span class='formula-title'>General Triangle Inradius</span> r = Area / Semi-perimeter (s)</div>
+            <div class='formula-block'><span class='formula-title'>Regular Hexagon</span> Area = 6 x (√3 / 4)a² <br> (Made of 6 equilateral triangles)</div>
+        `,
+        "Mensuration (3D)": `
+            <div class='formula-block'><span class='formula-title'>Cone</span> Volume = (1/3)πr²h <br> Curved Surface Area = πrl <br> Slant height l = √(r² + h²)</div>
+            <div class='formula-block'><span class='formula-title'>Cylinder</span> Volume = πr²h <br> Curved Surface Area = 2πrh</div>
+            <div class='formula-block'><span class='formula-title'>Pyramid</span> Volume = (1/3) x Base Area x Height</div>
+            <div class='formula-block'><span class='formula-title'>Sphere</span> Volume = (4/3)πr³ <br> Surface Area = 4πr²</div>
+            <div class='formula-block'><span class='formula-title'>Melting & Recasting</span> Equate the Volume of the original solid to the Volume of the new solid.</div>
+        `,
+        "Algebra": `
+            <div class='formula-block'><span class='formula-title'>Cubes Identity 1</span> a³ + b³ = (a + b)(a² - ab + b²) <br> a³ - b³ = (a - b)(a² + ab + b²)</div>
+            <div class='formula-block'><span class='formula-title'>Master Identity</span> a³ + b³ + c³ - 3abc = (a+b+c)(a² + b² + c² - ab - bc - ca)</div>
+            <div class='formula-block'><span class='formula-title'>Zero Condition</span> If a+b+c = 0, then a³ + b³ + c³ = 3abc</div>
+            <div class='formula-block'><span class='formula-title'>x + 1/x Pattern</span> If x + 1/x = k <br> x² + 1/x² = k² - 2 <br> x³ + 1/x³ = k³ - 3k</div>
+            <div class='formula-block'><span class='formula-title'>x - 1/x Pattern</span> If x - 1/x = k <br> x² + 1/x² = k² + 2 <br> x³ - 1/x³ = k³ + 3k</div>
+        `,
+        "Profit & Loss": `
+            <div class='formula-block'><span class='formula-title'>Basic Principle</span> SP = CP x (100 ± Profit/Loss %) / 100</div>
+            <div class='formula-block'><span class='formula-title'>Faulty Weight</span> Profit % = (Error / True Value Given) x 100</div>
+            <div class='formula-block'><span class='formula-title'>Successive Discount</span> Net discount for d1% and d2% = d1 + d2 - (d1 x d2)/100 %</div>
+            <div class='formula-block'><span class='formula-title'>Markup & Discount</span> CP / MRP = (100 - Discount%) / (100 + Profit%)</div>
+        `,
+        "Compound Interest": `
+            <div class='formula-block'><span class='formula-title'>Amount Formula</span> A = P(1 + R/100)^n</div>
+            <div class='formula-block'><span class='formula-title'>Difference (2 Years)</span> CI - SI = P(R/100)²</div>
+            <div class='formula-block'><span class='formula-title'>Difference (3 Years)</span> CI - SI = P(R/100)² x (3 + R/100)</div>
+            <div class='formula-block'><span class='formula-title'>Half-yearly/Quarterly</span> Rate halves (R/2) and Time doubles (2n) for half-yearly. Rate is R/4 and Time is 4n for quarterly.</div>
+        `,
+        "Percentage": `
+            <div class='formula-block'><span class='formula-title'>Successive Change</span> Net % change = a + b + (ab/100)</div>
+            <div class='formula-block'><span class='formula-title'>Price/Consumption</span> Expenditure = Price x Consumption. <br> If Price increases by x%, Consumption must decrease by [x / (100+x)] x 100 % to keep expenditure same.</div>
+            <div class='formula-block'><span class='formula-title'>Venn Diagrams</span> Total = n(A) + n(B) - n(A ∩ B) + Neither</div>
+        `,
+        "Ratio & Proportion": `
+            <div class='formula-block'><span class='formula-title'>Mean Proportional</span> Between a and b = √(ab)</div>
+            <div class='formula-block'><span class='formula-title'>Third Proportional</span> To a and b = b² / a</div>
+            <div class='formula-block'><span class='formula-title'>Fourth Proportional</span> To a, b, and c = (b x c) / a</div>
+            <div class='formula-block'><span class='formula-title'>Componendo & Dividendo</span> If a/b = c/d, then (a+b)/(a-b) = (c+d)/(c-d)</div>
+        `,
+        "Number System": `
+            <div class='formula-block'><span class='formula-title'>Perfect Squares</span> Never end in 2, 3, 7, or 8. Digital root is always 1, 4, 7, or 9.</div>
+            <div class='formula-block'><span class='formula-title'>Total Factors</span> If N = p^a x q^b, Total factors = (a+1)(b+1)</div>
+            <div class='formula-block'><span class='formula-title'>Divisibility by 11</span> Difference between sum of odd placed digits and even placed digits is 0 or a multiple of 11.</div>
+        `,
+        "Trigonometry": `
+            <div class='formula-block'><span class='formula-title'>Identities</span> sin²θ + cos²θ = 1 <br> sec²θ - tan²θ = 1 <br> cosec²θ - cot²θ = 1</div>
+            <div class='formula-block'><span class='formula-title'>Complementary Angles</span> sin(90-θ) = cosθ <br> tan(90-θ) = cotθ <br> sec(90-θ) = cosecθ</div>
+            <div class='formula-block'><span class='formula-title'>Value Check</span> If sin A = cos B, then A + B = 90°.</div>
+        `,
+        "Mixture & Alligation": `
+            <div class='formula-block'><span class='formula-title'>Alligation Rule</span> Ratio of quantities = (Cheaper Price - Mean Price) / (Mean Price - Dearer Price)</div>
+            <div class='formula-block'><span class='formula-title'>Replacement Formula</span> Final Quantity of pure liquid = Initial Quantity x (1 - Removed Vol / Total Vol)^n</div>
+        `
+    };
+
     window.requireAuth = (callback) => {
         const pwd = prompt("🔒 SYSTEM SECURED\n\nEnter the master password to authorize changes:");
-        if (pwd === "KOBE") { callback(); } else if (pwd !== null) { alert("❌ ACCESS DENIED. Incorrect password."); }
+        if (pwd === "KOBE") { callback(); } else if (pwd !== null) { alert("❌ ACCESS DENIED."); }
     };
 
     function updateLocalCache() {
@@ -340,7 +453,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v18.2", matrixEnabled: MATRIX_ENABLED, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v18.5", matrixEnabled: MATRIX_ENABLED, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -520,15 +633,25 @@
                     allPills += `<div class="mb-3 last:mb-0"><div class="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 border-b border-slate-200 dark:border-slate-700 pb-0.5">${parentSub}</div><div class="flex flex-wrap gap-1.5">${pillsHTML}</div></div>`;
                 });
                 
-                // V18.2: AESTHETIC ACCORDION BUTTON FOR MATRIX
                 matrixHTML = `
-                    <div class="mb-4">
-                        <button onclick="document.getElementById('matrix-${safeSub}').classList.toggle('hidden')" class="w-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black text-[10px] uppercase py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 flex justify-between items-center px-4 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors shadow-sm">
+                    <div class="mb-4 flex gap-2">
+                        <button onclick="document.getElementById('matrix-${safeSub}').classList.toggle('hidden')" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black text-[10px] uppercase py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 flex justify-between items-center px-4 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors shadow-sm">
                             🎯 Target Topics <span class="text-xs">▼</span>
                         </button>
-                        <div id="matrix-${safeSub}" class="hidden mt-2 p-4 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-slate-100 dark:border-slate-800 shadow-inner">
-                            ${allPills}
-                        </div>
+                        <button onclick="showSubjectAnalysis('${subject}')" class="bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 font-black text-[10px] uppercase px-4 py-2.5 rounded-xl border border-blue-100 dark:border-blue-800/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors shadow-sm" title="View Detailed Topic Analysis">
+                            📊 Analysis
+                        </button>
+                    </div>
+                    <div id="matrix-${safeSub}" class="hidden mb-4 p-4 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-slate-100 dark:border-slate-800 shadow-inner">
+                        ${allPills}
+                    </div>
+                `;
+            } else {
+                matrixHTML = `
+                    <div class="mb-4">
+                        <button onclick="showSubjectAnalysis('${subject}')" class="w-full bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 font-black text-[10px] uppercase px-4 py-2.5 rounded-xl border border-blue-100 dark:border-blue-800/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors shadow-sm" title="View Detailed Topic Analysis">
+                            📊 Topic Analysis
+                        </button>
                     </div>
                 `;
             }
@@ -603,7 +726,7 @@
     });
 
     window.exportBackup = () => {
-        const blob = new Blob([JSON.stringify({ version: "v18.2", subjects: SUBJECTS, matrixEnabled: MATRIX_ENABLED, categories: SUBJECT_CATEGORIES, db: db, history: historyDb, mistakes: mistakesDb })], { type: "application/json" });
+        const blob = new Blob([JSON.stringify({ version: "v18.5", subjects: SUBJECTS, matrixEnabled: MATRIX_ENABLED, categories: SUBJECT_CATEGORIES, db: db, history: historyDb, mistakes: mistakesDb })], { type: "application/json" });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Yogesh_MegaHub_Backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
     };
 
@@ -640,15 +763,41 @@
         const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([generateAnkiTSV(db[id].questions)], { type: 'text/plain' })); a.download = `Anki_Quiz_${db[id].title.replace(/[^a-z0-9]/gi, '_')}.txt`; a.click();
     };
 
+    window.setQuizMode = (mode) => {
+        lobbyQuizMode = mode;
+        document.getElementById('btn-mode-full').className = `time-btn flex-1 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm ${mode === 'full' ? 'bg-emerald-100 text-emerald-800 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent hover:border-slate-300 dark:hover:border-slate-600'}`;
+        document.getElementById('btn-mode-wrong').className = `time-btn flex-1 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm ${mode === 'wrong' ? 'bg-rose-100 text-rose-800 border-rose-500 dark:bg-rose-900/40 dark:text-rose-300' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent hover:border-slate-300 dark:hover:border-slate-600'}`;
+    };
+
     function openLobby(id) {
         currentQuizId = id; const q = db[id];
         document.getElementById('lobby-title').textContent = q.title;
         document.getElementById('lobby-meta').textContent = `${q.questions.length} Questions | Default Time: ${q.timeInMinutes} Mins`;
         const lastStoredName = localStorage.getItem('megaQuizCandidateName') || "Yogesh";
         document.getElementById('candidate-name').value = lastStoredName;
+        
         let prev = historyDb.filter(h => h.title === q.title); currentAttemptNum = prev.length + 1;
         let lastScoreText = prev.length > 0 ? `Previous Score: ${prev[0].score} (${prev[0].accuracy}% ACC)` : "First Attempt";
         document.getElementById('attempt-info').innerHTML = `<div class="text-xl font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tight">Attempt #${currentAttemptNum}</div><div class="text-[11px] font-black uppercase tracking-widest text-slate-500 mt-1">${lastScoreText}</div>`;
+        
+        // V18.5: REVISION MODE LOGIC
+        lobbyQuizMode = 'full';
+        let wrongQs = [];
+        if(prev.length > 0) {
+            let lastAttempt = prev[0]; // latest history is at index 0
+            if(lastAttempt.reviewData) {
+                wrongQs = lastAttempt.reviewData.filter(r => r.status === 'wrong' || r.status === 'skipped').map(r => r.question);
+            }
+        }
+        window.currentQuizWrongQs = wrongQs;
+        if(prev.length > 0 && wrongQs.length > 0) {
+            document.getElementById('lobby-mode-selection').classList.remove('hidden');
+            document.getElementById('wrong-count-badge').textContent = wrongQs.length;
+            setQuizMode('full'); // Default select full
+        } else {
+            document.getElementById('lobby-mode-selection').classList.add('hidden');
+        }
+
         setLobbyTime('default'); showScreen('lobby');
     }
 
@@ -671,8 +820,8 @@
 
     function setLobbyTime(mode) {
         lobbySettings.timeMode = mode;
-        document.querySelectorAll('.time-btn').forEach(btn => btn.className = 'time-btn flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600');
-        document.getElementById('btn-time-' + mode).className = 'time-btn flex-1 bg-emerald-100 text-emerald-800 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-md';
+        document.querySelectorAll('.time-btn-main').forEach(btn => btn.className = 'time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600');
+        document.getElementById('btn-time-' + mode).className = 'time-btn-main flex-1 bg-emerald-100 text-emerald-800 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-md';
         document.getElementById('custom-time-input').style.display = mode === 'custom' ? 'block' : 'none';
     }
 
@@ -686,25 +835,39 @@
 
     function startQuizFromLobby() {
         const quiz = db[currentQuizId];
-        // V18.2 FIX: Initialize currentFocus to -1 so first question is not locked prematurely
         quizState = { answers: {}, marked: {}, revealed: {}, locked: {}, qTimeLeft: 0, submitted: false, interval: null, isPaused: false, currentFocus: -1 };
         
         localStorage.setItem('megaQuizCandidateName', document.getElementById('candidate-name').value.trim() || "Anonymous");
-        activeQuestions = quiz.questions.map((q, i) => ({...q, originalIndex: i}));
+        
+        // V18.5 FILTER ACTIVE QUESTIONS IF WRONG MODE
+        let baseQuestions = quiz.questions;
+        if(lobbyQuizMode === 'wrong' && window.currentQuizWrongQs.length > 0) {
+            baseQuestions = quiz.questions.filter(q => window.currentQuizWrongQs.includes(q.question));
+        }
+
+        activeQuestions = baseQuestions.map((q, i) => ({...q, originalIndex: i}));
         if (lobbySettings.shuffle) activeQuestions.sort(() => Math.random() - 0.5);
 
         renderQuizView();
         
+        // Time calculations
+        let mins = lobbySettings.timeMode === 'custom' ? (parseInt(document.getElementById('custom-time-input').value) || quiz.timeInMinutes) : (lobbySettings.timeMode === 'default' ? quiz.timeInMinutes : parseInt(lobbySettings.timeMode));
+        
+        // V18.5: Scale down default time if doing wrong questions only
+        if(lobbyQuizMode === 'wrong' && lobbySettings.timeMode === 'default') {
+            let scale = baseQuestions.length / quiz.questions.length;
+            mins = Math.max(1, Math.ceil(mins * scale)); 
+        }
+
         if (lobbySettings.perQTimer) {
             quizState.qTimeLeft = parseInt(document.getElementById('per-q-time-input').value) || 60;
             document.getElementById('quiz-timer').textContent = formatTime(quizState.qTimeLeft);
         } else {
-            let mins = lobbySettings.timeMode === 'custom' ? (parseInt(document.getElementById('custom-time-input').value) || quiz.timeInMinutes) : (lobbySettings.timeMode === 'default' ? quiz.timeInMinutes : parseInt(lobbySettings.timeMode));
             document.getElementById('quiz-timer').textContent = formatTime(mins * 60);
         }
         
         setFocus(0);
-        let totalSecs = (lobbySettings.timeMode === 'custom' ? (parseInt(document.getElementById('custom-time-input').value) || quiz.timeInMinutes) : (lobbySettings.timeMode === 'default' ? quiz.timeInMinutes : parseInt(lobbySettings.timeMode))) * 60;
+        let totalSecs = mins * 60;
         startTimer(totalSecs);
         showScreen('quiz'); window.scrollTo(0,0);
     }
@@ -746,7 +909,6 @@
     function setFocus(idx) {
         if (lobbySettings.perQTimer) {
             if (idx < quizState.currentFocus) return; 
-            // V18.2 FIX: Added check so it doesn't lock itself on initialization
             if (quizState.currentFocus >= 0 && quizState.currentFocus !== idx) {
                 const oldCard = document.getElementById(`qcard-${quizState.currentFocus}`);
                 if (oldCard) oldCard.classList.add('hidden');
@@ -931,6 +1093,12 @@
         window.lastQuizMistakes = currentQuizMistakes;
         const candName = localStorage.getItem('megaQuizCandidateName') || "Anonymous";
         let displayTitle = db[currentQuizId] ? db[currentQuizId].title : "Custom Test";
+        
+        // Indicate if it was a wrong-only run
+        if(lobbyQuizMode === 'wrong') {
+            displayTitle += " (Revision Run)";
+        }
+
         document.getElementById('results-title').textContent = `${candName}'s Report - Attempt #${currentAttemptNum}`;
 
         if(currentQuizId !== 'quiz_redemption' && !displayTitle.includes("🎯")) {
@@ -1002,7 +1170,7 @@
         
         let found = false;
         historyDb.forEach((h, index) => {
-            if (h.title === quizTitle) {
+            if (h.title === quizTitle || h.title.includes(quizTitle)) {
                 found = true;
                 const attText = h.attemptNumber ? `ATTEMPT #${h.attemptNumber}` : `ATTEMPT #1`;
                 const nameText = h.candidateName ? h.candidateName : "Yogesh";
@@ -1033,6 +1201,7 @@
     window.showAnalytics = () => {
         document.getElementById('screen-analytics').classList.remove('hidden');
         document.getElementById('screen-formula-vault').classList.add('hidden');
+        document.getElementById('screen-subject-analysis').classList.add('hidden');
         
         let historyHTML = `
             <div class="space-y-3 mt-4">
@@ -1064,10 +1233,73 @@
     
     window.closeAnalytics = () => document.getElementById('screen-analytics').classList.add('hidden');
 
-    // V18.2: SHOW FORMULA VAULT (Extracts specific formulaUsed & Question text)
+    // V18.5: SUBJECT ANALYSIS MODAL
+    window.showSubjectAnalysis = (subject) => {
+        document.getElementById('screen-analytics').classList.add('hidden');
+        document.getElementById('screen-quiz-history').classList.add('hidden');
+        document.getElementById('screen-formula-vault').classList.add('hidden');
+        document.getElementById('screen-subject-analysis').classList.remove('hidden');
+
+        document.getElementById('subject-analysis-title').textContent = `${subject} - Topic Analysis`;
+
+        let topicsStats = {}; 
+        historyDb.filter(h => h.subject === subject).forEach(h => {
+            if(h.reviewData) {
+                h.reviewData.forEach(rd => {
+                    let primaryTag = rd.tags && rd.tags.length > 0 ? rd.tags[0] : "General";
+                    let secondaryTag = rd.tags && rd.tags.length > 1 ? rd.tags[1] : primaryTag;
+                    if (!rd.tags || rd.tags.length === 0) { primaryTag = "Miscellaneous"; secondaryTag = "Miscellaneous"; }
+                    
+                    let topicName = secondaryTag;
+                    
+                    if(!topicsStats[topicName]) topicsStats[topicName] = { correct: 0, wrong: 0, skipped: 0, total: 0 };
+                    
+                    topicsStats[topicName].total++;
+                    if(rd.status === 'correct') topicsStats[topicName].correct++;
+                    else if(rd.status === 'wrong') topicsStats[topicName].wrong++;
+                    else if(rd.status === 'skipped') topicsStats[topicName].skipped++;
+                });
+            }
+        });
+
+        let html = '';
+        let sortedTopics = Object.keys(topicsStats).sort((a,b) => topicsStats[b].total - topicsStats[a].total);
+
+        if(sortedTopics.length === 0) {
+            html = `<div class="text-center text-slate-400 font-bold py-10 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl uppercase tracking-widest text-[10px]">No data available. Take some quizzes first!</div>`;
+        } else {
+            sortedTopics.forEach(t => {
+                let stat = topicsStats[t];
+                let acc = Math.round((stat.correct / stat.total) * 100);
+                let barColor = acc >= 80 ? 'bg-emerald-500' : acc >= 50 ? 'bg-amber-500' : 'bg-red-500';
+                
+                html += `
+                <div class="mb-4 p-5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div class="flex justify-between items-end mb-3">
+                        <div class="font-black text-slate-700 dark:text-slate-200 text-sm uppercase tracking-wide">${t}</div>
+                        <div class="text-[10px] font-black text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 px-3 py-1 rounded shadow-sm border border-slate-100 dark:border-slate-700">${stat.correct} / ${stat.total} Correct (${acc}%)</div>
+                    </div>
+                    <div class="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2 mb-4 overflow-hidden">
+                        <div class="${barColor} h-2 rounded-full" style="width: ${acc}%"></div>
+                    </div>
+                    <div class="flex gap-6 text-[10px] font-black uppercase tracking-widest bg-white dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700/50 justify-center">
+                        <span class="text-emerald-600 dark:text-emerald-400">✅ Correct: ${stat.correct}</span>
+                        <span class="text-red-600 dark:text-red-400">❌ Wrong: ${stat.wrong}</span>
+                        <span class="text-slate-500 dark:text-slate-400">⏭️ Skipped: ${stat.skipped}</span>
+                    </div>
+                </div>
+                `;
+            });
+        }
+        document.getElementById('subject-analysis-grid').innerHTML = html;
+    };
+
+    window.closeSubjectAnalysis = () => document.getElementById('screen-subject-analysis').classList.add('hidden');
+
     window.showFormulaVault = () => {
         document.getElementById('screen-analytics').classList.add('hidden');
         document.getElementById('screen-quiz-history').classList.add('hidden');
+        document.getElementById('screen-subject-analysis').classList.add('hidden');
         document.getElementById('screen-formula-vault').classList.remove('hidden');
         
         let vaultData = {};
@@ -1078,7 +1310,6 @@
                     if(q.formulaUsed) {
                         let topic = q.tags && q.tags.length > 1 ? q.tags[1] : "General Math";
                         if (!vaultData[topic]) vaultData[topic] = [];
-                        
                         if(!vaultData[topic].some(item => item.q === q.question)) {
                             vaultData[topic].push({ q: q.question, f: q.formulaUsed });
                         }
@@ -1101,9 +1332,7 @@
                     <div class="bg-emerald-50 dark:bg-emerald-900/20 px-6 py-4 border-b border-emerald-100 dark:border-emerald-800/30">
                         <h3 class="text-lg font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">${topic}</h3>
                     </div>
-                    <div class="p-6">
-                        ${notesHTML}
-                    </div>
+                    <div class="p-6">${notesHTML}</div>
                 </div>
             `;
         });
@@ -1141,6 +1370,7 @@
             document.getElementById('dashboard-main-content').classList.remove('hidden');
         }
         document.getElementById('screen-formula-vault').classList.add('hidden');
+        document.getElementById('screen-subject-analysis').classList.add('hidden');
     }
     
     function formatTime(s) { return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`; }
