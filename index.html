@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V18.5 (Elite Analytics & Smart Revision)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.0 (Ultimate Mastery & DB Editor)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -60,14 +60,14 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V18.5</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.0</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Elite UI, Dynamic Formula Book & Smart Revision</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Universal Mini-Matrix, Master Vaults & DB Editor</p>
                 </div>
                 
                 <div class="flex items-center gap-4 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
                     <button onclick="toggleDarkMode()" class="bg-white/10 hover:bg-white/20 p-4 rounded-2xl backdrop-blur-md transition-all border border-white/10 shadow-inner hover:scale-105" title="Toggle Dark Mode">🌙</button>
-                    <button onclick="showFormulaVault()" class="bg-gradient-to-br from-pink-500 to-rose-600 hover:from-pink-400 hover:to-rose-500 text-white font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(244,63,94,0.4)] transition-transform hover:-translate-y-1 border border-pink-400 flex items-center gap-2">🧮 Formula Book</button>
+                    <button onclick="showFormulaVault()" class="bg-gradient-to-br from-pink-500 to-rose-600 hover:from-pink-400 hover:to-rose-500 text-white font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(244,63,94,0.4)] transition-transform hover:-translate-y-1 border border-pink-400 flex items-center gap-2">📚 Master Vaults</button>
                     <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400 flex items-center gap-2">📊 History</button>
                 </div>
             </div>
@@ -283,15 +283,20 @@
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
                 <div>
-                    <h2 class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">🧮 Master Formula Book</h2>
-                    <p class="text-xs font-bold text-emerald-500 uppercase tracking-widest mt-1">Unlock topics by taking Quant Mocks</p>
+                    <h2 class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">📚 Master Vaults</h2>
+                    <p class="text-xs font-bold text-emerald-500 uppercase tracking-widest mt-1">Extracted from your actual Mocks</p>
                 </div>
                 <div class="flex items-center gap-4">
                     <button onclick="exportFormulaPDF()" class="bg-pink-50 hover:bg-pink-100 text-pink-600 dark:bg-pink-900/20 dark:text-pink-400 font-black text-xs uppercase tracking-widest px-4 py-2 rounded-xl transition-colors border border-pink-100 dark:border-pink-800/30 shadow-sm">📄 Export PDF</button>
                     <button onclick="closeFormulaVault()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
                 </div>
             </div>
-            <div class="flex-1 overflow-y-auto pr-2 space-y-6" id="formula-grid"></div>
+            <div class="flex gap-4 mb-6">
+                <button onclick="switchVaultTab('quant')" id="tab-quant" class="flex-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 border-emerald-500 transition-all shadow-sm">🧮 Quant Formulas</button>
+                <button onclick="switchVaultTab('gs')" id="tab-gs" class="flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 border-transparent hover:border-slate-300 transition-all shadow-sm">📜 GS Articles / Facts</button>
+            </div>
+            <div class="flex-1 overflow-y-auto pr-2 space-y-6" id="vault-quant-content"></div>
+            <div class="flex-1 overflow-y-auto pr-2 space-y-6 hidden" id="vault-gs-content"></div>
         </div>
     </div>
 
@@ -308,11 +313,60 @@
         </div>
     </div>
 
+    <div id="screen-edit-modal" class="hidden fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div>
+                    <h2 class="text-2xl font-black uppercase text-amber-500 dark:text-amber-400 tracking-tight">✏️ Edit Question Database</h2>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Fix errors or add shortcuts permanently</p>
+                </div>
+                <button onclick="closeEditModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto pr-2 space-y-5">
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Question Text</label>
+                    <textarea id="edit-q-text" rows="3" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200"></textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Options (Select the correct one)</label>
+                    <div class="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-0" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-0" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
+                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-1" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-1" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
+                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-2" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-2" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
+                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-3" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-3" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Detailed Solution / Shortcuts</label>
+                    <textarea id="edit-solution" rows="4" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200"></textarea>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Tags (Comma separated)</label>
+                        <input type="text" id="edit-tags" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Formula / Article Used</label>
+                        <input type="text" id="edit-formula" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="pt-6 border-t border-slate-100 dark:border-slate-800 mt-4 flex gap-4">
+                <button onclick="closeEditModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase tracking-widest py-4 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+                <button onclick="saveEdit()" class="flex-1 bg-amber-500 text-white font-black uppercase tracking-widest py-4 rounded-xl shadow-lg hover:bg-amber-400 transition-colors shadow-amber-500/30">💾 Save Changes</button>
+            </div>
+        </div>
+    </div>
+
 <script>
     const CLOUD_URL = "https://script.google.com/macros/s/AKfycbyuAFvjWZHAlkDx00DsDoHiPgFMq-CmGgHKyQXq_6cfi1QwmnwUVp3ZNLrtpnLPhOXB/exec";
     
     let SUBJECTS = ["Ancient History", "Medieval History", "Modern History", "Geography", "Economics", "Static GK", "Arithmetic", "Advanced Maths", "English", "Reasoning", "Current Affairs", "Polity", "Science", "Environment", "Miscellaneous", "GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS"];
-    let MATRIX_ENABLED = ["GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS"];
     let SUBJECT_CATEGORIES = { "GS MOCK QUESTIONS": "GS", "QUANT MOCK QUESTIONS": "Maths" };
 
     let db = {}; 
@@ -326,91 +380,9 @@
     let lobbySettings = { timeMode: 'default', customMinutes: 0, shuffle: true, exam: true, blind: false, perQTimer: false };
     let targetImportSubject = ""; 
 
-    // V18.5: REVISION MODE
     let lobbyQuizMode = 'full';
     window.currentQuizWrongQs = [];
-
-    // V18.0 MASTER FORMULA DATABASE
-    const MASTER_FORMULAS = {
-        "Speed, Time & Distance": `
-            <div class='formula-block'><span class='formula-title'>Basic Formula</span> Speed = Distance / Time</div>
-            <div class='formula-block'><span class='formula-title'>Average Speed</span> If distance is same (going and returning), Avg Speed = (2xy) / (x + y)</div>
-            <div class='formula-block'><span class='formula-title'>Relative Speed</span> Same direction = |x - y| <br> Opposite direction = (x + y)</div>
-            <div class='formula-block'><span class='formula-title'>Trains Crossing</span> Time = (Length of Train 1 + Length of Object) / Relative Speed</div>
-            <div class='formula-block'><span class='formula-title'>Meeting Point</span> If A and B start towards each other and meet, then distance ratio = speed ratio.</div>
-        `,
-        "Time & Work": `
-            <div class='formula-block'><span class='formula-title'>Basic Formula</span> Total Work = Efficiency x Time</div>
-            <div class='formula-block'><span class='formula-title'>Chain Rule (MDH)</span> (M1 x D1 x H1) / W1 = (M2 x D2 x H2) / W2</div>
-            <div class='formula-block'><span class='formula-title'>Work & Wages</span> Wages are always distributed in proportion to the total work done (or efficiency, if time worked is equal).</div>
-            <div class='formula-block'><span class='formula-title'>Alternate Days</span> Find the 2-day cycle work, multiply close to total work, then calculate remaining fraction.</div>
-        `,
-        "Geometry": `
-            <div class='formula-block'><span class='formula-title'>Angle Bisector Theorem</span> If AD bisects ∠A in ΔABC, then AB / AC = BD / DC.</div>
-            <div class='formula-block'><span class='formula-title'>Incenter (Angle Bisectors)</span> Angle at Incenter: ∠BIC = 90° + (∠A / 2).</div>
-            <div class='formula-block'><span class='formula-title'>Circumcenter (Perp. Bisectors)</span> Angle at center is double the angle at circumference: ∠BOC = 2∠A.</div>
-            <div class='formula-block'><span class='formula-title'>Centroid (Medians)</span> Divides each median in a 2:1 ratio (vertex to base).</div>
-            <div class='formula-block'><span class='formula-title'>Similarity (AA, SAS, SSS)</span> If ΔABC ~ ΔXYZ, then Area ratio = square of side ratio.</div>
-        `,
-        "Mensuration (2D)": `
-            <div class='formula-block'><span class='formula-title'>Equilateral Triangle</span> Area = (√3 / 4)a² <br> Height = (√3 / 2)a</div>
-            <div class='formula-block'><span class='formula-title'>Inradius (Equilateral)</span> r = a / (2√3)</div>
-            <div class='formula-block'><span class='formula-title'>Circumradius (Equilateral)</span> R = a / √3  <br> Note: R = 2r</div>
-            <div class='formula-block'><span class='formula-title'>General Triangle Inradius</span> r = Area / Semi-perimeter (s)</div>
-            <div class='formula-block'><span class='formula-title'>Regular Hexagon</span> Area = 6 x (√3 / 4)a² <br> (Made of 6 equilateral triangles)</div>
-        `,
-        "Mensuration (3D)": `
-            <div class='formula-block'><span class='formula-title'>Cone</span> Volume = (1/3)πr²h <br> Curved Surface Area = πrl <br> Slant height l = √(r² + h²)</div>
-            <div class='formula-block'><span class='formula-title'>Cylinder</span> Volume = πr²h <br> Curved Surface Area = 2πrh</div>
-            <div class='formula-block'><span class='formula-title'>Pyramid</span> Volume = (1/3) x Base Area x Height</div>
-            <div class='formula-block'><span class='formula-title'>Sphere</span> Volume = (4/3)πr³ <br> Surface Area = 4πr²</div>
-            <div class='formula-block'><span class='formula-title'>Melting & Recasting</span> Equate the Volume of the original solid to the Volume of the new solid.</div>
-        `,
-        "Algebra": `
-            <div class='formula-block'><span class='formula-title'>Cubes Identity 1</span> a³ + b³ = (a + b)(a² - ab + b²) <br> a³ - b³ = (a - b)(a² + ab + b²)</div>
-            <div class='formula-block'><span class='formula-title'>Master Identity</span> a³ + b³ + c³ - 3abc = (a+b+c)(a² + b² + c² - ab - bc - ca)</div>
-            <div class='formula-block'><span class='formula-title'>Zero Condition</span> If a+b+c = 0, then a³ + b³ + c³ = 3abc</div>
-            <div class='formula-block'><span class='formula-title'>x + 1/x Pattern</span> If x + 1/x = k <br> x² + 1/x² = k² - 2 <br> x³ + 1/x³ = k³ - 3k</div>
-            <div class='formula-block'><span class='formula-title'>x - 1/x Pattern</span> If x - 1/x = k <br> x² + 1/x² = k² + 2 <br> x³ - 1/x³ = k³ + 3k</div>
-        `,
-        "Profit & Loss": `
-            <div class='formula-block'><span class='formula-title'>Basic Principle</span> SP = CP x (100 ± Profit/Loss %) / 100</div>
-            <div class='formula-block'><span class='formula-title'>Faulty Weight</span> Profit % = (Error / True Value Given) x 100</div>
-            <div class='formula-block'><span class='formula-title'>Successive Discount</span> Net discount for d1% and d2% = d1 + d2 - (d1 x d2)/100 %</div>
-            <div class='formula-block'><span class='formula-title'>Markup & Discount</span> CP / MRP = (100 - Discount%) / (100 + Profit%)</div>
-        `,
-        "Compound Interest": `
-            <div class='formula-block'><span class='formula-title'>Amount Formula</span> A = P(1 + R/100)^n</div>
-            <div class='formula-block'><span class='formula-title'>Difference (2 Years)</span> CI - SI = P(R/100)²</div>
-            <div class='formula-block'><span class='formula-title'>Difference (3 Years)</span> CI - SI = P(R/100)² x (3 + R/100)</div>
-            <div class='formula-block'><span class='formula-title'>Half-yearly/Quarterly</span> Rate halves (R/2) and Time doubles (2n) for half-yearly. Rate is R/4 and Time is 4n for quarterly.</div>
-        `,
-        "Percentage": `
-            <div class='formula-block'><span class='formula-title'>Successive Change</span> Net % change = a + b + (ab/100)</div>
-            <div class='formula-block'><span class='formula-title'>Price/Consumption</span> Expenditure = Price x Consumption. <br> If Price increases by x%, Consumption must decrease by [x / (100+x)] x 100 % to keep expenditure same.</div>
-            <div class='formula-block'><span class='formula-title'>Venn Diagrams</span> Total = n(A) + n(B) - n(A ∩ B) + Neither</div>
-        `,
-        "Ratio & Proportion": `
-            <div class='formula-block'><span class='formula-title'>Mean Proportional</span> Between a and b = √(ab)</div>
-            <div class='formula-block'><span class='formula-title'>Third Proportional</span> To a and b = b² / a</div>
-            <div class='formula-block'><span class='formula-title'>Fourth Proportional</span> To a, b, and c = (b x c) / a</div>
-            <div class='formula-block'><span class='formula-title'>Componendo & Dividendo</span> If a/b = c/d, then (a+b)/(a-b) = (c+d)/(c-d)</div>
-        `,
-        "Number System": `
-            <div class='formula-block'><span class='formula-title'>Perfect Squares</span> Never end in 2, 3, 7, or 8. Digital root is always 1, 4, 7, or 9.</div>
-            <div class='formula-block'><span class='formula-title'>Total Factors</span> If N = p^a x q^b, Total factors = (a+1)(b+1)</div>
-            <div class='formula-block'><span class='formula-title'>Divisibility by 11</span> Difference between sum of odd placed digits and even placed digits is 0 or a multiple of 11.</div>
-        `,
-        "Trigonometry": `
-            <div class='formula-block'><span class='formula-title'>Identities</span> sin²θ + cos²θ = 1 <br> sec²θ - tan²θ = 1 <br> cosec²θ - cot²θ = 1</div>
-            <div class='formula-block'><span class='formula-title'>Complementary Angles</span> sin(90-θ) = cosθ <br> tan(90-θ) = cotθ <br> sec(90-θ) = cosecθ</div>
-            <div class='formula-block'><span class='formula-title'>Value Check</span> If sin A = cos B, then A + B = 90°.</div>
-        `,
-        "Mixture & Alligation": `
-            <div class='formula-block'><span class='formula-title'>Alligation Rule</span> Ratio of quantities = (Cheaper Price - Mean Price) / (Mean Price - Dearer Price)</div>
-            <div class='formula-block'><span class='formula-title'>Replacement Formula</span> Final Quantity of pure liquid = Initial Quantity x (1 - Removed Vol / Total Vol)^n</div>
-        `
-    };
+    window.currentReviewQuestions = []; // Stores actual q objects for easy editing
 
     window.requireAuth = (callback) => {
         const pwd = prompt("🔒 SYSTEM SECURED\n\nEnter the master password to authorize changes:");
@@ -419,7 +391,6 @@
 
     function updateLocalCache() {
         localStorage.setItem('megaQuizSubjects_v5', JSON.stringify(SUBJECTS));
-        localStorage.setItem('megaQuizMatrixEnabled_v1', JSON.stringify(MATRIX_ENABLED));
         localStorage.setItem('megaQuizSubCats_v1', JSON.stringify(SUBJECT_CATEGORIES));
         localStorage.setItem('megaQuizDB_v4', JSON.stringify(db));
         localStorage.setItem('megaQuizHistory_v5', JSON.stringify(historyDb)); 
@@ -428,7 +399,6 @@
 
     function loadLocalFallback() {
         if (localStorage.getItem('megaQuizSubjects_v5')) SUBJECTS = JSON.parse(localStorage.getItem('megaQuizSubjects_v5'));
-        if (localStorage.getItem('megaQuizMatrixEnabled_v1')) MATRIX_ENABLED = JSON.parse(localStorage.getItem('megaQuizMatrixEnabled_v1'));
         if (localStorage.getItem('megaQuizSubCats_v1')) SUBJECT_CATEGORIES = JSON.parse(localStorage.getItem('megaQuizSubCats_v1'));
         if (localStorage.getItem('megaQuizDB_v4')) db = JSON.parse(localStorage.getItem('megaQuizDB_v4'));
         if (localStorage.getItem('megaQuizHistory_v5')) historyDb = JSON.parse(localStorage.getItem('megaQuizHistory_v5'));
@@ -453,7 +423,8 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v18.5", matrixEnabled: MATRIX_ENABLED, categories: SUBJECT_CATEGORIES };
+        // MATRIX_ENABLED is deprecated as a separate variable, we just pass SUBJECTS
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.0", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -469,14 +440,12 @@
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000); 
-
             const response = await fetch(CLOUD_URL, { signal: controller.signal });
             clearTimeout(timeoutId);
             const data = await response.json();
             
             if (data && Object.keys(data).length > 0 && data.db) {
                 if (data.subjects) SUBJECTS = data.subjects;
-                if (data.matrixEnabled) MATRIX_ENABLED = data.matrixEnabled;
                 if (data.categories) SUBJECT_CATEGORIES = data.categories;
                 if (data.db) db = data.db;
                 if (data.history) historyDb = data.history;
@@ -485,9 +454,7 @@
                 updateLocalCache();
                 renderDashboard();
                 showSyncStatus('synced');
-            } else {
-                showSyncStatus('error');
-            }
+            } else { showSyncStatus('error'); }
         } catch (error) { showSyncStatus('error'); }
     }
 
@@ -606,10 +573,6 @@
                         let secondaryTag = rd.tags && rd.tags.length > 1 ? rd.tags[1] : primaryTag;
                         if (!rd.tags || rd.tags.length === 0) { primaryTag = "Miscellaneous"; secondaryTag = "Miscellaneous"; }
                         
-                        if (!MATRIX_ENABLED.includes(subject) && subject !== "Miscellaneous") {
-                            if (primaryTag.toUpperCase() !== subject.toUpperCase()) return;
-                        }
-
                         if(!topicsByParent[primaryTag]) topicsByParent[primaryTag] = {};
                         if(!topicsByParent[primaryTag][secondaryTag]) topicsByParent[primaryTag][secondaryTag] = { c: 0, t: 0 };
                         topicsByParent[primaryTag][secondaryTag].t++;
@@ -620,7 +583,7 @@
 
             let matrixHTML = '';
             let safeSub = subject.replace(/[^a-zA-Z0-9]/g, '');
-            if (MATRIX_ENABLED.includes(subject) && Object.keys(topicsByParent).length > 0) {
+            if (Object.keys(topicsByParent).length > 0) {
                 let allPills = '';
                 Object.keys(topicsByParent).forEach(parentSub => {
                     let pillsHTML = Object.keys(topicsByParent[parentSub]).map(t => {
@@ -696,11 +659,8 @@
                 if (newSub && newSub.trim() && !SUBJECTS.includes(newSub.trim())) {
                     let cleanSub = newSub.trim();
                     SUBJECTS.push(cleanSub);
-                    if(confirm(`Do you want to enable the Mini-Matrix Tracker for "${cleanSub}"?\n\n(Click OK for Yes, Cancel for No)`)) {
-                        let cat = prompt(`Which core category does "${cleanSub}" belong to?\n(e.g., GS, Maths, English, Reasoning)`);
-                        MATRIX_ENABLED.push(cleanSub);
-                        if(cat && cat.trim()) SUBJECT_CATEGORIES[cleanSub] = cat.trim();
-                    }
+                    let cat = prompt(`Which core category does "${cleanSub}" belong to?\n(e.g., GS, Maths, English, Reasoning)`);
+                    if(cat && cat.trim()) SUBJECT_CATEGORIES[cleanSub] = cat.trim();
                     saveData(); renderDashboard();
                 } else if (newSub && newSub.trim()) alert("Subject already exists!");
             });
@@ -711,7 +671,7 @@
 
     window.triggerImport = (sub) => { requireAuth(() => { targetImportSubject = sub; document.getElementById('global-file-input').click(); }); };
     window.deleteQuiz = (id) => { requireAuth(() => { if (confirm("Delete this quiz forever?")) { delete db[id]; saveData(); renderDashboard(); } }); };
-    window.deleteSubject = (sub) => { requireAuth(() => { if (prompt(`WARNING: Delete "${sub}" AND all quizzes inside it?\n\nType "DELETE" to confirm:`) === "DELETE") { SUBJECTS = SUBJECTS.filter(s => s !== sub); Object.keys(db).forEach(id => { if (db[id].subject === sub) delete db[id]; }); MATRIX_ENABLED = MATRIX_ENABLED.filter(s => s !== sub); delete SUBJECT_CATEGORIES[sub]; saveData(); renderDashboard(); } }); };
+    window.deleteSubject = (sub) => { requireAuth(() => { if (prompt(`WARNING: Delete "${sub}" AND all quizzes inside it?\n\nType "DELETE" to confirm:`) === "DELETE") { SUBJECTS = SUBJECTS.filter(s => s !== sub); Object.keys(db).forEach(id => { if (db[id].subject === sub) delete db[id]; }); delete SUBJECT_CATEGORIES[sub]; saveData(); renderDashboard(); } }); };
 
     document.getElementById('global-file-input').addEventListener('change', function(e) {
         const file = e.target.files[0]; if (!file) return;
@@ -726,7 +686,7 @@
     });
 
     window.exportBackup = () => {
-        const blob = new Blob([JSON.stringify({ version: "v18.5", subjects: SUBJECTS, matrixEnabled: MATRIX_ENABLED, categories: SUBJECT_CATEGORIES, db: db, history: historyDb, mistakes: mistakesDb })], { type: "application/json" });
+        const blob = new Blob([JSON.stringify({ version: "v19.0", subjects: SUBJECTS, matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, db: db, history: historyDb, mistakes: mistakesDb })], { type: "application/json" });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Yogesh_MegaHub_Backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
     };
 
@@ -740,7 +700,6 @@
                 const backup = JSON.parse(event.target.result);
                 if (backup.subjects && backup.db) {
                     SUBJECTS = backup.subjects; db = backup.db;
-                    if(backup.matrixEnabled) MATRIX_ENABLED = backup.matrixEnabled;
                     if(backup.categories) SUBJECT_CATEGORIES = backup.categories;
                     if (backup.history) historyDb = backup.history;
                     if (backup.mistakes) mistakesDb = backup.mistakes;
@@ -780,20 +739,19 @@
         let lastScoreText = prev.length > 0 ? `Previous Score: ${prev[0].score} (${prev[0].accuracy}% ACC)` : "First Attempt";
         document.getElementById('attempt-info').innerHTML = `<div class="text-xl font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tight">Attempt #${currentAttemptNum}</div><div class="text-[11px] font-black uppercase tracking-widest text-slate-500 mt-1">${lastScoreText}</div>`;
         
-        // V18.5: REVISION MODE LOGIC
         lobbyQuizMode = 'full';
         let wrongQs = [];
         if(prev.length > 0) {
-            let lastAttempt = prev[0]; // latest history is at index 0
+            let lastAttempt = prev[0]; 
             if(lastAttempt.reviewData) {
                 wrongQs = lastAttempt.reviewData.filter(r => r.status === 'wrong' || r.status === 'skipped').map(r => r.question);
             }
         }
         window.currentQuizWrongQs = wrongQs;
-        if(prev.length > 0 && wrongQs.length > 0) {
+        if(prev.length > 0 && wrongQs.length > 0 && !q.title.includes("🎯")) {
             document.getElementById('lobby-mode-selection').classList.remove('hidden');
             document.getElementById('wrong-count-badge').textContent = wrongQs.length;
-            setQuizMode('full'); // Default select full
+            setQuizMode('full');
         } else {
             document.getElementById('lobby-mode-selection').classList.add('hidden');
         }
@@ -839,7 +797,6 @@
         
         localStorage.setItem('megaQuizCandidateName', document.getElementById('candidate-name').value.trim() || "Anonymous");
         
-        // V18.5 FILTER ACTIVE QUESTIONS IF WRONG MODE
         let baseQuestions = quiz.questions;
         if(lobbyQuizMode === 'wrong' && window.currentQuizWrongQs.length > 0) {
             baseQuestions = quiz.questions.filter(q => window.currentQuizWrongQs.includes(q.question));
@@ -850,10 +807,8 @@
 
         renderQuizView();
         
-        // Time calculations
         let mins = lobbySettings.timeMode === 'custom' ? (parseInt(document.getElementById('custom-time-input').value) || quiz.timeInMinutes) : (lobbySettings.timeMode === 'default' ? quiz.timeInMinutes : parseInt(lobbySettings.timeMode));
         
-        // V18.5: Scale down default time if doing wrong questions only
         if(lobbyQuizMode === 'wrong' && lobbySettings.timeMode === 'default') {
             let scale = baseQuestions.length / quiz.questions.length;
             mins = Math.max(1, Math.ceil(mins * scale)); 
@@ -1060,6 +1015,8 @@
         let correct = 0, wrong = 0, skipped = 0, fullReviewHTML = '';
         let currentQuizMistakes = [];
         let historicalReviewData = [];
+        
+        window.currentReviewQuestions = [];
 
         activeQuestions.forEach((q, i) => {
             const sel = quizState.answers[i]; let isMistake = false; let status = ''; let uText = 'Skipped'; let cText = q.options.find(o=>o.correct)?.text || "N/A";
@@ -1078,9 +1035,10 @@
                 if(m) m.forEach(t => tags.push(t.substring(1)));
             }
             if(tags.length === 0) tags.push("Miscellaneous");
-
-            fullReviewHTML += genDeepReviewCard({question: q.question, solution: q.solution}, status, uText, cText, "");
-            historicalReviewData.push({ question: q.question, status: status, uText: uText, cText: cText, solution: q.solution, tags: [...new Set(tags)] });
+            
+            window.currentReviewQuestions.push(q);
+            fullReviewHTML += genDeepReviewCard(q, status, uText, cText, "", i);
+            historicalReviewData.push({ question: q.question, status: status, uText: uText, cText: cText, solution: q.solution, tags: [...new Set(tags)], formulaUsed: q.formulaUsed });
         });
 
         if(currentQuizId === 'quiz_redemption') activeQuestions.forEach((q, i) => { if(quizState.answers[i] !== undefined && q.options[quizState.answers[i]].correct) mistakesDb = mistakesDb.filter(m => m.question !== q.question); });
@@ -1094,17 +1052,14 @@
         const candName = localStorage.getItem('megaQuizCandidateName') || "Anonymous";
         let displayTitle = db[currentQuizId] ? db[currentQuizId].title : "Custom Test";
         
-        // Indicate if it was a wrong-only run
-        if(lobbyQuizMode === 'wrong') {
-            displayTitle += " (Revision Run)";
-        }
+        if(lobbyQuizMode === 'wrong') { displayTitle += " (Revision Run)"; }
 
         document.getElementById('results-title').textContent = `${candName}'s Report - Attempt #${currentAttemptNum}`;
 
-        if(currentQuizId !== 'quiz_redemption' && !displayTitle.includes("🎯")) {
+        if(currentQuizId !== 'quiz_redemption') {
             historyDb.unshift({ 
                 date: new Date().toLocaleDateString(), title: displayTitle, subject: db[currentQuizId] ? db[currentQuizId].subject : "Mixed", 
-                score: parseFloat(score.toFixed(2)), accuracy: Math.round((correct / activeQuestions.length) * 100),
+                score: parseFloat(score.toFixed(2)), accuracy: Math.round((correct / activeQuestions.length) * 100) || 0,
                 candidateName: candName, attemptNumber: currentAttemptNum, totalCorrect: correct, totalWrong: wrong, totalSkipped: skipped, reviewData: historicalReviewData
             });
         }
@@ -1113,7 +1068,7 @@
         filterReview('all'); 
     }
 
-    function genDeepReviewCard(q, status, uText, cText, term = "") { 
+    function genDeepReviewCard(q, status, uText, cText, term = "", index = 0) { 
         const styles = {
             'correct': { border: 'bg-emerald-400', badge: 'text-emerald-700 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800/50', box: 'border-emerald-200 dark:border-emerald-800' },
             'wrong': { border: 'bg-red-400', badge: 'text-red-700 bg-red-100 dark:text-red-400 dark:bg-red-900/30 border-red-200 dark:border-red-800/50', box: 'border-red-200 dark:border-red-800' },
@@ -1125,6 +1080,7 @@
             <div class="absolute top-0 left-0 w-1.5 h-full ${s.border}"></div>
             <div class="flex justify-between items-center mb-4">
                 <span class="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-md border ${s.badge}">${status}</span>
+                <button onclick="openEditModal(${index})" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-widest border border-amber-200 dark:border-amber-800/50 hover:bg-amber-200 dark:hover:bg-amber-800/50 transition-colors">✏️ Edit / Fix Error</button>
             </div>
             <div class="font-bold text-slate-800 dark:text-slate-200 mb-6 text-lg md:text-xl leading-relaxed">${highlightText(q.question, term)}</div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -1155,12 +1111,92 @@
         document.getElementById('res-wrong').textContent = attempt.totalWrong || 0;
         document.getElementById('res-skipped').textContent = attempt.totalSkipped || 0;
 
+        window.currentReviewQuestions = [];
         let fullReviewHTML = '';
-        attempt.reviewData.forEach(data => { fullReviewHTML += genDeepReviewCard(data, data.status, data.uText, data.cText, ""); });
+        
+        attempt.reviewData.forEach((data, i) => { 
+            // Reconstruct pseudo-question object for editing
+            let qObj = { question: data.question, solution: data.solution, tags: data.tags, formulaUsed: data.formulaUsed };
+            
+            // To edit properly, we need the original options from db if possible
+            let foundInDb = false;
+            for(let qid in db) {
+                let actualQ = db[qid].questions.find(qx => qx.question === data.question);
+                if(actualQ) { qObj = JSON.parse(JSON.stringify(actualQ)); foundInDb = true; break; }
+            }
+            if(!foundInDb) {
+                // Mock options if deleted
+                qObj.options = [{text: data.cText, correct: true}, {text: "Option B", correct: false}, {text: "Option C", correct: false}, {text: "Option D", correct: false}];
+            }
+            window.currentReviewQuestions.push(qObj);
+            fullReviewHTML += genDeepReviewCard(qObj, data.status, data.uText, data.cText, "", i); 
+        });
 
         document.getElementById('revision-container').innerHTML = fullReviewHTML;
         showScreen('results'); window.scrollTo(0,0);
         filterReview('all'); 
+    };
+
+    // V19.0: DATABASE EDITOR LOGIC
+    let currentlyEditingRef = null;
+    window.openEditModal = (reviewIndex) => {
+        let qObj = window.currentReviewQuestions[reviewIndex];
+        if(!qObj) return;
+        
+        // Find exact reference in DB to mutate
+        let found = null;
+        for(let qid in db) {
+            let idx = db[qid].questions.findIndex(qx => qx.question === qObj.question);
+            if(idx !== -1) { found = { qid, idx, ref: db[qid].questions[idx] }; break; }
+        }
+        
+        if(!found) return alert("This question no longer exists in the active Vault. It may belong to a deleted quiz.");
+        
+        currentlyEditingRef = found;
+        document.getElementById('edit-q-text').value = found.ref.question;
+        found.ref.options.forEach((opt, i) => {
+            document.getElementById('edit-opt-'+i).value = opt.text;
+            document.getElementById('edit-corr-'+i).checked = opt.correct;
+        });
+        document.getElementById('edit-solution').value = found.ref.solution || "";
+        document.getElementById('edit-tags').value = (found.ref.tags || []).join(", ");
+        document.getElementById('edit-formula').value = found.ref.formulaUsed || "";
+        
+        document.getElementById('screen-edit-modal').classList.remove('hidden');
+    };
+
+    window.closeEditModal = () => document.getElementById('screen-edit-modal').classList.add('hidden');
+
+    window.saveEdit = () => {
+        if(!currentlyEditingRef) return;
+        
+        let target = currentlyEditingRef.ref;
+        let oldQuestionText = target.question;
+        
+        target.question = document.getElementById('edit-q-text').value;
+        target.options.forEach((opt, i) => {
+            opt.text = document.getElementById('edit-opt-'+i).value;
+            opt.correct = document.getElementById('edit-corr-'+i).checked;
+        });
+        target.solution = document.getElementById('edit-solution').value;
+        let tagStr = document.getElementById('edit-tags').value;
+        target.tags = tagStr.split(',').map(s=>s.trim()).filter(s=>s);
+        target.formulaUsed = document.getElementById('edit-formula').value;
+
+        // Also update Mistakes DB if it's in there
+        let mistIdx = mistakesDb.findIndex(m => m.question === oldQuestionText);
+        if(mistIdx !== -1) {
+            mistakesDb[mistIdx] = JSON.parse(JSON.stringify(target));
+        }
+
+        saveData();
+        alert("✅ Question successfully updated in the Master Database!");
+        closeEditModal();
+        
+        // Refresh current view if possible
+        if(!document.getElementById('screen-results').classList.contains('hidden')) {
+            alert("Changes will fully reflect the next time you view this report or take the quiz.");
+        }
     };
 
     window.openTargetedHistory = (quizId) => {
@@ -1233,7 +1269,6 @@
     
     window.closeAnalytics = () => document.getElementById('screen-analytics').classList.add('hidden');
 
-    // V18.5: SUBJECT ANALYSIS MODAL
     window.showSubjectAnalysis = (subject) => {
         document.getElementById('screen-analytics').classList.add('hidden');
         document.getElementById('screen-quiz-history').classList.add('hidden');
@@ -1251,7 +1286,6 @@
                     if (!rd.tags || rd.tags.length === 0) { primaryTag = "Miscellaneous"; secondaryTag = "Miscellaneous"; }
                     
                     let topicName = secondaryTag;
-                    
                     if(!topicsStats[topicName]) topicsStats[topicName] = { correct: 0, wrong: 0, skipped: 0, total: 0 };
                     
                     topicsStats[topicName].total++;
@@ -1287,8 +1321,7 @@
                         <span class="text-red-600 dark:text-red-400">❌ Wrong: ${stat.wrong}</span>
                         <span class="text-slate-500 dark:text-slate-400">⏭️ Skipped: ${stat.skipped}</span>
                     </div>
-                </div>
-                `;
+                </div>`;
             });
         }
         document.getElementById('subject-analysis-grid').innerHTML = html;
@@ -1296,64 +1329,95 @@
 
     window.closeSubjectAnalysis = () => document.getElementById('screen-subject-analysis').classList.add('hidden');
 
+    window.switchVaultTab = (tab) => {
+        if(tab === 'quant') {
+            document.getElementById('vault-quant-content').classList.remove('hidden');
+            document.getElementById('vault-gs-content').classList.add('hidden');
+            document.getElementById('tab-quant').className = "flex-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 border-emerald-500 transition-all shadow-sm";
+            document.getElementById('tab-gs').className = "flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 border-transparent hover:border-slate-300 dark:hover:border-slate-600 transition-all shadow-sm";
+        } else {
+            document.getElementById('vault-gs-content').classList.remove('hidden');
+            document.getElementById('vault-quant-content').classList.add('hidden');
+            document.getElementById('tab-gs').className = "flex-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 border-emerald-500 transition-all shadow-sm";
+            document.getElementById('tab-quant').className = "flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 border-transparent hover:border-slate-300 dark:hover:border-slate-600 transition-all shadow-sm";
+        }
+    };
+
     window.showFormulaVault = () => {
         document.getElementById('screen-analytics').classList.add('hidden');
         document.getElementById('screen-quiz-history').classList.add('hidden');
         document.getElementById('screen-subject-analysis').classList.add('hidden');
         document.getElementById('screen-formula-vault').classList.remove('hidden');
         
-        let vaultData = {};
+        let quantData = {};
+        let gsData = {};
         
         Object.values(db).forEach(quiz => {
-            if (quiz.subject === "QUANT MOCK QUESTIONS" && !quiz.title.includes("🎯")) {
+            if (!quiz.title.includes("🎯")) {
+                let isMath = SUBJECT_CATEGORIES[quiz.subject] === "Maths" || quiz.subject.toLowerCase().includes("quant");
                 quiz.questions.forEach(q => {
                     if(q.formulaUsed) {
-                        let topic = q.tags && q.tags.length > 1 ? q.tags[1] : "General Math";
-                        if (!vaultData[topic]) vaultData[topic] = [];
-                        if(!vaultData[topic].some(item => item.q === q.question)) {
-                            vaultData[topic].push({ q: q.question, f: q.formulaUsed });
+                        let topic = q.tags && q.tags.length > 1 ? q.tags[1] : "General";
+                        if(isMath) {
+                            if (!quantData[topic]) quantData[topic] = [];
+                            if(!quantData[topic].some(item => item.q === q.question)) quantData[topic].push({ q: q.question, f: q.formulaUsed });
+                        } else {
+                            if (!gsData[topic]) gsData[topic] = [];
+                            if(!gsData[topic].some(item => item.q === q.question)) gsData[topic].push({ q: q.question, f: q.formulaUsed });
                         }
                     }
                 });
             }
         });
 
-        let vaultHTML = '';
-        Object.keys(vaultData).sort().forEach(topic => {
-            let notesHTML = vaultData[topic].map((item) => `
-                <div class="mb-4 last:mb-0 bg-slate-50 dark:bg-slate-950/50 p-5 rounded-xl border border-slate-100 dark:border-slate-800 shadow-inner">
-                    <div class="text-sm font-black text-emerald-600 dark:text-emerald-400 mb-3 pb-3 border-b border-slate-200 dark:border-slate-700">📌 Formula: ${item.f}</div>
-                    <div class="text-xs font-bold text-slate-500 dark:text-slate-400 leading-relaxed italic">Q: ${item.q}</div>
-                </div>
-            `).join('');
-            
-            vaultHTML += `
-                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm mb-6 print-friendly-card">
-                    <div class="bg-emerald-50 dark:bg-emerald-900/20 px-6 py-4 border-b border-emerald-100 dark:border-emerald-800/30">
-                        <h3 class="text-lg font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">${topic}</h3>
-                    </div>
-                    <div class="p-6">${notesHTML}</div>
-                </div>
-            `;
+        // Add Master Formulas
+        Object.keys(MASTER_FORMULAS).forEach(topic => {
+            if(!quantData[topic]) quantData[topic] = [];
+            quantData[topic].push({ f: MASTER_FORMULAS[topic], isMaster: true });
         });
 
-        if(!vaultHTML) {
-            vaultHTML = `<div class="text-center text-slate-400 font-bold py-10 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl uppercase tracking-widest text-[10px]">Take some Quant tests that include formulas to unlock this vault!</div>`;
-        }
-        
-        document.getElementById('formula-grid').innerHTML = vaultHTML;
+        const renderVault = (dataObj, isMath) => {
+            let vaultHTML = '';
+            Object.keys(dataObj).sort().forEach(topic => {
+                let notesHTML = dataObj[topic].map((item) => {
+                    if(item.isMaster) return `<div class="mb-4">${item.f}</div>`;
+                    return `
+                    <div class="mb-4 last:mb-0 bg-slate-50 dark:bg-slate-950/50 p-5 rounded-xl border border-slate-100 dark:border-slate-800 shadow-inner">
+                        <div class="text-sm font-black ${isMath ? 'text-indigo-600 dark:text-indigo-400' : 'text-amber-600 dark:text-amber-400'} mb-3 pb-3 border-b border-slate-200 dark:border-slate-700">📌 ${item.f}</div>
+                        <div class="text-xs font-bold text-slate-500 dark:text-slate-400 leading-relaxed italic">Q: ${item.q}</div>
+                    </div>`;
+                }).join('');
+                
+                vaultHTML += `
+                    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm mb-6 print-friendly-card">
+                        <div class="${isMath ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-100' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100'} px-6 py-4 border-b">
+                            <h3 class="text-lg font-black uppercase tracking-widest ${isMath ? 'text-indigo-700 dark:text-indigo-400' : 'text-amber-700 dark:text-amber-400'}">${topic}</h3>
+                        </div>
+                        <div class="p-6">${notesHTML}</div>
+                    </div>`;
+            });
+            if(!vaultHTML) vaultHTML = `<div class="text-center text-slate-400 font-bold py-10 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl uppercase tracking-widest text-[10px]">No extracted data found!</div>`;
+            return vaultHTML;
+        };
+
+        document.getElementById('vault-quant-content').innerHTML = renderVault(quantData, true);
+        document.getElementById('vault-gs-content').innerHTML = renderVault(gsData, false);
+        switchVaultTab('quant');
     };
 
     window.closeFormulaVault = () => document.getElementById('screen-formula-vault').classList.add('hidden');
 
     window.exportFormulaPDF = () => {
-        const printContent = document.getElementById('formula-grid').innerHTML;
+        let activeTab = !document.getElementById('vault-quant-content').classList.contains('hidden') ? 'vault-quant-content' : 'vault-gs-content';
+        let title = activeTab === 'vault-quant-content' ? 'Quant Formula Vault' : 'GS Articles & Facts Vault';
+        
+        const printContent = document.getElementById(activeTab).innerHTML;
         const printWindow = window.open('', '', 'height=800,width=800');
-        printWindow.document.write('<html><head><title>SSC CGL 2026 Quant Formula Vault</title>');
-        printWindow.document.write('<style>body{font-family: sans-serif; padding: 20px; color: #333;} .bg-emerald-50{background-color: #ecfdf5; padding: 15px; border-bottom: 2px solid #a7f3d0;} h3{margin:0; font-size: 18px; text-transform: uppercase; color: #047857;} .mb-6{margin-bottom: 24px;} .mb-4{margin-bottom: 16px;} .p-5{padding: 20px; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 8px;} .text-sm{font-size: 14px; font-weight: bold; color: #059669; border-bottom: 1px solid #cbd5e1; padding-bottom: 12px; margin-bottom: 12px;} .text-xs{font-size: 12px; color: #475569; font-style: italic; line-height: 1.5;}</style>');
+        printWindow.document.write(`<html><head><title>SSC CGL 2026 - ${title}</title>`);
+        printWindow.document.write('<style>body{font-family: sans-serif; padding: 20px; color: #333;} .bg-emerald-50, .bg-indigo-50, .bg-amber-50{background-color: #f8fafc; padding: 15px; border-bottom: 2px solid #cbd5e1;} h3{margin:0; font-size: 18px; text-transform: uppercase; color: #0f172a;} .mb-6{margin-bottom: 24px;} .mb-4{margin-bottom: 16px;} .p-5, .p-6{padding: 20px; border: 1px solid #e2e8f0; background: #fff; border-radius: 8px;} .text-sm{font-size: 14px; font-weight: bold; color: #0f172a; border-bottom: 1px solid #cbd5e1; padding-bottom: 12px; margin-bottom: 12px;} .text-xs{font-size: 12px; color: #475569; font-style: italic; line-height: 1.5;} .formula-block{padding: 12px; background: #f8fafc; border-left: 4px solid #10b981; margin-bottom: 8px;} .formula-title{font-weight: bold; text-transform: uppercase; font-size: 12px; display: block; margin-bottom: 4px;}</style>');
         printWindow.document.write('</head><body>');
         printWindow.document.write('<h1 style="text-align:center; text-transform:uppercase; color: #0f172a; margin-bottom: 5px;">SSC CGL 2026</h1>');
-        printWindow.document.write('<h2 style="text-align:center; text-transform:uppercase; color: #64748b; margin-top: 0;">Contextual Formula Vault</h2><hr style="margin-bottom: 30px;"><br>');
+        printWindow.document.write(`<h2 style="text-align:center; text-transform:uppercase; color: #64748b; margin-top: 0;">${title}</h2><hr style="margin-bottom: 30px;"><br>`);
         printWindow.document.write(printContent);
         printWindow.document.write('</body></html>');
         printWindow.document.close();
@@ -1381,7 +1445,6 @@
                 const conf = prompt("Last warning. Type 'DELETE' exactly:");
                 if(conf === "DELETE") {
                     SUBJECTS = ["Ancient History", "Medieval History", "Modern History", "Geography", "Economics", "Static GK", "Arithmetic", "Advanced Maths", "English", "Reasoning", "Current Affairs", "Polity", "Science", "Environment", "Miscellaneous", "GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS"];
-                    MATRIX_ENABLED = ["GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS"];
                     SUBJECT_CATEGORIES = { "GS MOCK QUESTIONS": "GS", "QUANT MOCK QUESTIONS": "Maths" };
                     db = {}; historyDb = []; mistakesDb = []; localStorage.clear(); await saveData(); location.reload();
                 }
