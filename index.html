@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.0 (Ultimate Mastery & DB Editor)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.2 (Smart Matrix & Master DB)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -60,9 +60,9 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.0</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.2</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Universal Mini-Matrix, Master Vaults & DB Editor</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Smart Matrix, Master DB Editor & Revision Engine</p>
                 </div>
                 
                 <div class="flex items-center gap-4 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
@@ -293,7 +293,7 @@
             </div>
             <div class="flex gap-4 mb-6">
                 <button onclick="switchVaultTab('quant')" id="tab-quant" class="flex-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 border-emerald-500 transition-all shadow-sm">🧮 Quant Formulas</button>
-                <button onclick="switchVaultTab('gs')" id="tab-gs" class="flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 border-transparent hover:border-slate-300 transition-all shadow-sm">📜 GS Articles / Facts</button>
+                <button onclick="switchVaultTab('gs')" id="tab-gs" class="flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 border-transparent hover:border-slate-300 dark:hover:border-slate-600 transition-all shadow-sm">📜 GS Articles / Facts</button>
             </div>
             <div class="flex-1 overflow-y-auto pr-2 space-y-6" id="vault-quant-content"></div>
             <div class="flex-1 overflow-y-auto pr-2 space-y-6 hidden" id="vault-gs-content"></div>
@@ -382,7 +382,89 @@
 
     let lobbyQuizMode = 'full';
     window.currentQuizWrongQs = [];
-    window.currentReviewQuestions = []; // Stores actual q objects for easy editing
+    window.currentReviewQuestions = []; 
+
+    // V18.0 MASTER FORMULA DATABASE
+    const MASTER_FORMULAS = {
+        "Speed, Time & Distance": `
+            <div class='formula-block'><span class='formula-title'>Basic Formula</span> Speed = Distance / Time</div>
+            <div class='formula-block'><span class='formula-title'>Average Speed</span> If distance is same (going and returning), Avg Speed = (2xy) / (x + y)</div>
+            <div class='formula-block'><span class='formula-title'>Relative Speed</span> Same direction = |x - y| <br> Opposite direction = (x + y)</div>
+            <div class='formula-block'><span class='formula-title'>Trains Crossing</span> Time = (Length of Train 1 + Length of Object) / Relative Speed</div>
+            <div class='formula-block'><span class='formula-title'>Meeting Point</span> If A and B start towards each other and meet, then distance ratio = speed ratio.</div>
+        `,
+        "Time & Work": `
+            <div class='formula-block'><span class='formula-title'>Basic Formula</span> Total Work = Efficiency x Time</div>
+            <div class='formula-block'><span class='formula-title'>Chain Rule (MDH)</span> (M1 x D1 x H1) / W1 = (M2 x D2 x H2) / W2</div>
+            <div class='formula-block'><span class='formula-title'>Work & Wages</span> Wages are always distributed in proportion to the total work done (or efficiency, if time worked is equal).</div>
+            <div class='formula-block'><span class='formula-title'>Alternate Days</span> Find the 2-day cycle work, multiply close to total work, then calculate remaining fraction.</div>
+        `,
+        "Geometry": `
+            <div class='formula-block'><span class='formula-title'>Angle Bisector Theorem</span> If AD bisects ∠A in ΔABC, then AB / AC = BD / DC.</div>
+            <div class='formula-block'><span class='formula-title'>Incenter (Angle Bisectors)</span> Angle at Incenter: ∠BIC = 90° + (∠A / 2).</div>
+            <div class='formula-block'><span class='formula-title'>Circumcenter (Perp. Bisectors)</span> Angle at center is double the angle at circumference: ∠BOC = 2∠A.</div>
+            <div class='formula-block'><span class='formula-title'>Centroid (Medians)</span> Divides each median in a 2:1 ratio (vertex to base).</div>
+            <div class='formula-block'><span class='formula-title'>Similarity (AA, SAS, SSS)</span> If ΔABC ~ ΔXYZ, then Area ratio = square of side ratio.</div>
+        `,
+        "Mensuration (2D)": `
+            <div class='formula-block'><span class='formula-title'>Equilateral Triangle</span> Area = (√3 / 4)a² <br> Height = (√3 / 2)a</div>
+            <div class='formula-block'><span class='formula-title'>Inradius (Equilateral)</span> r = a / (2√3)</div>
+            <div class='formula-block'><span class='formula-title'>Circumradius (Equilateral)</span> R = a / √3  <br> Note: R = 2r</div>
+            <div class='formula-block'><span class='formula-title'>General Triangle Inradius</span> r = Area / Semi-perimeter (s)</div>
+            <div class='formula-block'><span class='formula-title'>Regular Hexagon</span> Area = 6 x (√3 / 4)a² <br> (Made of 6 equilateral triangles)</div>
+        `,
+        "Mensuration (3D)": `
+            <div class='formula-block'><span class='formula-title'>Cone</span> Volume = (1/3)πr²h <br> Curved Surface Area = πrl <br> Slant height l = √(r² + h²)</div>
+            <div class='formula-block'><span class='formula-title'>Cylinder</span> Volume = πr²h <br> Curved Surface Area = 2πrh</div>
+            <div class='formula-block'><span class='formula-title'>Pyramid</span> Volume = (1/3) x Base Area x Height</div>
+            <div class='formula-block'><span class='formula-title'>Sphere</span> Volume = (4/3)πr³ <br> Surface Area = 4πr²</div>
+            <div class='formula-block'><span class='formula-title'>Melting & Recasting</span> Equate the Volume of the original solid to the Volume of the new solid.</div>
+        `,
+        "Algebra": `
+            <div class='formula-block'><span class='formula-title'>Cubes Identity 1</span> a³ + b³ = (a + b)(a² - ab + b²) <br> a³ - b³ = (a - b)(a² + ab + b²)</div>
+            <div class='formula-block'><span class='formula-title'>Master Identity</span> a³ + b³ + c³ - 3abc = (a+b+c)(a² + b² + c² - ab - bc - ca)</div>
+            <div class='formula-block'><span class='formula-title'>Zero Condition</span> If a+b+c = 0, then a³ + b³ + c³ = 3abc</div>
+            <div class='formula-block'><span class='formula-title'>x + 1/x Pattern</span> If x + 1/x = k <br> x² + 1/x² = k² - 2 <br> x³ + 1/x³ = k³ - 3k</div>
+            <div class='formula-block'><span class='formula-title'>x - 1/x Pattern</span> If x - 1/x = k <br> x² + 1/x² = k² + 2 <br> x³ - 1/x³ = k³ + 3k</div>
+        `,
+        "Profit & Loss": `
+            <div class='formula-block'><span class='formula-title'>Basic Principle</span> SP = CP x (100 ± Profit/Loss %) / 100</div>
+            <div class='formula-block'><span class='formula-title'>Faulty Weight</span> Profit % = (Error / True Value Given) x 100</div>
+            <div class='formula-block'><span class='formula-title'>Successive Discount</span> Net discount for d1% and d2% = d1 + d2 - (d1 x d2)/100 %</div>
+            <div class='formula-block'><span class='formula-title'>Markup & Discount</span> CP / MRP = (100 - Discount%) / (100 + Profit%)</div>
+        `,
+        "Compound Interest": `
+            <div class='formula-block'><span class='formula-title'>Amount Formula</span> A = P(1 + R/100)^n</div>
+            <div class='formula-block'><span class='formula-title'>Difference (2 Years)</span> CI - SI = P(R/100)²</div>
+            <div class='formula-block'><span class='formula-title'>Difference (3 Years)</span> CI - SI = P(R/100)² x (3 + R/100)</div>
+            <div class='formula-block'><span class='formula-title'>Half-yearly/Quarterly</span> Rate halves (R/2) and Time doubles (2n) for half-yearly. Rate is R/4 and Time is 4n for quarterly.</div>
+        `,
+        "Percentage": `
+            <div class='formula-block'><span class='formula-title'>Successive Change</span> Net % change = a + b + (ab/100)</div>
+            <div class='formula-block'><span class='formula-title'>Price/Consumption</span> Expenditure = Price x Consumption. <br> If Price increases by x%, Consumption must decrease by [x / (100+x)] x 100 % to keep expenditure same.</div>
+            <div class='formula-block'><span class='formula-title'>Venn Diagrams</span> Total = n(A) + n(B) - n(A ∩ B) + Neither</div>
+        `,
+        "Ratio & Proportion": `
+            <div class='formula-block'><span class='formula-title'>Mean Proportional</span> Between a and b = √(ab)</div>
+            <div class='formula-block'><span class='formula-title'>Third Proportional</span> To a and b = b² / a</div>
+            <div class='formula-block'><span class='formula-title'>Fourth Proportional</span> To a, b, and c = (b x c) / a</div>
+            <div class='formula-block'><span class='formula-title'>Componendo & Dividendo</span> If a/b = c/d, then (a+b)/(a-b) = (c+d)/(c-d)</div>
+        `,
+        "Number System": `
+            <div class='formula-block'><span class='formula-title'>Perfect Squares</span> Never end in 2, 3, 7, or 8. Digital root is always 1, 4, 7, or 9.</div>
+            <div class='formula-block'><span class='formula-title'>Total Factors</span> If N = p^a x q^b, Total factors = (a+1)(b+1)</div>
+            <div class='formula-block'><span class='formula-title'>Divisibility by 11</span> Difference between sum of odd placed digits and even placed digits is 0 or a multiple of 11.</div>
+        `,
+        "Trigonometry": `
+            <div class='formula-block'><span class='formula-title'>Identities</span> sin²θ + cos²θ = 1 <br> sec²θ - tan²θ = 1 <br> cosec²θ - cot²θ = 1</div>
+            <div class='formula-block'><span class='formula-title'>Complementary Angles</span> sin(90-θ) = cosθ <br> tan(90-θ) = cotθ <br> sec(90-θ) = cosecθ</div>
+            <div class='formula-block'><span class='formula-title'>Value Check</span> If sin A = cos B, then A + B = 90°.</div>
+        `,
+        "Mixture & Alligation": `
+            <div class='formula-block'><span class='formula-title'>Alligation Rule</span> Ratio of quantities = (Cheaper Price - Mean Price) / (Mean Price - Dearer Price)</div>
+            <div class='formula-block'><span class='formula-title'>Replacement Formula</span> Final Quantity of pure liquid = Initial Quantity x (1 - Removed Vol / Total Vol)^n</div>
+        `
+    };
 
     window.requireAuth = (callback) => {
         const pwd = prompt("🔒 SYSTEM SECURED\n\nEnter the master password to authorize changes:");
@@ -423,8 +505,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        // MATRIX_ENABLED is deprecated as a separate variable, we just pass SUBJECTS
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.0", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.2", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -565,7 +646,10 @@
         SUBJECTS.forEach(subject => {
             const subjectQuizzes = Object.keys(db).filter(id => db[id].subject === subject && !db[id].title.includes("Master Mock") && !db[id].title.includes("🎯"));
             
+            // V19.2 SMART SEGREGATION LOGIC
             let topicsByParent = {}; 
+            let isMixedSubject = subject.includes("MOCK") || subject === "Mixed" || subject === "Miscellaneous";
+
             historyDb.filter(h => h.subject === subject).forEach(h => {
                 if(h.reviewData) {
                     h.reviewData.forEach(rd => {
@@ -573,16 +657,30 @@
                         let secondaryTag = rd.tags && rd.tags.length > 1 ? rd.tags[1] : primaryTag;
                         if (!rd.tags || rd.tags.length === 0) { primaryTag = "Miscellaneous"; secondaryTag = "Miscellaneous"; }
                         
-                        if(!topicsByParent[primaryTag]) topicsByParent[primaryTag] = {};
-                        if(!topicsByParent[primaryTag][secondaryTag]) topicsByParent[primaryTag][secondaryTag] = { c: 0, t: 0 };
-                        topicsByParent[primaryTag][secondaryTag].t++;
-                        if(rd.status === 'correct') topicsByParent[primaryTag][secondaryTag].c++;
+                        let parentSub, topicName;
+                        if(isMixedSubject) {
+                            parentSub = primaryTag;
+                            topicName = secondaryTag;
+                        } else {
+                            parentSub = subject; // Lock to the standard subject
+                            if (primaryTag.toUpperCase() === subject.toUpperCase() && rd.tags.length > 1) {
+                                topicName = secondaryTag;
+                            } else {
+                                topicName = primaryTag;
+                            }
+                        }
+
+                        if(!topicsByParent[parentSub]) topicsByParent[parentSub] = {};
+                        if(!topicsByParent[parentSub][topicName]) topicsByParent[parentSub][topicName] = { c: 0, t: 0 };
+                        topicsByParent[parentSub][topicName].t++;
+                        if(rd.status === 'correct') topicsByParent[parentSub][topicName].c++;
                     });
                 }
             });
 
             let matrixHTML = '';
             let safeSub = subject.replace(/[^a-zA-Z0-9]/g, '');
+            
             if (Object.keys(topicsByParent).length > 0) {
                 let allPills = '';
                 Object.keys(topicsByParent).forEach(parentSub => {
@@ -686,7 +784,7 @@
     });
 
     window.exportBackup = () => {
-        const blob = new Blob([JSON.stringify({ version: "v19.0", subjects: SUBJECTS, matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, db: db, history: historyDb, mistakes: mistakesDb })], { type: "application/json" });
+        const blob = new Blob([JSON.stringify({ version: "v19.2", subjects: SUBJECTS, matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, db: db, history: historyDb, mistakes: mistakesDb })], { type: "application/json" });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Yogesh_MegaHub_Backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
     };
 
@@ -1056,7 +1154,7 @@
 
         document.getElementById('results-title').textContent = `${candName}'s Report - Attempt #${currentAttemptNum}`;
 
-        if(currentQuizId !== 'quiz_redemption') {
+        if(currentQuizId !== 'quiz_redemption' && !displayTitle.includes("🎯")) {
             historyDb.unshift({ 
                 date: new Date().toLocaleDateString(), title: displayTitle, subject: db[currentQuizId] ? db[currentQuizId].subject : "Mixed", 
                 score: parseFloat(score.toFixed(2)), accuracy: Math.round((correct / activeQuestions.length) * 100) || 0,
@@ -1115,17 +1213,13 @@
         let fullReviewHTML = '';
         
         attempt.reviewData.forEach((data, i) => { 
-            // Reconstruct pseudo-question object for editing
             let qObj = { question: data.question, solution: data.solution, tags: data.tags, formulaUsed: data.formulaUsed };
-            
-            // To edit properly, we need the original options from db if possible
             let foundInDb = false;
             for(let qid in db) {
                 let actualQ = db[qid].questions.find(qx => qx.question === data.question);
                 if(actualQ) { qObj = JSON.parse(JSON.stringify(actualQ)); foundInDb = true; break; }
             }
             if(!foundInDb) {
-                // Mock options if deleted
                 qObj.options = [{text: data.cText, correct: true}, {text: "Option B", correct: false}, {text: "Option C", correct: false}, {text: "Option D", correct: false}];
             }
             window.currentReviewQuestions.push(qObj);
@@ -1137,13 +1231,11 @@
         filterReview('all'); 
     };
 
-    // V19.0: DATABASE EDITOR LOGIC
     let currentlyEditingRef = null;
     window.openEditModal = (reviewIndex) => {
         let qObj = window.currentReviewQuestions[reviewIndex];
         if(!qObj) return;
         
-        // Find exact reference in DB to mutate
         let found = null;
         for(let qid in db) {
             let idx = db[qid].questions.findIndex(qx => qx.question === qObj.question);
@@ -1183,20 +1275,12 @@
         target.tags = tagStr.split(',').map(s=>s.trim()).filter(s=>s);
         target.formulaUsed = document.getElementById('edit-formula').value;
 
-        // Also update Mistakes DB if it's in there
         let mistIdx = mistakesDb.findIndex(m => m.question === oldQuestionText);
-        if(mistIdx !== -1) {
-            mistakesDb[mistIdx] = JSON.parse(JSON.stringify(target));
-        }
+        if(mistIdx !== -1) mistakesDb[mistIdx] = JSON.parse(JSON.stringify(target));
 
         saveData();
         alert("✅ Question successfully updated in the Master Database!");
         closeEditModal();
-        
-        // Refresh current view if possible
-        if(!document.getElementById('screen-results').classList.contains('hidden')) {
-            alert("Changes will fully reflect the next time you view this report or take the quiz.");
-        }
     };
 
     window.openTargetedHistory = (quizId) => {
@@ -1277,6 +1361,7 @@
 
         document.getElementById('subject-analysis-title').textContent = `${subject} - Topic Analysis`;
 
+        let isMixedSubject = subject.includes("MOCK") || subject === "Mixed" || subject === "Miscellaneous";
         let topicsStats = {}; 
         historyDb.filter(h => h.subject === subject).forEach(h => {
             if(h.reviewData) {
@@ -1285,7 +1370,17 @@
                     let secondaryTag = rd.tags && rd.tags.length > 1 ? rd.tags[1] : primaryTag;
                     if (!rd.tags || rd.tags.length === 0) { primaryTag = "Miscellaneous"; secondaryTag = "Miscellaneous"; }
                     
-                    let topicName = secondaryTag;
+                    let topicName;
+                    if(isMixedSubject) {
+                        topicName = `${primaryTag} : ${secondaryTag}`;
+                    } else {
+                        if (primaryTag.toUpperCase() === subject.toUpperCase() && rd.tags.length > 1) {
+                            topicName = secondaryTag;
+                        } else {
+                            topicName = primaryTag;
+                        }
+                    }
+                    
                     if(!topicsStats[topicName]) topicsStats[topicName] = { correct: 0, wrong: 0, skipped: 0, total: 0 };
                     
                     topicsStats[topicName].total++;
@@ -1370,7 +1465,6 @@
             }
         });
 
-        // Add Master Formulas
         Object.keys(MASTER_FORMULAS).forEach(topic => {
             if(!quantData[topic]) quantData[topic] = [];
             quantData[topic].push({ f: MASTER_FORMULAS[topic], isMaster: true });
