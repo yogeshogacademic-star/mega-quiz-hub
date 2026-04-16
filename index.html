@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V21.0 (Active Recall & SRS Engine)</title>
+    <title>Yogesh's Mega Quiz Hub - V22.0 (Anki Flashcards & 10-Q Sprints)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -33,10 +33,11 @@
         mark { background-color: rgba(251, 191, 36, 0.4); color: inherit; padding: 0 2px; border-radius: 4px; font-weight: 900; box-shadow: 0 0 8px rgba(251, 191, 36, 0.3); }
         .dark mark { background-color: rgba(245, 158, 11, 0.5); }
 
-        .formula-block { padding: 14px 18px; background-color: #f8fafc; border-left: 5px solid #10b981; margin-bottom: 12px; border-radius: 0 8px 8px 0; color: #334155; font-weight: 600; font-size: 15px; box-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.02); line-height: 1.5; }
-        .dark .formula-block { background-color: #0f172a; border-left-color: #34d399; color: #e2e8f0; }
-        .formula-title { color: #047857; font-weight: 900; margin-right: 8px; text-transform: uppercase; font-size: 12px; letter-spacing: 0.05em; display: block; margin-bottom: 4px; }
-        .dark .formula-title { color: #34d399; }
+        /* 3D Flashcard CSS */
+        .perspective-1000 { perspective: 1000px; }
+        .preserve-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-[#0a0f1c] dark:text-slate-200 min-h-screen flex flex-col pb-20">
@@ -60,14 +61,14 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V21.0</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V22.0</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Active Recall Flashcards & Cognitive SRS Engine</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Anki Flashcard Engine & 10-Q SRS Sprints</p>
                 </div>
                 
                 <div class="flex items-center gap-4 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
                     <button onclick="toggleDarkMode()" class="bg-white/10 hover:bg-white/20 p-4 rounded-2xl backdrop-blur-md transition-all border border-white/10 shadow-inner hover:scale-105" title="Toggle Dark Mode">🌙</button>
-                    <button onclick="showFormulaVault()" class="bg-gradient-to-br from-pink-500 to-rose-600 hover:from-pink-400 hover:to-rose-500 text-white font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(244,63,94,0.4)] transition-transform hover:-translate-y-1 border border-pink-400 flex items-center gap-2">🧠 Active Recall Vaults</button>
+                    <button onclick="showFormulaVault()" class="bg-gradient-to-br from-pink-500 to-rose-600 hover:from-pink-400 hover:to-rose-500 text-white font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(244,63,94,0.4)] transition-transform hover:-translate-y-1 border border-pink-400 flex items-center gap-2">🧠 Flashcard Vaults</button>
                     <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400 flex items-center gap-2">📊 History</button>
                 </div>
             </div>
@@ -88,10 +89,10 @@
             <div onclick="generateRedemptionQuiz()" class="bg-gradient-to-r from-purple-600 via-indigo-600 to-indigo-700 rounded-[2rem] p-6 md:p-8 mb-10 cursor-pointer shadow-[0_10px_30px_rgba(79,70,229,0.3)] hover:shadow-[0_15px_40px_rgba(79,70,229,0.5)] transition-all transform hover:-translate-y-1.5 flex justify-between items-center group border border-purple-500/50">
                 <div>
                     <h2 id="global-srs-title" class="text-2xl md:text-3xl font-black text-white mb-2 tracking-tight drop-shadow-md flex items-center flex-wrap gap-3">
-                        🔥 The Redemption Engine 
+                        🔥 10-Q SRS Sprint 
                         <span id="global-srs-badge" class="hidden text-xs bg-rose-500 px-3 py-1 rounded-full shadow-lg border border-rose-400 uppercase tracking-widest">0 Due Today</span>
                     </h2>
-                    <p class="text-purple-100 font-bold text-sm md:text-base">Spaced Repetition System: Review your weaknesses at the mathematically perfect time.</p>
+                    <p class="text-purple-100 font-bold text-sm md:text-base">Take a fast 10-question sprint of the exact concepts you are about to forget.</p>
                 </div>
                 <div class="text-white font-black text-3xl group-hover:translate-x-3 transition-transform drop-shadow-lg">→</div>
             </div>
@@ -144,24 +145,15 @@
                     <label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4">⏱️ Overall Time Limit</label>
                     <div class="flex gap-3 flex-wrap">
                         <button onclick="setLobbyTime('default')" id="btn-time-default" class="time-btn-main flex-1 bg-emerald-100 text-emerald-800 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Default</button>
+                        <button onclick="setLobbyTime('10')" id="btn-time-10" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">10 Min</button>
                         <button onclick="setLobbyTime('15')" id="btn-time-15" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">15 Min</button>
                         <button onclick="setLobbyTime('30')" id="btn-time-30" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">30 Min</button>
-                        <button onclick="setLobbyTime('custom')" id="btn-time-custom" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">Custom</button>
                     </div>
-                    <input type="number" id="custom-time-input" class="hidden w-full mt-4 p-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-950 font-bold text-lg shadow-inner" placeholder="Enter minutes...">
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="toggleLobbyMode('shuffle')">
                         <span class="font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-[10px]">🔀 Shuffle Q's</span>
                         <div id="toggle-shuffle" class="w-12 h-6 bg-emerald-500 rounded-full relative transition-colors shadow-inner"><div class="absolute right-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div>
-                    </div>
-                    <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="toggleLobbyMode('exam')">
-                        <span class="font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-[10px]">Strict Exam</span>
-                        <div id="toggle-exam" class="w-12 h-6 bg-emerald-500 rounded-full relative transition-colors shadow-inner"><div class="absolute right-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div>
-                    </div>
-                    <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="toggleLobbyMode('blind')">
-                        <span class="font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-[10px]">🧠 Active Recall (Hide Opts)</span>
-                        <div id="toggle-blind" class="w-12 h-6 bg-slate-300 dark:bg-slate-700 rounded-full relative transition-colors shadow-inner"><div class="absolute left-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div>
                     </div>
                     <div class="bg-indigo-50 dark:bg-indigo-900/20 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/30 flex justify-between items-center cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors" onclick="toggleLobbyMode('perQTimer')">
                         <span class="font-black text-indigo-700 dark:text-indigo-300 uppercase tracking-widest text-[10px]">⏱️ Per-Q Timer</span>
@@ -192,7 +184,6 @@
             <span>⌨️ SHORTCUTS:</span>
             <span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">◀</kbd> <kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">▶</kbd> Prev/Next</span>
             <span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">M</kbd> Mark</span>
-            <span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-4 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">SPACE</kbd> Reveal</span>
         </div>
 
         <div class="flex flex-col lg:flex-row gap-6 items-start">
@@ -282,24 +273,59 @@
         </div>
     </div>
 
-    <div id="screen-formula-vault" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl max-h-[90vh] flex flex-col">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
-                <div>
-                    <h2 class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">🧠 Active Recall Vaults</h2>
-                    <p class="text-xs font-bold text-emerald-500 uppercase tracking-widest mt-1">Tap the hidden blocks to force your brain to recall.</p>
+    <div id="screen-formula-vault" class="hidden fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-md flex justify-center items-center p-4">
+        <div class="bg-transparent w-full max-w-4xl h-[85vh] flex flex-col relative">
+            <button onclick="closeFormulaVault()" class="absolute -top-10 right-0 text-white hover:text-red-400 font-black text-3xl transition-colors z-50">&times;</button>
+            
+            <div id="flashcard-menu" class="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-2xl w-full h-full flex flex-col">
+                <div class="text-center mb-10">
+                    <h2 class="text-3xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">🧠 Conceptual Flashcards</h2>
+                    <p class="text-sm font-bold text-emerald-500 uppercase tracking-widest mt-2">Active Recall: No Options, Just Pure Memory.</p>
                 </div>
-                <div class="flex items-center gap-4">
-                    <button onclick="exportFormulaPDF()" class="bg-pink-50 hover:bg-pink-100 text-pink-600 dark:bg-pink-900/20 dark:text-pink-400 font-black text-xs uppercase tracking-widest px-4 py-2 rounded-xl transition-colors border border-pink-100 dark:border-pink-800/30 shadow-sm">📄 Export PDF</button>
-                    <button onclick="closeFormulaVault()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 items-center">
+                    <button onclick="launchFlashcards('quant')" class="h-64 bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-200 dark:border-emerald-800/50 rounded-3xl hover:scale-105 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all flex flex-col items-center justify-center p-6 shadow-lg group">
+                        <span class="text-6xl mb-4 group-hover:-translate-y-2 transition-transform">🧮</span>
+                        <span class="text-2xl font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest">Quant Formulas</span>
+                        <span id="fc-quant-count" class="mt-2 font-bold text-emerald-600/70 dark:text-emerald-500/70">0 Cards</span>
+                    </button>
+                    <button onclick="launchFlashcards('gs')" class="h-64 bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-200 dark:border-amber-800/50 rounded-3xl hover:scale-105 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-all flex flex-col items-center justify-center p-6 shadow-lg group">
+                        <span class="text-6xl mb-4 group-hover:-translate-y-2 transition-transform">📜</span>
+                        <span class="text-2xl font-black text-amber-700 dark:text-amber-400 uppercase tracking-widest">GS Concepts</span>
+                        <span id="fc-gs-count" class="mt-2 font-bold text-amber-600/70 dark:text-amber-500/70">0 Cards</span>
+                    </button>
                 </div>
             </div>
-            <div class="flex gap-4 mb-6">
-                <button onclick="switchVaultTab('quant')" id="tab-quant" class="flex-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 border-emerald-500 transition-all shadow-sm">🧮 Quant Flashcards</button>
-                <button onclick="switchVaultTab('gs')" id="tab-gs" class="flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 border-transparent hover:border-slate-300 dark:hover:border-slate-600 transition-all shadow-sm">📜 GS Flashcards</button>
+
+            <div id="flashcard-player" class="hidden w-full h-full flex flex-col perspective-1000">
+                <div class="flex justify-between items-center mb-6 px-4">
+                    <button onclick="exitFlashcards()" class="text-white font-black uppercase tracking-widest text-xs bg-white/20 px-4 py-2 rounded-full hover:bg-white/30 backdrop-blur-sm">← Back to Decks</button>
+                    <div id="fc-progress" class="text-white font-black text-lg tracking-widest bg-slate-900/50 px-4 py-1.5 rounded-full border border-white/10">1 / 20</div>
+                </div>
+                
+                <div class="relative flex-1 w-full h-full">
+                    <div id="fc-card-inner" class="w-full h-full transition-transform duration-500 preserve-3d cursor-pointer shadow-2xl rounded-[3rem]" onclick="flipFlashcard()">
+                        <div class="absolute w-full h-full bg-white dark:bg-slate-900 backface-hidden flex flex-col items-center justify-center p-10 md:p-16 text-center border-4 border-indigo-100 dark:border-slate-700 rounded-[3rem]">
+                            <span class="text-xs font-black uppercase tracking-widest text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-4 py-2 rounded-full mb-8">Tap to Reveal</span>
+                            <div id="fc-front-text" class="text-2xl md:text-4xl font-black text-slate-800 dark:text-slate-100 leading-tight tracking-tight">Question goes here?</div>
+                        </div>
+                        <div class="absolute w-full h-full bg-indigo-50 dark:bg-slate-800 backface-hidden rotate-y-180 flex flex-col p-10 md:p-16 border-4 border-indigo-400 dark:border-indigo-500 rounded-[3rem] overflow-y-auto">
+                            <div class="flex-1 flex flex-col items-center justify-center text-center">
+                                <div id="fc-back-text" class="text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-200 leading-relaxed w-full">Answer goes here.</div>
+                                <div id="fc-context-text" class="mt-6 p-4 bg-white/50 dark:bg-slate-900/50 rounded-xl text-sm font-bold text-slate-500 dark:text-slate-400 italic border border-indigo-200 dark:border-slate-700 w-full hidden"></div>
+                            </div>
+                            <button onclick="nextFlashcard(event)" class="mt-8 w-full bg-indigo-600 text-white font-black text-xl uppercase tracking-widest py-5 rounded-2xl shadow-xl hover:bg-indigo-500 transition-colors">Got it. Next Card →</button>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="flex-1 overflow-y-auto pr-2 space-y-6" id="vault-quant-content"></div>
-            <div class="flex-1 overflow-y-auto pr-2 space-y-6 hidden" id="vault-gs-content"></div>
+            
+            <div id="flashcard-done" class="hidden bg-white dark:bg-slate-900 rounded-3xl p-12 text-center shadow-2xl w-full flex flex-col items-center justify-center h-full">
+                <div class="text-8xl mb-6">🎉</div>
+                <h2 class="text-4xl font-black uppercase text-emerald-500 mb-4 tracking-tight">Deck Completed!</h2>
+                <p class="text-slate-500 dark:text-slate-400 font-bold mb-10">Your brain is literally growing neural pathways right now.</p>
+                <button onclick="exitFlashcards()" class="bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black uppercase tracking-widest px-10 py-5 rounded-2xl hover:scale-105 transition-transform shadow-xl">Return to Vault</button>
+            </div>
+            
         </div>
     </div>
 
@@ -380,12 +406,19 @@
     let currentAttemptNum = 1;
     let activeQuestions = []; 
     let quizState = { answers: {}, marked: {}, revealed: {}, locked: {}, qTimeLeft: 0, submitted: false, interval: null, isPaused: false, currentFocus: -1 };
-    let lobbySettings = { timeMode: 'default', customMinutes: 0, shuffle: true, exam: true, blind: false, perQTimer: false };
+    let lobbySettings = { timeMode: 'default', shuffle: true, perQTimer: false };
     let targetImportSubject = ""; 
 
     let lobbyQuizMode = 'full';
     window.currentQuizWrongQs = [];
     window.currentReviewQuestions = []; 
+
+    // V22.0 FLASHCARD CACHE
+    let fcQuantQueue = [];
+    let fcGsQueue = [];
+    let fcCurrentQueue = [];
+    let fcCurrentIndex = 0;
+    let fcIsFlipped = false;
 
     // MASTER FORMULA DATABASE
     const MASTER_FORMULAS = {
@@ -459,7 +492,7 @@
             <div class='formula-block'><span class='formula-title'>Divisibility by 11</span> Difference between sum of odd placed digits and even placed digits is 0 or a multiple of 11.</div>
         `,
         "Trigonometry": `
-            <div class='formula-block'><span class='formula-title'>Identities</span> sin²θ + cos²θ = 1 <br> sec²θ - tan²θ = 1 <br> cosec²θ - cot²θ = 1</div>
+            <div class='formula-block'><span class='formula-title'>Identities</span> sin²θ + cos²θ = 1 <br> sec²θ - tan²θ = 1 <br> cosec²θ - multiple²θ = 1</div>
             <div class='formula-block'><span class='formula-title'>Complementary Angles</span> sin(90-θ) = cosθ <br> tan(90-θ) = cotθ <br> sec(90-θ) = cosecθ</div>
             <div class='formula-block'><span class='formula-title'>Value Check</span> If sin A = cos B, then A + B = 90°.</div>
         `,
@@ -474,12 +507,9 @@
         if (pwd === "KOBE") { callback(); } else if (pwd !== null) { alert("❌ ACCESS DENIED."); }
     };
 
-    // Initialize SRS metadata for older mistakes
     function initializeSRSData() {
         mistakesDb.forEach(m => {
-            if (!m.srs) {
-                m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() - 10000 };
-            }
+            if (!m.srs) m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() - 10000 };
         });
     }
 
@@ -519,7 +549,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v21.0", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v22.0", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -646,8 +676,9 @@
         let globalDue = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now()).length;
         let masteredCount = localStorage.getItem('megaQuizMasteredCount') || 0;
         
+        // UPDATE REDEMPTION CARD FOR 10-Q SPRINT
         document.getElementById('global-srs-title').innerHTML = `
-            🔥 The Redemption Engine 
+            🔥 10-Q SRS Sprint 
             ${globalDue > 0 ? `<span class="text-xs bg-rose-500 px-3 py-1 rounded-full shadow-lg border border-rose-400 uppercase tracking-widest">${globalDue} Due Today</span>` : `<span class="text-xs bg-emerald-500 px-3 py-1 rounded-full shadow-lg border border-emerald-400 uppercase tracking-widest">All Caught Up</span>`}
         `;
 
@@ -757,8 +788,9 @@
                     </div>`;
             });
 
+            // V22.0 SUBJECT SPECIFIC 10-Q SPRINT
             let subjectDue = mistakesDb.filter(m => m.subject === subject && m.srs && m.srs.nextReview <= Date.now()).length;
-            let dueBadge = subjectDue > 0 ? `<button onclick="generateSubjectRedemption('${subject}')" class="flex-1 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm border border-rose-200 dark:border-rose-800/30" title="Clear your SRS backlog for this subject">🔥 ${subjectDue} Due</button>` : '';
+            let dueBadge = subjectDue > 0 ? `<button onclick="generateSubjectRedemption('${subject}')" class="flex-1 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm border border-rose-200 dark:border-rose-800/30" title="Take a fast 10-Q sprint of due items">🔥 Sprint (${subjectDue})</button>` : '';
 
             const card = document.createElement('div'); card.className = `bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-lg border border-slate-200 dark:border-slate-800 flex flex-col subject-card relative overflow-hidden`;
             card.innerHTML = `
@@ -811,7 +843,7 @@
     });
 
     window.exportBackup = () => {
-        const blob = new Blob([JSON.stringify({ version: "v21.0", subjects: SUBJECTS, matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, db: db, history: historyDb, mistakes: mistakesDb, masteredCount: localStorage.getItem('megaQuizMasteredCount') || 0 })], { type: "application/json" });
+        const blob = new Blob([JSON.stringify({ version: "v22.0", subjects: SUBJECTS, matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, db: db, history: historyDb, mistakes: mistakesDb, masteredCount: localStorage.getItem('megaQuizMasteredCount') || 0 })], { type: "application/json" });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Yogesh_MegaHub_Backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
     };
 
@@ -857,7 +889,7 @@
     function openLobby(id) {
         currentQuizId = id; const q = db[id];
         document.getElementById('lobby-title').textContent = q.title;
-        document.getElementById('lobby-meta').textContent = `${q.questions.length} Questions | Default Time: ${q.timeInMinutes} Mins`;
+        document.getElementById('lobby-meta').textContent = `${q.questions.length} Questions`;
         const lastStoredName = localStorage.getItem('megaQuizCandidateName') || "Yogesh";
         document.getElementById('candidate-name').value = lastStoredName;
         
@@ -885,22 +917,25 @@
         setLobbyTime('default'); showScreen('lobby');
     }
 
+    // V22.0: 10-Q SPRINT GENERATORS
     window.generateRedemptionQuiz = () => {
         let dueQs = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now());
         if(dueQs.length === 0) {
             if(mistakesDb.length === 0) return alert("Mistakes Vault empty! Go take some mocks.");
             return alert("🧠 You're completely caught up for today! No SRS reviews are due. Come back tomorrow.");
         }
-        const shuffled = dueQs.sort(() => 0.5 - Math.random()).slice(0, 50); 
-        db['quiz_redemption'] = { title: "🔥 SRS Daily Review", subject: "Mixed Revision", timeInMinutes: Math.ceil(shuffled.length * 1.5), questions: shuffled };
+        // Force exactly 10 questions for a rapid sprint
+        const shuffled = dueQs.sort(() => 0.5 - Math.random()).slice(0, 10); 
+        db['quiz_redemption'] = { title: "🔥 10-Q SRS Sprint", subject: "Mixed Revision", timeInMinutes: 10, questions: shuffled };
         openLobby('quiz_redemption');
     };
 
     window.generateSubjectRedemption = (sub) => {
         let dueQs = mistakesDb.filter(m => m.subject === sub && m.srs && m.srs.nextReview <= Date.now());
         if(dueQs.length === 0) return alert(`🧠 Caught up on ${sub}!`);
-        const shuffled = dueQs.sort(() => 0.5 - Math.random()).slice(0, 50);
-        db['quiz_redemption'] = { title: `🔥 ${sub} SRS Review`, subject: sub, timeInMinutes: Math.ceil(shuffled.length * 1.5), questions: shuffled };
+        // Force exactly 10 questions
+        const shuffled = dueQs.sort(() => 0.5 - Math.random()).slice(0, 10);
+        db['quiz_redemption'] = { title: `🔥 ${sub} SRS Sprint`, subject: sub, timeInMinutes: 10, questions: shuffled };
         openLobby('quiz_redemption');
     };
 
@@ -918,7 +953,6 @@
         lobbySettings.timeMode = mode;
         document.querySelectorAll('.time-btn-main').forEach(btn => btn.className = 'time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600');
         document.getElementById('btn-time-' + mode).className = 'time-btn-main flex-1 bg-emerald-100 text-emerald-800 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-md';
-        document.getElementById('custom-time-input').style.display = mode === 'custom' ? 'block' : 'none';
     }
 
     window.toggleLobbyMode = (setting) => {
@@ -945,7 +979,8 @@
 
         renderQuizView();
         
-        let mins = lobbySettings.timeMode === 'custom' ? (parseInt(document.getElementById('custom-time-input').value) || quiz.timeInMinutes) : (lobbySettings.timeMode === 'default' ? quiz.timeInMinutes : parseInt(lobbySettings.timeMode));
+        let mins = lobbySettings.timeMode === 'default' ? quiz.timeInMinutes : parseInt(lobbySettings.timeMode);
+        if(!mins) mins = 10;
         
         if(lobbyQuizMode === 'wrong' && lobbySettings.timeMode === 'default') {
             let scale = baseQuestions.length / quiz.questions.length;
@@ -1022,14 +1057,6 @@
         }
     }
 
-    window.revealOptions = (idx) => {
-        if(quizState.submitted || quizState.isPaused) return;
-        quizState.revealed[idx] = true;
-        const cont = document.getElementById(`opts-cont-${idx}`); const over = document.getElementById(`blind-over-${idx}`);
-        if(cont) cont.classList.remove('blur-md', 'pointer-events-none', 'select-none', 'opacity-30');
-        if(over) over.remove();
-    };
-
     document.addEventListener('keydown', (e) => {
         if(!document.getElementById('screen-quiz').classList.contains('hidden')) {
             const k = e.key.toLowerCase();
@@ -1039,7 +1066,6 @@
             if (k === 'arrowright' || k === 'arrowdown') { e.preventDefault(); setFocus(Math.min(quizState.currentFocus + 1, activeQuestions.length - 1)); }
             if (k === 'arrowleft' || k === 'arrowup') { e.preventDefault(); setFocus(Math.max(quizState.currentFocus - 1, 0)); }
             if (k === 'm') toggleMark(quizState.currentFocus);
-            if (k === ' ') { e.preventDefault(); if (lobbySettings.blind && !quizState.revealed[quizState.currentFocus]) revealOptions(quizState.currentFocus); }
         }
     });
 
@@ -1058,9 +1084,6 @@
                     <span class="min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-slate-100 dark:bg-slate-700 text-slate-500 transition-colors">${String.fromCharCode(65+oIndex)}</span><span class="mt-0.5">${opt.text}</span>
                 </div>`).join('');
                 
-            let isBlind = lobbySettings.blind && !quizState.revealed[qIndex];
-            // V21.0 Active Recall UI Update
-            let blindOverlay = isBlind ? `<div id="blind-over-${qIndex}" class="absolute inset-0 flex items-center justify-center cursor-pointer z-10" onclick="revealOptions(${qIndex})"><div class="bg-indigo-600 dark:bg-indigo-500 text-white font-black px-8 py-5 rounded-2xl shadow-2xl flex items-center gap-2 hover:scale-105 transition-transform uppercase tracking-widest border-2 border-indigo-400 border-dashed">🧠 I have the answer. Reveal Options (Space)</div></div>` : '';
             let speechTxt = q.question + ". " + q.options.map((o,i) => `Option ${String.fromCharCode(65+i)}: ${o.text}. `).join('');
 
             const card = document.createElement('div'); card.id = `qcard-${qIndex}`;
@@ -1071,8 +1094,7 @@
                     <button onclick="toggleMark(${qIndex})" id="markBtn-${qIndex}" class="text-xs font-black text-slate-400 hover:text-purple-500 flex items-center gap-2 transition-colors uppercase px-4 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg"><span class="text-lg leading-none">📌</span> Mark (M)</button>
                 </div>
                 <div class="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100 mb-8 leading-relaxed">${q.question}</div>
-                <div class="relative"><div id="opts-cont-${qIndex}" class="space-y-2 transition-all duration-300 ${isBlind ? 'blur-2xl opacity-10 pointer-events-none select-none' : ''}">${optsHTML}</div>${blindOverlay}</div>
-                ${!lobbySettings.exam ? `<div class="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 text-right"><button onclick="document.getElementById('sol-${qIndex}').classList.toggle('hidden')" class="text-[10px] font-black text-emerald-500 hover:text-emerald-600 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 rounded-lg">Show Solution</button></div><div id="sol-${qIndex}" class="hidden mt-4 p-6 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 text-sm font-bold rounded-xl border border-emerald-100 dark:border-emerald-800/50 leading-relaxed">${q.solution}</div>` : ''}
+                <div class="relative"><div id="opts-cont-${qIndex}" class="space-y-2 transition-all duration-300">${optsHTML}</div></div>
             `;
             container.appendChild(card);
         });
@@ -1080,7 +1102,7 @@
     }
 
     window.selectOption = (qIdx, oIdx) => {
-        if (quizState.submitted || quizState.isPaused || quizState.locked[qIdx] || (lobbySettings.blind && !quizState.revealed[qIdx])) return;
+        if (quizState.submitted || quizState.isPaused || quizState.locked[qIdx]) return;
         quizState.answers[qIdx] = oIdx; 
         
         activeQuestions[qIdx].options.forEach((_, i) => {
@@ -1505,107 +1527,127 @@
 
     window.closeSubjectAnalysis = () => document.getElementById('screen-subject-analysis').classList.add('hidden');
 
-    window.switchVaultTab = (tab) => {
-        if(tab === 'quant') {
-            document.getElementById('vault-quant-content').classList.remove('hidden');
-            document.getElementById('vault-gs-content').classList.add('hidden');
-            document.getElementById('tab-quant').className = "flex-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 border-emerald-500 transition-all shadow-sm";
-            document.getElementById('tab-gs').className = "flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 border-transparent hover:border-slate-300 dark:hover:border-slate-600 transition-all shadow-sm";
-        } else {
-            document.getElementById('vault-gs-content').classList.remove('hidden');
-            document.getElementById('vault-quant-content').classList.add('hidden');
-            document.getElementById('tab-gs').className = "flex-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 border-emerald-500 transition-all shadow-sm";
-            document.getElementById('tab-quant').className = "flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 border-transparent hover:border-slate-300 dark:hover:border-slate-600 transition-all shadow-sm";
-        }
-    };
-
-    // V21.0: Active Recall Flashcard UI Generator
+    // V22.0 ANKI FLASHCARD ENGINE
     window.showFormulaVault = () => {
         document.getElementById('screen-analytics').classList.add('hidden');
         document.getElementById('screen-quiz-history').classList.add('hidden');
         document.getElementById('screen-subject-analysis').classList.add('hidden');
         document.getElementById('screen-formula-vault').classList.remove('hidden');
+        document.getElementById('flashcard-menu').classList.remove('hidden');
+        document.getElementById('flashcard-player').classList.add('hidden');
+        document.getElementById('flashcard-done').classList.add('hidden');
         
-        let quantData = {};
-        let gsData = {};
+        fcQuantQueue = [];
+        fcGsQueue = [];
         
+        // Extract DB Formulas and transform into Conceptual Questions
         Object.values(db).forEach(quiz => {
             if (!quiz.title.includes("🎯")) {
                 let isMath = SUBJECT_CATEGORIES[quiz.subject] === "Maths" || quiz.subject.toLowerCase().includes("quant");
                 quiz.questions.forEach(q => {
                     if(q.formulaUsed) {
-                        let topic = q.tags && q.tags.length > 1 ? q.tags[1] : "General";
-                        if(isMath) {
-                            if (!quantData[topic]) quantData[topic] = [];
-                            if(!quantData[topic].some(item => item.q === q.question)) quantData[topic].push({ q: q.question, f: q.formulaUsed });
+                        let frontText = "";
+                        let backText = "";
+                        let cleanFormula = q.formulaUsed.trim();
+                        
+                        // Parse "Concept: Details" format into "Recall Concept" -> "Details"
+                        if(cleanFormula.includes(":")) {
+                            let parts = cleanFormula.split(/:(.+)/);
+                            frontText = `Recall the concept / rule for:<br><span class='text-3xl ${isMath?'text-indigo-600':'text-amber-600'} mt-3 block'>${parts[0].trim()}</span>`;
+                            backText = parts[1].trim();
                         } else {
-                            if (!gsData[topic]) gsData[topic] = [];
-                            if(!gsData[topic].some(item => item.q === q.question)) gsData[topic].push({ q: q.question, f: q.formulaUsed });
+                            frontText = `Explain the concept behind:<br><span class='text-2xl text-slate-600 mt-3 block'>${cleanFormula}</span>`;
+                            backText = `This concept is used in context of: <br><br><i>"${q.question}"</i>`;
+                        }
+
+                        let card = { q: frontText, a: backText, ctx: q.question };
+                        
+                        if(isMath) {
+                            if(!fcQuantQueue.some(item => item.a === backText)) fcQuantQueue.push(card);
+                        } else {
+                            if(!fcGsQueue.some(item => item.a === backText)) fcGsQueue.push(card);
                         }
                     }
                 });
             }
         });
 
+        // Add Master Formulas
         Object.keys(MASTER_FORMULAS).forEach(topic => {
-            if(!quantData[topic]) quantData[topic] = [];
-            quantData[topic].push({ f: MASTER_FORMULAS[topic], isMaster: true });
+            let matches = [...MASTER_FORMULAS[topic].matchAll(/<span class='formula-title'>(.*?)<\/span>(.*?)<\/div>/g)];
+            matches.forEach(m => {
+                fcQuantQueue.push({
+                    q: `What is the formula/rule for:<br><span class='text-3xl text-indigo-600 mt-3 block'>${m[1].trim()}</span><span class='text-sm text-slate-400 mt-2 block uppercase tracking-widest'>[${topic}]</span>`,
+                    a: m[2].trim(),
+                    ctx: ""
+                });
+            });
         });
 
-        const renderVault = (dataObj, isMath) => {
-            let vaultHTML = '';
-            Object.keys(dataObj).sort().forEach(topic => {
-                let notesHTML = dataObj[topic].map((item) => {
-                    if(item.isMaster) {
-                        return `
-                        <div class="mb-4 cursor-pointer group" onclick="this.querySelector('.ar-cover').classList.add('hidden'); this.querySelector('.ar-content').classList.remove('hidden')">
-                            <div class="ar-cover bg-slate-200 dark:bg-slate-800 p-4 rounded-xl text-center font-black text-slate-500 dark:text-slate-400 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors shadow-sm">🧠 Tap to Recall Master Concept</div>
-                            <div class="ar-content hidden">${item.f}</div>
-                        </div>`;
-                    }
-                    return `
-                    <div class="mb-4 last:mb-0 bg-slate-50 dark:bg-slate-950/50 p-5 rounded-xl border border-slate-100 dark:border-slate-800 shadow-inner cursor-pointer group" onclick="this.querySelector('.ar-cover').classList.add('hidden'); this.querySelector('.ar-content').classList.remove('hidden')">
-                        <div class="text-sm font-bold text-slate-600 dark:text-slate-300 leading-relaxed mb-4">Q: ${item.q}</div>
-                        <div class="ar-cover ${isMath ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-500' : 'bg-amber-100 dark:bg-amber-900/40 text-amber-600'} p-3 rounded-lg text-center font-black hover:opacity-80 transition-opacity uppercase tracking-widest text-xs">🧠 Tap to Reveal Concept / Formula</div>
-                        <div class="ar-content hidden text-sm font-black ${isMath ? 'text-indigo-600 dark:text-indigo-400' : 'text-amber-600 dark:text-amber-400'} pt-3 border-t border-slate-200 dark:border-slate-700">📌 ${item.f}</div>
-                    </div>`;
-                }).join('');
-                
-                vaultHTML += `
-                    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm mb-6 print-friendly-card">
-                        <div class="${isMath ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-100' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100'} px-6 py-4 border-b">
-                            <h3 class="text-lg font-black uppercase tracking-widest ${isMath ? 'text-indigo-700 dark:text-indigo-400' : 'text-amber-700 dark:text-amber-400'}">${topic}</h3>
-                        </div>
-                        <div class="p-6">${notesHTML}</div>
-                    </div>`;
-            });
-            if(!vaultHTML) vaultHTML = `<div class="text-center text-slate-400 font-bold py-10 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl uppercase tracking-widest text-[10px]">No extracted data found!</div>`;
-            return vaultHTML;
-        };
-
-        document.getElementById('vault-quant-content').innerHTML = renderVault(quantData, true);
-        document.getElementById('vault-gs-content').innerHTML = renderVault(gsData, false);
-        switchVaultTab('quant');
+        document.getElementById('fc-quant-count').textContent = `${fcQuantQueue.length} Cards`;
+        document.getElementById('fc-gs-count').textContent = `${fcGsQueue.length} Cards`;
     };
 
     window.closeFormulaVault = () => document.getElementById('screen-formula-vault').classList.add('hidden');
 
-    window.exportFormulaPDF = () => {
-        let activeTab = !document.getElementById('vault-quant-content').classList.contains('hidden') ? 'vault-quant-content' : 'vault-gs-content';
-        let title = activeTab === 'vault-quant-content' ? 'Quant Formula Vault' : 'GS Articles & Facts Vault';
+    window.launchFlashcards = (type) => {
+        document.getElementById('flashcard-menu').classList.add('hidden');
+        document.getElementById('flashcard-player').classList.remove('hidden');
         
-        const printContent = document.getElementById(activeTab).innerHTML;
-        const printWindow = window.open('', '', 'height=800,width=800');
-        printWindow.document.write(`<html><head><title>SSC CGL 2026 - ${title}</title>`);
-        printWindow.document.write('<style>body{font-family: sans-serif; padding: 20px; color: #333;} .bg-emerald-50, .bg-indigo-50, .bg-amber-50{background-color: #f8fafc; padding: 15px; border-bottom: 2px solid #cbd5e1;} h3{margin:0; font-size: 18px; text-transform: uppercase; color: #0f172a;} .mb-6{margin-bottom: 24px;} .mb-4{margin-bottom: 16px;} .p-5, .p-6{padding: 20px; border: 1px solid #e2e8f0; background: #fff; border-radius: 8px;} .text-sm{font-size: 14px; font-weight: bold; color: #0f172a; border-bottom: 1px solid #cbd5e1; padding-bottom: 12px; margin-bottom: 12px;} .text-xs{font-size: 12px; color: #475569; font-style: italic; line-height: 1.5;} .formula-block{padding: 12px; background: #f8fafc; border-left: 4px solid #10b981; margin-bottom: 8px;} .formula-title{font-weight: bold; text-transform: uppercase; font-size: 12px; display: block; margin-bottom: 4px;} .ar-cover{display:none;} .ar-content{display:block !important;}</style>');
-        printWindow.document.write('</head><body>');
-        printWindow.document.write('<h1 style="text-align:center; text-transform:uppercase; color: #0f172a; margin-bottom: 5px;">SSC CGL 2026</h1>');
-        printWindow.document.write(`<h2 style="text-align:center; text-transform:uppercase; color: #64748b; margin-top: 0;">${title}</h2><hr style="margin-bottom: 30px;"><br>`);
-        printWindow.document.write(printContent);
-        printWindow.document.write('</body></html>');
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+        fcCurrentQueue = type === 'quant' ? [...fcQuantQueue] : [...fcGsQueue];
+        fcCurrentQueue.sort(() => Math.random() - 0.5); // Shuffle deck
+        
+        if(fcCurrentQueue.length === 0) {
+            alert("No flashcards found in this category! Take some quizzes first.");
+            exitFlashcards();
+            return;
+        }
+
+        fcCurrentIndex = 0;
+        renderFlashcard();
+    };
+
+    function renderFlashcard() {
+        if(fcCurrentIndex >= fcCurrentQueue.length) {
+            document.getElementById('flashcard-player').classList.add('hidden');
+            document.getElementById('flashcard-done').classList.remove('hidden');
+            return;
+        }
+
+        fcIsFlipped = false;
+        let card = fcCurrentQueue[fcCurrentIndex];
+        document.getElementById('fc-progress').textContent = `${fcCurrentIndex + 1} / ${fcCurrentQueue.length}`;
+        
+        const inner = document.getElementById('fc-card-inner');
+        inner.classList.remove('rotate-y-180');
+        
+        document.getElementById('fc-front-text').innerHTML = card.q;
+        document.getElementById('fc-back-text').innerHTML = `<span class='text-xs font-black uppercase tracking-widest text-emerald-500 mb-6 block'>Correct Concept</span>` + card.a;
+        
+        if(card.ctx) {
+            document.getElementById('fc-context-text').classList.remove('hidden');
+            document.getElementById('fc-context-text').innerHTML = `<b>Context MCQ:</b> ${card.ctx}`;
+        } else {
+            document.getElementById('fc-context-text').classList.add('hidden');
+        }
+    }
+
+    window.flipFlashcard = () => {
+        if(fcIsFlipped) return; // Prevent double flip
+        fcIsFlipped = true;
+        document.getElementById('fc-card-inner').classList.add('rotate-y-180');
+    };
+
+    window.nextFlashcard = (e) => {
+        e.stopPropagation(); // Prevent flip trigger
+        fcCurrentIndex++;
+        renderFlashcard();
+    };
+
+    window.exitFlashcards = () => {
+        document.getElementById('flashcard-player').classList.add('hidden');
+        document.getElementById('flashcard-done').classList.add('hidden');
+        document.getElementById('flashcard-menu').classList.remove('hidden');
     };
 
     function showScreen(s) { 
