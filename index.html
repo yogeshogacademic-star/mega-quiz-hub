@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.6 (Dual-Logic SRS Matrix)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.7 (Pure SRS & Active Recall)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -32,6 +32,12 @@
 
         mark { background-color: rgba(251, 191, 36, 0.4); color: inherit; padding: 0 2px; border-radius: 4px; font-weight: 900; box-shadow: 0 0 8px rgba(251, 191, 36, 0.3); }
         .dark mark { background-color: rgba(245, 158, 11, 0.5); }
+        
+        /* Flashcard Animations */
+        .flashcard-inner { transition: transform 0.6s; transform-style: preserve-3d; }
+        .flashcard.flipped .flashcard-inner { transform: rotateX(180deg); }
+        .flashcard-front, .flashcard-back { backface-visibility: hidden; position: absolute; inset: 0; }
+        .flashcard-back { transform: rotateX(180deg); }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-[#0a0f1c] dark:text-slate-200 min-h-screen flex flex-col pb-20">
@@ -55,13 +61,14 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.6</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.7</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Dual-Logic Strict Segregation & SRS Engine</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Strict Segregation & SM-2 Active Recall Flashcards</p>
                 </div>
                 
                 <div class="flex items-center gap-4 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
                     <button onclick="toggleDarkMode()" class="bg-white/10 hover:bg-white/20 p-4 rounded-2xl backdrop-blur-md transition-all border border-white/10 shadow-inner hover:scale-105" title="Toggle Dark Mode">🌙</button>
+                    <button onclick="openFlashcardVault()" class="bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-transform hover:-translate-y-1 border border-amber-400 flex items-center gap-2">🃏 Active Recall Vault</button>
                     <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400 flex items-center gap-2">📊 History & Analysis</button>
                 </div>
             </div>
@@ -287,6 +294,56 @@
         </div>
     </div>
 
+    <div id="screen-flashcards" class="hidden max-w-4xl mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1 flex flex-col items-center justify-center">
+        <div class="w-full flex justify-between items-center mb-8">
+            <button onclick="exitFlashcards()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] flex items-center gap-2 transition-colors">← Back to Hub</button>
+            <div class="text-[10px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-4 py-1.5 rounded-full border border-amber-200 dark:border-amber-800/50">🃏 Brain-Melting Mode Active</div>
+        </div>
+        
+        <div class="w-full relative min-h-[400px] perspective-1000">
+            <div id="fc-card" class="flashcard w-full min-h-[400px] cursor-pointer" onclick="flipFlashcard()">
+                <div class="flashcard-inner relative w-full h-full min-h-[400px]">
+                    <div class="flashcard-front bg-white dark:bg-slate-900 rounded-[2rem] p-8 md:p-12 shadow-2xl border-2 border-slate-200 dark:border-slate-700 flex flex-col justify-center items-center text-center">
+                        <div class="absolute top-6 left-6 right-6 flex justify-between">
+                            <span id="fc-topic-badge" class="text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 px-3 py-1 rounded">Topic</span>
+                            <span id="fc-counter" class="text-[10px] font-black uppercase tracking-widest text-slate-400">Card 1 / 10</span>
+                        </div>
+                        <div id="fc-prompt-type" class="text-xs font-black text-amber-500 uppercase tracking-widest mb-6">👁️ Visualize the Concept</div>
+                        <div id="fc-front-text" class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-100 leading-relaxed">Loading cognitive prompt...</div>
+                        <div class="absolute bottom-8 text-[10px] font-black text-slate-400 uppercase tracking-widest animate-pulse">Press Spacebar to Reveal</div>
+                    </div>
+                    <div class="flashcard-back bg-slate-50 dark:bg-slate-950 rounded-[2rem] p-8 md:p-12 shadow-2xl border-2 border-emerald-400 flex flex-col justify-center items-center text-center">
+                        <div class="absolute top-6 text-[10px] font-black text-emerald-500 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1 rounded border border-emerald-200 dark:border-emerald-800/50">✅ The Answer</div>
+                        <div id="fc-back-text" class="text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-200 leading-relaxed mb-8 w-full max-h-[250px] overflow-y-auto pr-2">Loading answer...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="fc-controls" class="hidden w-full max-w-2xl mt-10 grid grid-cols-4 gap-3">
+            <button onclick="gradeFlashcard('again'); event.stopPropagation();" class="flex flex-col items-center justify-center p-3 rounded-xl bg-white dark:bg-slate-900 border-2 border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all shadow-sm group">
+                <span class="text-sm font-black text-red-600 dark:text-red-400 uppercase tracking-widest">Again</span>
+                <span class="text-[10px] font-bold text-slate-400 mt-1">1 Min</span>
+                <span class="text-[9px] text-slate-300 hidden group-hover:block mt-1">(Hotkey: 1)</span>
+            </button>
+            <button onclick="gradeFlashcard('hard'); event.stopPropagation();" class="flex flex-col items-center justify-center p-3 rounded-xl bg-white dark:bg-slate-900 border-2 border-orange-200 dark:border-orange-900/50 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all shadow-sm group">
+                <span class="text-sm font-black text-orange-600 dark:text-orange-400 uppercase tracking-widest">Hard</span>
+                <span id="fc-hard-time" class="text-[10px] font-bold text-slate-400 mt-1">1 Day</span>
+                <span class="text-[9px] text-slate-300 hidden group-hover:block mt-1">(Hotkey: 2)</span>
+            </button>
+            <button onclick="gradeFlashcard('good'); event.stopPropagation();" class="flex flex-col items-center justify-center p-3 rounded-xl bg-white dark:bg-slate-900 border-2 border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all shadow-sm group">
+                <span class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Good</span>
+                <span id="fc-good-time" class="text-[10px] font-bold text-slate-400 mt-1">3 Days</span>
+                <span class="text-[9px] text-slate-300 hidden group-hover:block mt-1">(Hotkey: 3)</span>
+            </button>
+            <button onclick="gradeFlashcard('easy'); event.stopPropagation();" class="flex flex-col items-center justify-center p-3 rounded-xl bg-white dark:bg-slate-900 border-2 border-blue-200 dark:border-blue-900/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all shadow-sm group">
+                <span class="text-sm font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Easy</span>
+                <span id="fc-easy-time" class="text-[10px] font-bold text-slate-400 mt-1">7 Days</span>
+                <span class="text-[9px] text-slate-300 hidden group-hover:block mt-1">(Hotkey: 4)</span>
+            </button>
+        </div>
+    </div>
+
     <div id="screen-analytics" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
@@ -373,7 +430,7 @@
 <script>
     const CLOUD_URL = "https://script.google.com/macros/s/AKfycbyuAFvjWZHAlkDx00DsDoHiPgFMq-CmGgHKyQXq_6cfi1QwmnwUVp3ZNLrtpnLPhOXB/exec";
     
-    let SUBJECTS = ["Ancient History", "Medieval History", "Modern History", "Geography", "Economics", "Static GK", "Arithmetic", "Advanced Maths", "English", "Reasoning", "Current Affairs", "Polity", "Science", "Environment", "Miscellaneous"];
+    let SUBJECTS = ["Ancient History", "Medieval History", "Modern History", "Geography", "Economics", "Static GK", "Arithmetic", "Advanced Maths", "English", "Reasoning", "Current Affairs", "Polity", "Science", "Environment", "Miscellaneous", "GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS"];
     let SUBJECT_CATEGORIES = { "GS MOCK QUESTIONS": "GS", "QUANT MOCK QUESTIONS": "Maths" };
 
     let db = {}; 
@@ -391,25 +448,35 @@
     window.currentQuizWrongQs = [];
     window.currentReviewQuestions = []; 
 
+    // V19.7 BRAIN-MELTING FLASHCARD DATABASE (SM-2 Compatible)
+    let flashcardState = { deck: [], currentIndex: 0, isFlipped: false };
+    const ADVANCED_FLASHCARDS = [
+        { id: "fc_1", topic: "Geometry", promptType: "👁️ Visualize the Concept", front: "Picture a triangle ABC with a circle perfectly inscribed inside it. You are standing at the exact dead-center (the Incenter). If you look up at angle A, what is the exact mathematical equation that calculates your current angle (∠BIC)?", back: "∠BIC = 90° + (∠A / 2)" },
+        { id: "fc_2", topic: "Geometry", promptType: "👁️ Visualize the Concept", front: "Now picture the same triangle ABC, but the circle is drawn perfectly OUTSIDE, touching all three corners. You are standing at the Circumcenter. If you look at the angle A at the top, what equation defines your angle at the center (∠BOC)?", back: "∠BOC = 2 × ∠A\n\n(Angle at center is double the angle at the circumference)" },
+        { id: "fc_3", topic: "Time & Work", promptType: "⚙️ Execute the Protocol", front: "A team of men (M1) working D1 days for H1 hours completes a specific job (W1). A second team is hired to finish a different amount of work. Write down the Master Chain Rule (MDH) equation required to balance their exact outputs.", back: "(M1 × D1 × H1) / W1 = (M2 × D2 × H2) / W2" },
+        { id: "fc_4", topic: "Algebra", promptType: "⚖️ Balance the Equation", front: "You are given the Master Identity. The variables a, b, and c sum perfectly to 0. What absolute consequence does this have on the equation: a³ + b³ + c³?", back: "a³ + b³ + c³ = 3abc\n\n(The Zero Condition)" },
+        { id: "fc_5", topic: "Algebra", promptType: "🧩 Deconstruct the Pattern", front: "You are testing the inverse pattern. If x - 1/x = k, what is the exact mathematical shortcut to find x³ - 1/x³?", back: "k³ + 3k" },
+        { id: "fc_6", topic: "Compound Interest", promptType: "⚙️ Execute the Protocol", front: "A bank offers Compound Interest, but they trick you by compounding Half-Yearly. What two exact mathematical adjustments must you make to the Rate (R) and Time (n) before plugging them into the formula?", back: "1. Rate is halved (R/2)\n2. Time is doubled (2n)" },
+        { id: "fc_7", topic: "Mensuration", promptType: "👁️ Visualize the Concept", front: "Imagine slicing an Equilateral Triangle straight down the middle. What is the exact formula to calculate the altitude (Height) of this perfect shape based on side 'a'?", back: "(√3 / 2)a" },
+        { id: "fc_8", topic: "Mensuration", promptType: "⚖️ Balance the Equation", front: "You are melting down a massive solid metal Sphere to forge a dozen identical small Cones. What underlying physical law dictates this transformation, and what exact left-vs-right equation must you write to balance the two states?", back: "Volume is Conserved.\n\n(4/3)πR³ = n × (1/3)πr²h" },
+        { id: "fc_9", topic: "Number System", promptType: "🧩 Deconstruct the Pattern", front: "A number claims to be a Perfect Square, but it ends in the digit 7. What unbreakable rule proves this is impossible?", back: "Perfect Squares NEVER end in 2, 3, 7, or 8." },
+        { id: "fc_10", topic: "Speed, Time, Distance", promptType: "⚙️ Execute the Protocol", front: "Two trains are moving on parallel tracks. They are moving in the OPPOSITE direction, heading directly towards each other. What is the exact protocol to calculate their Relative Speed?", back: "Add their speeds together (x + y).\n\n(If same direction, subtract: |x - y|)" }
+    ];
+
     window.requireAuth = (callback) => {
         const pwd = prompt("🔒 SYSTEM SECURED\n\nEnter the master password to authorize changes:");
         if (pwd === "KOBE") { callback(); } else if (pwd !== null) { alert("❌ ACCESS DENIED."); }
     };
 
-    // -------------------------------------------------------------
-    // V19.6 DUAL-LOGIC DATABASE HEALER
-    // -------------------------------------------------------------
+    // V19.7 DATABASE HEALER
     function runDatabaseHealer() {
         let healedCount = 0;
         mistakesDb.forEach(m => {
             let oldSub = m.subject || "Miscellaneous";
-            
-            // RULE 1: If it's a generic mock folder, drill down into the tags to find its true identity
             if (["GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS", "Mixed Revision", "Mixed"].includes(oldSub.toUpperCase()) || oldSub === "Miscellaneous") {
                 let targetTag = "Miscellaneous";
                 if (m.tags && m.tags.length > 0) {
-                    targetTag = m.tags[0]; // Take primary tag
-                    // If primary tag is still the generic folder name, grab the secondary tag
+                    targetTag = m.tags[0]; 
                     if (m.tags.length > 1 && (m.tags[0].toUpperCase() === oldSub.toUpperCase() || m.tags[0].toUpperCase().includes("MOCK"))) {
                         targetTag = m.tags[1];
                     }
@@ -418,17 +485,12 @@
                 m.originalSubject = targetTag;
                 healedCount++;
             } else {
-                // RULE 2: If it's ALREADY a specific folder (Polity, Economics), trust the folder name.
-                // We ensure originalSubject is locked to this so it is never lost.
-                if(!m.originalSubject) {
-                    m.originalSubject = oldSub;
-                    healedCount++;
-                }
+                if(!m.originalSubject) { m.originalSubject = oldSub; healedCount++; }
             }
         });
         
         if (healedCount > 0) {
-            console.log(`🔥 V19.6 Dual-Logic Healer Executed: Secured ${healedCount} mistakes.`);
+            console.log(`🔥 V19.7 Healer Executed: Secured ${healedCount} mistakes.`);
             localStorage.setItem('megaQuizMistakes_v5', JSON.stringify(mistakesDb));
         }
     }
@@ -446,6 +508,9 @@
         localStorage.setItem('megaQuizDB_v4', JSON.stringify(db));
         localStorage.setItem('megaQuizHistory_v5', JSON.stringify(historyDb)); 
         localStorage.setItem('megaQuizMistakes_v5', JSON.stringify(mistakesDb));
+        
+        let storedFCs = JSON.parse(localStorage.getItem('megaQuizFlashcards_v1') || "[]");
+        if(storedFCs.length === 0) localStorage.setItem('megaQuizFlashcards_v1', JSON.stringify(ADVANCED_FLASHCARDS.map(fc => ({...fc, srs: {reps: 0, ease: 2.5, interval: 0, nextReview: 0}}))));
     }
 
     function loadLocalFallback() {
@@ -476,7 +541,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.6", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.7", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -625,7 +690,7 @@
         grid.appendChild(mambaCard);
         
         SUBJECTS.forEach(subject => {
-            if (["GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS"].includes(subject.toUpperCase())) return;
+            // V19.7 FIX: Removed the line that blocked GS MOCK and QUANT MOCK from rendering.
 
             const subjectQuizzes = Object.keys(db).filter(id => db[id].subject === subject && !db[id].title.includes("Master Mock") && !db[id].title.includes("🎯") && !db[id].title.includes("SRS"));
             
@@ -709,6 +774,7 @@
                         </div>
                         <div class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700/50">
                             <button onclick="openTargetedHistory('${id}')" class="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-amber-100 dark:border-amber-800/30" title="View Past Attempts">📊 Hist</button>
+                            <button onclick="exportSingleQuizToAnki('${id}')" class="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-indigo-100 dark:border-indigo-800/30" title="Export to Anki">🃏 Export</button>
                             <button onclick="deleteQuiz('${id}')" class="bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-black text-xs px-3 py-2 rounded-lg transition-colors border border-red-100 dark:border-red-800/30" title="Delete Quiz 🔒">🗑️</button>
                         </div>
                     </div>`;
@@ -725,6 +791,7 @@
                 <div class="flex-1 overflow-y-auto pr-2 mb-3 max-h-64 space-y-1">${listHTML}</div>
                 <div class="flex gap-2 mt-auto pt-3 border-t border-slate-100 dark:border-slate-800/50">
                     <button onclick="triggerImport('${subject}')" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 text-slate-600 dark:text-slate-300 hover:text-emerald-700 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm">➕ Add 🔒</button>
+                    <button onclick="generateSubjectMock('${subject}')" class="flex-1 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-400 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm border border-indigo-100 dark:border-indigo-800/30" title="Combine all questions in this subject into one massive test">🧠 Master</button>
                 </div>`;
             grid.appendChild(card);
         });
@@ -748,7 +815,114 @@
     }
 
     // -------------------------------------------------------------
-    // V19.6 DUAL-LOGIC SRS ROUTER
+    // V19.7 ACTIVE RECALL FLASHCARD ENGINE
+    // -------------------------------------------------------------
+    window.openFlashcardVault = () => {
+        let storedFCs = JSON.parse(localStorage.getItem('megaQuizFlashcards_v1') || "[]");
+        // Sort to show due cards first
+        flashcardState.deck = storedFCs.filter(fc => fc.srs.nextReview <= Date.now() || fc.srs.reps === 0)
+                                       .sort((a,b) => a.srs.nextReview - b.srs.nextReview)
+                                       .slice(0, 15); // Session limit
+
+        if(flashcardState.deck.length === 0) return alert("✅ Brain-Melting Complete. No cards due for review right now.");
+
+        flashcardState.currentIndex = 0;
+        flashcardState.isFlipped = false;
+        
+        showScreen('flashcards');
+        renderCurrentFlashcard();
+    };
+
+    function renderCurrentFlashcard() {
+        const card = flashcardState.deck[flashcardState.currentIndex];
+        document.getElementById('fc-card').classList.remove('flipped');
+        document.getElementById('fc-controls').classList.add('hidden');
+        flashcardState.isFlipped = false;
+
+        document.getElementById('fc-topic-badge').textContent = card.topic;
+        document.getElementById('fc-counter').textContent = `Card ${flashcardState.currentIndex + 1} / ${flashcardState.deck.length}`;
+        document.getElementById('fc-prompt-type').textContent = card.promptType;
+        document.getElementById('fc-front-text').textContent = card.front;
+        
+        // Calculate Dynamic Anki Times for buttons
+        let ease = card.srs.ease || 2.5;
+        let int = card.srs.interval || 0;
+        
+        let hardInt = Math.max(1, Math.ceil(int * 1.2));
+        let goodInt = int === 0 ? 3 : (int === 1 ? 3 : Math.max(3, Math.ceil(int * ease)));
+        let easyInt = int === 0 ? 7 : (int === 1 ? 7 : Math.max(7, Math.ceil(int * ease * 1.3)));
+
+        document.getElementById('fc-hard-time').textContent = hardInt + " Day" + (hardInt > 1 ? "s" : "");
+        document.getElementById('fc-good-time').textContent = goodInt + " Day" + (goodInt > 1 ? "s" : "");
+        document.getElementById('fc-easy-time').textContent = easyInt + " Day" + (easyInt > 1 ? "s" : "");
+
+        // Prep the back
+        document.getElementById('fc-back-text').innerHTML = card.back.replace(/\n/g, '<br>');
+    }
+
+    window.flipFlashcard = () => {
+        if(flashcardState.isFlipped) return;
+        document.getElementById('fc-card').classList.add('flipped');
+        document.getElementById('fc-controls').classList.remove('hidden');
+        flashcardState.isFlipped = true;
+    };
+
+    window.gradeFlashcard = (grade) => {
+        if(!flashcardState.isFlipped) return;
+        let card = flashcardState.deck[flashcardState.currentIndex];
+        
+        let ease = card.srs.ease;
+        let interval = card.srs.interval;
+
+        if (grade === 'again') {
+            card.srs.reps = 0; interval = 1; ease = Math.max(1.3, ease - 0.2);
+        } else if (grade === 'hard') {
+            card.srs.reps += 1; interval = interval === 0 ? 1 : Math.max(1, Math.ceil(interval * 1.2)); ease = Math.max(1.3, ease - 0.15);
+        } else if (grade === 'good') {
+            card.srs.reps += 1; interval = interval === 0 ? 3 : (interval === 1 ? 3 : Math.max(3, Math.ceil(interval * ease)));
+        } else if (grade === 'easy') {
+            card.srs.reps += 1; interval = interval === 0 ? 7 : (interval === 1 ? 7 : Math.max(7, Math.ceil(interval * ease * 1.3))); ease += 0.15;
+        }
+
+        card.srs.ease = ease;
+        card.srs.interval = interval;
+        card.srs.nextReview = Date.now() + (interval * 24 * 60 * 60 * 1000);
+
+        // Save back to master array
+        let storedFCs = JSON.parse(localStorage.getItem('megaQuizFlashcards_v1') || "[]");
+        let masterIdx = storedFCs.findIndex(f => f.id === card.id);
+        if(masterIdx !== -1) storedFCs[masterIdx] = card;
+        localStorage.setItem('megaQuizFlashcards_v1', JSON.stringify(storedFCs));
+
+        flashcardState.currentIndex++;
+        if(flashcardState.currentIndex >= flashcardState.deck.length) {
+            alert("✅ Session Complete! Brain successfully melted.");
+            exitFlashcards();
+        } else {
+            renderCurrentFlashcard();
+        }
+    };
+
+    window.exitFlashcards = () => {
+        document.removeEventListener('keydown', flashcardHotkeyHandler);
+        showScreen('dashboard');
+    };
+
+    const flashcardHotkeyHandler = (e) => {
+        if(document.getElementById('screen-flashcards').classList.contains('hidden')) return;
+        if(e.code === 'Space') { e.preventDefault(); flipFlashcard(); }
+        if(flashcardState.isFlipped) {
+            if(e.key === '1') gradeFlashcard('again');
+            if(e.key === '2') gradeFlashcard('hard');
+            if(e.key === '3') gradeFlashcard('good');
+            if(e.key === '4') gradeFlashcard('easy');
+        }
+    };
+    document.addEventListener('keydown', flashcardHotkeyHandler);
+
+
+    // -------------------------------------------------------------
+    // V19.7 DUAL-LOGIC SRS ROUTER
     // -------------------------------------------------------------
     window.openSRSModal = () => {
         let globalDue = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now()).length;
@@ -761,7 +935,6 @@
         let subjectsWithDue = {};
         mistakesDb.forEach(m => {
             if(m.srs && m.srs.nextReview <= Date.now()) {
-                // Healer forces m.subject to be the true subject now
                 let subName = m.subject || m.originalSubject || "Miscellaneous";
                 subjectsWithDue[subName] = (subjectsWithDue[subName] || 0) + 1;
             }
@@ -804,7 +977,6 @@
         } else {
             let sub = document.getElementById('srs-subject-select').value;
             if(!sub) return alert("No subjects have due questions.");
-            // Pull strictly based on the healed subject
             dueQs = mistakesDb.filter(m => (m.subject === sub || m.originalSubject === sub) && m.srs && m.srs.nextReview <= Date.now());
             titleStr = `🔥 ${sub} 10-Q Sprint`;
         }
@@ -841,7 +1013,7 @@
     window.deleteSubject = (sub) => { requireAuth(() => { if (prompt(`WARNING: Delete "${sub}" AND all quizzes inside it?\n\nType "DELETE" to confirm:`) === "DELETE") { SUBJECTS = SUBJECTS.filter(s => s !== sub); Object.keys(db).forEach(id => { if (db[id].subject === sub) delete db[id]; }); delete SUBJECT_CATEGORIES[sub]; saveData(); renderDashboard(); } }); };
 
     window.exportBackup = () => {
-        const blob = new Blob([JSON.stringify({ version: "v19.6", subjects: SUBJECTS, matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, db: db, history: historyDb, mistakes: mistakesDb, masteredCount: localStorage.getItem('megaQuizMasteredCount') || 0 })], { type: "application/json" });
+        const blob = new Blob([JSON.stringify({ version: "v19.7", subjects: SUBJECTS, matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, db: db, history: historyDb, mistakes: mistakesDb, masteredCount: localStorage.getItem('megaQuizMasteredCount') || 0, flashcards: JSON.parse(localStorage.getItem('megaQuizFlashcards_v1') || "[]") })], { type: "application/json" });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Yogesh_MegaHub_Backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
     };
 
@@ -859,6 +1031,7 @@
                     if (backup.history) historyDb = backup.history;
                     if (backup.mistakes) mistakesDb = backup.mistakes;
                     if (backup.masteredCount) localStorage.setItem('megaQuizMasteredCount', backup.masteredCount);
+                    if (backup.flashcards) localStorage.setItem('megaQuizFlashcards_v1', JSON.stringify(backup.flashcards));
                     saveData(); alert("Restored!"); location.reload();
                 } else alert("Invalid Backup File.");
                 e.target.value = '';
@@ -1141,7 +1314,6 @@
         });
     };
 
-    // V19.6 SM-2 SRS MATH
     function submitQuiz() {
         if (quizState.submitted) return;
         quizState.submitted = true; clearInterval(quizState.interval); window.speechSynthesis.cancel();
@@ -1179,7 +1351,6 @@
 
                     m.srs.nextReview = Date.now() + (m.srs.interval * 24 * 60 * 60 * 1000);
 
-                    // Graduation Protocol
                     if (m.srs.interval >= 35 || m.srs.reps >= 4) {
                         mistakesDb.splice(mistIdx, 1);
                         let mCount = parseInt(localStorage.getItem('megaQuizMasteredCount') || "0");
@@ -1515,7 +1686,10 @@
     window.closeSubjectAnalysis = () => document.getElementById('screen-subject-analysis').classList.add('hidden');
 
     function showScreen(s) { 
-        ['dashboard','lobby','quiz','results'].forEach(x => document.getElementById('screen-'+x).classList.add('hidden')); 
+        ['dashboard','lobby','quiz','results','flashcards'].forEach(x => {
+            const el = document.getElementById('screen-'+x);
+            if(el) el.classList.add('hidden');
+        }); 
         document.getElementById('screen-'+s).classList.remove('hidden'); 
         if(s !== 'dashboard') {
             document.getElementById('omni-search').value = '';
@@ -1532,8 +1706,8 @@
             if(confirm("MAMBA CRITICAL WARNING: This will permanently delete all quizzes, history, and custom subjects locally AND in the Cloud.\n\nType 'DELETE' to confirm:")) {
                 const conf = prompt("Last warning. Type 'DELETE' exactly:");
                 if(conf === "DELETE") {
-                    SUBJECTS = ["Ancient History", "Medieval History", "Modern History", "Geography", "Economics", "Static GK", "Arithmetic", "Advanced Maths", "English", "Reasoning", "Current Affairs", "Polity", "Science", "Environment", "Miscellaneous"];
-                    SUBJECT_CATEGORIES = {};
+                    SUBJECTS = ["Ancient History", "Medieval History", "Modern History", "Geography", "Economics", "Static GK", "Arithmetic", "Advanced Maths", "English", "Reasoning", "Current Affairs", "Polity", "Science", "Environment", "Miscellaneous", "GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS"];
+                    SUBJECT_CATEGORIES = { "GS MOCK QUESTIONS": "GS", "QUANT MOCK QUESTIONS": "Maths" };
                     db = {}; historyDb = []; mistakesDb = []; localStorage.clear(); await saveData(); location.reload();
                 }
             }
