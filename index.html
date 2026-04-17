@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.2 (Smart Matrix & Master DB)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.3 (Spaced Repetition Engine)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -60,9 +60,9 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.2</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.3</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Smart Matrix, Master DB Editor & Revision Engine</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Smart Matrix, Master DB Editor & SRS Engine</p>
                 </div>
                 
                 <div class="flex items-center gap-4 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
@@ -85,10 +85,13 @@
         <div id="search-results-container" class="hidden mb-16 max-w-5xl mx-auto space-y-6"></div>
 
         <div id="dashboard-main-content">
-            <div onclick="generateRedemptionQuiz()" class="bg-gradient-to-r from-purple-600 via-indigo-600 to-indigo-700 rounded-[2rem] p-6 md:p-8 mb-10 cursor-pointer shadow-[0_10px_30px_rgba(79,70,229,0.3)] hover:shadow-[0_15px_40px_rgba(79,70,229,0.5)] transition-all transform hover:-translate-y-1.5 flex justify-between items-center group border border-purple-500/50">
+            <div onclick="openSRSModal()" class="bg-gradient-to-r from-purple-600 via-indigo-600 to-indigo-700 rounded-[2rem] p-6 md:p-8 mb-10 cursor-pointer shadow-[0_10px_30px_rgba(79,70,229,0.3)] hover:shadow-[0_15px_40px_rgba(79,70,229,0.5)] transition-all transform hover:-translate-y-1.5 flex justify-between items-center group border border-purple-500/50">
                 <div>
-                    <h2 class="text-2xl md:text-3xl font-black text-white mb-2 tracking-tight drop-shadow-md">🔥 The Redemption Engine</h2>
-                    <p class="text-purple-100 font-bold text-sm md:text-base">Generate a custom test using only the questions you've previously gotten wrong.</p>
+                    <h2 class="text-2xl md:text-3xl font-black text-white mb-2 tracking-tight drop-shadow-md flex items-center gap-3">
+                        🔥 Spaced Repetition (SRS)
+                        <span id="global-srs-badge" class="hidden text-xs bg-rose-500 px-3 py-1 rounded-full shadow-lg border border-rose-400 uppercase tracking-widest">0 Due</span>
+                    </h2>
+                    <p class="text-purple-100 font-bold text-sm md:text-base">Launch targeted 10-Q Sprints to hardwire weak concepts into long-term memory.</p>
                 </div>
                 <div class="text-white font-black text-3xl group-hover:translate-x-3 transition-transform drop-shadow-lg">→</div>
             </div>
@@ -104,6 +107,39 @@
                     <button onclick="exportBackup()" class="bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-blue-100 dark:border-blue-900/30">💾 Backup Database</button>
                     <button onclick="triggerRestore()" class="bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-amber-100 dark:border-amber-900/30">📂 Restore Backup 🔒</button>
                     <button onclick="factoryReset()" class="bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-red-100 dark:border-red-900/30">⚠️ Reset System 🔒</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-srs-modal" class="hidden fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg flex flex-col">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div>
+                    <h2 class="text-2xl font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-tight">🔥 SRS Engine</h2>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Configure your 10-Q Sprint</p>
+                </div>
+                <button onclick="closeSRSModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
+            </div>
+            
+            <div class="space-y-6">
+                <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 text-center">
+                    <div class="text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2">Global Interleaved Sprint</div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400 mb-4 font-bold">Mix all subjects for maximum brain chaos.</div>
+                    <button onclick="launchSRSSprint('global')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all">Launch Global 10-Q (<span id="srs-global-count-modal">0</span> Due)</button>
+                </div>
+
+                <div class="flex items-center justify-center gap-4">
+                    <span class="h-px w-full bg-slate-200 dark:bg-slate-700"></span>
+                    <span class="text-xs font-black text-slate-400 uppercase tracking-widest">OR</span>
+                    <span class="h-px w-full bg-slate-200 dark:bg-slate-700"></span>
+                </div>
+
+                <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 text-center">
+                    <div class="text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2">Targeted Subject Sprint</div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400 mb-4 font-bold">Focus your firepower on a single weak subject.</div>
+                    <select id="srs-subject-select" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300 mb-4 outline-none focus:ring-2 focus:ring-indigo-500"></select>
+                    <button onclick="launchSRSSprint('subject')" class="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all">Launch Subject 10-Q</button>
                 </div>
             </div>
         </div>
@@ -471,7 +507,15 @@
         if (pwd === "KOBE") { callback(); } else if (pwd !== null) { alert("❌ ACCESS DENIED."); }
     };
 
+    // V19.3 INJECT SRS METADATA ON LOAD
+    function initializeSRSData() {
+        mistakesDb.forEach(m => {
+            if (!m.srs) m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() - 10000 };
+        });
+    }
+
     function updateLocalCache() {
+        initializeSRSData();
         localStorage.setItem('megaQuizSubjects_v5', JSON.stringify(SUBJECTS));
         localStorage.setItem('megaQuizSubCats_v1', JSON.stringify(SUBJECT_CATEGORIES));
         localStorage.setItem('megaQuizDB_v4', JSON.stringify(db));
@@ -485,6 +529,7 @@
         if (localStorage.getItem('megaQuizDB_v4')) db = JSON.parse(localStorage.getItem('megaQuizDB_v4'));
         if (localStorage.getItem('megaQuizHistory_v5')) historyDb = JSON.parse(localStorage.getItem('megaQuizHistory_v5'));
         if (localStorage.getItem('megaQuizMistakes_v5')) mistakesDb = JSON.parse(localStorage.getItem('megaQuizMistakes_v5'));
+        initializeSRSData();
     }
 
     function showSyncStatus(state) {
@@ -505,7 +550,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.2", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.3", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -572,7 +617,7 @@
         
         Object.keys(db).forEach(quizId => {
             const quiz = db[quizId];
-            if(!quiz || !quiz.title || quiz.title.includes("Master Mock") || quiz.title.includes("Redemption") || quiz.title.includes("🎯") || !quiz.questions) return;
+            if(!quiz || !quiz.title || quiz.title.includes("Master Mock") || quiz.title.includes("SRS") || quiz.title.includes("Redemption") || quiz.title.includes("🎯") || !quiz.questions) return;
 
             quiz.questions.forEach((q) => {
                 const searchStr = ((q.question || "") + " " + (q.solution || "") + " " + (q.options ? q.options.map(o=>o.text).join(" ") : "")).toLowerCase();
@@ -611,7 +656,7 @@
     window.generateTopicMock = (parentSubject, targetTopic) => {
         let pool = [];
         Object.values(db).forEach(quiz => {
-            if (quiz.subject === parentSubject && !quiz.title.includes("🎯") && !quiz.title.includes("Master Mock") && !quiz.title.includes("Redemption")) {
+            if (quiz.subject === parentSubject && !quiz.title.includes("🎯") && !quiz.title.includes("Master Mock") && !quiz.title.includes("SRS")) {
                 quiz.questions.forEach(q => {
                     let qTags = q.tags || [];
                     if (qTags.includes(targetTopic) || (targetTopic === "Miscellaneous" && qTags.length === 0)) pool.push(q);
@@ -629,6 +674,12 @@
     function renderDashboard() {
         const grid = document.getElementById('dashboard-grid'); grid.innerHTML = '';
         
+        let globalDue = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now()).length;
+        let masteredCount = localStorage.getItem('megaQuizMasteredCount') || 0;
+
+        document.getElementById('global-srs-badge').textContent = `${globalDue} Due`;
+        document.getElementById('global-srs-badge').classList.toggle('hidden', globalDue === 0);
+
         const mambaCard = document.createElement('div');
         mambaCard.className = 'col-span-1 md:col-span-2 xl:col-span-1 mamba-card rounded-3xl bg-slate-950 border border-slate-800 shadow-2xl relative overflow-hidden flex flex-col p-8 group min-h-[300px] xl:min-h-[auto]';
         mambaCard.innerHTML = `
@@ -636,7 +687,10 @@
             <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/80 to-transparent"></div>
             <div class="absolute inset-0 bg-gradient-to-r from-purple-900/20 to-amber-500/10 mix-blend-overlay"></div>
             <div class="relative z-10 flex-1 flex flex-col justify-end">
-                <div class="text-[10px] text-amber-400 bg-black/50 border border-amber-500/30 backdrop-blur-md font-black px-3 py-1 rounded inline-block uppercase tracking-widest mb-4 shadow-lg w-max">Daily Grind</div>
+                <div class="flex justify-between items-center mb-4">
+                    <div class="text-[10px] text-amber-400 bg-black/50 border border-amber-500/30 backdrop-blur-md font-black px-3 py-1 rounded inline-block uppercase tracking-widest shadow-lg w-max">Daily Grind</div>
+                    <div class="text-[10px] text-emerald-400 bg-emerald-900/40 border border-emerald-500/30 backdrop-blur-md font-black px-3 py-1 rounded uppercase tracking-widest shadow-lg">👑 ${masteredCount} Mastered</div>
+                </div>
                 <h2 class="text-3xl font-black text-white leading-tight tracking-tight mb-3 drop-shadow-lg">Mamba Mentality</h2>
                 <blockquote class="text-slate-200 text-sm font-bold border-l-4 border-amber-400 pl-4 mb-3 italic drop-shadow-md">"Great things come from hard work and perseverance. No excuses."</blockquote>
                 <div class="text-xs font-black text-amber-400 tracking-widest uppercase">#24</div>
@@ -644,9 +698,8 @@
         grid.appendChild(mambaCard);
         
         SUBJECTS.forEach(subject => {
-            const subjectQuizzes = Object.keys(db).filter(id => db[id].subject === subject && !db[id].title.includes("Master Mock") && !db[id].title.includes("🎯"));
+            const subjectQuizzes = Object.keys(db).filter(id => db[id].subject === subject && !db[id].title.includes("Master Mock") && !db[id].title.includes("🎯") && !db[id].title.includes("SRS"));
             
-            // V19.2 SMART SEGREGATION LOGIC
             let topicsByParent = {}; 
             let isMixedSubject = subject.includes("MOCK") || subject === "Mixed" || subject === "Miscellaneous";
 
@@ -662,7 +715,7 @@
                             parentSub = primaryTag;
                             topicName = secondaryTag;
                         } else {
-                            parentSub = subject; // Lock to the standard subject
+                            parentSub = subject; 
                             if (primaryTag.toUpperCase() === subject.toUpperCase() && rd.tags.length > 1) {
                                 topicName = secondaryTag;
                             } else {
@@ -767,6 +820,61 @@
         grid.appendChild(addCard);
     }
 
+    // V19.3 SRS LAUNCHER METHODS
+    window.openSRSModal = () => {
+        let globalDue = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now()).length;
+        document.getElementById('srs-global-count-modal').textContent = globalDue;
+        
+        let subSelect = document.getElementById('srs-subject-select');
+        subSelect.innerHTML = '';
+        
+        let subjectsWithDue = {};
+        mistakesDb.forEach(m => {
+            if(m.srs && m.srs.nextReview <= Date.now()) {
+                subjectsWithDue[m.subject] = (subjectsWithDue[m.subject] || 0) + 1;
+            }
+        });
+
+        if(Object.keys(subjectsWithDue).length === 0) {
+            subSelect.innerHTML = `<option value="">No subjects due right now</option>`;
+        } else {
+            Object.keys(subjectsWithDue).forEach(sub => {
+                subSelect.innerHTML += `<option value="${sub}">${sub} (${subjectsWithDue[sub]} Due)</option>`;
+            });
+        }
+        document.getElementById('screen-srs-modal').classList.remove('hidden');
+    };
+
+    window.closeSRSModal = () => {
+        document.getElementById('screen-srs-modal').classList.add('hidden');
+    };
+
+    window.launchSRSSprint = (type) => {
+        let dueQs = [];
+        let titleStr = "";
+        
+        if(type === 'global') {
+            dueQs = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now());
+            titleStr = "🔥 Global 10-Q SRS Sprint";
+        } else {
+            let sub = document.getElementById('srs-subject-select').value;
+            if(!sub) return alert("No subjects have due questions.");
+            dueQs = mistakesDb.filter(m => m.subject === sub && m.srs && m.srs.nextReview <= Date.now());
+            titleStr = `🔥 ${sub} 10-Q SRS Sprint`;
+        }
+
+        if(dueQs.length === 0) {
+            alert("No questions due!");
+            return closeSRSModal();
+        }
+
+        const sprintQs = dueQs.sort(() => 0.5 - Math.random()).slice(0, 10);
+        db['quiz_srs'] = { title: titleStr, subject: "Spaced Repetition", timeInMinutes: 10, questions: sprintQs };
+        
+        closeSRSModal();
+        openLobby('quiz_srs');
+    };
+
     window.triggerImport = (sub) => { requireAuth(() => { targetImportSubject = sub; document.getElementById('global-file-input').click(); }); };
     window.deleteQuiz = (id) => { requireAuth(() => { if (confirm("Delete this quiz forever?")) { delete db[id]; saveData(); renderDashboard(); } }); };
     window.deleteSubject = (sub) => { requireAuth(() => { if (prompt(`WARNING: Delete "${sub}" AND all quizzes inside it?\n\nType "DELETE" to confirm:`) === "DELETE") { SUBJECTS = SUBJECTS.filter(s => s !== sub); Object.keys(db).forEach(id => { if (db[id].subject === sub) delete db[id]; }); delete SUBJECT_CATEGORIES[sub]; saveData(); renderDashboard(); } }); };
@@ -784,7 +892,7 @@
     });
 
     window.exportBackup = () => {
-        const blob = new Blob([JSON.stringify({ version: "v19.2", subjects: SUBJECTS, matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, db: db, history: historyDb, mistakes: mistakesDb })], { type: "application/json" });
+        const blob = new Blob([JSON.stringify({ version: "v19.3", subjects: SUBJECTS, matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, db: db, history: historyDb, mistakes: mistakesDb, masteredCount: localStorage.getItem('megaQuizMasteredCount') || 0 })], { type: "application/json" });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Yogesh_MegaHub_Backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
     };
 
@@ -801,6 +909,7 @@
                     if(backup.categories) SUBJECT_CATEGORIES = backup.categories;
                     if (backup.history) historyDb = backup.history;
                     if (backup.mistakes) mistakesDb = backup.mistakes;
+                    if (backup.masteredCount) localStorage.setItem('megaQuizMasteredCount', backup.masteredCount);
                     saveData(); alert("Restored!"); location.reload();
                 } else alert("Invalid Backup File.");
                 e.target.value = '';
@@ -846,7 +955,7 @@
             }
         }
         window.currentQuizWrongQs = wrongQs;
-        if(prev.length > 0 && wrongQs.length > 0 && !q.title.includes("🎯")) {
+        if(prev.length > 0 && wrongQs.length > 0 && !q.title.includes("🎯") && !q.title.includes("SRS")) {
             document.getElementById('lobby-mode-selection').classList.remove('hidden');
             document.getElementById('wrong-count-badge').textContent = wrongQs.length;
             setQuizMode('full');
@@ -856,23 +965,6 @@
 
         setLobbyTime('default'); showScreen('lobby');
     }
-
-    window.generateRedemptionQuiz = () => {
-        if(mistakesDb.length === 0) return alert("Mistakes Vault empty!");
-        const shuffled = [...mistakesDb].sort(() => 0.5 - Math.random()).slice(0, 30);
-        db['quiz_redemption'] = { title: "🔥 Redemption Mock Test", subject: "Mixed Revision", timeInMinutes: Math.ceil(shuffled.length * 1.5), questions: shuffled };
-        openLobby('quiz_redemption');
-    };
-
-    window.generateSubjectMock = (subject) => {
-        let pool = [];
-        Object.values(db).forEach(q => { if(q.subject === subject && q.title !== '🔥 Redemption Mock Test' && !q.title.includes("Master Mock") && !q.title.includes("🎯")) pool.push(...q.questions); });
-        if(pool.length === 0) return alert("Import quizzes into this subject first!");
-        const uniqueQs = Array.from(new Map(pool.map(q => [q.question, q])).values());
-        const shuffled = uniqueQs.sort(() => 0.5 - Math.random()).slice(0, 50);
-        db['quiz_subject_master'] = { title: `🔥 ${subject} Master Mock`, subject: subject, timeInMinutes: Math.ceil(shuffled.length * 1.5), questions: shuffled };
-        openLobby('quiz_subject_master');
-    };
 
     function setLobbyTime(mode) {
         lobbySettings.timeMode = mode;
@@ -1106,25 +1198,70 @@
         });
     };
 
+    // V19.3 MODIFIED SUBMIT QUIZ FOR SRS MATH
     function submitQuiz() {
         if (quizState.submitted) return;
         quizState.submitted = true; clearInterval(quizState.interval); window.speechSynthesis.cancel();
 
         let correct = 0, wrong = 0, skipped = 0, fullReviewHTML = '';
-        let currentQuizMistakes = [];
         let historicalReviewData = [];
-        
         window.currentReviewQuestions = [];
 
         activeQuestions.forEach((q, i) => {
-            const sel = quizState.answers[i]; let isMistake = false; let status = ''; let uText = 'Skipped'; let cText = q.options.find(o=>o.correct)?.text || "N/A";
+            const sel = quizState.answers[i]; 
+            let isMistake = false; let status = ''; let uText = 'Skipped'; let cText = q.options.find(o=>o.correct)?.text || "N/A";
+            
             if (sel === undefined) { skipped++; isMistake = true; status = 'skipped'; } 
             else if (q.options[sel].correct) { correct++; status = 'correct'; uText = q.options[sel].text; } 
             else { wrong++; isMistake = true; status = 'wrong'; uText = q.options[sel].text; }
 
-            if(isMistake) {
-                currentQuizMistakes.push(q);
-                if (currentQuizId !== 'quiz_redemption' && !mistakesDb.some(m => m.question === q.question)) { mistakesDb.push(q); }
+            // V19.3 SRS Mathematical Engine
+            let mistIdx = mistakesDb.findIndex(m => m.question === q.question);
+
+            if (currentQuizId === 'quiz_srs') {
+                if (mistIdx !== -1) {
+                    let m = mistakesDb[mistIdx];
+                    if (!m.srs) m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() };
+
+                    if (isMistake) {
+                        m.srs.reps = 0;
+                        m.srs.ease = Math.max(1.3, m.srs.ease - 0.2); // Stubborn
+                        m.srs.interval = 1;
+                    } else {
+                        m.srs.reps += 1;
+                        if (m.srs.reps === 1) m.srs.interval = 3;
+                        else if (m.srs.reps === 2) m.srs.interval = 7;
+                        else if (m.srs.reps === 3) m.srs.interval = 16;
+                        else m.srs.interval = 35; 
+                    }
+
+                    m.srs.nextReview = Date.now() + (m.srs.interval * 24 * 60 * 60 * 1000);
+
+                    // Graduation Math
+                    if (m.srs.reps >= 4) {
+                        mistakesDb.splice(mistIdx, 1);
+                        let mCount = parseInt(localStorage.getItem('megaQuizMasteredCount') || "0");
+                        localStorage.setItem('megaQuizMasteredCount', mCount + 1);
+                    } else {
+                        mistakesDb[mistIdx] = m;
+                    }
+                }
+            } else {
+                // Normal Mock Logic
+                if (isMistake) {
+                    if (mistIdx === -1) {
+                        let newMistake = JSON.parse(JSON.stringify(q));
+                        newMistake.subject = db[currentQuizId].subject; 
+                        newMistake.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() }; // Due
+                        mistakesDb.push(newMistake);
+                    } else {
+                        // Relapse
+                        mistakesDb[mistIdx].srs.reps = 0;
+                        mistakesDb[mistIdx].srs.interval = 1;
+                        mistakesDb[mistIdx].srs.ease = Math.max(1.3, mistakesDb[mistIdx].srs.ease - 0.2);
+                        mistakesDb[mistIdx].srs.nextReview = Date.now();
+                    }
+                }
             }
 
             let tags = q.tags || [];
@@ -1139,14 +1276,11 @@
             historicalReviewData.push({ question: q.question, status: status, uText: uText, cText: cText, solution: q.solution, tags: [...new Set(tags)], formulaUsed: q.formulaUsed });
         });
 
-        if(currentQuizId === 'quiz_redemption') activeQuestions.forEach((q, i) => { if(quizState.answers[i] !== undefined && q.options[quizState.answers[i]].correct) mistakesDb = mistakesDb.filter(m => m.question !== q.question); });
-
         const score = (correct * 2) - (wrong * 0.66);
         document.getElementById('res-score').textContent = score.toFixed(2); document.getElementById('res-correct').textContent = correct;
         document.getElementById('res-wrong').textContent = wrong; document.getElementById('res-skipped').textContent = skipped;
         document.getElementById('revision-container').innerHTML = fullReviewHTML;
 
-        window.lastQuizMistakes = currentQuizMistakes;
         const candName = localStorage.getItem('megaQuizCandidateName') || "Anonymous";
         let displayTitle = db[currentQuizId] ? db[currentQuizId].title : "Custom Test";
         
@@ -1154,7 +1288,7 @@
 
         document.getElementById('results-title').textContent = `${candName}'s Report - Attempt #${currentAttemptNum}`;
 
-        if(currentQuizId !== 'quiz_redemption' && !displayTitle.includes("🎯")) {
+        if(currentQuizId !== 'quiz_srs' && currentQuizId !== 'quiz_redemption' && !displayTitle.includes("🎯")) {
             historyDb.unshift({ 
                 date: new Date().toLocaleDateString(), title: displayTitle, subject: db[currentQuizId] ? db[currentQuizId].subject : "Mixed", 
                 score: parseFloat(score.toFixed(2)), accuracy: Math.round((correct / activeQuestions.length) * 100) || 0,
@@ -1276,7 +1410,11 @@
         target.formulaUsed = document.getElementById('edit-formula').value;
 
         let mistIdx = mistakesDb.findIndex(m => m.question === oldQuestionText);
-        if(mistIdx !== -1) mistakesDb[mistIdx] = JSON.parse(JSON.stringify(target));
+        if(mistIdx !== -1) {
+            let existingSRS = mistakesDb[mistIdx].srs;
+            mistakesDb[mistIdx] = JSON.parse(JSON.stringify(target));
+            mistakesDb[mistIdx].srs = existingSRS;
+        }
 
         saveData();
         alert("✅ Question successfully updated in the Master Database!");
