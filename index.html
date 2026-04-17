@@ -1,371 +1,330 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en" class="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V23.0 (Prestige Mamba Edition)</title>
+    <title>Yogesh's Mega Quiz Hub - V22.0 (Mamba Soul & Anki SRS)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
-            theme: { 
-                extend: { 
-                    fontFamily: { sans: ['"Nunito Sans"', 'sans-serif'] },
-                    colors: {
-                        mamba: { 900: '#0b1120', 800: '#111827', gold: '#fbbf24', goldHover: '#f59e0b', red: '#ef4444' }
-                    }
-                } 
-            }
+            theme: { extend: { fontFamily: { sans: ['"Nunito Sans"', 'sans-serif'], mono: ['"JetBrains Mono"', 'monospace'] } } }
         }
     </script>
     <style>
-        body { font-family: 'Nunito Sans', sans-serif; user-select: none; transition: background-color 0.3s, color 0.3s; background-color: #0b1120; }
+        body { font-family: 'Nunito Sans', sans-serif; user-select: none; transition: background-color 0.3s, color 0.3s; }
         .subject-card, .mamba-card { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .subject-card:hover, .mamba-card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3); }
+        .subject-card:hover, .mamba-card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
         
-        .palette-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 12px; font-weight: 900; border: 2px solid; transition: all 0.2s; cursor: pointer; }
-        .dark .palette-unanswered { background-color: #1f2937; border-color: #374151; color: #9ca3af; }
+        .palette-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 12px; font-weight: 700; border: 2px solid; transition: all 0.2s; cursor: pointer; }
+        .palette-unanswered { background-color: #f1f5f9; border-color: #cbd5e1; color: #475569; }
+        .dark .palette-unanswered { background-color: #334155; border-color: #475569; color: #cbd5e1; }
         .palette-answered { background-color: #10b981; border-color: #10b981; color: white; }
-        .palette-marked { background-color: #8b5cf6; border-color: #8b5cf6; color: white; }
-        .palette-answered-marked { background-color: #10b981; border-color: #8b5cf6; color: white; border-width: 3px; }
-        .palette-active { box-shadow: 0 0 0 3px #fbbf24; transform: scale(1.1); border-color: #fbbf24; }
+        .palette-marked { background-color: #a855f7; border-color: #a855f7; color: white; }
+        .palette-answered-marked { background-color: #10b981; border-color: #a855f7; color: white; border-width: 3px; }
+        .palette-active { box-shadow: 0 0 0 3px #fbbf24; transform: scale(1.1); }
 
-        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #fbbf24; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
 
-        mark { background-color: rgba(251, 191, 36, 0.3); color: #fbbf24; padding: 0 4px; border-radius: 4px; font-weight: 900; }
+        mark { background-color: rgba(251, 191, 36, 0.4); color: inherit; padding: 0 2px; border-radius: 4px; font-weight: 900; box-shadow: 0 0 8px rgba(251, 191, 36, 0.3); }
+        .dark mark { background-color: rgba(245, 158, 11, 0.5); }
 
-        /* 3D Flashcard CSS */
+        /* 3D Flashcard Animation */
         .perspective-1000 { perspective: 1000px; }
         .preserve-3d { transform-style: preserve-3d; }
         .backface-hidden { backface-visibility: hidden; }
         .rotate-y-180 { transform: rotateY(180deg); }
-        
-        /* Premium Glow */
-        .gold-glow { text-shadow: 0 0 15px rgba(251, 191, 36, 0.5); }
-        .gold-border-glow { box-shadow: 0 0 20px rgba(251, 191, 36, 0.15); border: 1px solid rgba(251, 191, 36, 0.3); }
+
+        .formula-block { padding: 14px 18px; background-color: #f8fafc; border-left: 5px solid #10b981; margin-bottom: 12px; border-radius: 0 8px 8px 0; color: #334155; font-weight: 600; font-size: 15px; box-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.02); line-height: 1.5; }
+        .dark .formula-block { background-color: #0f172a; border-left-color: #34d399; color: #e2e8f0; }
     </style>
 </head>
-<body class="bg-mamba-900 text-slate-200 min-h-screen flex flex-col pb-20">
+<body class="bg-slate-50 text-slate-800 dark:bg-[#0a0f1c] dark:text-slate-200 min-h-screen flex flex-col pb-20">
 
     <input type="file" id="global-file-input" accept=".json, .txt" class="hidden">
     <input type="file" id="backup-file-input" accept=".json" class="hidden">
 
     <div id="screen-dashboard" class="max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 flex-1 w-full block">
-        
-        <header class="bg-slate-900/80 rounded-[2rem] p-6 sm:p-10 mb-10 relative overflow-hidden gold-border-glow backdrop-blur-xl">
-            <div class="absolute inset-0 bg-gradient-to-br from-slate-900 via-mamba-900 to-black pointer-events-none z-0"></div>
-            <div class="absolute -top-32 -right-32 w-96 h-96 bg-mamba-gold rounded-full mix-blend-overlay filter blur-[120px] opacity-20 animate-pulse pointer-events-none z-0"></div>
+        <header class="bg-slate-900 dark:bg-slate-900 text-white rounded-[2rem] p-6 sm:p-10 mb-10 shadow-2xl relative overflow-hidden border border-slate-800 group">
+            <div class="absolute inset-0 bg-cover bg-center opacity-60 dark:opacity-70 transition-transform duration-1000 group-hover:scale-105" style="background-image: url('wp2550249-kobe-bryant-wallpaper.jpg'); pointer-events: none;"></div>
+            <div class="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-900/50 to-transparent dark:from-[#0a0f1c]/90 dark:via-[#0a0f1c]/60 pointer-events-none"></div>
 
-            <div id="sync-status" class="absolute top-6 right-6 text-[9px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full bg-black/60 text-slate-400 border border-slate-800 flex items-center gap-2 z-20 shadow-lg">
-                <span class="w-2 h-2 rounded-full bg-slate-500 animate-pulse"></span> Booting...
+            <div id="sync-status" class="absolute top-6 right-6 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full bg-slate-800/80 text-slate-400 border border-slate-700 flex items-center gap-2 z-20 backdrop-blur-md shadow-lg">
+                <span class="w-2 h-2 rounded-full bg-slate-500 animate-pulse"></span> Connecting...
             </div>
 
             <div class="relative z-10 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mt-4 md:mt-0">
                 <div class="w-full xl:w-auto overflow-hidden">
-                    <h1 class="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white mb-2 flex items-center gap-3">
-                        MEGA QUIZ <span class="text-mamba-gold gold-glow">HUB</span>
-                        <span class="text-[10px] sm:text-xs text-black bg-mamba-gold px-2.5 py-1 rounded tracking-widest shadow-lg">V23.0</span>
+                    <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
+                        Yogesh's Mega Hub
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V22.0</span>
                     </h1>
-                    <p class="text-slate-400 font-bold text-sm tracking-widest uppercase">Prestige Edition • Advanced Cognitive Engine</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Elite Study Engine • SRS • Flashcards • Mascot</p>
                 </div>
                 
                 <div class="flex items-center gap-4 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
-                    <div id="guchika-tracker" class="flex items-center gap-3 bg-black/40 border border-slate-700/50 px-5 py-3 rounded-2xl shadow-inner mr-2">
-                        <div id="mascot-emoji" class="text-3xl drop-shadow-md">🐕</div>
-                        <div class="flex flex-col">
-                            <span class="text-[9px] font-black uppercase tracking-widest text-mamba-gold">Guchika Tracker</span>
-                            <span id="mascot-text" class="text-xs font-bold text-slate-300">Calculating...</span>
-                        </div>
-                    </div>
-
-                    <button onclick="showFormulaVault()" class="bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-900 font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(251,191,36,0.3)] transition-transform hover:-translate-y-1 border border-amber-300 flex items-center gap-2 uppercase tracking-widest text-xs">🧠 Anki Vault</button>
-                    <button onclick="showAnalytics()" class="bg-slate-800 hover:bg-slate-700 text-white font-black px-6 py-4 rounded-2xl transition-transform hover:-translate-y-1 border border-slate-700 flex items-center gap-2 uppercase tracking-widest text-xs">📊 Reports</button>
+                    <button onclick="toggleDarkMode()" class="bg-white/10 hover:bg-white/20 p-4 rounded-2xl backdrop-blur-md transition-all border border-white/10 shadow-inner hover:scale-105" title="Toggle Dark Mode">🌙</button>
+                    <button onclick="showFormulaVault()" class="bg-gradient-to-br from-pink-500 to-rose-600 hover:from-pink-400 hover:to-rose-500 text-white font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(244,63,94,0.4)] transition-transform hover:-translate-y-1 border border-pink-400 flex items-center gap-2">🧠 Anki Flashcards</button>
+                    <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400 flex items-center gap-2">📊 History</button>
                 </div>
             </div>
 
-            <div class="w-full mt-10 relative z-10">
-                <div class="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none"><span class="text-slate-500 text-xl">🔍</span></div>
-                <input type="text" id="omni-search" oninput="performSearch(this.value)" placeholder="Search database..." class="w-full pl-14 pr-14 py-5 bg-black/50 border border-slate-700 focus:border-mamba-gold text-white rounded-2xl shadow-inner focus:outline-none focus:ring-1 focus:ring-mamba-gold transition-all font-bold text-lg placeholder-slate-600">
-                <button onclick="clearSearch()" id="clear-search-btn" class="hidden absolute inset-y-0 right-0 pr-5 flex items-center text-slate-500 hover:text-mamba-red font-black text-2xl transition-colors cursor-pointer">&times;</button>
+            <div class="w-full mt-10 relative group z-10">
+                <div class="absolute inset-0 bg-gradient-to-r from-emerald-400 to-indigo-500 rounded-2xl blur-md opacity-30 group-hover:opacity-50 transition duration-500"></div>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none"><span class="text-slate-400 text-xl">🔍</span></div>
+                    <input type="text" id="omni-search" oninput="performSearch(this.value)" placeholder="Omni-Search: Find any question, formula, or topic..." class="w-full pl-16 pr-14 py-5 bg-white/95 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-2xl shadow-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-bold text-lg placeholder-slate-400 dark:placeholder-slate-500 backdrop-blur-xl">
+                    <button onclick="clearSearch()" id="clear-search-btn" class="hidden absolute inset-y-0 right-0 pr-5 flex items-center text-slate-400 hover:text-red-500 font-black text-2xl transition-colors cursor-pointer" title="Clear Search">&times;</button>
+                </div>
             </div>
         </header>
 
         <div id="search-results-container" class="hidden mb-16 max-w-5xl mx-auto space-y-6"></div>
 
         <div id="dashboard-main-content">
-            <div onclick="generateRedemptionQuiz()" class="bg-gradient-to-r from-slate-900 to-black rounded-[2rem] p-6 md:p-8 mb-10 cursor-pointer transition-all transform hover:-translate-y-1.5 flex justify-between items-center group border border-slate-800 hover:border-mamba-gold shadow-lg hover:shadow-[0_10px_30px_rgba(251,191,36,0.15)] relative overflow-hidden">
-                <div class="absolute right-0 top-0 w-64 h-full bg-gradient-to-l from-mamba-gold/10 to-transparent pointer-events-none"></div>
-                <div class="relative z-10">
-                    <h2 id="global-srs-title" class="text-2xl md:text-3xl font-black text-white mb-2 tracking-tight flex items-center flex-wrap gap-3">
-                        🔥 10-Q Master Sprint 
-                        <span id="global-srs-badge" class="hidden text-[10px] bg-mamba-red px-3 py-1 rounded shadow-lg border border-red-400 uppercase tracking-widest">0 Due</span>
+            <div onclick="generateRedemptionQuiz()" class="bg-gradient-to-r from-purple-600 via-indigo-600 to-indigo-700 rounded-[2rem] p-6 md:p-8 mb-10 cursor-pointer shadow-[0_10px_30px_rgba(79,70,229,0.3)] hover:shadow-[0_15px_40px_rgba(79,70,229,0.5)] transition-all transform hover:-translate-y-1.5 flex justify-between items-center group border border-purple-500/50">
+                <div>
+                    <h2 id="global-srs-title" class="text-2xl md:text-3xl font-black text-white mb-2 tracking-tight drop-shadow-md flex items-center gap-3">
+                        🔥 10-Q SRS Sprint
+                        <span id="global-srs-badge" class="hidden text-xs bg-rose-500 px-3 py-1 rounded-full shadow-lg border border-rose-400 uppercase tracking-widest">0 Due Today</span>
                     </h2>
-                    <p class="text-slate-400 font-bold text-sm md:text-base">Spaced Repetition System: Rapid-fire 10 question sprint of your weakest links.</p>
+                    <p class="text-purple-100 font-bold text-sm md:text-base">Spaced Repetition System: Revise mistakes at the mathematically perfect time.</p>
                 </div>
-                <div class="text-mamba-gold font-black text-3xl group-hover:translate-x-3 transition-transform relative z-10">→</div>
+                <div class="text-white font-black text-3xl group-hover:translate-x-3 transition-transform drop-shadow-lg">→</div>
             </div>
 
             <div id="dashboard-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-16"></div>
             
-            <div class="mt-auto text-center pb-10 border-t border-slate-800/50 pt-10">
+            <div class="mt-auto text-center pb-10 border-t border-slate-200 dark:border-slate-800/50 pt-10">
+                <div class="text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em] text-[10px] mb-8 flex items-center justify-center gap-4">
+                    <span class="w-10 h-px bg-slate-200 dark:bg-slate-700"></span> System Administration (Secured) <span class="w-10 h-px bg-slate-200 dark:bg-slate-700"></span>
+                </div>
                 <div class="flex justify-center gap-4 flex-wrap">
-                    <button onclick="exportMistakesToAnki()" class="bg-slate-800 text-slate-300 hover:bg-slate-700 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm border border-slate-700">📥 Export SRS Vault</button>
-                    <button onclick="exportBackup()" class="bg-slate-800 text-slate-300 hover:bg-slate-700 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm border border-slate-700">💾 Backup Data</button>
-                    <button onclick="triggerRestore()" class="bg-slate-800 text-amber-400 hover:bg-slate-700 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm border border-slate-700">📂 Restore 🔒</button>
-                    <button onclick="factoryReset()" class="bg-slate-800 text-red-400 hover:bg-slate-700 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm border border-slate-700">⚠️ Reset 🔒</button>
+                    <button onclick="exportMistakesToAnki()" class="bg-slate-200 text-slate-700 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md">📥 Export Mistakes</button>
+                    <button onclick="exportBackup()" class="bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-blue-100 dark:border-blue-900/30">💾 Backup Database</button>
+                    <button onclick="triggerRestore()" class="bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-amber-100 dark:border-amber-900/30">📂 Restore Backup 🔒</button>
+                    <button onclick="factoryReset()" class="bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-red-100 dark:border-red-900/30">⚠️ Reset System 🔒</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="screen-lobby" class="hidden max-w-2xl mx-auto p-6 pt-20 w-full flex-1">
-        <div class="bg-slate-900 rounded-[2rem] p-10 shadow-2xl border border-slate-800 relative overflow-hidden text-center gold-border-glow">
-            <h2 id="lobby-title" class="text-3xl font-black text-white mb-2 tracking-tight uppercase">Quiz Title</h2>
-            <p id="lobby-meta" class="text-sm font-bold text-mamba-gold mb-10 uppercase tracking-widest">0 Questions</p>
+    <div id="screen-lobby" class="hidden max-w-3xl mx-auto p-6 pt-10 w-full flex-1">
+        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-indigo-500"></div>
+            <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-8 flex items-center gap-2 transition-colors">← Back to Hub</button>
+            <h2 id="lobby-title" class="text-4xl font-black text-slate-800 dark:text-slate-100 mb-2 tracking-tight">Quiz Title</h2>
+            <p id="lobby-meta" class="text-sm font-bold text-emerald-600 dark:text-emerald-400 mb-8 uppercase tracking-widest">0 Questions</p>
             
-            <div id="attempt-info" class="text-sm font-bold text-slate-400 mb-10"></div>
+            <div id="attempt-info" class="mb-8 p-6 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-800/30 text-center"></div>
 
-            <div class="space-y-6">
-                <div class="bg-black/50 p-6 rounded-2xl border border-slate-800">
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">⏱️ Select Time Limit</label>
-                    <div class="flex gap-3 flex-wrap">
-                        <button onclick="setLobbyTime('default')" id="btn-time-default" class="time-btn-main flex-1 bg-amber-500/20 text-amber-400 border-amber-500 font-black uppercase text-xs tracking-widest py-4 rounded-xl border-2 transition-all">Default</button>
-                        <button onclick="setLobbyTime('10')" id="btn-time-10" class="time-btn-main flex-1 bg-slate-800 text-slate-300 border-slate-700 font-black uppercase text-xs tracking-widest py-4 rounded-xl border-2 transition-all hover:border-slate-500">10 Min</button>
-                        <button onclick="setLobbyTime('15')" id="btn-time-15" class="time-btn-main flex-1 bg-slate-800 text-slate-300 border-slate-700 font-black uppercase text-xs tracking-widest py-4 rounded-xl border-2 transition-all hover:border-slate-500">15 Min</button>
-                        <button onclick="setLobbyTime('30')" id="btn-time-30" class="time-btn-main flex-1 bg-slate-800 text-slate-300 border-slate-700 font-black uppercase text-xs tracking-widest py-4 rounded-xl border-2 transition-all hover:border-slate-500">30 Min</button>
-                    </div>
+            <div id="lobby-mode-selection" class="hidden mb-6 p-6 bg-rose-50 dark:bg-rose-900/10 rounded-2xl border border-rose-100 dark:border-rose-800/30">
+                <label class="block text-[10px] font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-3 flex items-center gap-2">🧠 Smart Revision Mode</label>
+                <div class="flex gap-4 flex-wrap">
+                    <button id="btn-mode-full" onclick="setQuizMode('full')" class="time-btn flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Full Quiz</button>
+                    <button id="btn-mode-wrong" onclick="setQuizMode('wrong')" class="time-btn flex-1 bg-rose-100 text-rose-800 border-rose-500 dark:bg-rose-900/40 dark:text-rose-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Wrong Only (<span id="wrong-count-badge">0</span>)</button>
                 </div>
             </div>
-            
-            <div class="mt-8 flex gap-4 justify-center">
-                <button onclick="showScreen('dashboard')" class="text-slate-500 font-black uppercase tracking-widest text-xs px-6 py-5 rounded-2xl hover:text-white transition-colors">Abort</button>
-                <button onclick="startQuizFromLobby()" class="flex-1 bg-mamba-gold text-black font-black text-lg py-5 rounded-2xl shadow-[0_0_20px_rgba(251,191,36,0.4)] hover:bg-amber-400 hover:scale-105 transition-all tracking-widest uppercase">LAUNCH EXAM</button>
+
+            <div class="space-y-6">
+                <div class="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                    <label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4">⏱️ Overall Time Limit</label>
+                    <div class="flex gap-3 flex-wrap">
+                        <button onclick="setLobbyTime('default')" id="btn-time-default" class="time-btn-main flex-1 bg-emerald-100 text-emerald-800 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Default</button>
+                        <button onclick="setLobbyTime('15')" id="btn-time-15" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">15 Min</button>
+                        <button onclick="setLobbyTime('30')" id="btn-time-30" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">30 Min</button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="toggleLobbyMode('shuffle')">
+                        <span class="font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-[10px]">🔀 Shuffle Q's</span>
+                        <div id="toggle-shuffle" class="w-12 h-6 bg-emerald-500 rounded-full relative transition-colors shadow-inner"><div class="absolute right-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div>
+                    </div>
+                    <div class="bg-indigo-50 dark:bg-indigo-900/20 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/30 flex justify-between items-center cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors" onclick="toggleLobbyMode('perQTimer')">
+                        <span class="font-black text-indigo-700 dark:text-indigo-300 uppercase tracking-widest text-[10px]">⏱️ Per-Q Timer</span>
+                        <div id="toggle-perQTimer" class="w-12 h-6 bg-slate-300 dark:bg-slate-700 rounded-full relative transition-colors shadow-inner"><div class="absolute left-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div>
+                    </div>
+                </div>
+                <input type="number" id="per-q-time-input" class="hidden w-full p-4 rounded-xl border border-indigo-300 dark:border-indigo-600 bg-white dark:bg-slate-950 font-bold text-lg shadow-inner text-indigo-800 dark:text-indigo-300 placeholder-indigo-300 dark:placeholder-indigo-700" placeholder="Enter Seconds per Question (e.g., 60)">
             </div>
+            <button onclick="startQuizFromLobby()" class="w-full mt-10 bg-slate-900 dark:bg-emerald-500 text-white dark:text-slate-900 font-black text-xl py-5 rounded-2xl shadow-[0_10px_20px_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-all tracking-widest uppercase">LAUNCH EXAM</button>
         </div>
     </div>
 
     <div id="screen-quiz" class="hidden max-w-6xl mx-auto p-4 pt-6 relative w-full flex-1">
-        <div id="pause-overlay" class="hidden fixed inset-0 z-[100] bg-slate-950/95 backdrop-blur-md flex flex-col justify-center items-center">
-            <h2 class="text-5xl md:text-7xl font-black text-white mb-10 uppercase tracking-tighter drop-shadow-sm">Paused</h2>
-            <button onclick="togglePause()" class="bg-mamba-gold text-black font-black text-2xl md:text-3xl px-16 py-6 rounded-3xl shadow-[0_0_30px_rgba(251,191,36,0.4)] hover:scale-105 transition-all uppercase tracking-widest">▶ Resume</button>
+        <div id="pause-overlay" class="hidden fixed inset-0 z-[100] bg-slate-100/95 dark:bg-slate-950/95 backdrop-blur-lg flex flex-col justify-center items-center">
+            <h2 class="text-5xl md:text-7xl font-black text-slate-800 dark:text-slate-100 mb-10 uppercase tracking-tighter drop-shadow-sm">Exam Paused</h2>
+            <button onclick="togglePause()" class="bg-emerald-500 text-white font-black text-2xl md:text-3xl px-16 py-6 rounded-3xl shadow-[0_10px_30px_rgba(16,185,129,0.4)] hover:scale-105 hover:bg-emerald-400 transition-all uppercase tracking-widest border border-emerald-400">▶ Resume</button>
         </div>
 
-        <div class="flex justify-between items-center bg-slate-900/80 backdrop-blur-md p-4 px-6 rounded-2xl shadow-lg border border-slate-800 mb-6 sticky top-4 z-50">
-            <button onclick="showScreen('dashboard'); clearInterval(quizState.interval);" class="text-slate-500 font-black hover:text-red-500 uppercase tracking-widest text-[10px] transition-colors">← Abort</button>
+        <div class="flex justify-between items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 px-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 mb-6 sticky top-4 z-50">
+            <button onclick="showScreen('dashboard'); clearInterval(quizState.interval);" class="text-slate-400 font-bold hover:text-red-500 uppercase tracking-widest text-[10px] transition-colors">← Abort</button>
             <div class="flex gap-4 items-center">
-                <button onclick="togglePause()" id="pause-btn" class="bg-slate-800 text-slate-300 font-black px-5 py-2.5 rounded-xl text-xs uppercase tracking-widest transition-colors border border-slate-700 hover:bg-slate-700">⏸ Pause (P)</button>
-                <div id="quiz-timer" class="font-mono font-black text-2xl bg-black px-6 py-2 rounded-xl text-mamba-gold border border-slate-800 shadow-inner tracking-widest">00:00</div>
+                <button onclick="togglePause()" id="pause-btn" class="bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black px-5 py-2.5 rounded-xl text-xs uppercase tracking-widest transition-colors hover:bg-slate-300 dark:hover:bg-slate-700">⏸ Pause (P)</button>
+                <div id="quiz-timer" class="font-mono font-black text-2xl bg-slate-100 dark:bg-slate-950 px-6 py-2 rounded-xl text-slate-800 dark:text-emerald-400 border border-slate-200 dark:border-slate-800 shadow-inner tracking-widest">00:00</div>
             </div>
         </div>
 
         <div class="flex flex-col lg:flex-row gap-6 items-start">
             <div id="quiz-container" class="flex-1 w-full space-y-8"></div>
             
-            <div class="w-full lg:w-80 bg-slate-900 p-6 rounded-3xl shadow-xl border border-slate-800 lg:sticky lg:top-28">
-                <div class="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
-                    <h3 class="font-black text-slate-200 uppercase tracking-tight text-sm">Palette</h3>
-                    <span id="answered-count" class="text-xs font-black bg-black px-3 py-1 rounded text-slate-400 border border-slate-800">0 / 0</span>
+            <div class="w-full lg:w-80 bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-md border border-slate-200 dark:border-slate-800 lg:sticky lg:top-28">
+                <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
+                    <h3 class="font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight">Question Palette</h3>
+                    <span id="answered-count" class="text-xs font-black bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded text-slate-500 dark:text-slate-400">0 / 0</span>
                 </div>
                 <div id="palette-grid" class="grid grid-cols-5 sm:grid-cols-8 lg:grid-cols-5 gap-2.5 mb-8 max-h-[30vh] lg:max-h-[45vh] overflow-y-auto pr-2"></div>
-                <button onclick="submitQuiz()" class="w-full bg-emerald-600 text-white font-black py-4 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:bg-emerald-500 hover:-translate-y-0.5 transition-all uppercase tracking-widest border border-emerald-500">Submit Test</button>
+                <button onclick="submitQuiz()" class="w-full bg-emerald-500 text-white font-black py-4 rounded-xl shadow-[0_5px_15px_rgba(16,185,129,0.3)] hover:bg-emerald-400 hover:-translate-y-0.5 transition-all uppercase tracking-widest">Submit Test</button>
             </div>
         </div>
     </div>
 
     <div id="screen-results" class="hidden max-w-5xl mx-auto p-4 sm:p-6 pt-10 w-full flex-1">
-        <div class="bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-800 relative overflow-hidden gold-border-glow">
+        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-indigo-500"></div>
             
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
                 <div>
-                    <button onclick="showScreen('dashboard')" class="text-slate-500 hover:text-slate-300 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Hub</button>
-                    <h2 id="results-title" class="text-3xl md:text-4xl font-black uppercase text-white tracking-tight leading-none">Report</h2>
+                    <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
+                    <h2 id="results-title" class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Performance Report</h2>
                 </div>
-                <button onclick="exportToAnki()" class="bg-slate-800 text-slate-300 hover:bg-slate-700 font-black px-6 py-3 rounded-xl uppercase tracking-widest text-[10px] transition-colors border border-slate-700">📥 Export</button>
+                <button onclick="exportMistakesToAnki()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50 font-black px-6 py-3 rounded-xl shadow-sm uppercase tracking-widest text-[10px] transition-colors border border-indigo-100 dark:border-indigo-800/30">📥 Export Mistakes</button>
             </div>
             
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-14 text-center">
-                <div class="bg-black text-white p-6 rounded-2xl shadow-lg border border-slate-800 relative overflow-hidden">
-                    <div class="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 relative z-10">Score</div>
-                    <div id="res-score" class="text-5xl font-black text-mamba-gold tracking-tighter relative z-10">0</div>
+                <div class="bg-slate-900 dark:bg-slate-950 text-white p-6 rounded-2xl shadow-lg border border-slate-800 relative overflow-hidden">
+                    <div class="absolute inset-0 bg-emerald-500 opacity-5 blur-xl"></div>
+                    <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 relative z-10">Total Score</div>
+                    <div id="res-score" class="text-5xl font-black text-emerald-400 tracking-tighter relative z-10">0</div>
                 </div>
-                <div class="bg-emerald-900/20 border border-emerald-800/50 p-6 rounded-2xl">
-                    <div class="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-2">Correct (+2)</div>
-                    <div id="res-correct" class="text-4xl font-black text-emerald-400 tracking-tighter">0</div>
+                <div class="bg-emerald-50 border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50 p-6 rounded-2xl">
+                    <div class="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 tracking-tighter">0</div>
+                    <div id="res-correct" class="text-4xl font-black text-emerald-600 dark:text-emerald-400">0</div>
                 </div>
-                <div class="bg-red-900/20 border border-red-800/50 p-6 rounded-2xl">
-                    <div class="text-[10px] font-black uppercase tracking-widest text-red-500 mb-2">Wrong (-0.66)</div>
-                    <div id="res-wrong" class="text-4xl font-black text-red-400 tracking-tighter">0</div>
+                <div class="bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800/50 p-6 rounded-2xl">
+                    <div class="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-500 mb-2">Wrong (-0.66)</div>
+                    <div id="res-wrong" class="text-4xl font-black text-red-600 dark:text-red-400">0</div>
                 </div>
-                <div class="bg-slate-800/50 border border-slate-700/50 p-6 rounded-2xl">
-                    <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Skipped (0)</div>
-                    <div id="res-skipped" class="text-4xl font-black text-slate-300 tracking-tighter">0</div>
+                <div class="bg-slate-50 border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700/50 p-6 rounded-2xl">
+                    <div class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Skipped (0)</div>
+                    <div id="res-skipped" class="text-4xl font-black text-slate-600 dark:text-slate-300">0</div>
                 </div>
             </div>
 
-            <div class="border-b border-slate-800 pb-5 mb-8 flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
-                <div>
-                    <h3 class="text-2xl font-black text-white tracking-tight">🔍 Deep Review Vault</h3>
-                </div>
-                <div class="flex gap-2 bg-black/50 p-1.5 rounded-xl border border-slate-800 w-full md:w-auto overflow-x-auto">
-                    <button onclick="filterReview('all')" id="btn-filt-all" class="filter-btn active-filt flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all bg-slate-700 shadow-sm text-white border border-slate-600">All</button>
-                    <button onclick="filterReview('correct')" id="btn-filt-correct" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-800">Correct</button>
-                    <button onclick="filterReview('wrong')" id="btn-filt-wrong" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-800">Wrong</button>
-                    <button onclick="filterReview('skipped')" id="btn-filt-skipped" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-800">Skipped</button>
-                </div>
-            </div>
-            
             <div id="revision-container" class="space-y-6"></div>
             
-            <div class="mt-12 text-center border-t border-slate-800 pt-10">
-                <button onclick="showScreen('dashboard')" class="bg-mamba-gold text-black hover:bg-amber-400 hover:scale-105 transition-transform font-black py-4 px-12 rounded-xl uppercase tracking-widest shadow-[0_0_20px_rgba(251,191,36,0.3)]">Return to Dashboard</button>
+            <div class="mt-12 text-center border-t border-slate-100 dark:border-slate-800 pt-10">
+                <button onclick="showScreen('dashboard')" class="bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 hover:scale-105 transition-transform font-black py-4 px-12 rounded-xl uppercase tracking-widest shadow-xl">Return to Dashboard</button>
             </div>
         </div>
     </div>
 
-    <div id="screen-analytics" class="hidden fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-md flex justify-center items-center p-4">
-        <div class="bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-800 w-full max-w-5xl max-h-[90vh] flex flex-col">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
-                <h2 class="text-2xl font-black uppercase text-white tracking-tight">Global History</h2>
-                <button onclick="closeAnalytics()" class="text-slate-500 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
-            </div>
-            <div class="flex-1 overflow-y-auto pr-2" id="mastery-grid"></div>
-        </div>
-    </div>
-
-    <div id="screen-quiz-history" class="hidden fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-md flex justify-center items-center p-4">
-        <div class="bg-slate-900 rounded-3xl p-8 shadow-2xl border border-slate-800 w-full max-w-2xl max-h-[80vh] flex flex-col">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
-                <h2 id="quiz-history-title" class="text-2xl font-black uppercase text-white tracking-tight">History</h2>
-                <button onclick="closeQuizHistory()" class="text-slate-500 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
-            </div>
-            <div class="flex-1 overflow-y-auto pr-2 space-y-3" id="quiz-history-list"></div>
-        </div>
-    </div>
-
-    <div id="screen-formula-vault" class="hidden fixed inset-0 z-[100] bg-slate-950/95 backdrop-blur-xl flex justify-center items-center p-4">
-        <div class="bg-transparent w-full max-w-4xl h-[85vh] flex flex-col relative">
-            <button onclick="closeFormulaVault()" class="absolute -top-10 right-0 text-slate-400 hover:text-white font-black text-3xl transition-colors z-50">&times;</button>
+    <div id="screen-formula-vault" class="hidden fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-lg flex justify-center items-center p-4 sm:p-8">
+        <div class="w-full max-w-4xl h-full max-h-[85vh] flex flex-col relative">
+            <button onclick="closeFormulaVault()" class="absolute -top-12 right-0 text-white hover:text-red-400 font-black text-4xl transition-colors">&times;</button>
             
-            <div id="flashcard-menu" class="bg-slate-900 rounded-[2rem] p-8 shadow-2xl border border-slate-800 w-full h-full flex flex-col">
-                <div class="text-center mb-10 pt-10">
-                    <h2 class="text-3xl font-black uppercase text-white tracking-tight">🧠 Anki Flashcards</h2>
-                    <p class="text-sm font-bold text-mamba-gold uppercase tracking-widest mt-2">Active Recall. SM-2 Spaced Repetition.</p>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 items-center pb-10">
-                    <button onclick="launchFlashcards('quant')" class="h-64 bg-slate-800/50 border border-slate-700 rounded-3xl hover:border-mamba-gold hover:-translate-y-2 hover:bg-slate-800 transition-all flex flex-col items-center justify-center p-6 shadow-lg group">
-                        <span class="text-6xl mb-4 group-hover:scale-110 transition-transform">🧮</span>
-                        <span class="text-xl font-black text-white uppercase tracking-widest">Quant Formulas</span>
-                        <span id="fc-quant-count" class="mt-3 font-bold text-[10px] uppercase tracking-widest bg-mamba-gold text-black px-3 py-1 rounded">0 Due</span>
+            <div id="flashcard-menu" class="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 md:p-12 shadow-2xl flex flex-col items-center justify-center h-full border border-white/10">
+                <h2 class="text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tighter mb-4">🧠 Active Recall Engine</h2>
+                <p class="text-emerald-500 font-black uppercase tracking-widest text-xs mb-12">No Options. Just Raw Concept Mastery.</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
+                    <button onclick="launchFlashcards('quant')" class="p-10 bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-200 dark:border-emerald-800/50 rounded-[2rem] hover:scale-105 transition-all group shadow-xl">
+                        <div class="text-6xl mb-4 group-hover:-translate-y-2 transition-transform">🧮</div>
+                        <div class="text-2xl font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-tighter">Quant Decks</div>
+                        <div id="fc-quant-count" class="text-xs font-bold text-emerald-500/60 mt-2 uppercase">0 Cards</div>
                     </button>
-                    <button onclick="launchFlashcards('gs')" class="h-64 bg-slate-800/50 border border-slate-700 rounded-3xl hover:border-emerald-500 hover:-translate-y-2 hover:bg-slate-800 transition-all flex flex-col items-center justify-center p-6 shadow-lg group">
-                        <span class="text-6xl mb-4 group-hover:scale-110 transition-transform">📜</span>
-                        <span class="text-xl font-black text-white uppercase tracking-widest">GS Concepts</span>
-                        <span id="fc-gs-count" class="mt-3 font-bold text-[10px] uppercase tracking-widest bg-emerald-500 text-black px-3 py-1 rounded">0 Due</span>
+                    <button onclick="launchFlashcards('gs')" class="p-10 bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-200 dark:border-amber-800/50 rounded-[2rem] hover:scale-105 transition-all group shadow-xl">
+                        <div class="text-6xl mb-4 group-hover:-translate-y-2 transition-transform">📜</div>
+                        <div class="text-2xl font-black text-amber-700 dark:text-amber-400 uppercase tracking-tighter">GS Concepts</div>
+                        <div id="fc-gs-count" class="text-xs font-bold text-amber-500/60 mt-2 uppercase">0 Cards</div>
                     </button>
                 </div>
             </div>
 
-            <div id="flashcard-player" class="hidden w-full h-full flex flex-col perspective-1000">
-                <div class="flex justify-between items-center mb-6 px-2">
-                    <button onclick="exitFlashcards()" class="text-slate-400 font-black uppercase tracking-widest text-xs hover:text-white transition-colors">← Exit</button>
-                    <div id="fc-progress" class="text-mamba-gold font-black text-sm tracking-widest bg-black/50 px-4 py-1 rounded-full border border-slate-800">1 / 20</div>
+            <div id="flashcard-player" class="hidden w-full h-full perspective-1000 flex flex-col">
+                <div class="flex justify-between items-center mb-8">
+                    <button onclick="exitFlashcards()" class="text-white font-black uppercase tracking-widest text-[10px] bg-white/10 px-6 py-2.5 rounded-full border border-white/10">← Exit Session</button>
+                    <div id="fc-progress" class="text-white font-mono text-xl font-black bg-black/40 px-6 py-2 rounded-full border border-white/5">0 / 0</div>
                 </div>
-                
-                <div class="relative flex-1 w-full h-full">
-                    <div id="fc-card-inner" class="w-full h-full transition-transform duration-500 preserve-3d shadow-2xl rounded-[2rem]">
-                        <div class="absolute w-full h-full bg-slate-900 backface-hidden flex flex-col items-center justify-center p-10 text-center border border-slate-700 rounded-[2rem] cursor-pointer hover:border-mamba-gold transition-colors" onclick="flipFlashcard()">
-                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-8 border border-slate-700 px-4 py-2 rounded-full">Tap to Reveal Answer</span>
-                            <div id="fc-front-text" class="text-2xl md:text-3xl font-black text-white leading-relaxed tracking-tight">Question goes here?</div>
+
+                <div id="fc-card-inner" class="flex-1 w-full preserve-3d transition-transform duration-500 cursor-pointer" onclick="flipFlashcard()">
+                    <div class="absolute inset-0 bg-white dark:bg-slate-900 rounded-[3rem] backface-hidden flex flex-col items-center justify-center p-12 text-center border-[6px] border-indigo-50 dark:border-slate-800 shadow-2xl">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 px-4 py-1.5 rounded-full mb-10">Challenge: Recall the concept</span>
+                        <div id="fc-front-text" class="text-3xl md:text-5xl font-black text-slate-800 dark:text-slate-100 leading-tight tracking-tighter"></div>
+                        <span class="mt-16 text-slate-400 font-bold text-sm animate-bounce">Click to Flip ↺</span>
+                    </div>
+                    <div class="absolute inset-0 bg-indigo-50 dark:bg-slate-800 rounded-[3rem] backface-hidden rotate-y-180 flex flex-col border-[6px] border-indigo-400 shadow-2xl overflow-hidden">
+                        <div class="flex-1 flex flex-col items-center justify-center p-12 text-center overflow-y-auto">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-white dark:bg-slate-900 px-4 py-1.5 rounded-full mb-8 border border-emerald-100 shadow-sm">Verified Accuracy</span>
+                            <div id="fc-back-text" class="text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-200 leading-relaxed"></div>
                         </div>
-                        <div class="absolute w-full h-full bg-slate-900 backface-hidden rotate-y-180 flex flex-col justify-between p-8 md:p-12 border border-slate-700 rounded-[2rem] overflow-y-auto">
-                            <div class="flex-1 flex flex-col items-center justify-center text-center">
-                                <span class="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-6 border border-emerald-900/50 bg-emerald-900/20 px-4 py-2 rounded-full">Concept Revealed</span>
-                                <div id="fc-back-text" class="text-xl md:text-2xl font-bold text-white leading-relaxed w-full">Answer goes here.</div>
-                            </div>
-                            
-                            <div class="grid grid-cols-4 gap-2 mt-8 w-full max-w-lg mx-auto">
-                                <button onclick="gradeFlashcard(0)" class="bg-red-900/20 text-red-400 border border-red-900 p-3 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-red-500 hover:text-white transition-colors flex flex-col items-center gap-1"><span>Again</span><span class="opacity-60">&lt;1m</span></button>
-                                <button onclick="gradeFlashcard(1)" class="bg-orange-900/20 text-orange-400 border border-orange-900 p-3 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-orange-500 hover:text-white transition-colors flex flex-col items-center gap-1"><span>Hard</span><span class="opacity-60">1d</span></button>
-                                <button onclick="gradeFlashcard(2)" class="bg-emerald-900/20 text-emerald-400 border border-emerald-900 p-3 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-emerald-500 hover:text-white transition-colors flex flex-col items-center gap-1"><span>Good</span><span class="opacity-60">3d</span></button>
-                                <button onclick="gradeFlashcard(3)" class="bg-blue-900/20 text-blue-400 border border-blue-900 p-3 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-blue-500 hover:text-white transition-colors flex flex-col items-center gap-1"><span>Easy</span><span class="opacity-60">7d</span></button>
-                            </div>
+                        <div class="grid grid-cols-4 gap-2 p-6 bg-white/50 dark:bg-black/20 backdrop-blur-md border-t border-white/20">
+                            <button onclick="gradeFlashcard(event, 0)" class="flex flex-col items-center py-4 bg-red-500 text-white rounded-2xl hover:scale-105 transition-all shadow-lg"><span class="font-black text-xs uppercase">Again</span><span class="text-[10px] opacity-70">1m</span></button>
+                            <button onclick="gradeFlashcard(event, 1)" class="flex flex-col items-center py-4 bg-orange-500 text-white rounded-2xl hover:scale-105 transition-all shadow-lg"><span class="font-black text-xs uppercase">Hard</span><span class="text-[10px] opacity-70">1d</span></button>
+                            <button onclick="gradeFlashcard(event, 2)" class="flex flex-col items-center py-4 bg-green-500 text-white rounded-2xl hover:scale-105 transition-all shadow-lg"><span class="font-black text-xs uppercase">Good</span><span class="text-[10px] opacity-70">3d</span></button>
+                            <button onclick="gradeFlashcard(event, 3)" class="flex flex-col items-center py-4 bg-blue-500 text-white rounded-2xl hover:scale-105 transition-all shadow-lg"><span class="font-black text-xs uppercase">Easy</span><span class="text-[10px] opacity-70">7d</span></button>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <div id="flashcard-done" class="hidden bg-slate-900 border border-slate-800 rounded-[2rem] p-12 text-center shadow-2xl w-full flex flex-col items-center justify-center h-full">
-                <div class="text-7xl mb-6">🎉</div>
-                <h2 class="text-3xl font-black uppercase text-mamba-gold mb-4 tracking-tight">Deck Completed!</h2>
-                <p class="text-slate-400 font-bold mb-10 text-sm">Your neural pathways have been strengthened. Come back tomorrow.</p>
-                <button onclick="exitFlashcards()" class="bg-slate-800 text-white font-black uppercase tracking-widest text-xs px-10 py-4 rounded-xl border border-slate-700 hover:bg-slate-700 transition-colors shadow-lg">Return to Menu</button>
+            <div id="flashcard-done" class="hidden bg-white dark:bg-slate-900 rounded-[3rem] p-16 text-center shadow-2xl flex flex-col items-center justify-center h-full border border-white/10">
+                <div class="text-9xl mb-8">🎖️</div>
+                <h2 class="text-5xl font-black uppercase text-emerald-500 tracking-tighter mb-4">Neural Overdrive</h2>
+                <p class="text-slate-500 dark:text-slate-400 font-bold text-lg mb-12">Spaced repetition interval updated. See you tomorrow.</p>
+                <button onclick="exitFlashcards()" class="bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black uppercase tracking-widest px-12 py-5 rounded-2xl shadow-2xl hover:scale-105 transition-transform">Confirm & Save</button>
             </div>
-            
         </div>
     </div>
 
-    <div id="screen-subject-analysis" class="hidden fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-md flex justify-center items-center p-4">
-        <div class="bg-slate-900 rounded-[2rem] p-6 md:p-8 shadow-2xl border border-slate-800 w-full max-w-3xl max-h-[90vh] flex flex-col">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
-                <div>
-                    <h2 id="subject-analysis-title" class="text-2xl font-black uppercase text-white tracking-tight">Topic Analysis</h2>
+    <div id="screen-edit-modal" class="hidden fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
+                <h2 class="text-2xl font-black uppercase text-amber-500 tracking-tight">✏️ Edit Database</h2>
+                <button onclick="closeEditModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
+            </div>
+            <div class="flex-1 overflow-y-auto pr-2 space-y-5">
+                <textarea id="edit-q-text" rows="3" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200"></textarea>
+                <div class="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl">
+                    <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-0"> <input type="text" id="edit-opt-0" class="flex-1 p-2 rounded-lg border dark:bg-slate-900 text-sm font-bold"></label>
+                    <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-1"> <input type="text" id="edit-opt-1" class="flex-1 p-2 rounded-lg border dark:bg-slate-900 text-sm font-bold"></label>
+                    <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-2"> <input type="text" id="edit-opt-2" class="flex-1 p-2 rounded-lg border dark:bg-slate-900 text-sm font-bold"></label>
+                    <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-3"> <input type="text" id="edit-opt-3" class="flex-1 p-2 rounded-lg border dark:bg-slate-900 text-sm font-bold"></label>
                 </div>
-                <button onclick="closeSubjectAnalysis()" class="text-slate-500 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
+                <textarea id="edit-solution" rows="4" class="w-full p-4 rounded-xl border dark:bg-slate-950 font-bold text-sm"></textarea>
+                <input type="text" id="edit-formula" placeholder="Formula / Article Used" class="w-full p-3 rounded-xl border dark:bg-slate-950 font-bold text-sm">
+            </div>
+            <div class="pt-6 border-t mt-4 flex gap-4">
+                <button onclick="closeEditModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 font-black py-4 rounded-xl">Cancel</button>
+                <button onclick="saveEdit()" class="flex-1 bg-amber-500 text-white font-black py-4 rounded-xl shadow-lg">💾 Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-subject-analysis" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div>
+                    <h2 id="subject-analysis-title" class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Subject - Topic Analysis</h2>
+                    <p class="text-xs font-bold text-blue-500 uppercase tracking-widest mt-1">Performance breakdown by sub-topics</p>
+                </div>
+                <button onclick="closeSubjectAnalysis()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
             </div>
             <div class="flex-1 overflow-y-auto pr-2 space-y-4" id="subject-analysis-grid"></div>
         </div>
     </div>
 
-    <div id="screen-edit-modal" class="hidden fixed inset-0 z-[200] bg-slate-950/95 backdrop-blur-md flex justify-center items-center p-4">
-        <div class="bg-slate-900 rounded-[2rem] p-6 md:p-8 shadow-2xl border border-mamba-gold/30 w-full max-w-3xl max-h-[90vh] flex flex-col">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
-                <div>
-                    <h2 class="text-2xl font-black uppercase text-mamba-gold tracking-tight">✏️ Edit Database</h2>
-                </div>
-                <button onclick="closeEditModal()" class="text-slate-500 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
+    <div id="screen-analytics" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
+                <h2 class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Global Quiz History & Reports</h2>
+                <button onclick="closeAnalytics()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
             </div>
-            
-            <div class="flex-1 overflow-y-auto pr-2 space-y-5">
-                <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Question Text</label>
-                    <textarea id="edit-q-text" rows="3" class="w-full p-4 rounded-xl border border-slate-700 bg-black font-bold text-sm focus:ring-1 focus:ring-mamba-gold outline-none text-slate-200"></textarea>
-                </div>
-                
-                <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Options</label>
-                    <div class="space-y-3 bg-black/50 p-4 rounded-xl border border-slate-800">
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-0" class="w-4 h-4 accent-mamba-gold"> <input type="text" id="edit-opt-0" class="flex-1 p-2 rounded-lg border border-slate-700 bg-slate-900 text-sm font-bold text-slate-200"></label>
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-1" class="w-4 h-4 accent-mamba-gold"> <input type="text" id="edit-opt-1" class="flex-1 p-2 rounded-lg border border-slate-700 bg-slate-900 text-sm font-bold text-slate-200"></label>
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-2" class="w-4 h-4 accent-mamba-gold"> <input type="text" id="edit-opt-2" class="flex-1 p-2 rounded-lg border border-slate-700 bg-slate-900 text-sm font-bold text-slate-200"></label>
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-3" class="w-4 h-4 accent-mamba-gold"> <input type="text" id="edit-opt-3" class="flex-1 p-2 rounded-lg border border-slate-700 bg-slate-900 text-sm font-bold text-slate-200"></label>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Detailed Solution / Shortcuts</label>
-                    <textarea id="edit-solution" rows="4" class="w-full p-4 rounded-xl border border-slate-700 bg-black font-bold text-sm focus:ring-1 focus:ring-mamba-gold outline-none text-slate-200"></textarea>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Tags (Comma separated)</label>
-                        <input type="text" id="edit-tags" class="w-full p-3 rounded-xl border border-slate-700 bg-black font-bold text-sm focus:ring-1 focus:ring-mamba-gold outline-none text-slate-200">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Formula / Article Used</label>
-                        <input type="text" id="edit-formula" class="w-full p-3 rounded-xl border border-slate-700 bg-black font-bold text-sm focus:ring-1 focus:ring-mamba-gold outline-none text-slate-200">
-                    </div>
-                </div>
-            </div>
-            
-            <div class="pt-6 border-t border-slate-800 mt-4 flex gap-4">
-                <button onclick="closeEditModal()" class="flex-1 bg-slate-800 text-slate-300 font-black uppercase tracking-widest py-4 rounded-xl hover:bg-slate-700 transition-colors border border-slate-700 text-xs">Cancel</button>
-                <button onclick="saveEdit()" class="flex-1 bg-mamba-gold text-black font-black uppercase tracking-widest py-4 rounded-xl shadow-lg hover:bg-amber-400 transition-colors text-xs">💾 Save</button>
-            </div>
+            <div class="flex-1 overflow-y-auto pr-2" id="mastery-grid"></div>
         </div>
     </div>
 
@@ -378,59 +337,56 @@
     let db = {}; 
     let historyDb = [];
     let mistakesDb = []; 
-    let fcDb = {}; // V23.0 Flashcard SRS Database
     
     let currentQuizId = null;
     let currentAttemptNum = 1;
     let activeQuestions = []; 
     let quizState = { answers: {}, marked: {}, revealed: {}, locked: {}, qTimeLeft: 0, submitted: false, interval: null, isPaused: false, currentFocus: -1 };
-    let lobbySettings = { timeMode: 'default' }; // Cleaned up lobby
+    let lobbySettings = { timeMode: 'default', shuffle: true, perQTimer: false };
     let targetImportSubject = ""; 
 
     let lobbyQuizMode = 'full';
     window.currentQuizWrongQs = [];
     window.currentReviewQuestions = []; 
 
-    // V23.0 FLASHCARD CACHE
-    let fcQuantQueue = [];
-    let fcGsQueue = [];
-    let fcCurrentQueue = [];
+    // FLASHCARD STATE
+    let fcQueue = [];
     let fcCurrentIndex = 0;
     let fcIsFlipped = false;
 
     // MASTER FORMULA DATABASE
     const MASTER_FORMULAS = {
-        "Speed, Time & Distance": `
-            <div class='formula-block'><span class='formula-title'>Basic Formula</span> Speed = Distance / Time</div>
-            <div class='formula-block'><span class='formula-title'>Average Speed</span> If distance is same (going and returning), Avg Speed = (2xy) / (x + y)</div>
-            <div class='formula-block'><span class='formula-title'>Relative Speed</span> Same direction = |x - y| <br> Opposite direction = (x + y)</div>
-            <div class='formula-block'><span class='formula-title'>Trains Crossing</span> Time = (Length of Train 1 + Length of Object) / Relative Speed</div>
-            <div class='formula-block'><span class='formula-title'>Meeting Point</span> If A and B start towards each other and meet, then distance ratio = speed ratio.</div>
-        `,
-        "Geometry": `
-            <div class='formula-block'><span class='formula-title'>Angle Bisector Theorem</span> If AD bisects ∠A in ΔABC, then AB / AC = BD / DC.</div>
-            <div class='formula-block'><span class='formula-title'>Incenter (Angle Bisectors)</span> Angle at Incenter: ∠BIC = 90° + (∠A / 2).</div>
-            <div class='formula-block'><span class='formula-title'>Circumcenter (Perp. Bisectors)</span> Angle at center is double the angle at circumference: ∠BOC = 2∠A.</div>
-            <div class='formula-block'><span class='formula-title'>Centroid (Medians)</span> Divides each median in a 2:1 ratio (vertex to base).</div>
-            <div class='formula-block'><span class='formula-title'>Similarity (AA, SAS, SSS)</span> If ΔABC ~ ΔXYZ, then Area ratio = square of side ratio.</div>
-        `,
-        "Algebra": `
-            <div class='formula-block'><span class='formula-title'>Cubes Identity 1</span> a³ + b³ = (a + b)(a² - ab + b²) <br> a³ - b³ = (a - b)(a² + ab + b²)</div>
-            <div class='formula-block'><span class='formula-title'>Master Identity</span> a³ + b³ + c³ - 3abc = (a+b+c)(a² + b² + c² - ab - bc - ca)</div>
-            <div class='formula-block'><span class='formula-title'>Zero Condition</span> If a+b+c = 0, then a³ + b³ + c³ = 3abc</div>
-            <div class='formula-block'><span class='formula-title'>x + 1/x Pattern</span> If x + 1/x = k <br> x² + 1/x² = k² - 2 <br> x³ + 1/x³ = k³ - 3k</div>
-            <div class='formula-block'><span class='formula-title'>x - 1/x Pattern</span> If x - 1/x = k <br> x² + 1/x² = k² + 2 <br> x³ - 1/x³ = k³ + 3k</div>
-        `
+        "Speed, Time & Distance": [
+            {t: "Basic Formula", v: "Speed = Distance / Time"},
+            {t: "Average Speed", v: "If distance is same: (2xy) / (x + y)"},
+            {t: "Relative Speed", v: "Same direction: |x - y| • Opposite direction: (x + y)"}
+        ],
+        "Time & Work": [
+            {t: "Basic Formula", v: "Total Work = Efficiency x Time"},
+            {t: "Chain Rule (MDH)", v: "(M1 x D1 x H1) / W1 = (M2 x D2 x H2) / W2"}
+        ],
+        "Geometry": [
+            {t: "Incenter Angle", v: "∠BIC = 90° + (∠A / 2)"},
+            {t: "Angle Bisector Theorem", v: "AB / AC = BD / DC"}
+        ],
+        "Mensuration": [
+            {t: "Inradius (Equilateral)", v: "r = a / (2√3)"},
+            {t: "Area (Equilateral)", v: "Area = (√3 / 4)a²"}
+        ],
+        "Algebra": [
+            {t: "Master Identity", v: "a³ + b³ + c³ - 3abc = (a+b+c)(a² + b² + c² - ab - bc - ca)"},
+            {t: "x + 1/x Pattern", v: "If x + 1/x = k, then x² + 1/x² = k² - 2"}
+        ]
     };
 
     window.requireAuth = (callback) => {
-        const pwd = prompt("🔒 SYSTEM SECURED\n\nEnter the master password to authorize changes:");
+        const pwd = prompt("🔒 SYSTEM SECURED\n\nEnter master password:");
         if (pwd === "KOBE") { callback(); } else if (pwd !== null) { alert("❌ ACCESS DENIED."); }
     };
 
     function initializeSRSData() {
         mistakesDb.forEach(m => {
-            if (!m.srs) m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() - 10000 };
+            if (!m.srs) m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() };
         });
     }
 
@@ -441,7 +397,6 @@
         localStorage.setItem('megaQuizDB_v4', JSON.stringify(db));
         localStorage.setItem('megaQuizHistory_v5', JSON.stringify(historyDb)); 
         localStorage.setItem('megaQuizMistakes_v5', JSON.stringify(mistakesDb));
-        localStorage.setItem('megaQuizFcDb_v1', JSON.stringify(fcDb));
     }
 
     function loadLocalFallback() {
@@ -450,7 +405,6 @@
         if (localStorage.getItem('megaQuizDB_v4')) db = JSON.parse(localStorage.getItem('megaQuizDB_v4'));
         if (localStorage.getItem('megaQuizHistory_v5')) historyDb = JSON.parse(localStorage.getItem('megaQuizHistory_v5'));
         if (localStorage.getItem('megaQuizMistakes_v5')) mistakesDb = JSON.parse(localStorage.getItem('megaQuizMistakes_v5'));
-        if (localStorage.getItem('megaQuizFcDb_v1')) fcDb = JSON.parse(localStorage.getItem('megaQuizFcDb_v1'));
         initializeSRSData();
     }
 
@@ -459,61 +413,46 @@
         if(!el) return;
         if(state === 'syncing') {
             el.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> Syncing...`;
-            el.className = "absolute top-6 right-6 text-[9px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full bg-black/60 text-amber-400 border border-slate-800 flex items-center gap-2 z-20 shadow-lg";
         } else if(state === 'synced') {
-            el.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span> Synced`;
-            el.className = "absolute top-6 right-6 text-[9px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full bg-black/60 text-emerald-500 border border-slate-800 flex items-center gap-2 z-20 shadow-lg";
+            el.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Cloud Synced`;
         } else if(state === 'error') {
-            el.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> Offline`;
-            el.className = "absolute top-6 right-6 text-[9px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full bg-black/60 text-red-500 border border-slate-800 flex items-center gap-2 z-20 shadow-lg";
+            el.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> Offline Mode`;
         }
     }
 
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v23.0", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcDb: fcDb };
-        
-        fetch(CLOUD_URL, {
-            method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
-        }).then(() => showSyncStatus('synced')).catch(() => showSyncStatus('error'));
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v22.0", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        fetch(CLOUD_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) })
+        .then(() => showSyncStatus('synced')).catch(() => showSyncStatus('error'));
     }
 
     async function initializeSystem() {
+        if(localStorage.getItem('megaTheme') === 'dark') document.documentElement.classList.add('dark');
         loadLocalFallback();
         renderDashboard();
         showSyncStatus('syncing');
-
         try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000); 
-            const response = await fetch(CLOUD_URL, { signal: controller.signal });
-            clearTimeout(timeoutId);
-            const data = await response.json();
-            
-            if (data && Object.keys(data).length > 0 && data.db) {
-                if (data.subjects) SUBJECTS = data.subjects;
-                if (data.categories) SUBJECT_CATEGORIES = data.categories;
-                if (data.db) db = data.db;
-                if (data.history) historyDb = data.history;
-                if (data.mistakes) mistakesDb = data.mistakes;
-                if (data.fcDb) fcDb = data.fcDb;
-                
-                updateLocalCache();
-                renderDashboard();
-                showSyncStatus('synced');
-            } else { showSyncStatus('error'); }
-        } catch (error) { showSyncStatus('error'); }
+            const r = await fetch(CLOUD_URL);
+            const data = await r.json();
+            if (data && data.db) {
+                SUBJECTS = data.subjects || SUBJECTS;
+                db = data.db; historyDb = data.history || []; mistakesDb = data.mistakes || [];
+                updateLocalCache(); renderDashboard(); showSyncStatus('synced');
+            }
+        } catch (e) { showSyncStatus('error'); }
+    }
+
+    function toggleDarkMode() {
+        document.documentElement.classList.toggle('dark');
+        localStorage.setItem('megaTheme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
     }
 
     function highlightText(text, term) {
-        if(!text) return "";
-        if(!term || term.trim() === "") return text; 
-        try {
-            const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const regex = new RegExp(`(${escapeRegExp(term)})`, "gi");
-            return text.replace(regex, `<mark>$1</mark>`);
-        } catch(e) { return text; }
+        if(!text || !term) return text || "";
+        const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, "gi");
+        return text.replace(regex, `<mark>$1</mark>`);
     }
 
     window.clearSearch = () => { document.getElementById('omni-search').value = ''; performSearch(''); };
@@ -522,1110 +461,438 @@
         const term = query.toLowerCase().trim();
         const resContainer = document.getElementById('search-results-container');
         const dashGrid = document.getElementById('dashboard-main-content');
-        const clearBtn = document.getElementById('clear-search-btn');
+        if (!term) { resContainer.classList.add('hidden'); dashGrid.classList.remove('hidden'); return; }
+        dashGrid.classList.add('hidden'); resContainer.classList.remove('hidden');
         
-        if (!term) {
-            resContainer.classList.add('hidden'); dashGrid.classList.remove('hidden'); if(clearBtn) clearBtn.classList.add('hidden'); return;
-        }
-        if(clearBtn) clearBtn.classList.remove('hidden'); dashGrid.classList.add('hidden'); resContainer.classList.remove('hidden');
-        
-        let resultsHTML = `<div class="flex justify-between items-end border-b border-slate-800 pb-3 mt-4"><h2 class="text-2xl md:text-3xl font-black text-white tracking-tight">🔍 Mamba Vault Search</h2></div>`;
-        let matchCount = 0;
-        
-        Object.keys(db).forEach(quizId => {
-            const quiz = db[quizId];
-            if(!quiz || !quiz.title || quiz.title.includes("Master Mock") || quiz.title.includes("Redemption") || quiz.title.includes("🎯") || !quiz.questions) return;
-
-            quiz.questions.forEach((q) => {
-                const searchStr = ((q.question || "") + " " + (q.solution || "") + " " + (q.options ? q.options.map(o=>o.text).join(" ") : "")).toLowerCase();
-                if (searchStr.includes(term)) {
-                    matchCount++;
-                    const cText = (q.options && q.options.find(o=>o.correct)?.text) || "N/A";
-                    resultsHTML += `
-                        <div class="bg-slate-900 rounded-2xl p-6 md:p-8 border border-slate-800 shadow-lg hover:border-mamba-gold transition-colors relative overflow-hidden mt-4">
-                            <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-mamba-gold"></div>
-                            <div class="text-lg md:text-xl font-bold text-white mb-6 leading-relaxed">${highlightText(q.question, term)}</div>
-                            <div class="bg-emerald-900/20 p-4 rounded-xl border border-emerald-800/50 mb-6 inline-block shadow-inner"><span class="block text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">Correct Answer</span><span class="text-sm font-bold text-slate-200">${highlightText(cText, term)}</span></div>
-                            <div class="text-sm text-slate-400 bg-black/50 p-5 rounded-xl border border-slate-800 shadow-inner"><span class="font-black text-slate-200 block mb-2 uppercase tracking-wide text-xs">📖 Detailed Solution:</span><div class="leading-relaxed font-medium">${highlightText(q.solution || 'No detailed solution provided.', term)}</div></div>
-                        </div>`;
+        let html = '<div class="text-2xl font-black mb-6">🔍 Mamba Vault Results</div>';
+        let found = 0;
+        Object.values(db).forEach(quiz => {
+            quiz.questions.forEach(q => {
+                if (q.question.toLowerCase().includes(term)) {
+                    found++;
+                    html += `<div class="bg-white dark:bg-slate-900 p-6 rounded-2xl mb-4 border border-slate-200 dark:border-slate-800 shadow-lg border-l-4 border-l-emerald-500">
+                        <div class="text-xs font-black uppercase text-indigo-500 mb-2">${quiz.subject}</div>
+                        <div class="font-bold text-lg mb-4">${highlightText(q.question, term)}</div>
+                        <div class="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl text-sm italic">${q.solution}</div>
+                    </div>`;
                 }
             });
         });
-        
-        if(matchCount === 0) resultsHTML += `<div class="text-center text-slate-500 font-bold py-16 border-2 border-dashed border-slate-800 rounded-3xl mt-4">No questions found matching "${query}".</div>`;
-        resContainer.innerHTML = resultsHTML;
+        resContainer.innerHTML = found > 0 ? html : '<div class="text-center py-20 opacity-50 font-black uppercase">No results found.</div>';
     };
 
     const getCategoryClass = (s) => {
         s = s.toLowerCase();
-        let cat = SUBJECT_CATEGORIES[s] ? SUBJECT_CATEGORIES[s].toLowerCase() : s;
-        if(cat.includes('history') || s.includes('history')) return 'border-amber-500';
-        if(cat.includes('geography') || cat.includes('environment') || s.includes('geography')) return 'border-blue-500';
-        if(cat.includes('polity') || s.includes('polity')) return 'border-purple-500';
-        if(cat.includes('economics') || s.includes('economics')) return 'border-emerald-500';
-        if(cat.includes('science') || s.includes('science')) return 'border-cyan-500';
-        if(cat.includes('math') || cat.includes('quant') || s.includes('math') || s.includes('quant')) return 'border-red-500';
-        if(cat.includes('english') || s.includes('english')) return 'border-pink-500';
-        return 'border-orange-500'; 
+        if(s.includes('history')) return 'border-amber-500';
+        if(s.includes('geography')) return 'border-blue-500';
+        if(s.includes('polity')) return 'border-purple-500';
+        if(s.includes('math') || s.includes('quant')) return 'border-red-500';
+        return 'border-emerald-500';
     };
-
-    window.generateTopicMock = (parentSubject, targetTopic) => {
-        let pool = [];
-        Object.values(db).forEach(quiz => {
-            if (quiz.subject === parentSubject && !quiz.title.includes("🎯") && !quiz.title.includes("Master") && !quiz.title.includes("SRS")) {
-                quiz.questions.forEach(q => {
-                    let qTags = q.tags || [];
-                    if (qTags.includes(targetTopic) || (targetTopic === "Miscellaneous" && qTags.length === 0)) pool.push(q);
-                });
-            }
-        });
-
-        if(pool.length === 0) return alert(`No questions found for topic: ${targetTopic}`);
-        const uniqueQs = Array.from(new Map(pool.map(q => [q.question, q])).values());
-        const shuffled = uniqueQs.sort(() => 0.5 - Math.random()).slice(0, 30);
-        db['quiz_topic_practice'] = { title: `🎯 ${targetTopic} Practice`, subject: parentSubject, timeInMinutes: Math.ceil(shuffled.length * 1.5), questions: shuffled };
-        openLobby('quiz_topic_practice');
-    };
-
-    function updateMascot() {
-        let globalDueMCQ = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now()).length;
-        
-        // Count due flashcards
-        let globalDueFC = 0;
-        let now = Date.now();
-        // Parse raw DB logic to count how many flashcards would be generated and are due
-        // For performance, we'll approximate based on keys in fcDb that are due
-        Object.values(fcDb).forEach(stat => {
-            if(stat.nextReview <= now) globalDueFC++;
-        });
-        
-        let totalDue = globalDueMCQ + globalDueFC;
-
-        const mText = document.getElementById('mascot-text');
-        const mEmoji = document.getElementById('mascot-emoji');
-        const tracker = document.getElementById('guchika-tracker');
-        
-        if(!mText) return;
-
-        if(totalDue === 0) {
-            mEmoji.textContent = "💤";
-            mText.textContent = "Guchika is resting. You crushed it!";
-            tracker.classList.add('border-emerald-500/30');
-            tracker.classList.remove('border-rose-500/30');
-        } else {
-            mEmoji.textContent = "🐕";
-            mText.textContent = `${totalDue} reviews waiting for you!`;
-            tracker.classList.add('border-rose-500/30');
-            tracker.classList.remove('border-emerald-500/30');
-        }
-    }
 
     function renderDashboard() {
         const grid = document.getElementById('dashboard-grid'); grid.innerHTML = '';
-        
-        let globalDue = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now()).length;
-        
-        // UPDATE REDEMPTION CARD FOR 10-Q SPRINT
-        document.getElementById('global-srs-title').innerHTML = `
-            🔥 10-Q Master Sprint 
-            ${globalDue > 0 ? `<span class="text-[10px] bg-mamba-red px-3 py-1 rounded shadow-lg border border-red-400 uppercase tracking-widest text-white">${globalDue} Due</span>` : `<span class="text-[10px] bg-emerald-600 px-3 py-1 rounded shadow-lg border border-emerald-400 uppercase tracking-widest text-white">Caught Up</span>`}
-        `;
+        const dueCount = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now()).length;
+        const masteredCount = localStorage.getItem('megaQuizMasteredCount') || 0;
 
-        updateMascot();
+        document.getElementById('global-srs-badge').textContent = `${dueCount} Due Today`;
+        document.getElementById('global-srs-badge').classList.toggle('hidden', dueCount === 0);
+
+        const mambaCard = document.createElement('div');
+        mambaCard.className = 'col-span-1 md:col-span-2 xl:col-span-1 mamba-card rounded-3xl bg-slate-950 border border-slate-800 shadow-2xl relative overflow-hidden flex flex-col p-8 group min-h-[300px]';
+        mambaCard.innerHTML = `
+            <div class="absolute inset-0 bg-cover bg-center opacity-40 mix-blend-luminosity" style="background-image: url('wp2550249-kobe-bryant-wallpaper.jpg');"></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/80 to-transparent"></div>
+            <div class="relative z-10 flex-1 flex flex-col justify-end">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="text-[10px] text-amber-400 bg-black/50 border border-amber-500/30 font-black px-3 py-1 rounded uppercase tracking-widest">Mamba Grind</div>
+                    <div class="text-[10px] text-emerald-400 bg-emerald-900/40 border border-emerald-500/30 font-black px-3 py-1 rounded uppercase tracking-widest">👑 ${masteredCount} Mastered</div>
+                </div>
+                <div class="flex items-center gap-4 mb-6 bg-white/5 p-4 rounded-2xl border border-white/5 backdrop-blur-md">
+                    <div class="text-4xl animate-bounce">${dueCount > 0 ? '😴' : '🔥'}</div>
+                    <div>
+                        <div class="text-xs font-black text-white uppercase tracking-widest">Mascot: Guchika</div>
+                        <div class="text-[10px] text-slate-400 font-bold">${dueCount > 0 ? 'He is waiting for you to clear the sprint.' : 'He is energetic! Your brain is caught up.'}</div>
+                    </div>
+                </div>
+                <h2 class="text-3xl font-black text-white leading-tight mb-2 drop-shadow-lg italic">"Rest at the end, not in the middle."</h2>
+            </div>`;
+        grid.appendChild(mambaCard);
 
         SUBJECTS.forEach(subject => {
-            const subjectQuizzes = Object.keys(db).filter(id => db[id].subject === subject && !db[id].title.includes("Master") && !db[id].title.includes("🎯") && !db[id].title.includes("SRS"));
-            
-            let topicsByParent = {}; 
-            let isMixedSubject = subject.includes("MOCK") || subject === "Mixed" || subject === "Miscellaneous";
+            const subjectQuizzes = Object.keys(db).filter(id => db[id].subject === subject && !db[id].title.includes("🎯") && !db[id].title.includes("SRS"));
+            const subjectDue = mistakesDb.filter(m => m.subject === subject && m.srs && m.srs.nextReview <= Date.now()).length;
 
+            let topicsHTML = '';
+            let subjectStats = {};
             historyDb.filter(h => h.subject === subject).forEach(h => {
-                if(h.reviewData) {
-                    h.reviewData.forEach(rd => {
-                        let primaryTag = rd.tags && rd.tags.length > 0 ? rd.tags[0] : "General";
-                        let secondaryTag = rd.tags && rd.tags.length > 1 ? rd.tags[1] : primaryTag;
-                        if (!rd.tags || rd.tags.length === 0) { primaryTag = "Miscellaneous"; secondaryTag = "Miscellaneous"; }
-                        
-                        let parentSub, topicName;
-                        if(isMixedSubject) {
-                            parentSub = primaryTag;
-                            topicName = secondaryTag;
-                        } else {
-                            parentSub = subject; 
-                            if (primaryTag.toUpperCase() === subject.toUpperCase() && rd.tags.length > 1) {
-                                topicName = secondaryTag;
-                            } else {
-                                topicName = primaryTag;
-                            }
-                        }
-
-                        if(!topicsByParent[parentSub]) topicsByParent[parentSub] = {};
-                        if(!topicsByParent[parentSub][topicName]) topicsByParent[parentSub][topicName] = { c: 0, t: 0 };
-                        topicsByParent[parentSub][topicName].t++;
-                        if(rd.status === 'correct') topicsByParent[parentSub][topicName].c++;
-                    });
-                }
+                if(h.reviewData) h.reviewData.forEach(rd => {
+                    let tag = rd.tags && rd.tags.length > 1 ? rd.tags[1] : (rd.tags && rd.tags[0] ? rd.tags[0] : "General");
+                    if(!subjectStats[tag]) subjectStats[tag] = {c:0, t:0};
+                    subjectStats[tag].t++; if(rd.status === 'correct') subjectStats[tag].c++;
+                });
             });
 
-            let matrixHTML = '';
-            let safeSub = subject.replace(/[^a-zA-Z0-9]/g, '');
-            
-            if (Object.keys(topicsByParent).length > 0) {
-                let allPills = '';
-                Object.keys(topicsByParent).forEach(parentSub => {
-                    let pillsHTML = Object.keys(topicsByParent[parentSub]).map(t => {
-                        let acc = Math.round((topicsByParent[parentSub][t].c / topicsByParent[parentSub][t].t) * 100);
-                        let colorClasses = acc >= 80 ? 'text-emerald-400 bg-emerald-900/30 border-emerald-800/50'
-                                         : acc >= 50 ? 'text-amber-400 bg-amber-900/30 border-amber-800/50'
-                                         : 'text-red-400 bg-red-900/30 border-red-800/50';
-                        return `<button onclick="generateTopicMock('${subject}', '${t}')" class="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded border shadow-sm ${colorClasses} hover:scale-105 transition-transform cursor-pointer" title="Practice ${t} questions">${t}: ${acc}% ▶</button>`;
-                    }).join('');
-                    allPills += `<div class="mb-3 last:mb-0"><div class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 border-b border-slate-800 pb-0.5">${parentSub}</div><div class="flex flex-wrap gap-1.5">${pillsHTML}</div></div>`;
-                });
-                
-                matrixHTML = `
-                    <div class="mb-4 flex gap-2">
-                        <button onclick="document.getElementById('matrix-${safeSub}').classList.toggle('hidden')" class="flex-1 bg-black text-slate-300 font-black text-[10px] uppercase py-2.5 rounded-xl border border-slate-700 flex justify-between items-center px-4 hover:bg-slate-800 transition-colors shadow-sm">
-                            🎯 Target Topics <span class="text-xs text-mamba-gold">▼</span>
-                        </button>
-                        <button onclick="showSubjectAnalysis('${subject}')" class="bg-indigo-900/20 text-indigo-400 font-black text-[10px] uppercase px-4 py-2.5 rounded-xl border border-indigo-800/30 hover:bg-indigo-900/40 transition-colors shadow-sm">
-                            📊 Analysis
-                        </button>
-                    </div>
-                    <div id="matrix-${safeSub}" class="hidden mb-4 p-4 bg-black/50 rounded-xl border border-slate-800 shadow-inner">
-                        ${allPills}
-                    </div>
-                `;
-            } else {
-                matrixHTML = `
-                    <div class="mb-4">
-                        <button onclick="showSubjectAnalysis('${subject}')" class="w-full bg-indigo-900/20 text-indigo-400 font-black text-[10px] uppercase px-4 py-2.5 rounded-xl border border-indigo-800/30 hover:bg-indigo-900/40 transition-colors shadow-sm">
-                            📊 Topic Analysis
-                        </button>
-                    </div>
-                `;
+            const tags = Object.keys(subjectStats);
+            if(tags.length > 0) {
+                let pills = tags.map(t => {
+                    let acc = Math.round((subjectStats[t].c / subjectStats[t].t) * 100);
+                    let color = acc >= 80 ? 'bg-emerald-500' : acc >= 50 ? 'bg-amber-500' : 'bg-red-500';
+                    return `<button onclick="generateTopicMock('${subject}', '${t}')" class="px-2 py-0.5 text-[8px] font-black uppercase text-white rounded shadow-sm ${color} hover:scale-105 transition-transform">${t}</button>`;
+                }).join('');
+                topicsHTML = `<div class="mb-4 flex flex-wrap gap-1 border-t border-slate-100 dark:border-slate-800 pt-3">${pills}</div>`;
             }
 
-            let listHTML = subjectQuizzes.length === 0 ? `<div class="text-xs text-slate-600 font-bold py-4 text-center border-2 border-dashed border-slate-800 rounded-lg mb-2">No quizzes imported yet.</div>` : '';
-            
+            let listHTML = subjectQuizzes.length === 0 ? `<div class="text-[10px] text-slate-400 font-bold py-4 text-center border-2 border-dashed rounded-xl mb-4">Empty</div>` : '';
             subjectQuizzes.forEach(id => {
                 listHTML += `
-                    <div class="mt-2 flex flex-col gap-2 group/row bg-black/40 p-3 border border-slate-800 rounded-xl hover:border-mamba-gold transition-colors shadow-sm">
-                        <div onclick="openLobby('${id}')" class="cursor-pointer flex justify-between items-center w-full">
-                            <div class="w-full"><div class="font-bold text-slate-200 text-sm truncate">${db[id].title}</div><div class="text-[10px] font-black text-slate-500 uppercase mt-1 tracking-widest">${db[id].questions.length} Qs • ${db[id].timeInMinutes} Mins</div></div>
+                    <div class="mt-2 flex flex-col gap-2 bg-slate-50 dark:bg-slate-800/80 p-3 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-emerald-400 transition-colors shadow-sm">
+                        <div onclick="openLobby('${id}')" class="cursor-pointer">
+                            <div class="font-black text-slate-800 dark:text-slate-200 text-xs truncate uppercase tracking-tight">${db[id].title}</div>
                         </div>
-                        <div class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-800">
-                            <button onclick="openTargetedHistory('${id}')" class="flex-1 bg-amber-900/20 text-amber-500 hover:bg-amber-900/40 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-amber-800/30">📊 Hist</button>
-                            <button onclick="exportSingleQuizToAnki('${id}')" class="flex-1 bg-slate-800 text-slate-400 hover:text-white font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-slate-700">🃏 Export</button>
-                            <button onclick="deleteQuiz('${id}')" class="bg-red-900/20 text-red-500 hover:bg-red-900/40 font-black text-xs px-3 py-2 rounded-lg transition-colors border border-red-800/30">🗑️</button>
+                        <div class="flex items-center gap-1.5 border-t border-slate-200 dark:border-slate-700/50 pt-2">
+                            <button onclick="openTargetedHistory('${id}')" class="flex-1 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 font-black text-[9px] uppercase py-1.5 rounded-lg border border-amber-100">Stats</button>
+                            <button onclick="deleteQuiz('${id}')" class="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-black text-[9px] px-2 py-1.5 rounded-lg border border-red-100">🗑️</button>
                         </div>
                     </div>`;
             });
 
-            // V23.0 SUBJECT SPECIFIC 10-Q SPRINT
-            let subjectDue = mistakesDb.filter(m => m.subject === subject && m.srs && m.srs.nextReview <= Date.now()).length;
-            let dueBadge = subjectDue > 0 ? `<button onclick="generateSubjectRedemption('${subject}')" class="flex-1 bg-mamba-red/20 text-red-400 hover:bg-mamba-red/40 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm border border-red-900/50">🔥 Sprint (${subjectDue})</button>` : '';
-
-            const card = document.createElement('div'); card.className = `bg-slate-900/80 backdrop-blur-sm rounded-[2rem] p-6 shadow-xl border border-slate-800 flex flex-col subject-card relative overflow-hidden`;
+            const card = document.createElement('div'); card.className = `bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-lg border border-slate-200 dark:border-slate-800 flex flex-col subject-card relative overflow-hidden`;
             card.innerHTML = `
                 <div class="absolute top-0 left-0 w-full h-1.5 ${getCategoryClass(subject)}"></div>
-                <div class="flex justify-between items-center pb-3 mb-3 mt-1 border-b border-slate-800">
-                    <h2 class="text-xl font-black text-white uppercase tracking-tight">${subject}</h2>
-                    <button onclick="deleteSubject('${subject}')" class="text-slate-500 hover:text-red-500 transition-colors p-1" title="Delete Subject & Quizzes 🔒">🗑️</button>
+                <div class="flex justify-between items-center pb-3 mb-3 border-b dark:border-slate-800">
+                    <h2 class="text-lg font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">${subject}</h2>
+                    <button onclick="showSubjectAnalysis('${subject}')" class="text-blue-500 text-xs font-black uppercase">📊</button>
                 </div>
-                ${matrixHTML}
-                <div class="flex-1 overflow-y-auto pr-2 mb-3 max-h-64 space-y-1">${listHTML}</div>
-                <div class="flex gap-2 mt-auto pt-3 border-t border-slate-800">
-                    <button onclick="triggerImport('${subject}')" class="flex-1 bg-black text-slate-400 hover:text-white font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest border border-slate-700">➕ Add 🔒</button>
-                    ${dueBadge || `<button onclick="generateSubjectMock('${subject}')" class="flex-1 bg-slate-800 text-slate-300 hover:bg-slate-700 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest border border-slate-600">🧠 Master Mock</button>`}
+                ${topicsHTML}
+                <div class="flex-1 overflow-y-auto mb-4 max-h-48 pr-1">${listHTML}</div>
+                <div class="flex gap-2 pt-3 border-t dark:border-slate-800">
+                    <button onclick="triggerImport('${subject}')" class="flex-1 bg-slate-900 dark:bg-slate-700 text-white font-black text-[10px] uppercase py-3 rounded-xl">Add 🔒</button>
+                    ${subjectDue > 0 ? `<button onclick="generateSubjectRedemption('${subject}')" class="flex-1 bg-rose-500 text-white font-black text-[10px] uppercase py-3 rounded-xl shadow-lg border-2 border-rose-400 animate-pulse">🔥 Sprint (${subjectDue})</button>` : `<button onclick="generateSubjectMock('${subject}')" class="flex-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 font-black text-[10px] uppercase py-3 rounded-xl border border-emerald-100 dark:border-emerald-800/30">Master</button>`}
                 </div>`;
             grid.appendChild(card);
         });
 
         const addCard = document.createElement('div');
-        addCard.className = 'bg-slate-900/40 rounded-[2rem] p-6 border-2 border-dashed border-slate-800 flex flex-col justify-center items-center cursor-pointer hover:bg-slate-900 hover:border-mamba-gold transition-colors min-h-[200px] group';
-        addCard.onclick = () => {
-            requireAuth(() => {
-                const newSub = prompt("Enter new subject name:");
-                if (newSub && newSub.trim() && !SUBJECTS.includes(newSub.trim())) {
-                    let cleanSub = newSub.trim();
-                    SUBJECTS.push(cleanSub);
-                    let cat = prompt(`Which core category does "${cleanSub}" belong to?\n(e.g., GS, Maths, English, Reasoning)`);
-                    if(cat && cat.trim()) SUBJECT_CATEGORIES[cleanSub] = cat.trim();
-                    saveData(); renderDashboard();
-                } else if (newSub && newSub.trim()) alert("Subject already exists!");
-            });
-        };
-        addCard.innerHTML = `<div class="w-14 h-14 bg-black rounded-full flex items-center justify-center text-slate-500 font-black text-3xl mb-4 shadow-sm group-hover:scale-110 transition-transform group-hover:text-mamba-gold border border-slate-800">+</div><h2 class="text-lg font-black text-slate-400 uppercase tracking-tight">Add Subject 🔒</h2><p class="text-xs text-slate-600 font-bold mt-2 text-center tracking-widest uppercase">Custom Category</p>`;
+        addCard.className = 'bg-slate-100 dark:bg-slate-900/40 rounded-3xl p-6 border-2 border-dashed border-slate-300 dark:border-slate-700 flex flex-col justify-center items-center cursor-pointer hover:bg-slate-200 transition-colors min-h-[200px]';
+        addCard.onclick = () => requireAuth(() => { let n = prompt("Subject Name:"); if(n) { SUBJECTS.push(n); saveData(); renderDashboard(); } });
+        addCard.innerHTML = `<div class="text-4xl text-slate-400 mb-2">+</div><div class="font-black text-slate-500 uppercase tracking-widest text-xs">New Subject</div>`;
         grid.appendChild(addCard);
     }
 
-    window.triggerImport = (sub) => { requireAuth(() => { targetImportSubject = sub; document.getElementById('global-file-input').click(); }); };
-    window.deleteQuiz = (id) => { requireAuth(() => { if (confirm("Delete this quiz forever?")) { delete db[id]; saveData(); renderDashboard(); } }); };
-    window.deleteSubject = (sub) => { requireAuth(() => { if (prompt(`WARNING: Delete "${sub}" AND all quizzes inside it?\n\nType "DELETE" to confirm:`) === "DELETE") { SUBJECTS = SUBJECTS.filter(s => s !== sub); Object.keys(db).forEach(id => { if (db[id].subject === sub) delete db[id]; }); delete SUBJECT_CATEGORIES[sub]; saveData(); renderDashboard(); } }); };
+    window.triggerImport = (sub) => requireAuth(() => { targetImportSubject = sub; document.getElementById('global-file-input').click(); });
+    window.deleteQuiz = (id) => requireAuth(() => { if(confirm("Delete?")) { delete db[id]; saveData(); renderDashboard(); } });
+    window.deleteSubject = (sub) => requireAuth(() => { if(prompt("Type DELETE:") === "DELETE") { SUBJECTS = SUBJECTS.filter(s => s !== sub); Object.keys(db).forEach(id => { if (db[id].subject === sub) delete db[id]; }); saveData(); renderDashboard(); } });
 
     document.getElementById('global-file-input').addEventListener('change', function(e) {
         const file = e.target.files[0]; if (!file) return;
         const reader = new FileReader();
-        reader.onload = function(event) {
+        reader.onload = (event) => {
             try {
-                let text = event.target.result.replace(/```json/g, '').replace(/```/g, '').trim();
-                const newQuiz = JSON.parse(text); newQuiz.subject = targetImportSubject; db['quiz_' + Date.now()] = newQuiz;
-                saveData(); e.target.value = ''; renderDashboard();
-            } catch (err) { alert(`Import Error.`); e.target.value = ''; }
+                const q = JSON.parse(event.target.result.replace(/```json/g, '').replace(/```/g, '').trim());
+                q.subject = targetImportSubject; db['q_'+Date.now()] = q; saveData(); renderDashboard();
+            } catch (err) { alert("JSON Error."); }
         }; reader.readAsText(file);
     });
 
     window.exportBackup = () => {
-        const blob = new Blob([JSON.stringify({ version: "v23.0", subjects: SUBJECTS, matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, db: db, history: historyDb, mistakes: mistakesDb, fcDb: fcDb, masteredCount: localStorage.getItem('megaQuizMasteredCount') || 0 })], { type: "application/json" });
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Yogesh_MegaHub_Backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
+        const blob = new Blob([JSON.stringify({version: "v22.0", subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, masteredCount: localStorage.getItem('megaQuizMasteredCount') || 0})], {type: "application/json"});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `MegaHub_Backup.json`; a.click();
     };
 
-    window.triggerRestore = () => { requireAuth(() => { if(confirm("WARNING: Overwrite all current quizzes and history?")) document.getElementById('backup-file-input').click(); }); };
-
-    document.getElementById('backup-file-input').addEventListener('change', async function(e) {
+    window.triggerRestore = () => requireAuth(() => document.getElementById('backup-file-input').click());
+    document.getElementById('backup-file-input').addEventListener('change', function(e) {
         const file = e.target.files[0]; if (!file) return;
         const reader = new FileReader();
-        reader.onload = function(event) {
-            try {
-                const backup = JSON.parse(event.target.result);
-                if (backup.subjects && backup.db) {
-                    SUBJECTS = backup.subjects; db = backup.db;
-                    if(backup.categories) SUBJECT_CATEGORIES = backup.categories;
-                    if (backup.history) historyDb = backup.history;
-                    if (backup.mistakes) mistakesDb = backup.mistakes;
-                    if (backup.fcDb) fcDb = backup.fcDb;
-                    if (backup.masteredCount) localStorage.setItem('megaQuizMasteredCount', backup.masteredCount);
-                    saveData(); alert("Restored!"); location.reload();
-                } else alert("Invalid Backup File.");
-                e.target.value = '';
-            } catch (err) { alert(`Restore Error.`); e.target.value = ''; }
+        reader.onload = (event) => {
+            const b = JSON.parse(event.target.result);
+            if (b.db) { SUBJECTS = b.subjects; db = b.db; historyDb = b.history; mistakesDb = b.mistakes; localStorage.setItem('megaQuizMasteredCount', b.masteredCount || 0); saveData(); location.reload(); }
         }; reader.readAsText(file);
     });
 
-    function generateAnkiTSV(qArray) { return qArray.map(q => `"${q.question.replace(/\n/g, '<br>').replace(/"/g, '""')}"\t"${(q.solution||"No sol").replace(/\n/g, '<br>').replace(/"/g, '""')}"\n`).join(''); }
-
-    window.exportMistakesToAnki = () => {
-        if(mistakesDb.length === 0) return alert("Mistakes Vault is empty!");
-        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([generateAnkiTSV(mistakesDb)], { type: 'text/plain' })); a.download = `Anki_Mistakes_${new Date().toISOString().slice(0,10)}.txt`; a.click();
-    };
-
-    window.exportSingleQuizToAnki = (id) => {
-        if (!db[id] || !db[id].questions.length) return alert("Quiz empty!");
-        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([generateAnkiTSV(db[id].questions)], { type: 'text/plain' })); a.download = `Anki_Quiz_${db[id].title.replace(/[^a-z0-9]/gi, '_')}.txt`; a.click();
-    };
-
     window.setQuizMode = (mode) => {
         lobbyQuizMode = mode;
-        document.getElementById('btn-mode-full').className = `time-btn flex-1 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm ${mode === 'full' ? 'bg-amber-500/20 text-amber-400 border-amber-500' : 'bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-500'}`;
-        document.getElementById('btn-mode-wrong').className = `time-btn flex-1 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm ${mode === 'wrong' ? 'bg-amber-500/20 text-amber-400 border-amber-500' : 'bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-500'}`;
+        document.getElementById('btn-mode-full').className = `time-btn flex-1 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm ${mode === 'full' ? 'bg-emerald-100 text-emerald-800 border-emerald-500' : 'bg-white dark:bg-slate-800 border-transparent'}`;
+        document.getElementById('btn-mode-wrong').className = `time-btn flex-1 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm ${mode === 'wrong' ? 'bg-rose-100 text-rose-800 border-rose-500' : 'bg-white dark:bg-slate-800 border-transparent'}`;
     };
 
     function openLobby(id) {
         currentQuizId = id; const q = db[id];
         document.getElementById('lobby-title').textContent = q.title;
         document.getElementById('lobby-meta').textContent = `${q.questions.length} Questions`;
-        
         let prev = historyDb.filter(h => h.title === q.title); currentAttemptNum = prev.length + 1;
-        let lastScoreText = prev.length > 0 ? `Previous Score: ${prev[0].score} (${prev[0].accuracy}% ACC)` : "First Attempt";
-        document.getElementById('attempt-info').innerHTML = `<div class="text-xl font-black text-mamba-gold uppercase tracking-tight">Attempt #${currentAttemptNum}</div><div class="text-[11px] font-black uppercase tracking-widest text-slate-500 mt-1">${lastScoreText}</div>`;
+        let lastScore = prev.length > 0 ? `Prev Score: ${prev[0].score}` : "First Attempt";
+        document.getElementById('attempt-info').innerHTML = `<div class="text-xl font-black text-indigo-600 uppercase">Attempt #${currentAttemptNum}</div><div class="text-[10px] font-bold text-slate-400 uppercase mt-1">${lastScore}</div>`;
         
-        lobbyQuizMode = 'full';
-        let wrongQs = [];
-        if(prev.length > 0) {
-            let lastAttempt = prev[0]; 
-            if(lastAttempt.reviewData) {
-                wrongQs = lastAttempt.reviewData.filter(r => r.status === 'wrong' || r.status === 'skipped').map(r => r.question);
-            }
-        }
+        let wrongQs = prev.length > 0 && prev[0].reviewData ? prev[0].reviewData.filter(r => r.status === 'wrong').map(r => r.question) : [];
         window.currentQuizWrongQs = wrongQs;
-        if(prev.length > 0 && wrongQs.length > 0 && !q.title.includes("🎯") && !q.title.includes("SRS")) {
-            document.getElementById('lobby-mode-selection').classList.remove('hidden');
-            document.getElementById('wrong-count-badge').textContent = wrongQs.length;
-            setQuizMode('full');
-        } else {
-            document.getElementById('lobby-mode-selection').classList.add('hidden');
-        }
-
-        setLobbyTime('default'); showScreen('lobby');
+        document.getElementById('lobby-mode-selection').classList.toggle('hidden', wrongQs.length === 0 || id.includes('redemption'));
+        if(wrongQs.length > 0) document.getElementById('wrong-count-badge').textContent = wrongQs.length;
+        
+        setQuizMode('full'); setLobbyTime('default'); showScreen('lobby');
     }
 
+    // V22.0 SRS GENERATORS (Limited to 10 Questions for the Sprint)
     window.generateRedemptionQuiz = () => {
-        let dueQs = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now());
-        if(dueQs.length === 0) {
-            if(mistakesDb.length === 0) return alert("Mistakes Vault empty! Go take some mocks.");
-            return alert("🧠 You're completely caught up for today! No SRS reviews are due. Come back tomorrow.");
-        }
-        const shuffled = dueQs.sort(() => 0.5 - Math.random()).slice(0, 10); 
-        db['quiz_redemption'] = { title: "🔥 10-Q SRS Sprint", subject: "Mixed Revision", timeInMinutes: 10, questions: shuffled };
-        openLobby('quiz_redemption');
+        let due = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now());
+        if(due.length === 0) return alert("All caught up! No SRS reviews due.");
+        const sprint = due.sort(() => 0.5 - Math.random()).slice(0, 10);
+        db['redemption'] = { title: "🔥 10-Q SRS Sprint", subject: "Mixed", timeInMinutes: 10, questions: sprint };
+        openLobby('redemption');
     };
 
     window.generateSubjectRedemption = (sub) => {
-        let dueQs = mistakesDb.filter(m => m.subject === sub && m.srs && m.srs.nextReview <= Date.now());
-        if(dueQs.length === 0) return alert(`🧠 Caught up on ${sub}!`);
-        const shuffled = dueQs.sort(() => 0.5 - Math.random()).slice(0, 10);
-        db['quiz_redemption'] = { title: `🔥 ${sub} SRS Sprint`, subject: sub, timeInMinutes: 10, questions: shuffled };
-        openLobby('quiz_redemption');
+        let due = mistakesDb.filter(m => m.subject === sub && m.srs && m.srs.nextReview <= Date.now());
+        const sprint = due.sort(() => 0.5 - Math.random()).slice(0, 10);
+        db['redemption'] = { title: `🔥 ${sub} SRS Sprint`, subject: sub, timeInMinutes: 10, questions: sprint };
+        openLobby('redemption');
     };
 
-    window.generateSubjectMock = (subject) => {
-        let pool = [];
-        Object.values(db).forEach(q => { if(q.subject === subject && !q.title.includes("SRS") && !q.title.includes("Master") && !q.title.includes("🎯")) pool.push(...q.questions); });
-        if(pool.length === 0) return alert("Import quizzes into this subject first!");
-        const uniqueQs = Array.from(new Map(pool.map(q => [q.question, q])).values());
-        const shuffled = uniqueQs.sort(() => 0.5 - Math.random()).slice(0, 50);
-        db['quiz_subject_master'] = { title: `🔥 ${subject} Master Mock`, subject: subject, timeInMinutes: Math.ceil(shuffled.length * 1.5), questions: shuffled };
-        openLobby('quiz_subject_master');
-    };
-
-    window.setLobbyTime = (mode) => {
+    function setLobbyTime(mode) {
         lobbySettings.timeMode = mode;
-        document.querySelectorAll('.time-btn-main').forEach(btn => btn.className = 'time-btn-main flex-1 bg-slate-800 text-slate-300 border-slate-700 font-black uppercase text-xs tracking-widest py-4 rounded-xl border-2 transition-all hover:border-slate-500');
-        document.getElementById('btn-time-' + mode).className = 'time-btn-main flex-1 bg-amber-500/20 text-amber-400 border-amber-500 font-black uppercase text-xs tracking-widest py-4 rounded-xl border-2 transition-all shadow-md';
+        document.querySelectorAll('.time-btn-main').forEach(btn => btn.className = 'time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all');
+        document.getElementById('btn-time-' + mode).className = 'time-btn-main flex-1 bg-emerald-100 text-emerald-800 border-emerald-500 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-md';
+    }
+
+    window.toggleLobbyMode = (setting) => {
+        lobbySettings[setting] = !lobbySettings[setting];
+        const t = document.getElementById('toggle-' + setting);
+        if (lobbySettings[setting]) { t.classList.replace('bg-slate-300', 'bg-emerald-500'); t.classList.replace('dark:bg-slate-700', 'bg-emerald-500'); t.children[0].style.left = 'auto'; t.children[0].style.right = '2px'; } 
+        else { t.classList.replace('bg-emerald-500', 'bg-slate-300'); t.classList.replace('dark:bg-emerald-500', 'dark:bg-slate-700'); t.children[0].style.right = 'auto'; t.children[0].style.left = '2px'; }
+        if (setting === 'perQTimer') document.getElementById('per-q-time-input').classList.toggle('hidden', !lobbySettings[setting]);
     };
 
     function startQuizFromLobby() {
-        const quiz = db[currentQuizId];
+        const qz = db[currentQuizId];
         quizState = { answers: {}, marked: {}, revealed: {}, locked: {}, qTimeLeft: 0, submitted: false, interval: null, isPaused: false, currentFocus: -1 };
-        
-        let baseQuestions = quiz.questions;
-        if(lobbyQuizMode === 'wrong' && window.currentQuizWrongQs.length > 0) {
-            baseQuestions = quiz.questions.filter(q => window.currentQuizWrongQs.includes(q.question));
-        }
-
-        activeQuestions = baseQuestions.map((q, i) => ({...q, originalIndex: i}));
-        // ALWAYS SHUFFLE
-        activeQuestions.sort(() => Math.random() - 0.5);
-
+        let qs = lobbyQuizMode === 'wrong' ? qz.questions.filter(q => window.currentQuizWrongQs.includes(q.question)) : qz.questions;
+        activeQuestions = qs.map((q, i) => ({...q, originalIndex: i}));
+        if (lobbySettings.shuffle) activeQuestions.sort(() => 0.5 - Math.random());
         renderQuizView();
-        
-        let mins = lobbySettings.timeMode === 'default' ? quiz.timeInMinutes : parseInt(lobbySettings.timeMode);
-        if(!mins) mins = 10;
-        
-        if(lobbyQuizMode === 'wrong' && lobbySettings.timeMode === 'default') {
-            let scale = baseQuestions.length / quiz.questions.length;
-            mins = Math.max(1, Math.ceil(mins * scale)); 
-        }
-
-        document.getElementById('quiz-timer').textContent = formatTime(mins * 60);
-        
-        setFocus(0);
-        let totalSecs = mins * 60;
-        startTimer(totalSecs);
-        showScreen('quiz'); window.scrollTo(0,0);
+        let mins = lobbySettings.timeMode === 'default' ? (qz.timeInMinutes || 10) : parseInt(lobbySettings.timeMode);
+        startTimer(mins * 60); setFocus(0); showScreen('quiz');
     }
 
-    window.speakText = (text) => { window.speechSynthesis.cancel(); window.speechSynthesis.speak(new SpeechSynthesisUtterance(text.replace(/<[^>]*>?/gm, ' '))); };
-
-    window.togglePause = () => {
-        if(quizState.submitted) return;
-        quizState.isPaused = !quizState.isPaused;
-        if(quizState.isPaused) {
-            clearInterval(quizState.interval); document.getElementById('pause-overlay').classList.remove('hidden'); document.getElementById('pause-btn').textContent = "▶ Resume";
-        } else {
-            const timeParts = document.getElementById('quiz-timer').textContent.split(':');
-            let timeRemaining = (parseInt(timeParts[0], 10) * 60) + parseInt(timeParts[1], 10);
-            startTimer(timeRemaining);
-            document.getElementById('pause-overlay').classList.add('hidden'); document.getElementById('pause-btn').textContent = "⏸ Pause (P)";
-        }
-    };
-
-    function startTimer(totalSecs) {
+    function startTimer(secs) {
         clearInterval(quizState.interval);
-        let globalSecs = totalSecs;
         quizState.interval = setInterval(() => {
-            globalSecs--;
-            document.getElementById('quiz-timer').textContent = formatTime(globalSecs);
-            if (globalSecs <= 0) submitQuiz();
+            if(quizState.isPaused) return;
+            if(lobbySettings.perQTimer) {
+                if(quizState.qTimeLeft <= 0) { if(quizState.currentFocus >= activeQuestions.length-1) submitQuiz(); else setFocus(quizState.currentFocus+1); }
+                quizState.qTimeLeft--; document.getElementById('quiz-timer').textContent = formatTime(quizState.qTimeLeft);
+            } else {
+                if(secs <= 0) submitQuiz();
+                secs--; document.getElementById('quiz-timer').textContent = formatTime(secs);
+            }
         }, 1000);
     }
 
     function setFocus(idx) {
         quizState.currentFocus = idx;
-        document.querySelectorAll('.palette-btn').forEach(btn => btn.classList.remove('palette-active'));
+        if(lobbySettings.perQTimer) quizState.qTimeLeft = parseInt(document.getElementById('per-q-time-input').value) || 60;
+        document.querySelectorAll('.palette-btn').forEach(b => b.classList.remove('palette-active'));
         document.getElementById(`pal-${idx}`).classList.add('palette-active');
-        document.getElementById(`qcard-${idx}`).scrollIntoView({behavior: 'smooth', block: 'center'});
+        document.querySelectorAll('[id^="qcard-"]').forEach(c => c.classList.add('hidden'));
+        document.getElementById(`qcard-${idx}`).classList.remove('hidden');
     }
-
-    document.addEventListener('keydown', (e) => {
-        if(!document.getElementById('screen-quiz').classList.contains('hidden')) {
-            const k = e.key.toLowerCase();
-            if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-            if (k === 'p') togglePause();
-            if (quizState.isPaused || quizState.submitted) return;
-            if (k === 'arrowright' || k === 'arrowdown') { e.preventDefault(); setFocus(Math.min(quizState.currentFocus + 1, activeQuestions.length - 1)); }
-            if (k === 'arrowleft' || k === 'arrowup') { e.preventDefault(); setFocus(Math.max(quizState.currentFocus - 1, 0)); }
-            if (k === 'm') toggleMark(quizState.currentFocus);
-        }
-    });
 
     function renderQuizView() {
-        const container = document.getElementById('quiz-container'); const palette = document.getElementById('palette-grid');
-        container.innerHTML = ''; palette.innerHTML = '';
-
-        activeQuestions.forEach((q, qIndex) => {
-            const pBtn = document.createElement('button');
-            pBtn.id = `pal-${qIndex}`; pBtn.className = `palette-btn palette-unanswered shadow-sm`; pBtn.textContent = qIndex + 1;
-            pBtn.onclick = () => { setFocus(qIndex); }; 
-            palette.appendChild(pBtn);
-
-            let optsHTML = q.options.map((opt, oIndex) => `
-                <div id="opt-${qIndex}-${oIndex}" onclick="selectOption(${qIndex}, ${oIndex})" class="option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-slate-800 hover:border-mamba-gold bg-black text-slate-300 shadow-sm hover:shadow-md">
-                    <span class="min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-slate-800 text-slate-400 transition-colors">${String.fromCharCode(65+oIndex)}</span><span class="mt-0.5">${opt.text}</span>
-                </div>`).join('');
-                
-            let speechTxt = q.question + ". " + q.options.map((o,i) => `Option ${String.fromCharCode(65+i)}: ${o.text}. `).join('');
-
-            const card = document.createElement('div'); card.id = `qcard-${qIndex}`;
-            card.className = `bg-slate-900/80 p-6 sm:p-10 rounded-[2rem] border border-slate-800 shadow-xl backdrop-blur-sm`;
-            card.innerHTML = `
-                <div class="flex justify-between items-center mb-8 border-b border-slate-800 pb-4">
-                    <div class="flex items-center gap-4"><span class="text-xs font-black text-emerald-500 uppercase tracking-widest bg-emerald-900/20 px-4 py-1.5 rounded-lg border border-emerald-900">Question ${qIndex + 1}</span><button onclick="speakText('${speechTxt.replace(/'/g, "\\'")}')" class="text-xl hover:scale-110 transition-transform bg-slate-800 p-2 rounded-full" title="Read Aloud">🎧</button></div>
-                    <button onclick="toggleMark(${qIndex})" id="markBtn-${qIndex}" class="text-xs font-black text-slate-500 hover:text-purple-400 flex items-center gap-2 transition-colors uppercase px-4 py-1.5 bg-slate-800 rounded-lg"><span class="text-lg leading-none">📌</span> Mark (M)</button>
+        const cont = document.getElementById('quiz-container'); const pal = document.getElementById('palette-grid');
+        cont.innerHTML = ''; pal.innerHTML = '';
+        activeQuestions.forEach((q, i) => {
+            pal.innerHTML += `<button id="pal-${i}" onclick="setFocus(${i})" class="palette-btn palette-unanswered">${i+1}</button>`;
+            let opts = q.options.map((o,oi) => `<div onclick="selectOption(${i},${oi})" id="opt-${i}-${oi}" class="p-4 border-2 rounded-xl cursor-pointer mb-2 font-bold flex gap-3 transition-all border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800 text-sm"><span class="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[10px]">${String.fromCharCode(65+oi)}</span>${o.text}</div>`).join('');
+            cont.innerHTML += `<div id="qcard-${i}" class="hidden bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-xl border dark:border-slate-800">
+                <div class="flex justify-between items-center mb-6">
+                    <span class="text-[10px] font-black uppercase text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1 rounded-lg">Question ${i+1}</span>
+                    <button onclick="toggleMark(${i})" id="mark-${i}" class="text-[10px] font-black uppercase text-slate-400">📌 Mark</button>
                 </div>
-                <div class="text-xl sm:text-2xl font-bold text-white mb-8 leading-relaxed">${q.question}</div>
-                <div class="relative"><div id="opts-cont-${qIndex}" class="space-y-2 transition-all duration-300">${optsHTML}</div></div>
-            `;
-            container.appendChild(card);
+                <div class="text-xl font-bold mb-8 leading-relaxed">${q.question}</div>
+                <div class="space-y-2">${opts}</div>
+            </div>`;
         });
         updatePaletteAndCounts();
     }
 
-    window.selectOption = (qIdx, oIdx) => {
-        if (quizState.submitted || quizState.isPaused || quizState.locked[qIdx]) return;
-        quizState.answers[qIdx] = oIdx; 
-        
-        activeQuestions[qIdx].options.forEach((_, i) => {
-            const el = document.getElementById(`opt-${qIdx}-${i}`);
-            if (i === oIdx) {
-                el.className = 'option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-mamba-gold bg-mamba-gold/10 text-mamba-gold shadow-md transform scale-[1.01]';
-                el.children[0].className = 'min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-mamba-gold text-black shadow-inner';
-            } else {
-                el.className = 'option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-slate-800 hover:border-mamba-gold bg-black text-slate-300 shadow-sm';
-                el.children[0].className = 'min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-slate-800 text-slate-400';
-            }
+    window.selectOption = (qi, oi) => {
+        if(quizState.submitted) return;
+        quizState.answers[qi] = oi;
+        activeQuestions[qi].options.forEach((_, i) => {
+            const el = document.getElementById(`opt-${qi}-${i}`);
+            el.className = (i === oi) ? "p-4 border-2 rounded-xl cursor-pointer mb-2 font-bold flex gap-3 transition-all border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-sm" : "p-4 border-2 rounded-xl cursor-pointer mb-2 font-bold flex gap-3 transition-all border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800 text-sm";
         });
-        
-        setFocus(Math.min(qIdx + 1, activeQuestions.length - 1));
         updatePaletteAndCounts();
+        if(!lobbySettings.perQTimer) setFocus(Math.min(qi+1, activeQuestions.length-1));
     };
 
-    window.toggleMark = (qIdx) => {
-        if (quizState.submitted || quizState.isPaused || quizState.locked[qIdx]) return;
-        quizState.marked[qIdx] = !quizState.marked[qIdx]; setFocus(qIdx);
-        
-        const btn = document.getElementById(`markBtn-${qIdx}`);
-        if(quizState.marked[qIdx]) {
-            btn.className = "text-xs font-black text-purple-400 flex items-center gap-2 transition-colors uppercase bg-purple-900/30 px-4 py-1.5 rounded-lg border border-purple-800/50";
-        } else {
-            btn.className = "text-xs font-black text-slate-500 hover:text-purple-400 flex items-center gap-2 transition-colors uppercase px-4 py-1.5 bg-slate-800 rounded-lg";
-        }
+    window.toggleMark = (qi) => {
+        quizState.marked[qi] = !quizState.marked[qi];
+        document.getElementById(`mark-${qi}`).classList.toggle('text-purple-500', quizState.marked[qi]);
         updatePaletteAndCounts();
     };
 
     function updatePaletteAndCounts() {
-        let ansCount = 0;
         activeQuestions.forEach((_, i) => {
-            const answered = quizState.answers[i] !== undefined; const marked = quizState.marked[i];
-            document.getElementById(`pal-${i}`).className = 'palette-btn ' + (i===quizState.currentFocus?'palette-active ':'') + (answered && marked ? 'palette-answered-marked' : marked ? 'palette-marked' : answered ? 'palette-answered' : 'palette-unanswered');
-            if(answered) ansCount++;
+            const a = quizState.answers[i] !== undefined; const m = quizState.marked[i];
+            document.getElementById(`pal-${i}`).className = `palette-btn ${a && m ? 'palette-answered-marked' : m ? 'palette-marked' : a ? 'palette-answered' : 'palette-unanswered'}`;
         });
-        document.getElementById('answered-count').textContent = `${ansCount} / ${activeQuestions.length}`;
+        document.getElementById('answered-count').textContent = `${Object.keys(quizState.answers).length} / ${activeQuestions.length}`;
     }
 
-    window.filterReview = (type) => {
-        const colors = {
-            'all': 'bg-slate-700 shadow-sm text-white border border-slate-600',
-            'correct': 'bg-slate-700 shadow-sm text-emerald-400 border border-slate-600',
-            'wrong': 'bg-slate-700 shadow-sm text-red-400 border border-slate-600',
-            'skipped': 'bg-slate-700 shadow-sm text-slate-300 border border-slate-600'
-        };
-
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.className = `filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-800 border border-transparent`;
-        });
-        
-        const activeBtn = document.getElementById('btn-filt-' + type);
-        activeBtn.className = `filter-btn active-filt flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${colors[type]}`;
-
-        document.querySelectorAll('.review-card').forEach(card => {
-            if (type === 'all' || card.classList.contains('filter-' + type)) card.style.display = 'block';
-            else card.style.display = 'none';
-        });
-    };
-
+    // V22.0 SRS GRADING
     function submitQuiz() {
-        if (quizState.submitted) return;
-        quizState.submitted = true; clearInterval(quizState.interval); window.speechSynthesis.cancel();
-
-        let correct = 0, wrong = 0, skipped = 0, fullReviewHTML = '';
-        let historicalReviewData = [];
-        window.currentReviewQuestions = [];
-
+        quizState.submitted = true; clearInterval(quizState.interval);
+        let corr = 0, wrng = 0, skip = 0, html = '', historical = [];
         activeQuestions.forEach((q, i) => {
-            const sel = quizState.answers[i]; 
-            let isMistake = false; let status = ''; let uText = 'Skipped'; 
-            let cText = q.options.find(o=>o.correct)?.text || "N/A";
-            
-            if (sel === undefined) { skipped++; isMistake = true; status = 'skipped'; } 
-            else if (q.options[sel].correct) { correct++; status = 'correct'; uText = q.options[sel].text; } 
-            else { wrong++; isMistake = true; status = 'wrong'; uText = q.options[sel].text; }
+            const sel = quizState.answers[i]; let status = 'skipped', isMistake = true;
+            let cText = q.options.find(o=>o.correct).text, uText = 'Skipped';
+            if(sel !== undefined) {
+                uText = q.options[sel].text;
+                if(q.options[sel].correct) { corr++; status = 'correct'; isMistake = false; } else { wrng++; status = 'wrong'; }
+            } else skip++;
 
             let mistIdx = mistakesDb.findIndex(m => m.question === q.question);
-
-            if (currentQuizId === 'quiz_redemption') {
-                if (mistIdx !== -1) {
-                    let m = mistakesDb[mistIdx];
-                    if (!m.srs) m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() };
-
-                    if (isMistake) {
-                        m.srs.reps = 0;
-                        m.srs.ease = Math.max(1.3, m.srs.ease - 0.2); 
-                        m.srs.interval = 1;
-                    } else {
-                        m.srs.reps += 1;
-                        if (m.srs.reps === 1) m.srs.interval = 3;
-                        else if (m.srs.reps === 2) m.srs.interval = 7;
-                        else m.srs.interval = Math.round(m.srs.interval * m.srs.ease); 
-                    }
-
-                    m.srs.nextReview = Date.now() + (m.srs.interval * 24 * 60 * 60 * 1000);
-
-                    if (m.srs.interval >= 45) {
-                        mistakesDb.splice(mistIdx, 1);
-                        let mCount = parseInt(localStorage.getItem('megaQuizMasteredCount') || "0");
-                        localStorage.setItem('megaQuizMasteredCount', mCount + 1);
-                    } else {
-                        mistakesDb[mistIdx] = m;
-                    }
-                }
-            } else {
-                if (isMistake) {
-                    if (mistIdx === -1) {
-                        let newMistake = JSON.parse(JSON.stringify(q));
-                        newMistake.subject = db[currentQuizId].subject; 
-                        newMistake.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() }; 
-                        mistakesDb.push(newMistake);
-                    } else {
-                        mistakesDb[mistIdx].srs.reps = 0;
-                        mistakesDb[mistIdx].srs.interval = 1;
-                        mistakesDb[mistIdx].srs.ease = Math.max(1.3, mistakesDb[mistIdx].srs.ease - 0.2);
-                        mistakesDb[mistIdx].srs.nextReview = Date.now();
-                    }
+            if(currentQuizId === 'redemption') {
+                let m = mistakesDb[mistIdx];
+                if(status === 'correct') {
+                    m.srs.reps++;
+                    if(m.srs.reps === 1) m.srs.interval = 3; else if(m.srs.reps === 2) m.srs.interval = 7; else m.srs.interval = Math.round(m.srs.interval * m.srs.ease);
+                } else { m.srs.reps = 0; m.srs.interval = 1; m.srs.ease = Math.max(1.3, m.srs.ease - 0.2); }
+                m.srs.nextReview = Date.now() + (m.srs.interval * 24*60*60*1000);
+                if(m.srs.interval >= 45) { mistakesDb.splice(mistIdx, 1); localStorage.setItem('megaQuizMasteredCount', (parseInt(localStorage.getItem('megaQuizMasteredCount') || 0) + 1)); }
+            } else if(isMistake) {
+                if(mistIdx === -1) {
+                    let n = JSON.parse(JSON.stringify(q)); n.subject = db[currentQuizId].subject;
+                    n.srs = {reps:0, ease:2.5, interval:1, nextReview: Date.now() + 86400000};
+                    mistakesDb.push(n);
+                } else {
+                    mistakesDb[mistIdx].srs.reps = 0; mistakesDb[mistIdx].srs.interval = 1;
+                    mistakesDb[mistIdx].srs.nextReview = Date.now() + 86400000;
                 }
             }
-
-            let tags = q.tags || [];
-            if(tags.length === 0) {
-                const m = (q.solution || '').match(/#(\w+)/g);
-                if(m) m.forEach(t => tags.push(t.substring(1)));
-            }
-            if(tags.length === 0) tags.push("Miscellaneous");
-            
-            window.currentReviewQuestions.push(q);
-            fullReviewHTML += genDeepReviewCard(q, status, uText, cText, "", i);
-            historicalReviewData.push({ question: q.question, status: status, uText: uText, cText: cText, solution: q.solution, tags: [...new Set(tags)], formulaUsed: q.formulaUsed });
+            html += genDeepReviewCard(q, status, uText, cText, "", i);
+            historical.push({question:q.question, status, uText, cText, solution: q.solution, tags: q.tags, formulaUsed: q.formulaUsed});
         });
 
-        const score = (correct * 2) - (wrong * 0.66);
-        document.getElementById('res-score').textContent = score.toFixed(2); document.getElementById('res-correct').textContent = correct;
-        document.getElementById('res-wrong').textContent = wrong; document.getElementById('res-skipped').textContent = skipped;
-        document.getElementById('revision-container').innerHTML = fullReviewHTML;
+        const score = (corr*2) - (wrng*0.66);
+        document.getElementById('res-score').textContent = score.toFixed(2);
+        document.getElementById('res-correct').textContent = corr;
+        document.getElementById('res-wrong').textContent = wrng;
+        document.getElementById('res-skipped').textContent = skip;
+        document.getElementById('revision-container').innerHTML = html;
+        window.currentReviewQuestions = activeQuestions;
 
-        const candName = "Yogesh";
-        let displayTitle = db[currentQuizId] ? db[currentQuizId].title : "Custom Test";
-        if(lobbyQuizMode === 'wrong') { displayTitle += " (Revision Run)"; }
-
-        document.getElementById('results-title').textContent = `${candName}'s Report - Attempt #${currentAttemptNum}`;
-
-        if(currentQuizId !== 'quiz_redemption' && !displayTitle.includes("🎯")) {
-            historyDb.unshift({ 
-                date: new Date().toLocaleDateString(), title: displayTitle, subject: db[currentQuizId] ? db[currentQuizId].subject : "Mixed", 
-                score: parseFloat(score.toFixed(2)), accuracy: Math.round((correct / activeQuestions.length) * 100) || 0,
-                candidateName: candName, attemptNumber: currentAttemptNum, totalCorrect: correct, totalWrong: wrong, totalSkipped: skipped, reviewData: historicalReviewData
-            });
+        if(currentQuizId !== 'redemption') {
+            historyDb.unshift({date: new Date().toLocaleDateString(), title: db[currentQuizId].title, subject: db[currentQuizId].subject, score, accuracy: Math.round((corr/activeQuestions.length)*100), reviewData: historical});
         }
-        
-        saveData(); showScreen('results'); window.scrollTo(0,0);
-        filterReview('all'); 
+        saveData(); showScreen('results');
     }
 
-    function genDeepReviewCard(q, status, uText, cText, term = "", index = 0) { 
-        const styles = {
-            'correct': { border: 'bg-emerald-500', badge: 'text-emerald-400 bg-emerald-900/30 border-emerald-800/50', box: 'border-emerald-800' },
-            'wrong': { border: 'bg-red-500', badge: 'text-red-400 bg-red-900/30 border-red-800/50', box: 'border-red-800' },
-            'skipped': { border: 'bg-slate-500', badge: 'text-slate-300 bg-slate-800 border-slate-700', box: 'border-slate-700' }
-        };
-        const s = styles[status];
-
-        return `<div class="review-card filter-${status} bg-black rounded-[2rem] p-6 md:p-8 border border-slate-800 relative overflow-hidden shadow-lg hover:border-slate-700 transition-shadow">
-            <div class="absolute top-0 left-0 w-1.5 h-full ${s.border}"></div>
-            <div class="flex justify-between items-center mb-6">
-                <span class="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-md border ${s.badge}">${status}</span>
-                <button onclick="openEditModal(${index})" class="bg-amber-900/20 text-amber-500 px-3 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-widest border border-amber-800/50 hover:bg-amber-900/40 transition-colors">✏️ Edit</button>
+    function genDeepReviewCard(q, status, uText, cText, term, index) {
+        const colors = { correct: 'bg-emerald-400', wrong: 'bg-red-400', skipped: 'bg-slate-400' };
+        return `<div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden shadow-md">
+            <div class="absolute top-0 left-0 w-1.5 h-full ${colors[status]}"></div>
+            <div class="flex justify-between items-center mb-4">
+                <span class="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded border border-slate-100 dark:border-slate-800">${status}</span>
+                <button onclick="openEditModal(${index})" class="text-[10px] font-black uppercase text-amber-500">✏️ Fix DB</button>
             </div>
-            <div class="font-bold text-white mb-8 text-lg md:text-xl leading-relaxed">${highlightText(q.question, term)}</div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div class="bg-slate-900/50 p-5 rounded-xl border ${s.box} shadow-inner">
-                    <div class="text-[10px] font-black uppercase tracking-widest mb-2 ${s.badge.split(' ')[0]}">You Selected</div>
-                    <div class="text-sm font-bold text-slate-300">${highlightText(uText, term)}</div>
-                </div>
-                <div class="bg-emerald-900/10 p-5 rounded-xl border border-emerald-800/50 shadow-inner">
-                    <div class="text-[10px] font-black tracking-widest text-emerald-500 uppercase mb-2">Correct Answer</div>
-                    <div class="text-sm font-bold text-slate-300">${highlightText(cText, term)}</div>
-                </div>
+            <div class="font-bold text-lg mb-6 leading-relaxed">${q.question}</div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm font-bold">
+                <div class="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">You: ${uText}</div>
+                <div class="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800/50">Correct: ${cText}</div>
             </div>
-            <div class="bg-slate-900 p-5 md:p-6 rounded-xl text-sm text-slate-400 border border-slate-800 shadow-inner">
-                <span class="font-black text-slate-200 block mb-3 uppercase tracking-widest text-[10px]">📖 Detailed Solution:</span>
-                <div class="leading-relaxed font-medium">${highlightText(q.solution || 'No detailed solution provided.', term)}</div>
-            </div>
-        </div>`; 
+            <div class="mt-6 p-5 bg-slate-50 dark:bg-slate-800 rounded-xl text-sm italic opacity-80 border dark:border-slate-700">${q.solution}</div>
+        </div>`;
     }
 
-    window.openHistoryReview = (index) => {
-        closeQuizHistory(); closeAnalytics();   
-        const attempt = historyDb[index];
-        if (!attempt.reviewData) return alert("This test is from an older version of the Hub and does not have Deep Review data saved.");
-        
-        document.getElementById('results-title').textContent = `${attempt.candidateName || 'Yogesh'}'s Report - Attempt #${attempt.attemptNumber || 1}`;
-        document.getElementById('res-score').textContent = attempt.score;
-        document.getElementById('res-correct').textContent = attempt.totalCorrect || 0;
-        document.getElementById('res-wrong').textContent = attempt.totalWrong || 0;
-        document.getElementById('res-skipped').textContent = attempt.totalSkipped || 0;
-
-        window.currentReviewQuestions = [];
-        let fullReviewHTML = '';
-        
-        attempt.reviewData.forEach((data, i) => { 
-            let qObj = { question: data.question, solution: data.solution, tags: data.tags, formulaUsed: data.formulaUsed };
-            let foundInDb = false;
-            for(let qid in db) {
-                let actualQ = db[qid].questions.find(qx => qx.question === data.question);
-                if(actualQ) { qObj = JSON.parse(JSON.stringify(actualQ)); foundInDb = true; break; }
-            }
-            if(!foundInDb) {
-                qObj.options = [{text: data.cText, correct: true}, {text: "Option B", correct: false}, {text: "Option C", correct: false}, {text: "Option D", correct: false}];
-            }
-            window.currentReviewQuestions.push(qObj);
-            fullReviewHTML += genDeepReviewCard(qObj, data.status, data.uText, data.cText, "", i); 
-        });
-
-        document.getElementById('revision-container').innerHTML = fullReviewHTML;
-        showScreen('results'); window.scrollTo(0,0);
-        filterReview('all'); 
-    };
-
-    let currentlyEditingRef = null;
-    window.openEditModal = (reviewIndex) => {
-        let qObj = window.currentReviewQuestions[reviewIndex];
-        if(!qObj) return;
-        
-        let found = null;
-        for(let qid in db) {
-            let idx = db[qid].questions.findIndex(qx => qx.question === qObj.question);
-            if(idx !== -1) { found = { qid, idx, ref: db[qid].questions[idx] }; break; }
-        }
-        
-        if(!found) return alert("This question no longer exists in the active Vault. It may belong to a deleted quiz.");
-        
-        currentlyEditingRef = found;
-        document.getElementById('edit-q-text').value = found.ref.question;
-        found.ref.options.forEach((opt, i) => {
-            document.getElementById('edit-opt-'+i).value = opt.text;
-            document.getElementById('edit-corr-'+i).checked = opt.correct;
-        });
-        document.getElementById('edit-solution').value = found.ref.solution || "";
-        document.getElementById('edit-tags').value = (found.ref.tags || []).join(", ");
-        document.getElementById('edit-formula').value = found.ref.formulaUsed || "";
-        
-        document.getElementById('screen-edit-modal').classList.remove('hidden');
-    };
-
-    window.closeEditModal = () => document.getElementById('screen-edit-modal').classList.add('hidden');
-
-    window.saveEdit = () => {
-        if(!currentlyEditingRef) return;
-        
-        let target = currentlyEditingRef.ref;
-        let oldQuestionText = target.question;
-        
-        target.question = document.getElementById('edit-q-text').value;
-        target.options.forEach((opt, i) => {
-            opt.text = document.getElementById('edit-opt-'+i).value;
-            opt.correct = document.getElementById('edit-corr-'+i).checked;
-        });
-        target.solution = document.getElementById('edit-solution').value;
-        let tagStr = document.getElementById('edit-tags').value;
-        target.tags = tagStr.split(',').map(s=>s.trim()).filter(s=>s);
-        target.formulaUsed = document.getElementById('edit-formula').value;
-
-        let mistIdx = mistakesDb.findIndex(m => m.question === oldQuestionText);
-        if(mistIdx !== -1) {
-            let existingSRS = mistakesDb[mistIdx].srs;
-            mistakesDb[mistIdx] = JSON.parse(JSON.stringify(target));
-            mistakesDb[mistIdx].srs = existingSRS;
-        }
-
-        saveData();
-        alert("✅ Question successfully updated in the Master Database!");
-        closeEditModal();
-    };
-
-    window.openTargetedHistory = (quizId) => {
-        const quizTitle = db[quizId].title;
-        document.getElementById('quiz-history-title').textContent = `${quizTitle} - History`;
-        const list = document.getElementById('quiz-history-list'); list.innerHTML = '';
-        
-        let found = false;
-        historyDb.forEach((h, index) => {
-            if (h.title === quizTitle || h.title.includes(quizTitle)) {
-                found = true;
-                const attText = h.attemptNumber ? `ATTEMPT #${h.attemptNumber}` : `ATTEMPT #1`;
-                const nameText = h.candidateName ? h.candidateName : "Yogesh";
-                const reviewBtn = h.reviewData ? `<button onclick="openHistoryReview(${index})" class="mt-4 w-full bg-slate-800 hover:bg-slate-700 text-mamba-gold font-black text-[10px] uppercase tracking-widest py-3 rounded-xl transition-colors border border-slate-700">🔍 View Full Report</button>` : `<div class="mt-4 w-full bg-black text-slate-500 font-bold text-[10px] uppercase tracking-widest py-3 rounded-xl text-center border border-slate-800">No Deep Data</div>`;
-
-                list.innerHTML += `<div class="bg-black p-6 rounded-2xl flex flex-col border border-slate-800 shadow-sm">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <div class="text-[10px] font-bold text-amber-500 bg-amber-900/20 border border-amber-800/30 uppercase tracking-widest inline-block px-3 py-1 rounded-md">${nameText} • ${attText}</div>
-                            <div class="text-sm font-bold text-slate-400 mt-3">${h.date}</div>
-                        </div>
-                        <div class="text-right">
-                            <div class="text-4xl font-black text-emerald-400 leading-none tracking-tighter">${h.score}</div>
-                            <div class="text-[10px] uppercase font-black text-slate-500 mt-2 tracking-widest">${h.accuracy}% ACC</div>
-                        </div>
-                    </div>
-                    ${reviewBtn}
-                </div>`;
-            }
-        });
-
-        if (!found) list.innerHTML = `<div class="text-center text-slate-500 font-bold py-10 border-2 border-dashed border-slate-800 rounded-2xl uppercase tracking-widest text-[10px]">No History Found</div>`;
-        document.getElementById('screen-quiz-history').classList.remove('hidden');
-    };
-
-    window.closeQuizHistory = () => document.getElementById('screen-quiz-history').classList.add('hidden');
-
-    window.showAnalytics = () => {
-        document.getElementById('screen-analytics').classList.remove('hidden');
-        document.getElementById('screen-formula-vault').classList.add('hidden');
-        document.getElementById('screen-subject-analysis').classList.add('hidden');
-        
-        let historyHTML = `
-            <div class="space-y-4 mt-4">
-                ${historyDb.map((h, index) => {
-                    const attText = h.attemptNumber ? `ATTEMPT #${h.attemptNumber}` : `ATTEMPT #1`;
-                    const nameText = h.candidateName ? h.candidateName : "Yogesh";
-                    const reviewBtn = h.reviewData ? `<button onclick="openHistoryReview(${index})" class="mt-4 w-full bg-slate-800 hover:bg-slate-700 text-mamba-gold font-black text-[10px] uppercase tracking-widest py-3 rounded-xl transition-colors border border-slate-700">🔍 View Full Report</button>` : '';
-
-                    return `<div class="bg-black p-6 rounded-2xl flex flex-col border border-slate-800 shadow-sm hover:border-slate-700 transition-colors">
-                        <div class="flex justify-between items-start w-full">
-                            <div>
-                                <div class="font-black text-white text-lg tracking-tight">${h.title}</div>
-                                <div class="text-[10px] font-bold text-amber-500 uppercase tracking-widest mt-3 bg-amber-900/20 border border-amber-800/30 inline-block px-3 py-1 rounded-md">${nameText} • ${attText}</div>
-                                <div class="text-xs font-bold text-slate-500 mt-3 tracking-wide">${h.subject} • ${h.date}</div>
-                            </div>
-                            <div class="text-right">
-                                <div class="text-4xl font-black text-emerald-400 tracking-tighter leading-none">${h.score}</div>
-                                <div class="text-[10px] uppercase font-black text-slate-500 tracking-widest mt-2">${h.accuracy}% ACC</div>
-                            </div>
-                        </div>
-                        ${reviewBtn}
-                    </div>`;
-                }).join('') || '<div class="text-slate-500 text-center text-sm py-4 italic">No test history found. Go dominate a mock!</div>'}
-            </div>
-        `;
-
-        document.getElementById('mastery-grid').innerHTML = historyHTML;
-    };
-    
-    window.closeAnalytics = () => document.getElementById('screen-analytics').classList.add('hidden');
-
-    window.showSubjectAnalysis = (subject) => {
-        document.getElementById('screen-analytics').classList.add('hidden');
-        document.getElementById('screen-quiz-history').classList.add('hidden');
-        document.getElementById('screen-formula-vault').classList.add('hidden');
-        document.getElementById('screen-subject-analysis').classList.remove('hidden');
-
-        document.getElementById('subject-analysis-title').textContent = `${subject} Analysis`;
-
-        let isMixedSubject = subject.includes("MOCK") || subject === "Mixed" || subject === "Miscellaneous";
-        let topicsStats = {}; 
-        historyDb.filter(h => h.subject === subject).forEach(h => {
-            if(h.reviewData) {
-                h.reviewData.forEach(rd => {
-                    let primaryTag = rd.tags && rd.tags.length > 0 ? rd.tags[0] : "General";
-                    let secondaryTag = rd.tags && rd.tags.length > 1 ? rd.tags[1] : primaryTag;
-                    if (!rd.tags || rd.tags.length === 0) { primaryTag = "Miscellaneous"; secondaryTag = "Miscellaneous"; }
-                    
-                    let topicName;
-                    if(isMixedSubject) {
-                        topicName = `${primaryTag} : ${secondaryTag}`;
-                    } else {
-                        if (primaryTag.toUpperCase() === subject.toUpperCase() && rd.tags.length > 1) {
-                            topicName = secondaryTag;
-                        } else {
-                            topicName = primaryTag;
-                        }
-                    }
-                    
-                    if(!topicsStats[topicName]) topicsStats[topicName] = { correct: 0, wrong: 0, skipped: 0, total: 0 };
-                    
-                    topicsStats[topicName].total++;
-                    if(rd.status === 'correct') topicsStats[topicName].correct++;
-                    else if(rd.status === 'wrong') topicsStats[topicName].wrong++;
-                    else if(rd.status === 'skipped') topicsStats[topicName].skipped++;
-                });
-            }
-        });
-
-        let html = '';
-        let sortedTopics = Object.keys(topicsStats).sort((a,b) => topicsStats[b].total - topicsStats[a].total);
-
-        if(sortedTopics.length === 0) {
-            html = `<div class="text-center text-slate-500 font-bold py-10 border-2 border-dashed border-slate-800 rounded-2xl uppercase tracking-widest text-[10px]">No data available. Take some quizzes first!</div>`;
-        } else {
-            sortedTopics.forEach(t => {
-                let stat = topicsStats[t];
-                let acc = Math.round((stat.correct / stat.total) * 100);
-                let barColor = acc >= 80 ? 'bg-emerald-500' : acc >= 50 ? 'bg-amber-500' : 'bg-red-500';
-                
-                html += `
-                <div class="mb-4 p-5 bg-black rounded-xl border border-slate-800 shadow-sm">
-                    <div class="flex justify-between items-end mb-3">
-                        <div class="font-black text-white text-sm uppercase tracking-wide">${t}</div>
-                        <div class="text-[10px] font-black text-slate-400 bg-slate-900 px-3 py-1 rounded border border-slate-700">${stat.correct} / ${stat.total} Correct (${acc}%)</div>
-                    </div>
-                    <div class="w-full bg-slate-800 rounded-full h-2 mb-4 overflow-hidden">
-                        <div class="${barColor} h-2 rounded-full" style="width: ${acc}%"></div>
-                    </div>
-                    <div class="flex gap-6 text-[10px] font-black uppercase tracking-widest bg-slate-900 p-2.5 rounded-lg border border-slate-800 justify-center">
-                        <span class="text-emerald-400">✅ Correct: ${stat.correct}</span>
-                        <span class="text-red-400">❌ Wrong: ${stat.wrong}</span>
-                        <span class="text-slate-500">⏭️ Skipped: ${stat.skipped}</span>
-                    </div>
-                </div>`;
-            });
-        }
-        document.getElementById('subject-analysis-grid').innerHTML = html;
-    };
-
-    window.closeSubjectAnalysis = () => document.getElementById('screen-subject-analysis').classList.add('hidden');
-
-    window.switchVaultTab = (tab) => {
-        if(tab === 'quant') {
-            document.getElementById('vault-quant-content').classList.remove('hidden');
-            document.getElementById('vault-gs-content').classList.add('hidden');
-            document.getElementById('tab-quant').className = "flex-1 bg-amber-500/20 text-amber-400 border border-amber-500 font-black uppercase text-xs tracking-widest py-3 rounded-xl transition-all shadow-sm";
-            document.getElementById('tab-gs').className = "flex-1 bg-slate-800 text-slate-400 font-black uppercase text-xs tracking-widest py-3 rounded-xl border border-slate-700 hover:border-slate-500 transition-all shadow-sm";
-        } else {
-            document.getElementById('vault-gs-content').classList.remove('hidden');
-            document.getElementById('vault-quant-content').classList.add('hidden');
-            document.getElementById('tab-gs').className = "flex-1 bg-amber-500/20 text-amber-400 border border-amber-500 font-black uppercase text-xs tracking-widest py-3 rounded-xl transition-all shadow-sm";
-            document.getElementById('tab-quant').className = "flex-1 bg-slate-800 text-slate-400 font-black uppercase text-xs tracking-widest py-3 rounded-xl border border-slate-700 hover:border-slate-500 transition-all shadow-sm";
-        }
-    };
-
-    // V23.0 ANKI FLASHCARD ENGINE
+    // FLASHCARD ENGINE V22.0
     window.showFormulaVault = () => {
-        document.getElementById('screen-analytics').classList.add('hidden');
-        document.getElementById('screen-quiz-history').classList.add('hidden');
-        document.getElementById('screen-subject-analysis').classList.add('hidden');
-        document.getElementById('screen-formula-vault').classList.remove('hidden');
-        document.getElementById('flashcard-menu').classList.remove('hidden');
+        showScreen('formula-vault'); document.getElementById('flashcard-menu').classList.remove('hidden');
         document.getElementById('flashcard-player').classList.add('hidden');
         document.getElementById('flashcard-done').classList.add('hidden');
         
-        fcQuantQueue = [];
-        fcGsQueue = [];
-        
-        let now = Date.now();
-        
+        let qCount = 0, gCount = 0;
         Object.values(db).forEach(quiz => {
-            if (!quiz.title.includes("🎯")) {
-                let isMath = SUBJECT_CATEGORIES[quiz.subject] === "Maths" || quiz.subject.toLowerCase().includes("quant");
+            quiz.questions.forEach(q => { if(q.formulaUsed) { if(SUBJECT_CATEGORIES[quiz.subject] === 'Maths') qCount++; else gCount++; } });
+        });
+        document.getElementById('fc-quant-count').textContent = `${qCount} Deck Items`;
+        document.getElementById('fc-gs-count').textContent = `${gCount} Deck Items`;
+    };
+
+    window.launchFlashcards = (type) => {
+        fcQueue = [];
+        Object.values(db).forEach(quiz => {
+            let isMath = SUBJECT_CATEGORIES[quiz.subject] === 'Maths';
+            if((type === 'quant' && isMath) || (type === 'gs' && !isMath)) {
                 quiz.questions.forEach(q => {
                     if(q.formulaUsed) {
-                        let frontText = "";
-                        let backText = "";
-                        let cleanFormula = q.formulaUsed.trim();
-                        let fId = btoa(cleanFormula); // Simple hash for tracking
-                        
-                        if(cleanFormula.includes(":")) {
-                            let parts = cleanFormula.split(/:(.+)/);
-                            frontText = `🚨 COGNITIVE THREAT DETECTED 🚨<br><br>Visualize the exact mathematical bridge for:<br><span class='text-3xl ${isMath?'text-amber-500':'text-emerald-500'} mt-4 block leading-tight'>${parts[0].trim()}</span>`;
-                            backText = parts[1].trim();
-                        } else {
-                            frontText = `🧠 ACTIVE RECALL PROTOCOL 🧠<br><br>Your brain has 5 seconds to lock in the exact details for:<br><span class='text-3xl text-white mt-4 block leading-tight'>${cleanFormula}</span>`;
-                            backText = `<b>Context MCQ:</b><br><i class="text-slate-400">"${q.question}"</i>`;
-                        }
-
-                        let card = { id: fId, q: frontText, a: backText, ctx: "" };
-                        
-                        // Check SRS Status
-                        if(!fcDb[fId]) fcDb[fId] = { reps: 0, ease: 2.5, interval: 0, nextReview: now - 10000 };
-                        
-                        if(fcDb[fId].nextReview <= now) {
-                            if(isMath) {
-                                if(!fcQuantQueue.some(item => item.a === backText)) fcQuantQueue.push(card);
-                            } else {
-                                if(!fcGsQueue.some(item => item.a === backText)) fcGsQueue.push(card);
-                            }
-                        }
+                        fcQueue.push({
+                            q: q.formulaUsed.includes(':') ? `🧠 Crack the logic behind:<br><span class="text-3xl mt-4 block text-indigo-500">${q.formulaUsed.split(':')[0]}</span>` : `🧠 Recite the rule for:<br><span class="text-2xl mt-4 block text-indigo-400">${q.formulaUsed}</span>`,
+                            a: q.formulaUsed.includes(':') ? q.formulaUsed.split(':')[1] : `Based on Context:<br><br><i>"${q.question}"</i>`,
+                            ref: q
+                        });
                     }
                 });
             }
         });
-
-        // Add Master Formulas
-        Object.keys(MASTER_FORMULAS).forEach(topic => {
-            let matches = [...MASTER_FORMULAS[topic].matchAll(/<span class='formula-title'>(.*?)<\/span>(.*?)<\/div>/g)];
-            matches.forEach(m => {
-                let fId = btoa(m[1].trim() + topic);
-                if(!fcDb[fId]) fcDb[fId] = { reps: 0, ease: 2.5, interval: 0, nextReview: now - 10000 };
-                
-                if(fcDb[fId].nextReview <= now) {
-                    fcQuantQueue.push({
-                        id: fId,
-                        q: `⚡ MASTER CONCEPT ⚡<br><br>What is the definitive formula/rule for:<br><span class='text-4xl text-mamba-gold mt-4 block leading-tight'>${m[1].trim()}</span><span class='text-[10px] text-slate-500 mt-6 block uppercase tracking-widest'>[${topic}]</span>`,
-                        a: m[2].trim(),
-                        ctx: ""
-                    });
-                }
-            });
-        });
-
-        document.getElementById('fc-quant-count').textContent = `${fcQuantQueue.length} Due`;
-        document.getElementById('fc-gs-count').textContent = `${fcGsQueue.length} Due`;
-        updateMascot(); // Refresh mascot state
-    };
-
-    window.closeFormulaVault = () => document.getElementById('screen-formula-vault').classList.add('hidden');
-
-    window.launchFlashcards = (type) => {
+        if(fcQueue.length === 0) return alert("Deck is empty! Add more mocks first.");
+        fcQueue.sort(() => 0.5 - Math.random());
+        fcCurrentIndex = 0; renderFlashcard();
         document.getElementById('flashcard-menu').classList.add('hidden');
         document.getElementById('flashcard-player').classList.remove('hidden');
-        
-        fcCurrentQueue = type === 'quant' ? [...fcQuantQueue] : [...fcGsQueue];
-        fcCurrentQueue.sort(() => Math.random() - 0.5); 
-        
-        if(fcCurrentQueue.length === 0) {
-            alert("No flashcards due in this category! You are caught up.");
-            exitFlashcards();
-            return;
-        }
-
-        fcCurrentIndex = 0;
-        renderFlashcard();
     };
 
     function renderFlashcard() {
-        if(fcCurrentIndex >= fcCurrentQueue.length) {
-            document.getElementById('flashcard-player').classList.add('hidden');
-            document.getElementById('flashcard-done').classList.remove('hidden');
-            saveData(); // Save SRS progress
-            return;
-        }
-
-        fcIsFlipped = false;
-        let card = fcCurrentQueue[fcCurrentIndex];
-        document.getElementById('fc-progress').textContent = `${fcCurrentIndex + 1} / ${fcCurrentQueue.length}`;
-        
-        const inner = document.getElementById('fc-card-inner');
-        inner.classList.remove('rotate-y-180');
-        
-        document.getElementById('fc-front-text').innerHTML = card.q;
-        document.getElementById('fc-back-text').innerHTML = `<span class='text-[10px] font-black uppercase tracking-widest text-mamba-gold mb-6 block border border-amber-900 bg-amber-900/20 px-4 py-1.5 rounded-full inline-block'>Concept Revealed</span><br>` + card.a;
-        
-        if(card.ctx) {
-            document.getElementById('fc-context-text').classList.remove('hidden');
-            document.getElementById('fc-context-text').innerHTML = card.ctx;
-        } else {
-            document.getElementById('fc-context-text').classList.add('hidden');
-        }
+        if(fcCurrentIndex >= fcQueue.length) { document.getElementById('flashcard-player').classList.add('hidden'); document.getElementById('flashcard-done').classList.remove('hidden'); return; }
+        fcIsFlipped = false; document.getElementById('fc-card-inner').classList.remove('rotate-y-180');
+        document.getElementById('fc-progress').textContent = `${fcCurrentIndex+1} / ${fcQueue.length}`;
+        document.getElementById('fc-front-text').innerHTML = fcQueue[fcCurrentIndex].q;
+        document.getElementById('fc-back-text').innerHTML = fcQueue[fcCurrentIndex].a;
     }
 
-    window.flipFlashcard = () => {
-        if(fcIsFlipped) return; 
-        fcIsFlipped = true;
-        document.getElementById('fc-card-inner').classList.add('rotate-y-180');
+    window.flipFlashcard = () => { if(!fcIsFlipped) { fcIsFlipped = true; document.getElementById('fc-card-inner').classList.add('rotate-y-180'); } };
+
+    window.gradeFlashcard = (e, score) => {
+        e.stopPropagation();
+        let q = fcQueue[fcCurrentIndex].ref;
+        let mIdx = mistakesDb.findIndex(m => m.question === q.question);
+        if(mIdx === -1) {
+            let n = JSON.parse(JSON.stringify(q)); n.srs = {reps:0, ease:2.5, interval:1, nextReview: Date.now()};
+            mistakesDb.push(n); mIdx = mistakesDb.length-1;
+        }
+        let m = mistakesDb[mIdx];
+        if(score === 0) { m.srs.reps = 0; m.srs.interval = 1; m.srs.ease = Math.max(1.3, m.srs.ease - 0.2); }
+        else if(score === 1) { m.srs.interval = 1; }
+        else if(score === 2) { m.srs.reps++; m.srs.interval = m.srs.reps === 1 ? 3 : (m.srs.reps === 2 ? 7 : Math.round(m.srs.interval * m.srs.ease)); }
+        else if(score === 3) { m.srs.interval = Math.round(m.srs.interval * (m.srs.ease + 0.2)); m.srs.reps++; }
+        m.srs.nextReview = Date.now() + (m.srs.interval * 86400000);
+        fcCurrentIndex++; renderFlashcard();
     };
 
-    // V23.0 ANKI GRADING LOGIC
-    window.gradeFlashcard = (grade) => {
-        let card = fcCurrentQueue[fcCurrentIndex];
-        let fId = card.id;
-        if(!fcDb[fId]) fcDb[fId] = { reps: 0, ease: 2.5, interval: 0, nextReview: 0 };
+    window.exitFlashcards = () => { showScreen('dashboard'); saveData(); };
+    window.closeFormulaVault = () => showScreen('dashboard');
 
-        let stat = fcDb[fId];
-
-        if(grade === 0) { // Again
-            stat.reps = 0; stat.interval = 0; stat.ease = Math.max(1.3, stat.ease - 0.2);
-            stat.nextReview = Date.now() + 60000; // Due in 1 min (effectively next session)
-        } else if(grade === 1) { // Hard
-            stat.reps = Math.max(1, stat.reps); stat.interval = 1; stat.ease = Math.max(1.3, stat.ease - 0.15);
-            stat.nextReview = Date.now() + 86400000; // 1 day
-        } else if(grade === 2) { // Good
-            stat.reps++;
-            if(stat.reps === 1) stat.interval = 3;
-            else if(stat.reps === 2) stat.interval = 7;
-            else stat.interval = Math.round(stat.interval * stat.ease);
-            stat.nextReview = Date.now() + (stat.interval * 86400000);
-        } else if(grade === 3) { // Easy
-            stat.reps++;
-            stat.ease += 0.15;
-            if(stat.reps === 1) stat.interval = 7;
-            else stat.interval = Math.round(stat.interval * stat.ease * 1.3);
-            stat.nextReview = Date.now() + (stat.interval * 86400000);
-        }
-
-        // Fast UI transition
-        document.getElementById('fc-card-inner').classList.remove('rotate-y-180');
-        fcIsFlipped = false;
-        setTimeout(() => {
-            fcCurrentIndex++;
-            renderFlashcard();
-        }, 150);
+    window.openEditModal = (idx) => {
+        let q = window.currentReviewQuestions[idx];
+        document.getElementById('edit-q-text').value = q.question;
+        q.options.forEach((o, i) => { document.getElementById('edit-opt-'+i).value = o.text; document.getElementById('edit-corr-'+i).checked = o.correct; });
+        document.getElementById('edit-solution').value = q.solution;
+        document.getElementById('edit-formula').value = q.formulaUsed || "";
+        window.currentlyEditing = q;
+        document.getElementById('screen-edit-modal').classList.remove('hidden');
     };
 
-    window.exitFlashcards = () => {
-        document.getElementById('flashcard-player').classList.add('hidden');
-        document.getElementById('flashcard-done').classList.add('hidden');
-        document.getElementById('flashcard-menu').classList.remove('hidden');
-        showFormulaVault(); // Refresh counts
+    window.saveEdit = () => {
+        let q = window.currentlyEditing;
+        q.question = document.getElementById('edit-q-text').value;
+        q.options.forEach((o, i) => { o.text = document.getElementById('edit-opt-'+i).value; o.correct = document.getElementById('edit-corr-'+i).checked; });
+        q.solution = document.getElementById('edit-solution').value;
+        q.formulaUsed = document.getElementById('edit-formula').value;
+        saveData(); document.getElementById('screen-edit-modal').classList.add('hidden'); alert("Fixed in Vault.");
     };
 
-    function showScreen(s) { 
-        ['dashboard','lobby','quiz','results'].forEach(x => document.getElementById('screen-'+x).classList.add('hidden')); 
-        document.getElementById('screen-'+s).classList.remove('hidden'); 
-        if(s !== 'dashboard') {
-            document.getElementById('omni-search').value = '';
-            document.getElementById('search-results-container').classList.add('hidden');
-            document.getElementById('dashboard-main-content').classList.remove('hidden');
-        }
-        document.getElementById('screen-formula-vault').classList.add('hidden');
-        document.getElementById('screen-subject-analysis').classList.add('hidden');
-        
-        if(s === 'dashboard') {
-            updateMascot(); // Refresh mascot when returning to dash
-        }
-    }
-    
+    function showScreen(s) { document.querySelectorAll('div[id^="screen-"]').forEach(d => d.classList.add('hidden')); document.getElementById('screen-'+s).classList.remove('hidden'); }
     function formatTime(s) { return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`; }
-    
-    window.factoryReset = async () => {
-        requireAuth(async () => {
-            if(confirm("MAMBA CRITICAL WARNING: This will permanently delete all quizzes, history, and custom subjects locally AND in the Cloud.\n\nType 'DELETE' to confirm:")) {
-                const conf = prompt("Last warning. Type 'DELETE' exactly:");
-                if(conf === "DELETE") {
-                    SUBJECTS = ["Ancient History", "Medieval History", "Modern History", "Geography", "Economics", "Static GK", "Arithmetic", "Advanced Maths", "English", "Reasoning", "Current Affairs", "Polity", "Science", "Environment", "Miscellaneous", "GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS"];
-                    SUBJECT_CATEGORIES = { "GS MOCK QUESTIONS": "GS", "QUANT MOCK QUESTIONS": "Maths" };
-                    db = {}; historyDb = []; mistakesDb = []; fcDb = {}; localStorage.clear(); await saveData(); location.reload();
-                }
-            }
-        });
-    };
 
     initializeSystem();
 </script>
