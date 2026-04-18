@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.12 (Economy & Polity Override)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.14 (Strict 4-Tier Tagging)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -61,9 +61,9 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.12</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.14</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Smart Tag Editor & Dual DB Overrides</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Strict 4-Tier Tagging Console & Master DB</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
@@ -411,7 +411,7 @@
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
                 <div>
                     <h2 class="text-2xl font-black uppercase text-amber-500 dark:text-amber-400 tracking-tight">✏️ Universal Database Editor</h2>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Changes sync everywhere instantly</p>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Strict 4-Tier Tagging Enforced</p>
                 </div>
                 <button onclick="closeEditModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
             </div>
@@ -432,24 +432,73 @@
                     </div>
                 </div>
 
+                <div class="bg-indigo-50/50 dark:bg-indigo-900/10 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 1: Core Subject</label>
+                            <select id="edit-tag-1" onchange="updateTag2Dropdown()" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
+                                <option value="">-- Select Subject --</option>
+                                <option value="Arithmetic">Arithmetic</option>
+                                <option value="Advanced Maths">Advanced Maths</option>
+                                <option value="Reasoning">Reasoning</option>
+                                <option value="English Language">English Language</option>
+                                <option value="Ancient History">Ancient History</option>
+                                <option value="Medieval History">Medieval History</option>
+                                <option value="Modern History">Modern History</option>
+                                <option value="Art & Culture">Art & Culture</option>
+                                <option value="Geography">Geography</option>
+                                <option value="Polity">Polity</option>
+                                <option value="Economics">Economics</option>
+                                <option value="Physics">Physics</option>
+                                <option value="Chemistry">Chemistry</option>
+                                <option value="Biology">Biology</option>
+                                <option value="Environment & Ecology">Environment & Ecology</option>
+                                <option value="Science & Technology">Science & Technology</option>
+                                <option value="Static GK">Static GK</option>
+                                <option value="Current Affairs">Current Affairs</option>
+                                <option value="Computer Knowledge">Computer Knowledge</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 2: Topic / Chapter</label>
+                            <select id="edit-tag-2" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
+                                <option value="">-- Select Topic --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 3: Concept (Flashcard Trigger)</label>
+                            <input type="text" id="edit-tag-3" placeholder="e.g., Article 72, Incenter..." class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 4: Meta-Trap (Optional)</label>
+                            <select id="edit-tag-4" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
+                                <option value="">-- No Trap Tag --</option>
+                                <option value="#SillyError">#SillyError</option>
+                                <option value="#ReadIncorrectly">#ReadIncorrectly</option>
+                                <option value="#CalculationMistake">#CalculationMistake</option>
+                                <option value="#FormulaForgotten">#FormulaForgotten</option>
+                                <option value="#ConceptualGap">#ConceptualGap</option>
+                                <option value="#MemoryFaded">#MemoryFaded</option>
+                                <option value="#50_50_Fail">#50_50_Fail</option>
+                                <option value="#TimePanic">#TimePanic</option>
+                                <option value="#Bouncer">#Bouncer</option>
+                                <option value="#Chronology">#Chronology</option>
+                                <option value="#MatchThePairs">#MatchThePairs</option>
+                                <option value="#StatementBased">#StatementBased</option>
+                                <option value="#AssertionReason">#AssertionReason</option>
+                                <option value="#ExtremeWordTrap">#ExtremeWordTrap</option>
+                                <option value="#UnitTrap">#UnitTrap</option>
+                                <option value="#UPSC_PYQ">#UPSC_PYQ</option>
+                                <option value="#SSC_Tier2_PYQ">#SSC_Tier2_PYQ</option>
+                                <option value="#HighYield">#HighYield</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
                 <div>
                     <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Detailed Solution / Shortcuts</label>
                     <textarea id="edit-solution" rows="4" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200"></textarea>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="col-span-2 sm:col-span-1">
-                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Tags (Subject, Topic, Concept, #Trap)</label>
-                        <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 min-h-[50px] flex flex-wrap gap-2 items-center focus-within:ring-2 focus-within:ring-amber-500 transition-all">
-                            <div id="edit-tags-container" class="flex flex-wrap gap-2 items-center"></div>
-                            <input type="text" id="edit-tag-input" list="all-tags-list" class="flex-1 bg-transparent outline-none font-bold text-sm text-slate-800 dark:text-slate-200 min-w-[120px]" placeholder="Type & press Enter...">
-                            <datalist id="all-tags-list"></datalist>
-                        </div>
-                    </div>
-                    <div class="col-span-2 sm:col-span-1">
-                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Formula / Article Used</label>
-                        <input type="text" id="edit-formula" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200">
-                    </div>
                 </div>
             </div>
             
@@ -481,7 +530,29 @@
     window.currentQuizWrongQs = [];
     window.currentReviewQuestions = []; 
     let currentlyEditingGlobalText = null;
-    let currentlyEditingTags = []; 
+
+    // V19.14: MASTER SYLLABUS MAPPING FOR TAG 2 DYNAMIC DROPDOWN
+    const SYLLABUS_MAP = {
+        "Arithmetic": ["Number System", "LCM & HCF", "Percentages", "Profit, Loss & Discount", "Simple & Compound Interest", "Ratio & Proportion", "Partnership & Ages", "Mixture & Alligation", "Average", "Time & Work", "Time, Speed & Distance"],
+        "Advanced Maths": ["Algebra", "Geometry", "Coordinate Geometry", "Mensuration 2D", "Mensuration 3D", "Trigonometry", "Heights & Distances", "Probability & Statistics"],
+        "Reasoning": ["Analogy & Classification", "Number & Letter Series", "Coding-Decoding", "Blood Relations", "Direction & Distance", "Syllogism", "Order & Ranking", "Clock & Calendar", "Venn Diagrams", "Missing Number & Matrix", "Non-Verbal Reasoning", "Logical Reasoning"],
+        "English Language": ["Reading Comprehension", "Cloze Test", "Para Jumbles", "Grammar & Error Spotting", "Sentence Improvement", "Active & Passive Voice", "Direct & Indirect Speech", "Vocabulary: Synonyms & Antonyms", "Idioms & Phrases", "One Word Substitution", "Spelling Corrections"],
+        "Ancient History": ["Prehistoric & Indus Valley", "Vedic Age", "Buddhism & Jainism", "Mahajanapadas & Magadha", "Mauryan Empire", "Post-Mauryan Period", "Gupta Empire", "Post-Gupta & Harsha"],
+        "Medieval History": ["Early Medieval India", "Delhi Sultanate", "Provincial Kingdoms", "Mughal Empire", "Maratha Empire", "Bhakti & Sufi Movements"],
+        "Modern History": ["Advent of Europeans", "British Expansion & Policies", "Revolt of 1857", "Socio-Religious Reform Movements", "Indian National Congress", "Gandhian Era", "Revolutionary Nationalism", "Partition & Independence", "Post-Independence Consolidation"],
+        "Art & Culture": ["Architecture & Sculpture", "Paintings", "Music & Dance", "Puppetry & Theatre", "Languages & Literature", "Fairs, Festivals & Handicrafts", "Indian Philosophy"],
+        "Geography": ["Geomorphology", "Climatology", "Oceanography", "Indian Physical Geography", "Indian Drainage System", "Indian Climate, Soil & Vegetation", "Economic Geography", "Human & Demographic Geography"],
+        "Polity": ["Historical Background & Making", "Salient Features & Preamble", "Union & Its Territory / Citizenship", "Fundamental Rights & Duties", "Directive Principles (DPSP)", "Union Executive", "Union Legislature", "State Executive & Legislature", "Judiciary (SC, HC, Subordinate Courts)", "Local Self-Government", "Constitutional Bodies", "Statutory Bodies", "Centre-State Relations & Emergency", "Elections & Political Dynamics"],
+        "Economics": ["National Income & Growth", "Inflation & Business Cycle", "Money & Banking", "Budget, Taxation & Fiscal Policy", "Financial Markets", "Agriculture & Land Reforms", "Industry & Infrastructure", "External Sector", "International Organizations", "Poverty, Inequality & Employment"],
+        "Physics": ["Units & Measurements", "Mechanics", "Gravitation", "Properties of Matter", "Heat & Thermodynamics", "Waves & Sound", "Optics", "Electricity & Magnetism", "Modern Physics"],
+        "Chemistry": ["Matter & Its States", "Atomic Structure & Periodic Table", "Chemical Bonding & Reactions", "Acids, Bases & Salts", "Metals, Non-Metals & Metallurgy", "Carbon & Organic Compounds", "Chemistry in Everyday Life"],
+        "Biology": ["Cell Biology", "Classification of Organisms", "Human Anatomy & Physiology", "Plant Morphology & Physiology", "Genetics & Evolution", "Human Diseases & Defense Mechanisms", "Nutrition & Vitamins"],
+        "Environment & Ecology": ["Ecology Concepts & Ecosystems", "Biodiversity & Conservation", "Environmental Pollution & Degradation", "Climate Change", "Environmental Acts & Policies", "International Treaties & Conventions"],
+        "Science & Technology": ["Space Technology", "Defense Technology", "Biotechnology", "IT, Telecom & Emerging Tech", "Nuclear Technology"],
+        "Static GK": ["Firsts in India & World", "Superlatives", "Important Dates & Days", "National Parks & Wildlife Sanctuaries", "UNESCO World Heritage Sites", "Capitals & Currencies", "International Headquarters", "Books & Authors", "Sports Terminologies & Trophies"],
+        "Current Affairs": ["National News & Governance", "International News", "Economy & Banking Updates", "Sports News", "Awards & Honors", "Appointments & Resignations", "Defense Exercises", "Government Schemes & Yojanas"],
+        "Computer Knowledge": ["Computer Fundamentals & History", "Hardware & Software", "Operating Systems", "MS Office", "Internet & Networking", "Cyber Security & Threats", "Keyboard Shortcuts & Abbreviations"]
+    };
 
     let flashcardState = { deck: [], currentIndex: 0, isFlipped: false };
     const ADVANCED_FLASHCARDS = [
@@ -503,7 +574,7 @@
     };
 
 
-    // V19.12 MASTER DB MANAGER
+    // MASTER DB MANAGER
     window.openDBManager = () => {
         showScreen('db-manager');
         document.getElementById('db-manager-search').value = "";
@@ -550,43 +621,23 @@
         listContainer.innerHTML = html;
     };
 
-    // V19.12 SMART TAG EDITOR LOGIC
-    function populateAllTagsDatalist() {
-        let allTags = new Set([...SUBJECTS]); 
-        Object.values(db).forEach(quiz => quiz.questions.forEach(q => (q.tags||[]).forEach(t => allTags.add(t))));
-        mistakesDb.forEach(m => (m.tags||[]).forEach(t => allTags.add(t)));
+    // V19.14: DYNAMIC DROPDOWN LOGIC
+    window.updateTag2Dropdown = (preselectedTopic = "") => {
+        const subSelect = document.getElementById('edit-tag-1');
+        const topicSelect = document.getElementById('edit-tag-2');
+        const selectedSub = subSelect.value;
         
-        const dl = document.getElementById('all-tags-list');
-        dl.innerHTML = Array.from(allTags).filter(t => t.trim() !== "").sort().map(t => `<option value="${t}">`).join('');
-    }
-
-    function renderEditTags() {
-        const container = document.getElementById('edit-tags-container');
-        container.innerHTML = currentlyEditingTags.map(t => `
-            <span class="flex items-center gap-1 bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 px-2.5 py-1 rounded-md text-xs font-bold border border-amber-200 dark:border-amber-800/50">
-                ${t}
-                <button onclick="removeEditTag('${t.replace(/'/g, "\\'")}')" class="hover:text-red-500 ml-1 font-black leading-none">&times;</button>
-            </span>
-        `).join('');
-    }
-
-    window.removeEditTag = (tag) => {
-        currentlyEditingTags = currentlyEditingTags.filter(t => t !== tag);
-        renderEditTags();
-    };
-
-    document.getElementById('edit-tag-input').addEventListener('keydown', function(e) {
-        if(e.key === 'Enter') {
-            e.preventDefault();
-            let newTag = this.value.trim();
-            if(newTag && !currentlyEditingTags.includes(newTag)) {
-                currentlyEditingTags.push(newTag);
-                renderEditTags();
-            }
-            this.value = '';
+        topicSelect.innerHTML = '<option value="">-- Select Topic --</option>';
+        
+        if(selectedSub && SYLLABUS_MAP[selectedSub]) {
+            SYLLABUS_MAP[selectedSub].forEach(topic => {
+                let isSelected = (topic === preselectedTopic) ? "selected" : "";
+                topicSelect.innerHTML += `<option value="${topic}" ${isSelected}>${topic}</option>`;
+            });
+        } else if (preselectedTopic) {
+            topicSelect.innerHTML += `<option value="${preselectedTopic}" selected>${preselectedTopic} (Custom)</option>`;
         }
-    });
-
+    };
 
     window.openGlobalEditModal = (qText) => {
         let foundRef = null;
@@ -609,12 +660,41 @@
             }
         });
         document.getElementById('edit-solution').value = foundRef.solution || "";
-        document.getElementById('edit-formula').value = foundRef.formulaUsed || "";
         
-        currentlyEditingTags = [...(foundRef.tags || [])];
-        populateAllTagsDatalist();
-        renderEditTags();
-        document.getElementById('edit-tag-input').value = "";
+        // Populate the 4 Tiers
+        let t1 = "", t2 = "", t3 = "", t4 = "";
+        if(foundRef.tags && foundRef.tags.length > 0) {
+            t1 = foundRef.tags[0] || "";
+            if(foundRef.tags.length > 1) t2 = foundRef.tags[1];
+            
+            // Search for trap tag starting with #
+            let trapIdx = foundRef.tags.findIndex(t => t.startsWith('#'));
+            if(trapIdx !== -1) {
+                t4 = foundRef.tags[trapIdx];
+                // Anything between t2 and the trap is assumed to be the micro-concept
+                if(trapIdx > 2) t3 = foundRef.tags.slice(2, trapIdx).join(", ");
+            } else {
+                if(foundRef.tags.length > 2) t3 = foundRef.tags.slice(2).join(", ");
+            }
+        }
+
+        // Set Tag 1
+        let tag1Select = document.getElementById('edit-tag-1');
+        let matchedT1 = Array.from(tag1Select.options).find(opt => opt.value === t1);
+        if(matchedT1) tag1Select.value = t1; 
+        else if (t1) { tag1Select.innerHTML += `<option value="${t1}">${t1}</option>`; tag1Select.value = t1; }
+        else tag1Select.value = "";
+
+        // Trigger Tag 2 update
+        updateTag2Dropdown(t2);
+
+        document.getElementById('edit-tag-3').value = t3;
+        
+        let tag4Select = document.getElementById('edit-tag-4');
+        let matchedT4 = Array.from(tag4Select.options).find(opt => opt.value === t4);
+        if(matchedT4) tag4Select.value = t4;
+        else if (t4) { tag4Select.innerHTML += `<option value="${t4}">${t4}</option>`; tag4Select.value = t4; }
+        else tag4Select.value = "";
         
         document.getElementById('screen-edit-modal').classList.remove('hidden');
     };
@@ -622,17 +702,23 @@
     window.closeEditModal = () => {
         document.getElementById('screen-edit-modal').classList.add('hidden');
         currentlyEditingGlobalText = null;
-        currentlyEditingTags = [];
     };
 
     window.saveEdit = () => {
         if(!currentlyEditingGlobalText) return;
         let oldText = currentlyEditingGlobalText;
         
-        let pendingTag = document.getElementById('edit-tag-input').value.trim();
-        if(pendingTag && !currentlyEditingTags.includes(pendingTag)) {
-            currentlyEditingTags.push(pendingTag);
-        }
+        // Construct the strict array
+        let t1 = document.getElementById('edit-tag-1').value.trim();
+        let t2 = document.getElementById('edit-tag-2').value.trim();
+        let t3 = document.getElementById('edit-tag-3').value.trim();
+        let t4 = document.getElementById('edit-tag-4').value.trim();
+        
+        let compiledTags = [];
+        if(t1) compiledTags.push(t1);
+        if(t2) compiledTags.push(t2);
+        if(t3) compiledTags.push(t3);
+        if(t4) compiledTags.push(t4);
 
         let target = {
             question: document.getElementById('edit-q-text').value,
@@ -643,8 +729,7 @@
                 { text: document.getElementById('edit-opt-3').value, correct: document.getElementById('edit-corr-3').checked }
             ],
             solution: document.getElementById('edit-solution').value,
-            tags: [...currentlyEditingTags],
-            formulaUsed: document.getElementById('edit-formula').value
+            tags: compiledTags
         };
 
         if(target.tags.length > 0) {
@@ -671,7 +756,7 @@
 
         if(updatedDb) {
             saveData();
-            alert("✅ DNA Successfully Rewritten!");
+            alert("✅ DNA Successfully Rewritten with Strict 4-Tier Architecture!");
             closeEditModal();
             if(!document.getElementById('screen-db-manager').classList.contains('hidden')) {
                 renderDBList(document.getElementById('db-manager-search').value);
@@ -685,79 +770,7 @@
     };
 
 
-    // V19.12 DATABASE HEALER - STRICTLY ECONOMICS & POLITY OVERRIDES
-    function runDatabaseHealer() {
-        let healedCount = 0;
-        
-        // 1. Fix Active DB Economics & Polity Questions
-        Object.keys(db).forEach(qid => {
-            if (db[qid].subject === "Economics") {
-                db[qid].questions.forEach(q => {
-                    if (!q.tags || q.tags[0] !== "Economics" || q.tags[1] !== "Budget, Taxation & Fiscal Policy") {
-                        q.tags = ["Economics", "Budget, Taxation & Fiscal Policy"];
-                        q.subject = "Economics";
-                        q.originalSubject = "Economics";
-                        healedCount++;
-                    }
-                });
-            } else if (db[qid].subject === "Polity") {
-                db[qid].questions.forEach(q => {
-                    if (!q.tags || q.tags[0] !== "Polity" || q.tags[1] !== "Judiciary (SC, HC, Subordinate Courts)") {
-                        q.tags = ["Polity", "Judiciary (SC, HC, Subordinate Courts)"];
-                        q.subject = "Polity";
-                        q.originalSubject = "Polity";
-                        healedCount++;
-                    }
-                });
-            }
-        });
-
-        // 2. Fix Mistakes DB
-        mistakesDb.forEach(m => {
-            let oldSub = m.subject || "Miscellaneous";
-            
-            // ECONOMICS MISTAKES OVERRIDE
-            if (oldSub === "Economics" || m.originalSubject === "Economics") {
-                if (!m.tags || m.tags[0] !== "Economics" || m.tags[1] !== "Budget, Taxation & Fiscal Policy") {
-                    m.tags = ["Economics", "Budget, Taxation & Fiscal Policy"];
-                    m.subject = "Economics";
-                    m.originalSubject = "Economics";
-                    healedCount++;
-                }
-            }
-            // POLITY MISTAKES OVERRIDE
-            else if (oldSub === "Polity" || m.originalSubject === "Polity") {
-                if (!m.tags || m.tags[0] !== "Polity" || m.tags[1] !== "Judiciary (SC, HC, Subordinate Courts)") {
-                    m.tags = ["Polity", "Judiciary (SC, HC, Subordinate Courts)"];
-                    m.subject = "Polity";
-                    m.originalSubject = "Polity";
-                    healedCount++;
-                }
-            }
-            // Normal generic folder routing logic
-            else if (["GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS", "Mixed Revision", "Mixed"].includes(oldSub.toUpperCase()) || oldSub === "Miscellaneous") {
-                let targetTag = "Miscellaneous";
-                if (m.tags && m.tags.length > 0) {
-                    targetTag = m.tags[0]; 
-                    if (m.tags.length > 1 && (m.tags[0].toUpperCase() === oldSub.toUpperCase() || m.tags[0].toUpperCase().includes("MOCK"))) {
-                        targetTag = m.tags[1];
-                    }
-                }
-                m.subject = targetTag;
-                m.originalSubject = targetTag;
-                healedCount++;
-            } else {
-                if(!m.originalSubject) { m.originalSubject = oldSub; healedCount++; }
-            }
-        });
-        
-        if (healedCount > 0) {
-            console.log(`🔥 V19.12 Eco & Polity Healer Executed. Fixed ${healedCount} items.`);
-            localStorage.setItem('megaQuizDB_v4', JSON.stringify(db));
-            localStorage.setItem('megaQuizMistakes_v5', JSON.stringify(mistakesDb));
-        }
-    }
-
+    // V19.14 NO AUTO-TAGGERS OR HEALERS. Data is clean.
     function initializeSRSData() {
         mistakesDb.forEach(m => {
             if (!m.srs) m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() - 10000 };
@@ -783,7 +796,6 @@
         if (localStorage.getItem('megaQuizHistory_v5')) historyDb = JSON.parse(localStorage.getItem('megaQuizHistory_v5'));
         if (localStorage.getItem('megaQuizMistakes_v5')) mistakesDb = JSON.parse(localStorage.getItem('megaQuizMistakes_v5'));
         initializeSRSData();
-        runDatabaseHealer(); 
     }
 
     function showSyncStatus(state) {
@@ -804,7 +816,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.12", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.14", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -832,7 +844,6 @@
                 if (data.mistakes) mistakesDb = data.mistakes;
                 
                 updateLocalCache();
-                runDatabaseHealer(); 
                 renderDashboard();
                 showSyncStatus('synced');
             } else { showSyncStatus('error'); }
@@ -1270,7 +1281,7 @@
     window.deleteSubject = (sub) => { requireAuth(() => { if (prompt(`WARNING: Delete "${sub}" AND all quizzes inside it?\n\nType "DELETE" to confirm:`) === "DELETE") { SUBJECTS = SUBJECTS.filter(s => s !== sub); Object.keys(db).forEach(id => { if (db[id].subject === sub) delete db[id]; }); delete SUBJECT_CATEGORIES[sub]; saveData(); renderDashboard(); } }); };
 
     window.exportBackup = () => {
-        const blob = new Blob([JSON.stringify({ version: "v19.12", subjects: SUBJECTS, matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, db: db, history: historyDb, mistakes: mistakesDb, masteredCount: localStorage.getItem('megaQuizMasteredCount') || 0, flashcards: JSON.parse(localStorage.getItem('megaQuizFlashcards_v1') || "[]") })], { type: "application/json" });
+        const blob = new Blob([JSON.stringify({ version: "v19.14", subjects: SUBJECTS, matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, db: db, history: historyDb, mistakes: mistakesDb, masteredCount: localStorage.getItem('megaQuizMasteredCount') || 0, flashcards: JSON.parse(localStorage.getItem('megaQuizFlashcards_v1') || "[]") })], { type: "application/json" });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Yogesh_MegaHub_Backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
     };
 
