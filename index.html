@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.17 (Global Target Matrix)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.18 (Dedicated Target Radar)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -55,14 +55,15 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.17</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.18</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Global Target Matrix & Pure SRS Engine</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Dedicated Target Radar & Pure SRS Engine</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
                     <button onclick="toggleDarkMode()" class="bg-white/10 hover:bg-white/20 p-4 rounded-2xl backdrop-blur-md transition-all border border-white/10 shadow-inner hover:scale-105" title="Toggle Dark Mode">🌙</button>
                     <button onclick="openDBManager()" class="bg-gradient-to-br from-blue-500 to-cyan-600 hover:from-blue-400 hover:to-cyan-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-transform hover:-translate-y-1 border border-cyan-400 flex items-center gap-2">🗄️ Master DB</button>
+                    <button onclick="openTargetRadar()" class="bg-gradient-to-br from-rose-500 to-orange-600 hover:from-rose-400 hover:to-orange-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(244,63,94,0.4)] transition-transform hover:-translate-y-1 border border-rose-400 flex items-center gap-2">🎯 Target Radar</button>
                     <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400 flex items-center gap-2">📊 Global Analytics</button>
                 </div>
             </div>
@@ -108,6 +109,23 @@
         </div>
     </div>
 
+    <div id="screen-target-radar" class="hidden max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
+        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-rose-400 to-orange-500"></div>
+            
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+                <div>
+                    <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
+                    <h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Global Target Radar</h2>
+                    <p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Click a weak topic to instantly generate a 30-Question Drill</p>
+                </div>
+            </div>
+
+            <div id="target-radar-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                </div>
+        </div>
+    </div>
+
     <div id="screen-db-manager" class="hidden max-w-6xl mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
         <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
             <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 to-cyan-500"></div>
@@ -134,7 +152,6 @@
                 </div>
         </div>
     </div>
-
 
     <div id="screen-srs-modal" class="hidden fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg flex flex-col">
@@ -745,7 +762,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.17", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.18", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -885,6 +902,65 @@
         openLobby('quiz_topic_practice');
     };
 
+    // V19.18 DEDICATED TARGET RADAR SCREEN
+    window.openTargetRadar = () => {
+        showScreen('target-radar');
+        renderTargetRadar();
+    };
+
+    window.renderTargetRadar = () => {
+        const grid = document.getElementById('target-radar-grid');
+        grid.innerHTML = '';
+        
+        let globalTopicsStats = {}; 
+        
+        historyDb.forEach(h => {
+            if(h.reviewData) {
+                h.reviewData.forEach(rd => {
+                    let t1 = (rd.tags && rd.tags.length > 0) ? rd.tags[0] : "Miscellaneous";
+                    let t2 = (rd.tags && rd.tags.length > 1) ? rd.tags[1] : t1;
+                    
+                    if(!globalTopicsStats[t1]) globalTopicsStats[t1] = {};
+                    if(!globalTopicsStats[t1][t2]) globalTopicsStats[t1][t2] = { c: 0, t: 0 };
+                    
+                    globalTopicsStats[t1][t2].t++;
+                    if(rd.status === 'correct') globalTopicsStats[t1][t2].c++;
+                });
+            }
+        });
+
+        // Only render cards for subjects that actually have data
+        Object.keys(globalTopicsStats).sort().forEach(subject => {
+            let subTopics = globalTopicsStats[subject];
+            if (subTopics && Object.keys(subTopics).length > 0) {
+                
+                let pillsHTML = Object.keys(subTopics).sort((a,b) => subTopics[b].t - subTopics[a].t).map(t => {
+                    let acc = Math.round((subTopics[t].c / subTopics[t].t) * 100);
+                    let colorClasses = acc >= 80 ? 'text-emerald-700 bg-emerald-100 border-emerald-300 dark:text-emerald-400 dark:bg-emerald-900/30 dark:border-emerald-800/50'
+                                     : acc >= 50 ? 'text-amber-700 bg-amber-100 border-amber-300 dark:text-amber-400 dark:bg-amber-900/30 dark:border-amber-800/50'
+                                     : 'text-red-700 bg-red-100 border-red-300 dark:text-red-400 dark:bg-red-900/30 dark:border-red-800/50';
+                    return `<button onclick="generateTopicMock('${subject.replace(/'/g, "\\'")}', '${t.replace(/'/g, "\\'")}')" class="px-3 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg border shadow-sm ${colorClasses} hover:scale-105 transition-transform cursor-pointer flex justify-between items-center w-full" title="Practice ${t} questions"><span>${t}</span> <span>${acc}% ▶</span></button>`;
+                }).join('');
+
+                const card = document.createElement('div'); 
+                card.className = `bg-white dark:bg-slate-900/80 rounded-3xl p-6 shadow-lg border border-slate-200 dark:border-slate-800 relative overflow-hidden`;
+                card.innerHTML = `
+                    <div class="absolute top-0 left-0 w-full h-1.5 ${getCategoryClass(subject)}"></div>
+                    <div class="flex justify-between items-center pb-3 mb-4 border-b border-slate-100 dark:border-slate-800/50">
+                        <h2 class="text-xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">${subject}</h2>
+                    </div>
+                    <div class="flex flex-col gap-2">${pillsHTML}</div>
+                `;
+                grid.appendChild(card);
+            }
+        });
+
+        if(grid.innerHTML === '') {
+            grid.innerHTML = `<div class="col-span-full text-center text-slate-400 font-bold py-16 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl mt-4">No global data found. Take some quizzes to populate the radar.</div>`;
+        }
+    };
+
+
     function renderDashboard() {
         const grid = document.getElementById('dashboard-grid'); grid.innerHTML = '';
         
@@ -910,67 +986,9 @@
                 <div class="text-xs font-black text-amber-400 tracking-widest uppercase">#24</div>
             </div>`;
         grid.appendChild(mambaCard);
-        
-        // V19.17: THE GLOBAL MATRIX SWEEP
-        let globalTopicsStats = {}; 
-        
-        historyDb.forEach(h => {
-            if(h.reviewData) {
-                h.reviewData.forEach(rd => {
-                    // Extract Tag 1 and Tag 2 globally, ignoring the mock folder
-                    let t1 = (rd.tags && rd.tags.length > 0) ? rd.tags[0] : "Miscellaneous";
-                    let t2 = (rd.tags && rd.tags.length > 1) ? rd.tags[1] : t1;
-                    
-                    if(!globalTopicsStats[t1]) globalTopicsStats[t1] = {};
-                    if(!globalTopicsStats[t1][t2]) globalTopicsStats[t1][t2] = { c: 0, t: 0 };
-                    
-                    globalTopicsStats[t1][t2].t++;
-                    if(rd.status === 'correct') globalTopicsStats[t1][t2].c++;
-                });
-            }
-        });
 
         SUBJECTS.forEach(subject => {
-
             const subjectQuizzes = Object.keys(db).filter(id => db[id].subject === subject && !db[id].title.includes("Master Mock") && !db[id].title.includes("🎯") && !db[id].title.includes("SRS"));
-            
-            let matrixHTML = '';
-            let safeSub = subject.replace(/[^a-zA-Z0-9]/g, '');
-            
-            // Pull strictly from the newly generated Global Scorecard
-            let subTopics = globalTopicsStats[subject];
-            
-            if (subTopics && Object.keys(subTopics).length > 0) {
-                let pillsHTML = Object.keys(subTopics).sort((a,b) => subTopics[b].t - subTopics[a].t).map(t => {
-                    let acc = Math.round((subTopics[t].c / subTopics[t].t) * 100);
-                    let colorClasses = acc >= 80 ? 'text-emerald-700 bg-emerald-100 border-emerald-300 dark:text-emerald-400 dark:bg-emerald-900/30 dark:border-emerald-800/50'
-                                     : acc >= 50 ? 'text-amber-700 bg-amber-100 border-amber-300 dark:text-amber-400 dark:bg-amber-900/30 dark:border-amber-800/50'
-                                     : 'text-red-700 bg-red-100 border-red-300 dark:text-red-400 dark:bg-red-900/30 dark:border-red-800/50';
-                    return `<button onclick="generateTopicMock('${subject.replace(/'/g, "\\'")}', '${t.replace(/'/g, "\\'")}')" class="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded border shadow-sm ${colorClasses} hover:scale-105 transition-transform cursor-pointer" title="Practice ${t} questions">${t}: ${acc}% ▶</button>`;
-                }).join('');
-                
-                matrixHTML = `
-                    <div class="mb-4 flex gap-2">
-                        <button onclick="document.getElementById('matrix-${safeSub}').classList.toggle('hidden')" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black text-[10px] uppercase py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 flex justify-between items-center px-4 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors shadow-sm">
-                            🎯 Target Topics <span class="text-xs">▼</span>
-                        </button>
-                        <button onclick="showSubjectAnalysis('${subject.replace(/'/g, "\\'")}')" class="bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 font-black text-[10px] uppercase px-4 py-2.5 rounded-xl border border-blue-100 dark:border-blue-800/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors shadow-sm" title="View Detailed Topic Analysis">
-                            📊 Analysis
-                        </button>
-                    </div>
-                    <div id="matrix-${safeSub}" class="hidden mb-4 p-4 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-slate-100 dark:border-slate-800 shadow-inner">
-                        <div class="mb-3 last:mb-0"><div class="flex flex-wrap gap-1.5">${pillsHTML}</div></div>
-                    </div>
-                `;
-            } else {
-                matrixHTML = `
-                    <div class="mb-4">
-                        <button onclick="showSubjectAnalysis('${subject.replace(/'/g, "\\'")}')" class="w-full bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 font-black text-[10px] uppercase px-4 py-2.5 rounded-xl border border-blue-100 dark:border-blue-800/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors shadow-sm" title="View Detailed Topic Analysis">
-                            📊 Topic Analysis
-                        </button>
-                    </div>
-                `;
-            }
 
             let listHTML = subjectQuizzes.length === 0 ? `<div class="text-xs text-slate-400 font-bold py-4 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg mb-2">No quizzes imported yet.</div>` : '';
             
@@ -995,7 +1013,6 @@
                     <h2 class="text-xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">${subject}</h2>
                     <button onclick="deleteSubject('${subject.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-red-500 transition-colors bg-slate-100 dark:bg-slate-800 p-1.5 rounded-lg" title="Delete Subject & Quizzes 🔒">🗑️</button>
                 </div>
-                ${matrixHTML}
                 <div class="flex-1 overflow-y-auto pr-2 mb-3 max-h-64 space-y-1">${listHTML}</div>
                 <div class="flex gap-2 mt-auto pt-3 border-t border-slate-100 dark:border-slate-800/50">
                     <button onclick="triggerImport('${subject.replace(/'/g, "\\'")}')" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 text-slate-600 dark:text-slate-300 hover:text-emerald-700 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm">➕ Add 🔒</button>
@@ -1667,12 +1684,12 @@
     window.closeSubjectAnalysis = () => document.getElementById('screen-subject-analysis').classList.add('hidden');
 
     function showScreen(s) { 
-        ['dashboard','lobby','quiz','results','db-manager'].forEach(x => {
+        ['dashboard','lobby','quiz','results','db-manager','target-radar'].forEach(x => {
             const el = document.getElementById('screen-'+x);
             if(el) el.classList.add('hidden');
         }); 
         document.getElementById('screen-'+s).classList.remove('hidden'); 
-        if(s !== 'dashboard' && s !== 'db-manager') {
+        if(s !== 'dashboard' && s !== 'db-manager' && s !== 'target-radar') {
             document.getElementById('omni-search').value = '';
             document.getElementById('search-results-container').classList.add('hidden');
             document.getElementById('dashboard-main-content').classList.remove('hidden');
