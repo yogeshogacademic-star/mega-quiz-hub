@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.7 (Pure SRS & Active Recall)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.9 (Smart Tag Editor)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -61,15 +61,16 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.7</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.9</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Strict Segregation & SM-2 Active Recall Flashcards</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Smart Tag Editor & Auto-Tagger Engine</p>
                 </div>
                 
-                <div class="flex items-center gap-4 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
+                <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
                     <button onclick="toggleDarkMode()" class="bg-white/10 hover:bg-white/20 p-4 rounded-2xl backdrop-blur-md transition-all border border-white/10 shadow-inner hover:scale-105" title="Toggle Dark Mode">🌙</button>
-                    <button onclick="openFlashcardVault()" class="bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-transform hover:-translate-y-1 border border-amber-400 flex items-center gap-2">🃏 Active Recall Vault</button>
-                    <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400 flex items-center gap-2">📊 History & Analysis</button>
+                    <button onclick="openDBManager()" class="bg-gradient-to-br from-blue-500 to-cyan-600 hover:from-blue-400 hover:to-cyan-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-transform hover:-translate-y-1 border border-cyan-400 flex items-center gap-2">🗄️ Master DB</button>
+                    <button onclick="openFlashcardVault()" class="bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-transform hover:-translate-y-1 border border-amber-400 flex items-center gap-2">🃏 Flashcards</button>
+                    <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400 flex items-center gap-2">📊 Analytics</button>
                 </div>
             </div>
 
@@ -105,6 +106,8 @@
                     <span class="w-10 h-px bg-slate-200 dark:bg-slate-700"></span> System Administration (Secured) <span class="w-10 h-px bg-slate-200 dark:bg-slate-700"></span>
                 </div>
                 <div class="flex justify-center gap-4 flex-wrap">
+                    <button onclick="autoTagLegacyData()" class="bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-900/20 dark:text-purple-400 dark:hover:bg-purple-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-purple-100 dark:border-purple-900/30">🪄 Auto-Tag Legacy</button>
+                    
                     <button onclick="exportMistakesToAnki()" class="bg-slate-200 text-slate-700 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md">📥 Export SRS Data</button>
                     <button onclick="exportBackup()" class="bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-blue-100 dark:border-blue-900/30">💾 Backup Database</button>
                     <button onclick="triggerRestore()" class="bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-amber-100 dark:border-amber-900/30">📂 Restore Backup 🔒</button>
@@ -113,6 +116,34 @@
             </div>
         </div>
     </div>
+
+    <div id="screen-db-manager" class="hidden max-w-6xl mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
+        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 to-cyan-500"></div>
+            
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
+                <div>
+                    <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
+                    <h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Master DB Ledger</h2>
+                    <p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Global Vault Editor</p>
+                </div>
+                <div class="w-full md:w-auto">
+                    <input type="text" id="db-manager-search" oninput="renderDBList(this.value)" placeholder="Search questions or tags..." class="w-full md:w-80 px-5 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-200">
+                </div>
+            </div>
+
+            <div class="bg-slate-100 dark:bg-slate-800 rounded-t-xl p-4 grid grid-cols-12 gap-4 border-b border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                <div class="col-span-2">Source / Subject</div>
+                <div class="col-span-2">Tags</div>
+                <div class="col-span-7">Question Preview</div>
+                <div class="col-span-1 text-center">Action</div>
+            </div>
+            
+            <div id="db-manager-list" class="flex-1 overflow-y-auto max-h-[60vh] space-y-2 py-2">
+                </div>
+        </div>
+    </div>
+
 
     <div id="screen-srs-modal" class="hidden fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg flex flex-col">
@@ -381,8 +412,8 @@
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
                 <div>
-                    <h2 class="text-2xl font-black uppercase text-amber-500 dark:text-amber-400 tracking-tight">✏️ Edit Question Database</h2>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Fix errors or add shortcuts permanently</p>
+                    <h2 class="text-2xl font-black uppercase text-amber-500 dark:text-amber-400 tracking-tight">✏️ Universal Database Editor</h2>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Changes sync everywhere instantly</p>
                 </div>
                 <button onclick="closeEditModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
             </div>
@@ -409,11 +440,15 @@
                 </div>
                 
                 <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Tags (Comma separated)</label>
-                        <input type="text" id="edit-tags" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200">
+                    <div class="col-span-2 sm:col-span-1">
+                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Tags (Subject, Topic, Concept, #Trap)</label>
+                        <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 min-h-[50px] flex flex-wrap gap-2 items-center focus-within:ring-2 focus-within:ring-amber-500 transition-all">
+                            <div id="edit-tags-container" class="flex flex-wrap gap-2 items-center"></div>
+                            <input type="text" id="edit-tag-input" list="all-tags-list" class="flex-1 bg-transparent outline-none font-bold text-sm text-slate-800 dark:text-slate-200 min-w-[120px]" placeholder="Type & press Enter...">
+                            <datalist id="all-tags-list"></datalist>
+                        </div>
                     </div>
-                    <div>
+                    <div class="col-span-2 sm:col-span-1">
                         <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Formula / Article Used</label>
                         <input type="text" id="edit-formula" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200">
                     </div>
@@ -447,8 +482,10 @@
     let lobbyQuizMode = 'full';
     window.currentQuizWrongQs = [];
     window.currentReviewQuestions = []; 
+    let currentlyEditingGlobalText = null;
+    let currentlyEditingTags = []; // V19.9 Tag State
 
-    // V19.7 BRAIN-MELTING FLASHCARD DATABASE (SM-2 Compatible)
+    // V19.7 BRAIN-MELTING FLASHCARD DATABASE
     let flashcardState = { deck: [], currentIndex: 0, isFlipped: false };
     const ADVANCED_FLASHCARDS = [
         { id: "fc_1", topic: "Geometry", promptType: "👁️ Visualize the Concept", front: "Picture a triangle ABC with a circle perfectly inscribed inside it. You are standing at the exact dead-center (the Incenter). If you look up at angle A, what is the exact mathematical equation that calculates your current angle (∠BIC)?", back: "∠BIC = 90° + (∠A / 2)" },
@@ -468,7 +505,240 @@
         if (pwd === "KOBE") { callback(); } else if (pwd !== null) { alert("❌ ACCESS DENIED."); }
     };
 
-    // V19.7 DATABASE HEALER
+    // V19.8 AI AUTO-TAGGER
+    window.autoTagLegacyData = () => {
+        requireAuth(() => {
+            let updatedCount = 0;
+            const rules = [
+                { keys: ['article ', 'constitution', 'parliament', 'president', 'supreme court', 'amendment', 'fundamental right', 'dpsp', 'writ', 'lok sabha', 'rajya sabha'], t1: 'Polity', t2: 'Constitutional Framework' },
+                { keys: ['profit', 'loss', 'speed', 'distance', 'time and work', 'compound interest', 'ratio', 'percentage', 'discount'], t1: 'Arithmetic', t2: 'Word Problems' },
+                { keys: ['triangle', 'circle', 'radius', 'volume', 'sphere', 'algebra', 'secant', 'tangent', 'sin ', 'cos ', 'polygon', 'cylinder'], t1: 'Advanced Maths', t2: 'Geometry & Mensuration' },
+                { keys: ['river', 'mountain', 'soil', 'climate', 'latitude', 'ocean', 'pass', 'plateau', 'monsoon', 'earthquake'], t1: 'Geography', t2: 'Physical & Indian Geography' },
+                { keys: ['mughal', 'mauryan', 'gandhi', 'treaty', 'revolt', 'congress', 'act of', 'delhi sultanate', 'buddhism', 'jainism', 'harappa'], t1: 'History', t2: 'Indian History' },
+                { keys: ['synonym', 'antonym', 'idiom', 'spelled', 'grammar', 'tense', 'passive voice', 'indirect speech', 'comprehension'], t1: 'English Language', t2: 'Grammar & Vocab' },
+                { keys: ['gdp', 'inflation', 'rbi', 'bank', 'repo rate', 'budget', 'tax', 'wto', 'imf'], t1: 'Economics', t2: 'Macroeconomics' },
+                { keys: ['velocity', 'force', 'acceleration', 'lens', 'mirror', 'magnetic', 'acid', 'base', 'vitamin', 'disease', 'blood', 'cell '], t1: 'Science', t2: 'General Science' }
+            ];
+
+            const applyTags = (qObj) => {
+                let text = (qObj.question + " " + (qObj.solution||"")).toLowerCase();
+                for(let r of rules) {
+                    if(r.keys.some(k => text.includes(k))) {
+                        let existingTags = qObj.tags || [];
+                        let newTags = [r.t1, r.t2];
+                        existingTags.forEach(et => {
+                            if(et.startsWith('#') || (![r.t1, r.t2].includes(et) && !SUBJECTS.map(s=>s.toLowerCase()).includes(et.toLowerCase()))) {
+                                newTags.push(et);
+                            }
+                        });
+                        qObj.tags = [...new Set(newTags)];
+                        qObj.subject = r.t1;
+                        qObj.originalSubject = r.t1;
+                        updatedCount++;
+                        break; 
+                    }
+                }
+            };
+
+            Object.keys(db).forEach(qid => {
+                db[qid].questions.forEach(q => applyTags(q));
+            });
+            mistakesDb.forEach(m => applyTags(m));
+
+            if(updatedCount > 0) {
+                saveData();
+                alert(`🪄 Magic Complete! The AI Auto-Tagger processed and upgraded ${updatedCount} questions to the 4-Tier standard.`);
+                renderDashboard();
+            } else {
+                alert("Database is already perfectly optimized. No legacy questions needed auto-tagging.");
+            }
+        });
+    };
+
+    // V19.8 MASTER DB MANAGER
+    window.openDBManager = () => {
+        showScreen('db-manager');
+        document.getElementById('db-manager-search').value = "";
+        renderDBList("");
+    };
+
+    window.renderDBList = (searchTerm) => {
+        const term = (searchTerm || "").toLowerCase().trim();
+        const listContainer = document.getElementById('db-manager-list');
+        let html = '';
+        let uniqueTracker = new Set();
+        let matchCount = 0;
+
+        const processList = (questionsArray, sourceTitle) => {
+            questionsArray.forEach((q) => {
+                if(uniqueTracker.has(q.question)) return; 
+                const searchStr = ((q.question || "") + " " + (q.solution || "") + " " + (q.tags ? q.tags.join(" ") : "")).toLowerCase();
+                
+                if (!term || searchStr.includes(term)) {
+                    matchCount++;
+                    uniqueTracker.add(q.question);
+                    let tagsHTML = (q.tags || ["Miscellaneous"]).map(t => `<span class="inline-block px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-[9px] mb-1 mr-1">${t}</span>`).join('');
+                    
+                    html += `
+                    <div class="bg-white dark:bg-slate-900 rounded-xl p-4 grid grid-cols-12 gap-4 items-center border border-slate-200 dark:border-slate-800 shadow-sm hover:border-blue-400 transition-colors">
+                        <div class="col-span-2 text-xs font-bold text-slate-500 truncate" title="${sourceTitle}">${sourceTitle}</div>
+                        <div class="col-span-2 flex flex-wrap max-h-12 overflow-hidden">${tagsHTML}</div>
+                        <div class="col-span-7 text-sm font-bold text-slate-800 dark:text-slate-200 truncate" title="${q.question.replace(/"/g, '&quot;')}">${q.question}</div>
+                        <div class="col-span-1 text-center">
+                            <button onclick="openGlobalEditModal(\`${q.question.replace(/`/g, '\\`').replace(/\\/g, '\\\\')}\`)" class="bg-amber-100 hover:bg-amber-200 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 p-2 rounded-lg font-black text-xs transition-colors shadow-sm w-full">✏️</button>
+                        </div>
+                    </div>`;
+                }
+            });
+        };
+
+        Object.keys(db).forEach(qid => processList(db[qid].questions, db[qid].title));
+        processList(mistakesDb, "🔥 SRS Queue");
+
+        if(matchCount === 0) {
+            html = `<div class="text-center text-slate-400 font-bold py-16 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl mt-4">No questions found matching your search.</div>`;
+        }
+        
+        listContainer.innerHTML = html;
+    };
+
+    // V19.9 SMART TAG EDITOR LOGIC
+    function populateAllTagsDatalist() {
+        let allTags = new Set([...SUBJECTS]); 
+        Object.values(db).forEach(quiz => quiz.questions.forEach(q => (q.tags||[]).forEach(t => allTags.add(t))));
+        mistakesDb.forEach(m => (m.tags||[]).forEach(t => allTags.add(t)));
+        
+        const dl = document.getElementById('all-tags-list');
+        dl.innerHTML = Array.from(allTags).filter(t => t.trim() !== "").sort().map(t => `<option value="${t}">`).join('');
+    }
+
+    function renderEditTags() {
+        const container = document.getElementById('edit-tags-container');
+        container.innerHTML = currentlyEditingTags.map(t => `
+            <span class="flex items-center gap-1 bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 px-2.5 py-1 rounded-md text-xs font-bold border border-amber-200 dark:border-amber-800/50">
+                ${t}
+                <button onclick="removeEditTag('${t.replace(/'/g, "\\'")}')" class="hover:text-red-500 ml-1 font-black leading-none">&times;</button>
+            </span>
+        `).join('');
+    }
+
+    window.removeEditTag = (tag) => {
+        currentlyEditingTags = currentlyEditingTags.filter(t => t !== tag);
+        renderEditTags();
+    };
+
+    document.getElementById('edit-tag-input').addEventListener('keydown', function(e) {
+        if(e.key === 'Enter') {
+            e.preventDefault();
+            let newTag = this.value.trim();
+            if(newTag && !currentlyEditingTags.includes(newTag)) {
+                currentlyEditingTags.push(newTag);
+                renderEditTags();
+            }
+            this.value = '';
+        }
+    });
+
+
+    window.openGlobalEditModal = (qText) => {
+        let foundRef = null;
+        for(let qid in db) {
+            let qItem = db[qid].questions.find(qx => qx.question === qText);
+            if(qItem) { foundRef = qItem; break; }
+        }
+        if(!foundRef) {
+            foundRef = mistakesDb.find(m => m.question === qText);
+        }
+
+        if(!foundRef) return alert("Error: Question not found in active database.");
+
+        currentlyEditingGlobalText = qText;
+        document.getElementById('edit-q-text').value = foundRef.question;
+        foundRef.options.forEach((opt, i) => {
+            if(document.getElementById('edit-opt-'+i)) {
+                document.getElementById('edit-opt-'+i).value = opt.text;
+                document.getElementById('edit-corr-'+i).checked = opt.correct;
+            }
+        });
+        document.getElementById('edit-solution').value = foundRef.solution || "";
+        document.getElementById('edit-formula').value = foundRef.formulaUsed || "";
+        
+        // V19.9 Init Tags
+        currentlyEditingTags = [...(foundRef.tags || [])];
+        populateAllTagsDatalist();
+        renderEditTags();
+        document.getElementById('edit-tag-input').value = "";
+        
+        document.getElementById('screen-edit-modal').classList.remove('hidden');
+    };
+
+    window.closeEditModal = () => {
+        document.getElementById('screen-edit-modal').classList.add('hidden');
+        currentlyEditingGlobalText = null;
+        currentlyEditingTags = [];
+    };
+
+    window.saveEdit = () => {
+        if(!currentlyEditingGlobalText) return;
+        let oldText = currentlyEditingGlobalText;
+        
+        // Grab any pending text in the tag input before saving
+        let pendingTag = document.getElementById('edit-tag-input').value.trim();
+        if(pendingTag && !currentlyEditingTags.includes(pendingTag)) {
+            currentlyEditingTags.push(pendingTag);
+        }
+
+        let target = {
+            question: document.getElementById('edit-q-text').value,
+            options: [
+                { text: document.getElementById('edit-opt-0').value, correct: document.getElementById('edit-corr-0').checked },
+                { text: document.getElementById('edit-opt-1').value, correct: document.getElementById('edit-corr-1').checked },
+                { text: document.getElementById('edit-opt-2').value, correct: document.getElementById('edit-corr-2').checked },
+                { text: document.getElementById('edit-opt-3').value, correct: document.getElementById('edit-corr-3').checked }
+            ],
+            solution: document.getElementById('edit-solution').value,
+            tags: [...currentlyEditingTags],
+            formulaUsed: document.getElementById('edit-formula').value
+        };
+
+        if(target.tags.length > 0) {
+            target.subject = target.tags[0];
+            target.originalSubject = target.tags[0];
+        }
+
+        let updatedDb = false;
+
+        for(let qid in db) {
+            let idx = db[qid].questions.findIndex(qx => qx.question === oldText);
+            if(idx !== -1) {
+                db[qid].questions[idx] = {...db[qid].questions[idx], ...target};
+                updatedDb = true;
+            }
+        }
+
+        let mistIdx = mistakesDb.findIndex(m => m.question === oldText);
+        if(mistIdx !== -1) {
+            let existingSRS = mistakesDb[mistIdx].srs;
+            mistakesDb[mistIdx] = {...mistakesDb[mistIdx], ...target, srs: existingSRS};
+            updatedDb = true;
+        }
+
+        if(updatedDb) {
+            saveData();
+            alert("✅ DNA Successfully Rewritten!");
+            closeEditModal();
+            if(!document.getElementById('screen-db-manager').classList.contains('hidden')) {
+                renderDBList(document.getElementById('db-manager-search').value);
+            }
+            if(!document.getElementById('search-results-container').classList.contains('hidden')) {
+                performSearch(document.getElementById('omni-search').value);
+            }
+        } else {
+            alert("Save failed: Could not locate original question.");
+        }
+    };
+
+
     function runDatabaseHealer() {
         let healedCount = 0;
         mistakesDb.forEach(m => {
@@ -490,7 +760,7 @@
         });
         
         if (healedCount > 0) {
-            console.log(`🔥 V19.7 Healer Executed: Secured ${healedCount} mistakes.`);
+            console.log(`🔥 V19.8 Healer Executed.`);
             localStorage.setItem('megaQuizMistakes_v5', JSON.stringify(mistakesDb));
         }
     }
@@ -541,7 +811,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.7", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.9", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -619,7 +889,10 @@
                     resultsHTML += `
                         <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-700 shadow-lg hover:border-emerald-400 dark:hover:border-emerald-500 transition-colors relative overflow-hidden mt-4">
                             <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-400"></div>
-                            <div class="flex justify-between items-start mb-4"><span class="text-[10px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 px-3 py-1 rounded border border-indigo-100 dark:border-indigo-800/50">${quiz.subject} • ${quiz.title}</span></div>
+                            <div class="flex justify-between items-start mb-4">
+                                <span class="text-[10px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 px-3 py-1 rounded border border-indigo-100 dark:border-indigo-800/50">${quiz.subject} • ${quiz.title}</span>
+                                <button onclick="openGlobalEditModal(\`${q.question.replace(/`/g, '\\`').replace(/\\/g, '\\\\')}\`)" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1 rounded-md font-black text-[10px] uppercase tracking-widest border border-amber-200 hover:bg-amber-200 transition-colors">✏️ Edit</button>
+                            </div>
                             <div class="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 mb-6 leading-relaxed">${highlightText(q.question, term)}</div>
                             <div class="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800/50 mb-6 inline-block shadow-inner"><span class="block text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Correct Answer</span><span class="text-sm font-bold text-slate-800 dark:text-slate-200">${highlightText(cText, term)}</span></div>
                             <div class="text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 p-5 rounded-xl border border-slate-100 dark:border-slate-800 shadow-inner"><span class="font-black text-slate-800 dark:text-slate-200 block mb-2 uppercase tracking-wide text-xs">📖 Detailed Solution:</span><div class="leading-relaxed font-medium">${highlightText(q.solution || 'No detailed solution provided.', term)}</div></div>
@@ -690,7 +963,6 @@
         grid.appendChild(mambaCard);
         
         SUBJECTS.forEach(subject => {
-            // V19.7 FIX: Removed the line that blocked GS MOCK and QUANT MOCK from rendering.
 
             const subjectQuizzes = Object.keys(db).filter(id => db[id].subject === subject && !db[id].title.includes("Master Mock") && !db[id].title.includes("🎯") && !db[id].title.includes("SRS"));
             
@@ -814,15 +1086,12 @@
         grid.appendChild(addCard);
     }
 
-    // -------------------------------------------------------------
-    // V19.7 ACTIVE RECALL FLASHCARD ENGINE
-    // -------------------------------------------------------------
+    // ACTIVE RECALL FLASHCARD ENGINE
     window.openFlashcardVault = () => {
         let storedFCs = JSON.parse(localStorage.getItem('megaQuizFlashcards_v1') || "[]");
-        // Sort to show due cards first
         flashcardState.deck = storedFCs.filter(fc => fc.srs.nextReview <= Date.now() || fc.srs.reps === 0)
                                        .sort((a,b) => a.srs.nextReview - b.srs.nextReview)
-                                       .slice(0, 15); // Session limit
+                                       .slice(0, 15); 
 
         if(flashcardState.deck.length === 0) return alert("✅ Brain-Melting Complete. No cards due for review right now.");
 
@@ -844,7 +1113,6 @@
         document.getElementById('fc-prompt-type').textContent = card.promptType;
         document.getElementById('fc-front-text').textContent = card.front;
         
-        // Calculate Dynamic Anki Times for buttons
         let ease = card.srs.ease || 2.5;
         let int = card.srs.interval || 0;
         
@@ -856,7 +1124,6 @@
         document.getElementById('fc-good-time').textContent = goodInt + " Day" + (goodInt > 1 ? "s" : "");
         document.getElementById('fc-easy-time').textContent = easyInt + " Day" + (easyInt > 1 ? "s" : "");
 
-        // Prep the back
         document.getElementById('fc-back-text').innerHTML = card.back.replace(/\n/g, '<br>');
     }
 
@@ -888,7 +1155,6 @@
         card.srs.interval = interval;
         card.srs.nextReview = Date.now() + (interval * 24 * 60 * 60 * 1000);
 
-        // Save back to master array
         let storedFCs = JSON.parse(localStorage.getItem('megaQuizFlashcards_v1') || "[]");
         let masterIdx = storedFCs.findIndex(f => f.id === card.id);
         if(masterIdx !== -1) storedFCs[masterIdx] = card;
@@ -921,9 +1187,7 @@
     document.addEventListener('keydown', flashcardHotkeyHandler);
 
 
-    // -------------------------------------------------------------
-    // V19.7 DUAL-LOGIC SRS ROUTER
-    // -------------------------------------------------------------
+    // SRS ROUTER
     window.openSRSModal = () => {
         let globalDue = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now()).length;
         document.getElementById('srs-global-count-modal').textContent = globalDue;
@@ -1013,7 +1277,7 @@
     window.deleteSubject = (sub) => { requireAuth(() => { if (prompt(`WARNING: Delete "${sub}" AND all quizzes inside it?\n\nType "DELETE" to confirm:`) === "DELETE") { SUBJECTS = SUBJECTS.filter(s => s !== sub); Object.keys(db).forEach(id => { if (db[id].subject === sub) delete db[id]; }); delete SUBJECT_CATEGORIES[sub]; saveData(); renderDashboard(); } }); };
 
     window.exportBackup = () => {
-        const blob = new Blob([JSON.stringify({ version: "v19.7", subjects: SUBJECTS, matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, db: db, history: historyDb, mistakes: mistakesDb, masteredCount: localStorage.getItem('megaQuizMasteredCount') || 0, flashcards: JSON.parse(localStorage.getItem('megaQuizFlashcards_v1') || "[]") })], { type: "application/json" });
+        const blob = new Blob([JSON.stringify({ version: "v19.9", subjects: SUBJECTS, matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, db: db, history: historyDb, mistakes: mistakesDb, masteredCount: localStorage.getItem('megaQuizMasteredCount') || 0, flashcards: JSON.parse(localStorage.getItem('megaQuizFlashcards_v1') || "[]") })], { type: "application/json" });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Yogesh_MegaHub_Backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
     };
 
@@ -1437,7 +1701,7 @@
             <div class="absolute top-0 left-0 w-1.5 h-full ${s.border}"></div>
             <div class="flex justify-between items-center mb-4">
                 <span class="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-md border ${s.badge}">${status}</span>
-                <button onclick="openEditModal(${index})" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-widest border border-amber-200 dark:border-amber-800/50 hover:bg-amber-200 dark:hover:bg-amber-800/50 transition-colors">✏️ Edit / Fix Error</button>
+                <button onclick="openGlobalEditModal(\`${q.question.replace(/`/g, '\\`').replace(/\\/g, '\\\\')}\`)" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-widest border border-amber-200 dark:border-amber-800/50 hover:bg-amber-200 dark:hover:bg-amber-800/50 transition-colors">✏️ Edit / Fix Error</button>
             </div>
             <div class="font-bold text-slate-800 dark:text-slate-200 mb-6 text-lg md:text-xl leading-relaxed">${highlightText(q.question, term)}</div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -1488,62 +1752,6 @@
         document.getElementById('revision-container').innerHTML = fullReviewHTML;
         showScreen('results'); window.scrollTo(0,0);
         filterReview('all'); 
-    };
-
-    let currentlyEditingRef = null;
-    window.openEditModal = (reviewIndex) => {
-        let qObj = window.currentReviewQuestions[reviewIndex];
-        if(!qObj) return;
-        
-        let found = null;
-        for(let qid in db) {
-            let idx = db[qid].questions.findIndex(qx => qx.question === qObj.question);
-            if(idx !== -1) { found = { qid, idx, ref: db[qid].questions[idx] }; break; }
-        }
-        
-        if(!found) return alert("This question no longer exists in the active Vault. It may belong to a deleted quiz.");
-        
-        currentlyEditingRef = found;
-        document.getElementById('edit-q-text').value = found.ref.question;
-        found.ref.options.forEach((opt, i) => {
-            document.getElementById('edit-opt-'+i).value = opt.text;
-            document.getElementById('edit-corr-'+i).checked = opt.correct;
-        });
-        document.getElementById('edit-solution').value = found.ref.solution || "";
-        document.getElementById('edit-tags').value = (found.ref.tags || []).join(", ");
-        document.getElementById('edit-formula').value = found.ref.formulaUsed || "";
-        
-        document.getElementById('screen-edit-modal').classList.remove('hidden');
-    };
-
-    window.closeEditModal = () => document.getElementById('screen-edit-modal').classList.add('hidden');
-
-    window.saveEdit = () => {
-        if(!currentlyEditingRef) return;
-        
-        let target = currentlyEditingRef.ref;
-        let oldQuestionText = target.question;
-        
-        target.question = document.getElementById('edit-q-text').value;
-        target.options.forEach((opt, i) => {
-            opt.text = document.getElementById('edit-opt-'+i).value;
-            opt.correct = document.getElementById('edit-corr-'+i).checked;
-        });
-        target.solution = document.getElementById('edit-solution').value;
-        let tagStr = document.getElementById('edit-tags').value;
-        target.tags = tagStr.split(',').map(s=>s.trim()).filter(s=>s);
-        target.formulaUsed = document.getElementById('edit-formula').value;
-
-        let mistIdx = mistakesDb.findIndex(m => m.question === oldQuestionText);
-        if(mistIdx !== -1) {
-            let existingSRS = mistakesDb[mistIdx].srs;
-            mistakesDb[mistIdx] = JSON.parse(JSON.stringify(target));
-            mistakesDb[mistIdx].srs = existingSRS;
-        }
-
-        saveData();
-        alert("✅ Question successfully updated in the Master Database!");
-        closeEditModal();
     };
 
     window.openTargetedHistory = (quizId) => {
@@ -1686,12 +1894,12 @@
     window.closeSubjectAnalysis = () => document.getElementById('screen-subject-analysis').classList.add('hidden');
 
     function showScreen(s) { 
-        ['dashboard','lobby','quiz','results','flashcards'].forEach(x => {
+        ['dashboard','lobby','quiz','results','flashcards','db-manager'].forEach(x => {
             const el = document.getElementById('screen-'+x);
             if(el) el.classList.add('hidden');
         }); 
         document.getElementById('screen-'+s).classList.remove('hidden'); 
-        if(s !== 'dashboard') {
+        if(s !== 'dashboard' && s !== 'db-manager') {
             document.getElementById('omni-search').value = '';
             document.getElementById('search-results-container').classList.add('hidden');
             document.getElementById('dashboard-main-content').classList.remove('hidden');
