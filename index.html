@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.18 (Dedicated Target Radar)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.19 (Elite Radar & DNA Sync)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -55,9 +55,9 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.18</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.19</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Dedicated Target Radar & Pure SRS Engine</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Elite Triage Radar & DNA Sync Protocol</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
@@ -119,6 +119,11 @@
                     <h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Global Target Radar</h2>
                     <p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Click a weak topic to instantly generate a 30-Question Drill</p>
                 </div>
+            </div>
+
+            <div id="critical-bleed-container" class="mb-10 hidden">
+                <h3 class="text-lg md:text-xl font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-rose-100 dark:border-rose-900/30 pb-2">⚠️ Critical Weaknesses (Triage Zone)</h3>
+                <div id="critical-bleed-grid" class="grid grid-cols-2 md:grid-cols-5 gap-4"></div>
             </div>
 
             <div id="target-radar-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -350,19 +355,6 @@
                 <button onclick="closeQuizHistory()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
             </div>
             <div class="flex-1 overflow-y-auto pr-2 space-y-3" id="quiz-history-list"></div>
-        </div>
-    </div>
-
-    <div id="screen-subject-analysis" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl max-h-[90vh] flex flex-col">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
-                <div>
-                    <h2 id="subject-analysis-title" class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Subject - Topic Analysis</h2>
-                    <p class="text-xs font-bold text-blue-500 uppercase tracking-widest mt-1">Global Performance Breakdown by Sub-Topics</p>
-                </div>
-                <button onclick="closeSubjectAnalysis()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
-            </div>
-            <div class="flex-1 overflow-y-auto pr-2 space-y-4" id="subject-analysis-grid"></div>
         </div>
     </div>
 
@@ -719,7 +711,56 @@
     };
 
 
-    // V19.14 NO AUTO-TAGGERS OR HEALERS. Data is clean.
+    // V19.19 DNA SYNC PROTOCOL (DATABASE HEALER)
+    function runDNASync() {
+        let updated = false;
+        let masterMap = {};
+        
+        // Build an index of perfect tags from the Master DB
+        Object.keys(db).forEach(qid => {
+            db[qid].questions.forEach(q => {
+                if (q.question && q.tags) {
+                    masterMap[q.question] = { 
+                        tags: q.tags, 
+                        subject: q.subject || (q.tags.length > 0 ? q.tags[0] : 'Miscellaneous') 
+                    };
+                }
+            });
+        });
+
+        // Sync History (Fixing the Radar source data)
+        historyDb.forEach(h => {
+            if (h.reviewData) {
+                h.reviewData.forEach(rd => {
+                    let masterRef = masterMap[rd.question];
+                    if (masterRef && JSON.stringify(rd.tags) !== JSON.stringify(masterRef.tags)) {
+                        rd.tags = [...masterRef.tags];
+                        updated = true;
+                    }
+                });
+            }
+        });
+
+        // Sync Mistakes (Fixing the SRS source data)
+        mistakesDb.forEach(m => {
+            let masterRef = masterMap[m.question];
+            if (masterRef) {
+                if (JSON.stringify(m.tags) !== JSON.stringify(masterRef.tags) || m.subject !== masterRef.subject) {
+                    m.tags = [...masterRef.tags];
+                    m.subject = masterRef.subject;
+                    if(m.tags.length > 0) m.originalSubject = m.tags[0];
+                    updated = true;
+                }
+            }
+        });
+
+        if (updated) {
+            console.log("🧬 DNA Sync Protocol Executed. Legacy tags purged.");
+            localStorage.setItem('megaQuizHistory_v5', JSON.stringify(historyDb));
+            localStorage.setItem('megaQuizMistakes_v5', JSON.stringify(mistakesDb));
+        }
+    }
+
     function initializeSRSData() {
         mistakesDb.forEach(m => {
             if (!m.srs) m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() - 10000 };
@@ -762,7 +803,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.18", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.19", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -772,6 +813,10 @@
     async function initializeSystem() {
         if(localStorage.getItem('megaTheme') === 'dark') document.documentElement.classList.add('dark');
         loadLocalFallback();
+        
+        // V19.19 RUN DNA SYNC ON LOAD
+        runDNASync();
+        
         renderDashboard();
         showSyncStatus('syncing');
 
@@ -790,6 +835,7 @@
                 if (data.mistakes) mistakesDb = data.mistakes;
                 
                 updateLocalCache();
+                runDNASync(); // Run again after cloud fetch
                 renderDashboard();
                 showSyncStatus('synced');
             } else { showSyncStatus('error'); }
@@ -902,7 +948,7 @@
         openLobby('quiz_topic_practice');
     };
 
-    // V19.18 DEDICATED TARGET RADAR SCREEN
+    // V19.19 ELITE TARGET RADAR
     window.openTargetRadar = () => {
         showScreen('target-radar');
         renderTargetRadar();
@@ -910,9 +956,14 @@
 
     window.renderTargetRadar = () => {
         const grid = document.getElementById('target-radar-grid');
+        const bleedCont = document.getElementById('critical-bleed-container');
+        const bleedGrid = document.getElementById('critical-bleed-grid');
+        
         grid.innerHTML = '';
+        bleedGrid.innerHTML = '';
         
         let globalTopicsStats = {}; 
+        let allTopicsFlat = [];
         
         historyDb.forEach(h => {
             if(h.reviewData) {
@@ -921,7 +972,7 @@
                     let t2 = (rd.tags && rd.tags.length > 1) ? rd.tags[1] : t1;
                     
                     if(!globalTopicsStats[t1]) globalTopicsStats[t1] = {};
-                    if(!globalTopicsStats[t1][t2]) globalTopicsStats[t1][t2] = { c: 0, t: 0 };
+                    if(!globalTopicsStats[t1][t2]) globalTopicsStats[t1][t2] = { c: 0, t: 0, t1: t1, t2: t2 };
                     
                     globalTopicsStats[t1][t2].t++;
                     if(rd.status === 'correct') globalTopicsStats[t1][t2].c++;
@@ -929,27 +980,70 @@
             }
         });
 
-        // Only render cards for subjects that actually have data
+        // Flatten stats for the Critical Bleed Row
+        Object.keys(globalTopicsStats).forEach(t1 => {
+            Object.keys(globalTopicsStats[t1]).forEach(t2 => {
+                allTopicsFlat.push(globalTopicsStats[t1][t2]);
+            });
+        });
+
+        // 1. Identify Top 5 Critical Weaknesses (Min 3 attempts)
+        let criticalTopics = allTopicsFlat.filter(x => x.t >= 3).sort((a,b) => {
+            let accA = a.c / a.t;
+            let accB = b.c / b.t;
+            if(accA !== accB) return accA - accB; // lowest accuracy first
+            return b.t - a.t; // higher volume first (tiebreaker)
+        }).slice(0, 5);
+
+        if(criticalTopics.length > 0) {
+            bleedCont.classList.remove('hidden');
+            criticalTopics.forEach(stat => {
+                let acc = Math.round((stat.c / stat.t) * 100);
+                bleedGrid.innerHTML += `
+                    <button onclick="generateTopicMock('${stat.t1.replace(/'/g, "\\'")}', '${stat.t2.replace(/'/g, "\\'")}')" class="bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 border-2 border-rose-400 p-4 rounded-2xl flex flex-col items-center justify-center text-center shadow-lg transition-transform hover:-translate-y-1">
+                        <span class="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">${stat.t1}</span>
+                        <span class="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight mb-2">${stat.t2}</span>
+                        <span class="text-xl font-black text-rose-600 dark:text-rose-400">${acc}%</span>
+                        <span class="text-[9px] font-black text-rose-400 tracking-widest mt-1">[ ${stat.c} / ${stat.t} ]</span>
+                    </button>
+                `;
+            });
+        } else {
+            bleedCont.classList.add('hidden');
+        }
+
+        // 2. Render Subject Cards (Weakness-First Sort)
         Object.keys(globalTopicsStats).sort().forEach(subject => {
             let subTopics = globalTopicsStats[subject];
             if (subTopics && Object.keys(subTopics).length > 0) {
                 
-                let pillsHTML = Object.keys(subTopics).sort((a,b) => subTopics[b].t - subTopics[a].t).map(t => {
-                    let acc = Math.round((subTopics[t].c / subTopics[t].t) * 100);
+                let sortedTopicKeys = Object.keys(subTopics).sort((a,b) => {
+                    let accA = subTopics[a].c / subTopics[a].t;
+                    let accB = subTopics[b].c / subTopics[b].t;
+                    if(accA !== accB) return accA - accB;
+                    return subTopics[b].t - subTopics[a].t; // Tiebreaker: volume
+                });
+
+                let pillsHTML = sortedTopicKeys.map(t => {
+                    let stat = subTopics[t];
+                    let acc = Math.round((stat.c / stat.t) * 100);
                     let colorClasses = acc >= 80 ? 'text-emerald-700 bg-emerald-100 border-emerald-300 dark:text-emerald-400 dark:bg-emerald-900/30 dark:border-emerald-800/50'
                                      : acc >= 50 ? 'text-amber-700 bg-amber-100 border-amber-300 dark:text-amber-400 dark:bg-amber-900/30 dark:border-amber-800/50'
-                                     : 'text-red-700 bg-red-100 border-red-300 dark:text-red-400 dark:bg-red-900/30 dark:border-red-800/50';
-                    return `<button onclick="generateTopicMock('${subject.replace(/'/g, "\\'")}', '${t.replace(/'/g, "\\'")}')" class="px-3 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg border shadow-sm ${colorClasses} hover:scale-105 transition-transform cursor-pointer flex justify-between items-center w-full" title="Practice ${t} questions"><span>${t}</span> <span>${acc}% ▶</span></button>`;
+                                     : 'text-rose-700 bg-rose-100 border-rose-300 dark:text-rose-400 dark:bg-rose-900/30 dark:border-rose-800/50';
+                    return `<button onclick="generateTopicMock('${subject.replace(/'/g, "\\'")}', '${t.replace(/'/g, "\\'")}')" class="px-3 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-lg border shadow-sm ${colorClasses} hover:scale-105 transition-transform cursor-pointer flex justify-between items-center w-full" title="Practice ${t} questions">
+                        <span class="truncate max-w-[65%] text-left">${t}</span> 
+                        <span class="flex items-center gap-1.5"><span class="opacity-60">[${stat.c}/${stat.t}]</span> <span>${acc}% ▶</span></span>
+                    </button>`;
                 }).join('');
 
                 const card = document.createElement('div'); 
-                card.className = `bg-white dark:bg-slate-900/80 rounded-3xl p-6 shadow-lg border border-slate-200 dark:border-slate-800 relative overflow-hidden`;
+                card.className = `bg-white dark:bg-slate-900/80 rounded-3xl p-6 shadow-lg border border-slate-200 dark:border-slate-800 relative overflow-hidden flex flex-col h-full`;
                 card.innerHTML = `
                     <div class="absolute top-0 left-0 w-full h-1.5 ${getCategoryClass(subject)}"></div>
                     <div class="flex justify-between items-center pb-3 mb-4 border-b border-slate-100 dark:border-slate-800/50">
                         <h2 class="text-xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">${subject}</h2>
                     </div>
-                    <div class="flex flex-col gap-2">${pillsHTML}</div>
+                    <div class="flex flex-col gap-2 flex-1 overflow-y-auto max-h-[300px] pr-1">${pillsHTML}</div>
                 `;
                 grid.appendChild(card);
             }
