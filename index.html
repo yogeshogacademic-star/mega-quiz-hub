@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.16 (Repaired Pure SRS Engine)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.17 (Global Target Matrix)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -32,12 +32,6 @@
 
         mark { background-color: rgba(251, 191, 36, 0.4); color: inherit; padding: 0 2px; border-radius: 4px; font-weight: 900; box-shadow: 0 0 8px rgba(251, 191, 36, 0.3); }
         .dark mark { background-color: rgba(245, 158, 11, 0.5); }
-        
-        /* Flashcard Animations */
-        .flashcard-inner { transition: transform 0.6s; transform-style: preserve-3d; }
-        .flashcard.flipped .flashcard-inner { transform: rotateX(180deg); }
-        .flashcard-front, .flashcard-back { backface-visibility: hidden; position: absolute; inset: 0; }
-        .flashcard-back { transform: rotateX(180deg); }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-[#0a0f1c] dark:text-slate-200 min-h-screen flex flex-col pb-20">
@@ -61,16 +55,15 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.16</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.17</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Strict 4-Tier Tagging & Repaired SRS Engine</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Global Target Matrix & Pure SRS Engine</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
                     <button onclick="toggleDarkMode()" class="bg-white/10 hover:bg-white/20 p-4 rounded-2xl backdrop-blur-md transition-all border border-white/10 shadow-inner hover:scale-105" title="Toggle Dark Mode">🌙</button>
                     <button onclick="openDBManager()" class="bg-gradient-to-br from-blue-500 to-cyan-600 hover:from-blue-400 hover:to-cyan-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-transform hover:-translate-y-1 border border-cyan-400 flex items-center gap-2">🗄️ Master DB</button>
-                    <button onclick="openFlashcardVault()" class="bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-transform hover:-translate-y-1 border border-amber-400 flex items-center gap-2">🃏 Flashcards</button>
-                    <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400 flex items-center gap-2">📊 Analytics</button>
+                    <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400 flex items-center gap-2">📊 Global Analytics</button>
                 </div>
             </div>
 
@@ -323,56 +316,6 @@
         </div>
     </div>
 
-    <div id="screen-flashcards" class="hidden max-w-4xl mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1 flex flex-col items-center justify-center">
-        <div class="w-full flex justify-between items-center mb-8">
-            <button onclick="exitFlashcards()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] flex items-center gap-2 transition-colors">← Back to Hub</button>
-            <div class="text-[10px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-4 py-1.5 rounded-full border border-amber-200 dark:border-amber-800/50">🃏 Brain-Melting Mode Active</div>
-        </div>
-        
-        <div class="w-full relative min-h-[400px] perspective-1000">
-            <div id="fc-card" class="flashcard w-full min-h-[400px] cursor-pointer" onclick="flipFlashcard()">
-                <div class="flashcard-inner relative w-full h-full min-h-[400px]">
-                    <div class="flashcard-front bg-white dark:bg-slate-900 rounded-[2rem] p-8 md:p-12 shadow-2xl border-2 border-slate-200 dark:border-slate-700 flex flex-col justify-center items-center text-center">
-                        <div class="absolute top-6 left-6 right-6 flex justify-between">
-                            <span id="fc-topic-badge" class="text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 px-3 py-1 rounded">Topic</span>
-                            <span id="fc-counter" class="text-[10px] font-black uppercase tracking-widest text-slate-400">Card 1 / 10</span>
-                        </div>
-                        <div id="fc-prompt-type" class="text-xs font-black text-amber-500 uppercase tracking-widest mb-6">👁️ Visualize the Concept</div>
-                        <div id="fc-front-text" class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-100 leading-relaxed">Loading cognitive prompt...</div>
-                        <div class="absolute bottom-8 text-[10px] font-black text-slate-400 uppercase tracking-widest animate-pulse">Press Spacebar to Reveal</div>
-                    </div>
-                    <div class="flashcard-back bg-slate-50 dark:bg-slate-950 rounded-[2rem] p-8 md:p-12 shadow-2xl border-2 border-emerald-400 flex flex-col justify-center items-center text-center">
-                        <div class="absolute top-6 text-[10px] font-black text-emerald-500 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1 rounded border border-emerald-200 dark:border-emerald-800/50">✅ The Answer</div>
-                        <div id="fc-back-text" class="text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-200 leading-relaxed mb-8 w-full max-h-[250px] overflow-y-auto pr-2">Loading answer...</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="fc-controls" class="hidden w-full max-w-2xl mt-10 grid grid-cols-4 gap-3">
-            <button onclick="gradeFlashcard('again'); event.stopPropagation();" class="flex flex-col items-center justify-center p-3 rounded-xl bg-white dark:bg-slate-900 border-2 border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all shadow-sm group">
-                <span class="text-sm font-black text-red-600 dark:text-red-400 uppercase tracking-widest">Again</span>
-                <span class="text-[10px] font-bold text-slate-400 mt-1">1 Min</span>
-                <span class="text-[9px] text-slate-300 hidden group-hover:block mt-1">(Hotkey: 1)</span>
-            </button>
-            <button onclick="gradeFlashcard('hard'); event.stopPropagation();" class="flex flex-col items-center justify-center p-3 rounded-xl bg-white dark:bg-slate-900 border-2 border-orange-200 dark:border-orange-900/50 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all shadow-sm group">
-                <span class="text-sm font-black text-orange-600 dark:text-orange-400 uppercase tracking-widest">Hard</span>
-                <span id="fc-hard-time" class="text-[10px] font-bold text-slate-400 mt-1">1 Day</span>
-                <span class="text-[9px] text-slate-300 hidden group-hover:block mt-1">(Hotkey: 2)</span>
-            </button>
-            <button onclick="gradeFlashcard('good'); event.stopPropagation();" class="flex flex-col items-center justify-center p-3 rounded-xl bg-white dark:bg-slate-900 border-2 border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all shadow-sm group">
-                <span class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Good</span>
-                <span id="fc-good-time" class="text-[10px] font-bold text-slate-400 mt-1">3 Days</span>
-                <span class="text-[9px] text-slate-300 hidden group-hover:block mt-1">(Hotkey: 3)</span>
-            </button>
-            <button onclick="gradeFlashcard('easy'); event.stopPropagation();" class="flex flex-col items-center justify-center p-3 rounded-xl bg-white dark:bg-slate-900 border-2 border-blue-200 dark:border-blue-900/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all shadow-sm group">
-                <span class="text-sm font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Easy</span>
-                <span id="fc-easy-time" class="text-[10px] font-bold text-slate-400 mt-1">7 Days</span>
-                <span class="text-[9px] text-slate-300 hidden group-hover:block mt-1">(Hotkey: 4)</span>
-            </button>
-        </div>
-    </div>
-
     <div id="screen-analytics" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
@@ -398,7 +341,7 @@
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
                 <div>
                     <h2 id="subject-analysis-title" class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Subject - Topic Analysis</h2>
-                    <p class="text-xs font-bold text-blue-500 uppercase tracking-widest mt-1">Performance breakdown by sub-topics</p>
+                    <p class="text-xs font-bold text-blue-500 uppercase tracking-widest mt-1">Global Performance Breakdown by Sub-Topics</p>
                 </div>
                 <button onclick="closeSubjectAnalysis()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
             </div>
@@ -556,20 +499,6 @@
         "Current Affairs": ["National News & Governance", "International News", "Economy & Banking Updates", "Sports News", "Awards & Honors", "Appointments & Resignations", "Defense Exercises", "Government Schemes & Yojanas"],
         "Computer Knowledge": ["Computer Fundamentals & History", "Hardware & Software", "Operating Systems", "MS Office", "Internet & Networking", "Cyber Security & Threats", "Keyboard Shortcuts & Abbreviations"]
     };
-
-    let flashcardState = { deck: [], currentIndex: 0, isFlipped: false };
-    const ADVANCED_FLASHCARDS = [
-        { id: "fc_1", topic: "Geometry", promptType: "👁️ Visualize the Concept", front: "Picture a triangle ABC with a circle perfectly inscribed inside it. You are standing at the exact dead-center (the Incenter). If you look up at angle A, what is the exact mathematical equation that calculates your current angle (∠BIC)?", back: "∠BIC = 90° + (∠A / 2)" },
-        { id: "fc_2", topic: "Geometry", promptType: "👁️ Visualize the Concept", front: "Now picture the same triangle ABC, but the circle is drawn perfectly OUTSIDE, touching all three corners. You are standing at the Circumcenter. If you look at the angle A at the top, what equation defines your angle at the center (∠BOC)?", back: "∠BOC = 2 × ∠A\n\n(Angle at center is double the angle at the circumference)" },
-        { id: "fc_3", topic: "Time & Work", promptType: "⚙️ Execute the Protocol", front: "A team of men (M1) working D1 days for H1 hours completes a specific job (W1). A second team is hired to finish a different amount of work. Write down the Master Chain Rule (MDH) equation required to balance their exact outputs.", back: "(M1 × D1 × H1) / W1 = (M2 × D2 × H2) / W2" },
-        { id: "fc_4", topic: "Algebra", promptType: "⚖️ Balance the Equation", front: "You are given the Master Identity. The variables a, b, and c sum perfectly to 0. What absolute consequence does this have on the equation: a³ + b³ + c³?", back: "a³ + b³ + c³ = 3abc\n\n(The Zero Condition)" },
-        { id: "fc_5", topic: "Algebra", promptType: "🧩 Deconstruct the Pattern", front: "You are testing the inverse pattern. If x - 1/x = k, what is the exact mathematical shortcut to find x³ - 1/x³?", back: "k³ + 3k" },
-        { id: "fc_6", topic: "Compound Interest", promptType: "⚙️ Execute the Protocol", front: "A bank offers Compound Interest, but they trick you by compounding Half-Yearly. What two exact mathematical adjustments must you make to the Rate (R) and Time (n) before plugging them into the formula?", back: "1. Rate is halved (R/2)\n2. Time is doubled (2n)" },
-        { id: "fc_7", topic: "Mensuration", promptType: "👁️ Visualize the Concept", front: "Imagine slicing an Equilateral Triangle straight down the middle. What is the exact formula to calculate the altitude (Height) of this perfect shape based on side 'a'?", back: "(√3 / 2)a" },
-        { id: "fc_8", topic: "Mensuration", promptType: "⚖️ Balance the Equation", front: "You are melting down a massive solid metal Sphere to forge a dozen identical small Cones. What underlying physical law dictates this transformation, and what exact left-vs-right equation must you write to balance the two states?", back: "Volume is Conserved.\n\n(4/3)πR³ = n × (1/3)πr²h" },
-        { id: "fc_9", topic: "Number System", promptType: "🧩 Deconstruct the Pattern", front: "A number claims to be a Perfect Square, but it ends in the digit 7. What unbreakable rule proves this is impossible?", back: "Perfect Squares NEVER end in 2, 3, 7, or 8." },
-        { id: "fc_10", topic: "Speed, Time, Distance", promptType: "⚙️ Execute the Protocol", front: "Two trains are moving on parallel tracks. They are moving in the OPPOSITE direction, heading directly towards each other. What is the exact protocol to calculate their Relative Speed?", back: "Add their speeds together (x + y).\n\n(If same direction, subtract: |x - y|)" }
-    ];
 
     window.requireAuth = (callback) => {
         const pwd = prompt("🔒 SYSTEM SECURED\n\nEnter the master password to authorize changes:");
@@ -787,9 +716,6 @@
         localStorage.setItem('megaQuizDB_v4', JSON.stringify(db));
         localStorage.setItem('megaQuizHistory_v5', JSON.stringify(historyDb)); 
         localStorage.setItem('megaQuizMistakes_v5', JSON.stringify(mistakesDb));
-        
-        let storedFCs = JSON.parse(localStorage.getItem('megaQuizFlashcards_v1') || "[]");
-        if(storedFCs.length === 0) localStorage.setItem('megaQuizFlashcards_v1', JSON.stringify(ADVANCED_FLASHCARDS.map(fc => ({...fc, srs: {reps: 0, ease: 2.5, interval: 0, nextReview: 0}}))));
     }
 
     function loadLocalFallback() {
@@ -819,7 +745,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.16", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.17", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -925,21 +851,37 @@
         return 'border-orange-500'; 
     };
 
+    // V19.17 GLOBAL TOPIC MOCK GENERATOR
     window.generateTopicMock = (parentSubject, targetTopic) => {
         let pool = [];
+        
+        // Scan the entire database, regardless of quiz folder
         Object.values(db).forEach(quiz => {
-            if (quiz.subject === parentSubject && !quiz.title.includes("🎯") && !quiz.title.includes("Master Mock") && !quiz.title.includes("SRS")) {
+            if (!quiz.title.includes("🎯") && !quiz.title.includes("Master Mock") && !quiz.title.includes("SRS")) {
                 quiz.questions.forEach(q => {
-                    let qTags = q.tags || [];
-                    if (qTags.includes(targetTopic) || (targetTopic === "Miscellaneous" && qTags.length === 0)) pool.push(q);
+                    let t1 = (q.tags && q.tags.length > 0) ? q.tags[0] : (q.subject || q.originalSubject || "Miscellaneous");
+                    let t2 = (q.tags && q.tags.length > 1) ? q.tags[1] : t1;
+                    
+                    // Strict match against Tag 1 and Tag 2
+                    if (t1 === parentSubject && t2 === targetTopic) {
+                        pool.push(q);
+                    }
                 });
             }
         });
 
         if(pool.length === 0) return alert(`No questions found for topic: ${targetTopic}`);
+        
+        // Ensure uniqueness
         const uniqueQs = Array.from(new Map(pool.map(q => [q.question, q])).values());
         const shuffled = uniqueQs.sort(() => 0.5 - Math.random()).slice(0, 30);
-        db['quiz_topic_practice'] = { title: `🎯 ${targetTopic} Practice`, subject: parentSubject, timeInMinutes: Math.ceil(shuffled.length * 1.5), questions: shuffled };
+        
+        db['quiz_topic_practice'] = { 
+            title: `🎯 ${targetTopic} Practice`, 
+            subject: parentSubject, 
+            timeInMinutes: Math.ceil(shuffled.length * 1.5), 
+            questions: shuffled 
+        };
         openLobby('quiz_topic_practice');
     };
 
@@ -969,74 +911,61 @@
             </div>`;
         grid.appendChild(mambaCard);
         
+        // V19.17: THE GLOBAL MATRIX SWEEP
+        let globalTopicsStats = {}; 
+        
+        historyDb.forEach(h => {
+            if(h.reviewData) {
+                h.reviewData.forEach(rd => {
+                    // Extract Tag 1 and Tag 2 globally, ignoring the mock folder
+                    let t1 = (rd.tags && rd.tags.length > 0) ? rd.tags[0] : "Miscellaneous";
+                    let t2 = (rd.tags && rd.tags.length > 1) ? rd.tags[1] : t1;
+                    
+                    if(!globalTopicsStats[t1]) globalTopicsStats[t1] = {};
+                    if(!globalTopicsStats[t1][t2]) globalTopicsStats[t1][t2] = { c: 0, t: 0 };
+                    
+                    globalTopicsStats[t1][t2].t++;
+                    if(rd.status === 'correct') globalTopicsStats[t1][t2].c++;
+                });
+            }
+        });
+
         SUBJECTS.forEach(subject => {
 
             const subjectQuizzes = Object.keys(db).filter(id => db[id].subject === subject && !db[id].title.includes("Master Mock") && !db[id].title.includes("🎯") && !db[id].title.includes("SRS"));
             
-            let topicsByParent = {}; 
-            let isMixedSubject = subject.includes("MOCK") || subject === "Mixed" || subject === "Miscellaneous";
-
-            historyDb.filter(h => h.subject === subject).forEach(h => {
-                if(h.reviewData) {
-                    h.reviewData.forEach(rd => {
-                        let primaryTag = rd.tags && rd.tags.length > 0 ? rd.tags[0] : "General";
-                        let secondaryTag = rd.tags && rd.tags.length > 1 ? rd.tags[1] : primaryTag;
-                        if (!rd.tags || rd.tags.length === 0) { primaryTag = "Miscellaneous"; secondaryTag = "Miscellaneous"; }
-                        
-                        let parentSub, topicName;
-                        if(isMixedSubject) {
-                            parentSub = primaryTag;
-                            topicName = secondaryTag;
-                        } else {
-                            parentSub = subject; 
-                            if (primaryTag.toUpperCase() === subject.toUpperCase() && rd.tags.length > 1) {
-                                topicName = secondaryTag;
-                            } else {
-                                topicName = primaryTag;
-                            }
-                        }
-
-                        if(!topicsByParent[parentSub]) topicsByParent[parentSub] = {};
-                        if(!topicsByParent[parentSub][topicName]) topicsByParent[parentSub][topicName] = { c: 0, t: 0 };
-                        topicsByParent[parentSub][topicName].t++;
-                        if(rd.status === 'correct') topicsByParent[parentSub][topicName].c++;
-                    });
-                }
-            });
-
             let matrixHTML = '';
             let safeSub = subject.replace(/[^a-zA-Z0-9]/g, '');
             
-            if (Object.keys(topicsByParent).length > 0) {
-                let allPills = '';
-                Object.keys(topicsByParent).forEach(parentSub => {
-                    let pillsHTML = Object.keys(topicsByParent[parentSub]).map(t => {
-                        let acc = Math.round((topicsByParent[parentSub][t].c / topicsByParent[parentSub][t].t) * 100);
-                        let colorClasses = acc >= 80 ? 'text-emerald-700 bg-emerald-100 border-emerald-300 dark:text-emerald-400 dark:bg-emerald-900/30 dark:border-emerald-800/50'
-                                         : acc >= 50 ? 'text-amber-700 bg-amber-100 border-amber-300 dark:text-amber-400 dark:bg-amber-900/30 dark:border-amber-800/50'
-                                         : 'text-red-700 bg-red-100 border-red-300 dark:text-red-400 dark:bg-red-900/30 dark:border-red-800/50';
-                        return `<button onclick="generateTopicMock('${subject}', '${t}')" class="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded border shadow-sm ${colorClasses} hover:scale-105 transition-transform cursor-pointer" title="Practice ${t} questions">${t}: ${acc}% ▶</button>`;
-                    }).join('');
-                    allPills += `<div class="mb-3 last:mb-0"><div class="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 border-b border-slate-200 dark:border-slate-700 pb-0.5">${parentSub}</div><div class="flex flex-wrap gap-1.5">${pillsHTML}</div></div>`;
-                });
+            // Pull strictly from the newly generated Global Scorecard
+            let subTopics = globalTopicsStats[subject];
+            
+            if (subTopics && Object.keys(subTopics).length > 0) {
+                let pillsHTML = Object.keys(subTopics).sort((a,b) => subTopics[b].t - subTopics[a].t).map(t => {
+                    let acc = Math.round((subTopics[t].c / subTopics[t].t) * 100);
+                    let colorClasses = acc >= 80 ? 'text-emerald-700 bg-emerald-100 border-emerald-300 dark:text-emerald-400 dark:bg-emerald-900/30 dark:border-emerald-800/50'
+                                     : acc >= 50 ? 'text-amber-700 bg-amber-100 border-amber-300 dark:text-amber-400 dark:bg-amber-900/30 dark:border-amber-800/50'
+                                     : 'text-red-700 bg-red-100 border-red-300 dark:text-red-400 dark:bg-red-900/30 dark:border-red-800/50';
+                    return `<button onclick="generateTopicMock('${subject.replace(/'/g, "\\'")}', '${t.replace(/'/g, "\\'")}')" class="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded border shadow-sm ${colorClasses} hover:scale-105 transition-transform cursor-pointer" title="Practice ${t} questions">${t}: ${acc}% ▶</button>`;
+                }).join('');
                 
                 matrixHTML = `
                     <div class="mb-4 flex gap-2">
                         <button onclick="document.getElementById('matrix-${safeSub}').classList.toggle('hidden')" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black text-[10px] uppercase py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 flex justify-between items-center px-4 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors shadow-sm">
                             🎯 Target Topics <span class="text-xs">▼</span>
                         </button>
-                        <button onclick="showSubjectAnalysis('${subject}')" class="bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 font-black text-[10px] uppercase px-4 py-2.5 rounded-xl border border-blue-100 dark:border-blue-800/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors shadow-sm" title="View Detailed Topic Analysis">
+                        <button onclick="showSubjectAnalysis('${subject.replace(/'/g, "\\'")}')" class="bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 font-black text-[10px] uppercase px-4 py-2.5 rounded-xl border border-blue-100 dark:border-blue-800/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors shadow-sm" title="View Detailed Topic Analysis">
                             📊 Analysis
                         </button>
                     </div>
                     <div id="matrix-${safeSub}" class="hidden mb-4 p-4 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-slate-100 dark:border-slate-800 shadow-inner">
-                        ${allPills}
+                        <div class="mb-3 last:mb-0"><div class="flex flex-wrap gap-1.5">${pillsHTML}</div></div>
                     </div>
                 `;
             } else {
                 matrixHTML = `
                     <div class="mb-4">
-                        <button onclick="showSubjectAnalysis('${subject}')" class="w-full bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 font-black text-[10px] uppercase px-4 py-2.5 rounded-xl border border-blue-100 dark:border-blue-800/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors shadow-sm" title="View Detailed Topic Analysis">
+                        <button onclick="showSubjectAnalysis('${subject.replace(/'/g, "\\'")}')" class="w-full bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 font-black text-[10px] uppercase px-4 py-2.5 rounded-xl border border-blue-100 dark:border-blue-800/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors shadow-sm" title="View Detailed Topic Analysis">
                             📊 Topic Analysis
                         </button>
                     </div>
@@ -1064,13 +993,13 @@
                 <div class="absolute top-0 left-0 w-full h-1.5 ${getCategoryClass(subject)}"></div>
                 <div class="flex justify-between items-center pb-3 mb-3 mt-1 border-b border-slate-100 dark:border-slate-800/50">
                     <h2 class="text-xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">${subject}</h2>
-                    <button onclick="deleteSubject('${subject}')" class="text-slate-400 hover:text-red-500 transition-colors bg-slate-100 dark:bg-slate-800 p-1.5 rounded-lg" title="Delete Subject & Quizzes 🔒">🗑️</button>
+                    <button onclick="deleteSubject('${subject.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-red-500 transition-colors bg-slate-100 dark:bg-slate-800 p-1.5 rounded-lg" title="Delete Subject & Quizzes 🔒">🗑️</button>
                 </div>
                 ${matrixHTML}
                 <div class="flex-1 overflow-y-auto pr-2 mb-3 max-h-64 space-y-1">${listHTML}</div>
                 <div class="flex gap-2 mt-auto pt-3 border-t border-slate-100 dark:border-slate-800/50">
-                    <button onclick="triggerImport('${subject}')" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 text-slate-600 dark:text-slate-300 hover:text-emerald-700 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm">➕ Add 🔒</button>
-                    <button onclick="generateSubjectMock('${subject}')" class="flex-1 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-400 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm border border-indigo-100 dark:border-indigo-800/30" title="Combine all questions in this subject into one massive test">🧠 Master</button>
+                    <button onclick="triggerImport('${subject.replace(/'/g, "\\'")}')" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 text-slate-600 dark:text-slate-300 hover:text-emerald-700 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm">➕ Add 🔒</button>
+                    <button onclick="generateSubjectMock('${subject.replace(/'/g, "\\'")}')" class="flex-1 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-400 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm border border-indigo-100 dark:border-indigo-800/30" title="Combine all questions in this subject into one massive test">🧠 Master</button>
                 </div>`;
             grid.appendChild(card);
         });
@@ -1093,7 +1022,7 @@
         grid.appendChild(addCard);
     }
 
-    // V19.16 REPAIRED SRS ENGINE (STRICT MATCHING)
+    // REPAIRED SRS ENGINE (STRICT MATCHING)
     window.openSRSModal = () => {
         let globalDue = 0;
         let subSelect = document.getElementById('srs-subject-select');
@@ -1685,44 +1614,33 @@
 
         document.getElementById('subject-analysis-title').textContent = `${subject} - Topic Analysis`;
 
-        let isMixedSubject = subject.includes("MOCK") || subject === "Mixed" || subject === "Miscellaneous";
-        let topicsStats = {}; 
-        historyDb.filter(h => h.subject === subject).forEach(h => {
+        // V19.17: RE-WIRED DETAILED ANALYSIS TO USE GLOBAL SCORECARD
+        let globalTopicsStats = {}; 
+        historyDb.forEach(h => {
             if(h.reviewData) {
                 h.reviewData.forEach(rd => {
-                    let primaryTag = rd.tags && rd.tags.length > 0 ? rd.tags[0] : "General";
-                    let secondaryTag = rd.tags && rd.tags.length > 1 ? rd.tags[1] : primaryTag;
-                    if (!rd.tags || rd.tags.length === 0) { primaryTag = "Miscellaneous"; secondaryTag = "Miscellaneous"; }
+                    let t1 = (rd.tags && rd.tags.length > 0) ? rd.tags[0] : "Miscellaneous";
+                    let t2 = (rd.tags && rd.tags.length > 1) ? rd.tags[1] : t1;
                     
-                    let topicName;
-                    if(isMixedSubject) {
-                        topicName = `${primaryTag} : ${secondaryTag}`;
-                    } else {
-                        if (primaryTag.toUpperCase() === subject.toUpperCase() && rd.tags.length > 1) {
-                            topicName = secondaryTag;
-                        } else {
-                            topicName = primaryTag;
-                        }
+                    if(t1 === subject) {
+                        if(!globalTopicsStats[t2]) globalTopicsStats[t2] = { correct: 0, wrong: 0, skipped: 0, total: 0 };
+                        globalTopicsStats[t2].total++;
+                        if(rd.status === 'correct') globalTopicsStats[t2].correct++;
+                        else if(rd.status === 'wrong') globalTopicsStats[t2].wrong++;
+                        else if(rd.status === 'skipped') globalTopicsStats[t2].skipped++;
                     }
-                    
-                    if(!topicsStats[topicName]) topicsStats[topicName] = { correct: 0, wrong: 0, skipped: 0, total: 0 };
-                    
-                    topicsStats[topicName].total++;
-                    if(rd.status === 'correct') topicsStats[topicName].correct++;
-                    else if(rd.status === 'wrong') topicsStats[topicName].wrong++;
-                    else if(rd.status === 'skipped') topicsStats[topicName].skipped++;
                 });
             }
         });
 
         let html = '';
-        let sortedTopics = Object.keys(topicsStats).sort((a,b) => topicsStats[b].total - topicsStats[a].total);
+        let sortedTopics = Object.keys(globalTopicsStats).sort((a,b) => globalTopicsStats[b].total - globalTopicsStats[a].total);
 
         if(sortedTopics.length === 0) {
             html = `<div class="text-center text-slate-400 font-bold py-10 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl uppercase tracking-widest text-[10px]">No data available. Take some quizzes first!</div>`;
         } else {
             sortedTopics.forEach(t => {
-                let stat = topicsStats[t];
+                let stat = globalTopicsStats[t];
                 let acc = Math.round((stat.correct / stat.total) * 100);
                 let barColor = acc >= 80 ? 'bg-emerald-500' : acc >= 50 ? 'bg-amber-500' : 'bg-red-500';
                 
@@ -1749,7 +1667,7 @@
     window.closeSubjectAnalysis = () => document.getElementById('screen-subject-analysis').classList.add('hidden');
 
     function showScreen(s) { 
-        ['dashboard','lobby','quiz','results','flashcards','db-manager'].forEach(x => {
+        ['dashboard','lobby','quiz','results','db-manager'].forEach(x => {
             const el = document.getElementById('screen-'+x);
             if(el) el.classList.add('hidden');
         }); 
