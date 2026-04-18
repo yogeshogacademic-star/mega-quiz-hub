@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.9 (Smart Tag Editor)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.11 (Smart Editor & Economy Override)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -61,9 +61,9 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.9</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.11</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Smart Tag Editor & Auto-Tagger Engine</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Smart Tag Editor & Economy DB Override</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
@@ -106,8 +106,6 @@
                     <span class="w-10 h-px bg-slate-200 dark:bg-slate-700"></span> System Administration (Secured) <span class="w-10 h-px bg-slate-200 dark:bg-slate-700"></span>
                 </div>
                 <div class="flex justify-center gap-4 flex-wrap">
-                    <button onclick="autoTagLegacyData()" class="bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-900/20 dark:text-purple-400 dark:hover:bg-purple-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-purple-100 dark:border-purple-900/30">🪄 Auto-Tag Legacy</button>
-                    
                     <button onclick="exportMistakesToAnki()" class="bg-slate-200 text-slate-700 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md">📥 Export SRS Data</button>
                     <button onclick="exportBackup()" class="bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-blue-100 dark:border-blue-900/30">💾 Backup Database</button>
                     <button onclick="triggerRestore()" class="bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-amber-100 dark:border-amber-900/30">📂 Restore Backup 🔒</button>
@@ -483,9 +481,8 @@
     window.currentQuizWrongQs = [];
     window.currentReviewQuestions = []; 
     let currentlyEditingGlobalText = null;
-    let currentlyEditingTags = []; // V19.9 Tag State
+    let currentlyEditingTags = []; 
 
-    // V19.7 BRAIN-MELTING FLASHCARD DATABASE
     let flashcardState = { deck: [], currentIndex: 0, isFlipped: false };
     const ADVANCED_FLASHCARDS = [
         { id: "fc_1", topic: "Geometry", promptType: "👁️ Visualize the Concept", front: "Picture a triangle ABC with a circle perfectly inscribed inside it. You are standing at the exact dead-center (the Incenter). If you look up at angle A, what is the exact mathematical equation that calculates your current angle (∠BIC)?", back: "∠BIC = 90° + (∠A / 2)" },
@@ -505,57 +502,8 @@
         if (pwd === "KOBE") { callback(); } else if (pwd !== null) { alert("❌ ACCESS DENIED."); }
     };
 
-    // V19.8 AI AUTO-TAGGER
-    window.autoTagLegacyData = () => {
-        requireAuth(() => {
-            let updatedCount = 0;
-            const rules = [
-                { keys: ['article ', 'constitution', 'parliament', 'president', 'supreme court', 'amendment', 'fundamental right', 'dpsp', 'writ', 'lok sabha', 'rajya sabha'], t1: 'Polity', t2: 'Constitutional Framework' },
-                { keys: ['profit', 'loss', 'speed', 'distance', 'time and work', 'compound interest', 'ratio', 'percentage', 'discount'], t1: 'Arithmetic', t2: 'Word Problems' },
-                { keys: ['triangle', 'circle', 'radius', 'volume', 'sphere', 'algebra', 'secant', 'tangent', 'sin ', 'cos ', 'polygon', 'cylinder'], t1: 'Advanced Maths', t2: 'Geometry & Mensuration' },
-                { keys: ['river', 'mountain', 'soil', 'climate', 'latitude', 'ocean', 'pass', 'plateau', 'monsoon', 'earthquake'], t1: 'Geography', t2: 'Physical & Indian Geography' },
-                { keys: ['mughal', 'mauryan', 'gandhi', 'treaty', 'revolt', 'congress', 'act of', 'delhi sultanate', 'buddhism', 'jainism', 'harappa'], t1: 'History', t2: 'Indian History' },
-                { keys: ['synonym', 'antonym', 'idiom', 'spelled', 'grammar', 'tense', 'passive voice', 'indirect speech', 'comprehension'], t1: 'English Language', t2: 'Grammar & Vocab' },
-                { keys: ['gdp', 'inflation', 'rbi', 'bank', 'repo rate', 'budget', 'tax', 'wto', 'imf'], t1: 'Economics', t2: 'Macroeconomics' },
-                { keys: ['velocity', 'force', 'acceleration', 'lens', 'mirror', 'magnetic', 'acid', 'base', 'vitamin', 'disease', 'blood', 'cell '], t1: 'Science', t2: 'General Science' }
-            ];
 
-            const applyTags = (qObj) => {
-                let text = (qObj.question + " " + (qObj.solution||"")).toLowerCase();
-                for(let r of rules) {
-                    if(r.keys.some(k => text.includes(k))) {
-                        let existingTags = qObj.tags || [];
-                        let newTags = [r.t1, r.t2];
-                        existingTags.forEach(et => {
-                            if(et.startsWith('#') || (![r.t1, r.t2].includes(et) && !SUBJECTS.map(s=>s.toLowerCase()).includes(et.toLowerCase()))) {
-                                newTags.push(et);
-                            }
-                        });
-                        qObj.tags = [...new Set(newTags)];
-                        qObj.subject = r.t1;
-                        qObj.originalSubject = r.t1;
-                        updatedCount++;
-                        break; 
-                    }
-                }
-            };
-
-            Object.keys(db).forEach(qid => {
-                db[qid].questions.forEach(q => applyTags(q));
-            });
-            mistakesDb.forEach(m => applyTags(m));
-
-            if(updatedCount > 0) {
-                saveData();
-                alert(`🪄 Magic Complete! The AI Auto-Tagger processed and upgraded ${updatedCount} questions to the 4-Tier standard.`);
-                renderDashboard();
-            } else {
-                alert("Database is already perfectly optimized. No legacy questions needed auto-tagging.");
-            }
-        });
-    };
-
-    // V19.8 MASTER DB MANAGER
+    // V19.11 MASTER DB MANAGER
     window.openDBManager = () => {
         showScreen('db-manager');
         document.getElementById('db-manager-search').value = "";
@@ -602,7 +550,7 @@
         listContainer.innerHTML = html;
     };
 
-    // V19.9 SMART TAG EDITOR LOGIC
+    // V19.11 SMART TAG EDITOR LOGIC
     function populateAllTagsDatalist() {
         let allTags = new Set([...SUBJECTS]); 
         Object.values(db).forEach(quiz => quiz.questions.forEach(q => (q.tags||[]).forEach(t => allTags.add(t))));
@@ -663,7 +611,6 @@
         document.getElementById('edit-solution').value = foundRef.solution || "";
         document.getElementById('edit-formula').value = foundRef.formulaUsed || "";
         
-        // V19.9 Init Tags
         currentlyEditingTags = [...(foundRef.tags || [])];
         populateAllTagsDatalist();
         renderEditTags();
@@ -682,7 +629,6 @@
         if(!currentlyEditingGlobalText) return;
         let oldText = currentlyEditingGlobalText;
         
-        // Grab any pending text in the tag input before saving
         let pendingTag = document.getElementById('edit-tag-input').value.trim();
         if(pendingTag && !currentlyEditingTags.includes(pendingTag)) {
             currentlyEditingTags.push(pendingTag);
@@ -739,11 +685,39 @@
     };
 
 
+    // V19.11 DATABASE HEALER - STRICTLY CURRENT ECONOMICS ONLY
     function runDatabaseHealer() {
         let healedCount = 0;
+        
+        // 1. Fix Active DB Economics Questions
+        Object.keys(db).forEach(qid => {
+            if (db[qid].subject === "Economics") {
+                db[qid].questions.forEach(q => {
+                    if (!q.tags || q.tags[0] !== "Economics" || q.tags[1] !== "Budget, Taxation & Fiscal Policy") {
+                        q.tags = ["Economics", "Budget, Taxation & Fiscal Policy"];
+                        q.subject = "Economics";
+                        q.originalSubject = "Economics";
+                        healedCount++;
+                    }
+                });
+            }
+        });
+
+        // 2. Fix Mistakes DB
         mistakesDb.forEach(m => {
             let oldSub = m.subject || "Miscellaneous";
-            if (["GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS", "Mixed Revision", "Mixed"].includes(oldSub.toUpperCase()) || oldSub === "Miscellaneous") {
+            
+            // ECONOMICS MISTAKES OVERRIDE
+            if (oldSub === "Economics" || m.originalSubject === "Economics") {
+                if (!m.tags || m.tags[0] !== "Economics" || m.tags[1] !== "Budget, Taxation & Fiscal Policy") {
+                    m.tags = ["Economics", "Budget, Taxation & Fiscal Policy"];
+                    m.subject = "Economics";
+                    m.originalSubject = "Economics";
+                    healedCount++;
+                }
+            }
+            // Normal generic folder routing logic
+            else if (["GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS", "Mixed Revision", "Mixed"].includes(oldSub.toUpperCase()) || oldSub === "Miscellaneous") {
                 let targetTag = "Miscellaneous";
                 if (m.tags && m.tags.length > 0) {
                     targetTag = m.tags[0]; 
@@ -760,7 +734,8 @@
         });
         
         if (healedCount > 0) {
-            console.log(`🔥 V19.8 Healer Executed.`);
+            console.log(`🔥 V19.11 Economy Healer Executed. Fixed ${healedCount} items.`);
+            localStorage.setItem('megaQuizDB_v4', JSON.stringify(db));
             localStorage.setItem('megaQuizMistakes_v5', JSON.stringify(mistakesDb));
         }
     }
@@ -811,7 +786,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.9", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.11", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -1277,7 +1252,7 @@
     window.deleteSubject = (sub) => { requireAuth(() => { if (prompt(`WARNING: Delete "${sub}" AND all quizzes inside it?\n\nType "DELETE" to confirm:`) === "DELETE") { SUBJECTS = SUBJECTS.filter(s => s !== sub); Object.keys(db).forEach(id => { if (db[id].subject === sub) delete db[id]; }); delete SUBJECT_CATEGORIES[sub]; saveData(); renderDashboard(); } }); };
 
     window.exportBackup = () => {
-        const blob = new Blob([JSON.stringify({ version: "v19.9", subjects: SUBJECTS, matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, db: db, history: historyDb, mistakes: mistakesDb, masteredCount: localStorage.getItem('megaQuizMasteredCount') || 0, flashcards: JSON.parse(localStorage.getItem('megaQuizFlashcards_v1') || "[]") })], { type: "application/json" });
+        const blob = new Blob([JSON.stringify({ version: "v19.11", subjects: SUBJECTS, matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, db: db, history: historyDb, mistakes: mistakesDb, masteredCount: localStorage.getItem('megaQuizMasteredCount') || 0, flashcards: JSON.parse(localStorage.getItem('megaQuizFlashcards_v1') || "[]") })], { type: "application/json" });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Yogesh_MegaHub_Backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
     };
 
