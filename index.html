@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.13 (Safe Smart Editor)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.11 (Smart Editor & Economy Override)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -61,9 +61,9 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.13</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.11</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Safe Smart Tag Editor (Healer Removed)</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Smart Tag Editor & Economy DB Override</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
@@ -685,7 +685,61 @@
     };
 
 
-    // V19.13 SAFE SYSTEM INIT (HEALER REMOVED)
+    // V19.11 DATABASE HEALER - STRICTLY CURRENT ECONOMICS ONLY
+    function runDatabaseHealer() {
+        let healedCount = 0;
+        
+        // 1. Fix Active DB Economics Questions
+        Object.keys(db).forEach(qid => {
+            if (db[qid].subject === "Economics") {
+                db[qid].questions.forEach(q => {
+                    if (!q.tags || q.tags[0] !== "Economics" || q.tags[1] !== "Budget, Taxation & Fiscal Policy") {
+                        q.tags = ["Economics", "Budget, Taxation & Fiscal Policy"];
+                        q.subject = "Economics";
+                        q.originalSubject = "Economics";
+                        healedCount++;
+                    }
+                });
+            }
+        });
+
+        // 2. Fix Mistakes DB
+        mistakesDb.forEach(m => {
+            let oldSub = m.subject || "Miscellaneous";
+            
+            // ECONOMICS MISTAKES OVERRIDE
+            if (oldSub === "Economics" || m.originalSubject === "Economics") {
+                if (!m.tags || m.tags[0] !== "Economics" || m.tags[1] !== "Budget, Taxation & Fiscal Policy") {
+                    m.tags = ["Economics", "Budget, Taxation & Fiscal Policy"];
+                    m.subject = "Economics";
+                    m.originalSubject = "Economics";
+                    healedCount++;
+                }
+            }
+            // Normal generic folder routing logic
+            else if (["GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS", "Mixed Revision", "Mixed"].includes(oldSub.toUpperCase()) || oldSub === "Miscellaneous") {
+                let targetTag = "Miscellaneous";
+                if (m.tags && m.tags.length > 0) {
+                    targetTag = m.tags[0]; 
+                    if (m.tags.length > 1 && (m.tags[0].toUpperCase() === oldSub.toUpperCase() || m.tags[0].toUpperCase().includes("MOCK"))) {
+                        targetTag = m.tags[1];
+                    }
+                }
+                m.subject = targetTag;
+                m.originalSubject = targetTag;
+                healedCount++;
+            } else {
+                if(!m.originalSubject) { m.originalSubject = oldSub; healedCount++; }
+            }
+        });
+        
+        if (healedCount > 0) {
+            console.log(`🔥 V19.11 Economy Healer Executed. Fixed ${healedCount} items.`);
+            localStorage.setItem('megaQuizDB_v4', JSON.stringify(db));
+            localStorage.setItem('megaQuizMistakes_v5', JSON.stringify(mistakesDb));
+        }
+    }
+
     function initializeSRSData() {
         mistakesDb.forEach(m => {
             if (!m.srs) m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() - 10000 };
@@ -711,6 +765,7 @@
         if (localStorage.getItem('megaQuizHistory_v5')) historyDb = JSON.parse(localStorage.getItem('megaQuizHistory_v5'));
         if (localStorage.getItem('megaQuizMistakes_v5')) mistakesDb = JSON.parse(localStorage.getItem('megaQuizMistakes_v5'));
         initializeSRSData();
+        runDatabaseHealer(); 
     }
 
     function showSyncStatus(state) {
@@ -731,7 +786,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.13", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.11", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -759,6 +814,7 @@
                 if (data.mistakes) mistakesDb = data.mistakes;
                 
                 updateLocalCache();
+                runDatabaseHealer(); 
                 renderDashboard();
                 showSyncStatus('synced');
             } else { showSyncStatus('error'); }
@@ -1196,7 +1252,7 @@
     window.deleteSubject = (sub) => { requireAuth(() => { if (prompt(`WARNING: Delete "${sub}" AND all quizzes inside it?\n\nType "DELETE" to confirm:`) === "DELETE") { SUBJECTS = SUBJECTS.filter(s => s !== sub); Object.keys(db).forEach(id => { if (db[id].subject === sub) delete db[id]; }); delete SUBJECT_CATEGORIES[sub]; saveData(); renderDashboard(); } }); };
 
     window.exportBackup = () => {
-        const blob = new Blob([JSON.stringify({ version: "v19.13", subjects: SUBJECTS, matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, db: db, history: historyDb, mistakes: mistakesDb, masteredCount: localStorage.getItem('megaQuizMasteredCount') || 0, flashcards: JSON.parse(localStorage.getItem('megaQuizFlashcards_v1') || "[]") })], { type: "application/json" });
+        const blob = new Blob([JSON.stringify({ version: "v19.11", subjects: SUBJECTS, matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, db: db, history: historyDb, mistakes: mistakesDb, masteredCount: localStorage.getItem('megaQuizMasteredCount') || 0, flashcards: JSON.parse(localStorage.getItem('megaQuizFlashcards_v1') || "[]") })], { type: "application/json" });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Yogesh_MegaHub_Backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
     };
 
