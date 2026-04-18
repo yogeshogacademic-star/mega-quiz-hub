@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.19 (Elite Radar & DNA Sync)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.20 (Smart Bridge Radar)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -55,9 +55,9 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.19</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.20</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Elite Triage Radar & DNA Sync Protocol</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Elite Triage Radar & Smart Bridge Engine</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
@@ -358,106 +358,16 @@
         </div>
     </div>
 
-    <div id="screen-edit-modal" class="hidden fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
+    <div id="screen-subject-analysis" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
                 <div>
-                    <h2 class="text-2xl font-black uppercase text-amber-500 dark:text-amber-400 tracking-tight">✏️ Universal Database Editor</h2>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Strict 4-Tier Tagging Enforced</p>
+                    <h2 id="subject-analysis-title" class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Subject - Topic Analysis</h2>
+                    <p class="text-xs font-bold text-blue-500 uppercase tracking-widest mt-1">Global Performance Breakdown by Sub-Topics</p>
                 </div>
-                <button onclick="closeEditModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
+                <button onclick="closeSubjectAnalysis()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
             </div>
-            
-            <div class="flex-1 overflow-y-auto pr-2 space-y-5">
-                <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Question Text</label>
-                    <textarea id="edit-q-text" rows="3" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200"></textarea>
-                </div>
-                
-                <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Options (Select the correct one)</label>
-                    <div class="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-0" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-0" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-1" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-1" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-2" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-2" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-3" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-3" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
-                    </div>
-                </div>
-
-                <div class="bg-indigo-50/50 dark:bg-indigo-900/10 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 1: Core Subject</label>
-                            <select id="edit-tag-1" onchange="updateTag2Dropdown()" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
-                                <option value="">-- Select Subject --</option>
-                                <option value="Arithmetic">Arithmetic</option>
-                                <option value="Advanced Maths">Advanced Maths</option>
-                                <option value="Reasoning">Reasoning</option>
-                                <option value="English Language">English Language</option>
-                                <option value="Ancient History">Ancient History</option>
-                                <option value="Medieval History">Medieval History</option>
-                                <option value="Modern History">Modern History</option>
-                                <option value="Art & Culture">Art & Culture</option>
-                                <option value="Geography">Geography</option>
-                                <option value="Polity">Polity</option>
-                                <option value="Economics">Economics</option>
-                                <option value="Physics">Physics</option>
-                                <option value="Chemistry">Chemistry</option>
-                                <option value="Biology">Biology</option>
-                                <option value="Environment & Ecology">Environment & Ecology</option>
-                                <option value="Science & Technology">Science & Technology</option>
-                                <option value="Static GK">Static GK</option>
-                                <option value="Current Affairs">Current Affairs</option>
-                                <option value="Computer Knowledge">Computer Knowledge</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 2: Topic / Chapter</label>
-                            <select id="edit-tag-2" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
-                                <option value="">-- Select Topic --</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 3: Concept (Flashcard Trigger)</label>
-                            <input type="text" id="edit-tag-3" placeholder="e.g., Article 72, Incenter..." class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 4: Meta-Trap (Optional)</label>
-                            <select id="edit-tag-4" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
-                                <option value="">-- No Trap Tag --</option>
-                                <option value="#SillyError">#SillyError</option>
-                                <option value="#ReadIncorrectly">#ReadIncorrectly</option>
-                                <option value="#CalculationMistake">#CalculationMistake</option>
-                                <option value="#FormulaForgotten">#FormulaForgotten</option>
-                                <option value="#ConceptualGap">#ConceptualGap</option>
-                                <option value="#MemoryFaded">#MemoryFaded</option>
-                                <option value="#50_50_Fail">#50_50_Fail</option>
-                                <option value="#TimePanic">#TimePanic</option>
-                                <option value="#Bouncer">#Bouncer</option>
-                                <option value="#Chronology">#Chronology</option>
-                                <option value="#MatchThePairs">#MatchThePairs</option>
-                                <option value="#StatementBased">#StatementBased</option>
-                                <option value="#AssertionReason">#AssertionReason</option>
-                                <option value="#ExtremeWordTrap">#ExtremeWordTrap</option>
-                                <option value="#UnitTrap">#UnitTrap</option>
-                                <option value="#UPSC_PYQ">#UPSC_PYQ</option>
-                                <option value="#SSC_Tier2_PYQ">#SSC_Tier2_PYQ</option>
-                                <option value="#HighYield">#HighYield</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Detailed Solution / Shortcuts</label>
-                    <textarea id="edit-solution" rows="4" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200"></textarea>
-                </div>
-            </div>
-            
-            <div class="pt-6 border-t border-slate-100 dark:border-slate-800 mt-4 flex gap-4">
-                <button onclick="closeEditModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase tracking-widest py-4 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
-                <button onclick="saveEdit()" class="flex-1 bg-amber-500 text-white font-black uppercase tracking-widest py-4 rounded-xl shadow-lg hover:bg-amber-400 transition-colors shadow-amber-500/30">💾 Save Changes</button>
-            </div>
+            <div class="flex-1 overflow-y-auto pr-2 space-y-4" id="subject-analysis-grid"></div>
         </div>
     </div>
 
@@ -514,6 +424,17 @@
         if (pwd === "KOBE") { callback(); } else if (pwd !== null) { alert("❌ ACCESS DENIED."); }
     };
 
+    // V19.20 SMART BRIDGE ENGINE (LIVE MASTER DB LOOKUP)
+    // We dynamically build a map of every clean question so we never crash on undefined
+    function getMasterMap() {
+        let map = {};
+        Object.keys(db).forEach(qid => {
+            db[qid].questions.forEach(q => {
+                map[q.question] = { tags: q.tags || [], subject: q.subject || "Miscellaneous" };
+            });
+        });
+        return map;
+    }
 
     // MASTER DB MANAGER
     window.openDBManager = () => {
@@ -562,7 +483,6 @@
         listContainer.innerHTML = html;
     };
 
-    // V19.14: DYNAMIC DROPDOWN LOGIC
     window.updateTag2Dropdown = (preselectedTopic = "") => {
         const subSelect = document.getElementById('edit-tag-1');
         const topicSelect = document.getElementById('edit-tag-2');
@@ -602,31 +522,26 @@
         });
         document.getElementById('edit-solution').value = foundRef.solution || "";
         
-        // Populate the 4 Tiers
         let t1 = "", t2 = "", t3 = "", t4 = "";
         if(foundRef.tags && foundRef.tags.length > 0) {
             t1 = foundRef.tags[0] || "";
             if(foundRef.tags.length > 1) t2 = foundRef.tags[1];
             
-            // Search for trap tag starting with #
             let trapIdx = foundRef.tags.findIndex(t => t.startsWith('#'));
             if(trapIdx !== -1) {
                 t4 = foundRef.tags[trapIdx];
-                // Anything between t2 and the trap is assumed to be the micro-concept
                 if(trapIdx > 2) t3 = foundRef.tags.slice(2, trapIdx).join(", ");
             } else {
                 if(foundRef.tags.length > 2) t3 = foundRef.tags.slice(2).join(", ");
             }
         }
 
-        // Set Tag 1
         let tag1Select = document.getElementById('edit-tag-1');
         let matchedT1 = Array.from(tag1Select.options).find(opt => opt.value === t1);
         if(matchedT1) tag1Select.value = t1; 
         else if (t1) { tag1Select.innerHTML += `<option value="${t1}">${t1}</option>`; tag1Select.value = t1; }
         else tag1Select.value = "";
 
-        // Trigger Tag 2 update
         updateTag2Dropdown(t2);
 
         document.getElementById('edit-tag-3').value = t3;
@@ -649,7 +564,6 @@
         if(!currentlyEditingGlobalText) return;
         let oldText = currentlyEditingGlobalText;
         
-        // Construct the strict array
         let t1 = document.getElementById('edit-tag-1').value.trim();
         let t2 = document.getElementById('edit-tag-2').value.trim();
         let t3 = document.getElementById('edit-tag-3').value.trim();
@@ -710,57 +624,6 @@
         }
     };
 
-
-    // V19.19 DNA SYNC PROTOCOL (DATABASE HEALER)
-    function runDNASync() {
-        let updated = false;
-        let masterMap = {};
-        
-        // Build an index of perfect tags from the Master DB
-        Object.keys(db).forEach(qid => {
-            db[qid].questions.forEach(q => {
-                if (q.question && q.tags) {
-                    masterMap[q.question] = { 
-                        tags: q.tags, 
-                        subject: q.subject || (q.tags.length > 0 ? q.tags[0] : 'Miscellaneous') 
-                    };
-                }
-            });
-        });
-
-        // Sync History (Fixing the Radar source data)
-        historyDb.forEach(h => {
-            if (h.reviewData) {
-                h.reviewData.forEach(rd => {
-                    let masterRef = masterMap[rd.question];
-                    if (masterRef && JSON.stringify(rd.tags) !== JSON.stringify(masterRef.tags)) {
-                        rd.tags = [...masterRef.tags];
-                        updated = true;
-                    }
-                });
-            }
-        });
-
-        // Sync Mistakes (Fixing the SRS source data)
-        mistakesDb.forEach(m => {
-            let masterRef = masterMap[m.question];
-            if (masterRef) {
-                if (JSON.stringify(m.tags) !== JSON.stringify(masterRef.tags) || m.subject !== masterRef.subject) {
-                    m.tags = [...masterRef.tags];
-                    m.subject = masterRef.subject;
-                    if(m.tags.length > 0) m.originalSubject = m.tags[0];
-                    updated = true;
-                }
-            }
-        });
-
-        if (updated) {
-            console.log("🧬 DNA Sync Protocol Executed. Legacy tags purged.");
-            localStorage.setItem('megaQuizHistory_v5', JSON.stringify(historyDb));
-            localStorage.setItem('megaQuizMistakes_v5', JSON.stringify(mistakesDb));
-        }
-    }
-
     function initializeSRSData() {
         mistakesDb.forEach(m => {
             if (!m.srs) m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() - 10000 };
@@ -803,7 +666,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.19", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.20", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -813,9 +676,6 @@
     async function initializeSystem() {
         if(localStorage.getItem('megaTheme') === 'dark') document.documentElement.classList.add('dark');
         loadLocalFallback();
-        
-        // V19.19 RUN DNA SYNC ON LOAD
-        runDNASync();
         
         renderDashboard();
         showSyncStatus('syncing');
@@ -835,7 +695,6 @@
                 if (data.mistakes) mistakesDb = data.mistakes;
                 
                 updateLocalCache();
-                runDNASync(); // Run again after cloud fetch
                 renderDashboard();
                 showSyncStatus('synced');
             } else { showSyncStatus('error'); }
@@ -914,18 +773,15 @@
         return 'border-orange-500'; 
     };
 
-    // V19.17 GLOBAL TOPIC MOCK GENERATOR
     window.generateTopicMock = (parentSubject, targetTopic) => {
         let pool = [];
         
-        // Scan the entire database, regardless of quiz folder
         Object.values(db).forEach(quiz => {
             if (!quiz.title.includes("🎯") && !quiz.title.includes("Master Mock") && !quiz.title.includes("SRS")) {
                 quiz.questions.forEach(q => {
                     let t1 = (q.tags && q.tags.length > 0) ? q.tags[0] : (q.subject || q.originalSubject || "Miscellaneous");
                     let t2 = (q.tags && q.tags.length > 1) ? q.tags[1] : t1;
                     
-                    // Strict match against Tag 1 and Tag 2
                     if (t1 === parentSubject && t2 === targetTopic) {
                         pool.push(q);
                     }
@@ -935,7 +791,6 @@
 
         if(pool.length === 0) return alert(`No questions found for topic: ${targetTopic}`);
         
-        // Ensure uniqueness
         const uniqueQs = Array.from(new Map(pool.map(q => [q.question, q])).values());
         const shuffled = uniqueQs.sort(() => 0.5 - Math.random()).slice(0, 30);
         
@@ -948,7 +803,7 @@
         openLobby('quiz_topic_practice');
     };
 
-    // V19.19 ELITE TARGET RADAR
+    // V19.20 SMART BRIDGE DEDICATED TARGET RADAR SCREEN
     window.openTargetRadar = () => {
         showScreen('target-radar');
         renderTargetRadar();
@@ -964,12 +819,16 @@
         
         let globalTopicsStats = {}; 
         let allTopicsFlat = [];
+        let masterMap = getMasterMap(); // Failsafe Live Lookup
         
         historyDb.forEach(h => {
             if(h.reviewData) {
                 h.reviewData.forEach(rd => {
-                    let t1 = (rd.tags && rd.tags.length > 0) ? rd.tags[0] : "Miscellaneous";
-                    let t2 = (rd.tags && rd.tags.length > 1) ? rd.tags[1] : t1;
+                    let clean = masterMap[rd.question];
+                    let activeTags = clean ? clean.tags : (rd.tags || []);
+                    
+                    let t1 = activeTags.length > 0 ? activeTags[0] : "Miscellaneous";
+                    let t2 = activeTags.length > 1 ? activeTags[1] : t1;
                     
                     if(!globalTopicsStats[t1]) globalTopicsStats[t1] = {};
                     if(!globalTopicsStats[t1][t2]) globalTopicsStats[t1][t2] = { c: 0, t: 0, t1: t1, t2: t2 };
@@ -980,19 +839,17 @@
             }
         });
 
-        // Flatten stats for the Critical Bleed Row
         Object.keys(globalTopicsStats).forEach(t1 => {
             Object.keys(globalTopicsStats[t1]).forEach(t2 => {
                 allTopicsFlat.push(globalTopicsStats[t1][t2]);
             });
         });
 
-        // 1. Identify Top 5 Critical Weaknesses (Min 3 attempts)
         let criticalTopics = allTopicsFlat.filter(x => x.t >= 3).sort((a,b) => {
             let accA = a.c / a.t;
             let accB = b.c / b.t;
-            if(accA !== accB) return accA - accB; // lowest accuracy first
-            return b.t - a.t; // higher volume first (tiebreaker)
+            if(accA !== accB) return accA - accB; 
+            return b.t - a.t; 
         }).slice(0, 5);
 
         if(criticalTopics.length > 0) {
@@ -1012,7 +869,6 @@
             bleedCont.classList.add('hidden');
         }
 
-        // 2. Render Subject Cards (Weakness-First Sort)
         Object.keys(globalTopicsStats).sort().forEach(subject => {
             let subTopics = globalTopicsStats[subject];
             if (subTopics && Object.keys(subTopics).length > 0) {
@@ -1021,7 +877,7 @@
                     let accA = subTopics[a].c / subTopics[a].t;
                     let accB = subTopics[b].c / subTopics[b].t;
                     if(accA !== accB) return accA - accB;
-                    return subTopics[b].t - subTopics[a].t; // Tiebreaker: volume
+                    return subTopics[b].t - subTopics[a].t;
                 });
 
                 let pillsHTML = sortedTopicKeys.map(t => {
@@ -1133,7 +989,6 @@
         grid.appendChild(addCard);
     }
 
-    // REPAIRED SRS ENGINE (STRICT MATCHING)
     window.openSRSModal = () => {
         let globalDue = 0;
         let subSelect = document.getElementById('srs-subject-select');
@@ -1141,12 +996,15 @@
         subSelect.innerHTML = '';
         
         let subjectsWithDue = {};
+        let masterMap = getMasterMap(); // Failsafe Live Lookup
 
-        // Parse due mistakes and group by strict Core Subjects
         mistakesDb.forEach(m => {
             if(m.srs && m.srs.nextReview <= Date.now()) {
                 globalDue++;
-                let subName = (m.tags && m.tags.length > 0) ? m.tags[0] : (m.subject || m.originalSubject);
+                let clean = masterMap[m.question];
+                let activeTags = clean ? clean.tags : (m.tags || []);
+                let subName = activeTags.length > 0 ? activeTags[0] : (m.subject || m.originalSubject || "Miscellaneous");
+                
                 if (CORE_SUBJECTS.includes(subName)) {
                     subjectsWithDue[subName] = (subjectsWithDue[subName] || 0) + 1;
                 }
@@ -1156,7 +1014,6 @@
         document.getElementById('srs-global-count-modal').textContent = globalDue;
 
         let hasAnyDue = false;
-        // Render ONLY official core subjects
         CORE_SUBJECTS.forEach(sub => {
             if(subjectsWithDue[sub] && subjectsWithDue[sub] > 0) {
                 hasAnyDue = true;
@@ -1193,10 +1050,12 @@
             let sub = document.getElementById('srs-subject-select').value;
             if(!sub) return alert("No subjects have due questions.");
             
-            // Re-use the exact same extraction logic to guarantee a match
+            let masterMap = getMasterMap(); // Failsafe Live Lookup
             dueQs = mistakesDb.filter(m => {
                 if (!m.srs || m.srs.nextReview > Date.now()) return false;
-                let subName = (m.tags && m.tags.length > 0) ? m.tags[0] : (m.subject || m.originalSubject);
+                let clean = masterMap[m.question];
+                let activeTags = clean ? clean.tags : (m.tags || []);
+                let subName = activeTags.length > 0 ? activeTags[0] : (m.subject || m.originalSubject || "Miscellaneous");
                 return subName === sub;
             });
             
@@ -1533,7 +1392,6 @@
                     if (mistIdx === -1) {
                         let newMistake = JSON.parse(JSON.stringify(q));
                         
-                        // V19.16: Strict Tag 1 extraction for new mistakes
                         let assignedSubject = "Miscellaneous";
                         if (newMistake.tags && newMistake.tags.length > 0) {
                             if (CORE_SUBJECTS.includes(newMistake.tags[0])) {
@@ -1725,13 +1583,16 @@
 
         document.getElementById('subject-analysis-title').textContent = `${subject} - Topic Analysis`;
 
-        // V19.17: RE-WIRED DETAILED ANALYSIS TO USE GLOBAL SCORECARD
         let globalTopicsStats = {}; 
+        let masterMap = getMasterMap(); // Failsafe Live Lookup
+        
         historyDb.forEach(h => {
             if(h.reviewData) {
                 h.reviewData.forEach(rd => {
-                    let t1 = (rd.tags && rd.tags.length > 0) ? rd.tags[0] : "Miscellaneous";
-                    let t2 = (rd.tags && rd.tags.length > 1) ? rd.tags[1] : t1;
+                    let clean = masterMap[rd.question];
+                    let activeTags = clean ? clean.tags : (rd.tags || []);
+                    let t1 = activeTags.length > 0 ? activeTags[0] : "Miscellaneous";
+                    let t2 = activeTags.length > 1 ? activeTags[1] : t1;
                     
                     if(t1 === subject) {
                         if(!globalTopicsStats[t2]) globalTopicsStats[t2] = { correct: 0, wrong: 0, skipped: 0, total: 0 };
