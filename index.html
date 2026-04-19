@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.20 (Smart Bridge Radar)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.21 (Omni-Edit & Search/Destroy)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -55,9 +55,9 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.20</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.21</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Elite Triage Radar & Smart Bridge Engine</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Search & Destroy Architecture</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
@@ -141,8 +141,9 @@
                     <h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Master DB Ledger</h2>
                     <p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Global Vault Editor</p>
                 </div>
-                <div class="w-full md:w-auto">
-                    <input type="text" id="db-manager-search" oninput="renderDBList(this.value)" placeholder="Search questions or tags..." class="w-full md:w-80 px-5 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-200">
+                <div class="w-full md:w-auto flex flex-col sm:flex-row gap-3">
+                    <input type="text" id="db-manager-search" oninput="renderDBList()" placeholder="Search questions or tags..." class="w-full md:w-80 px-5 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-200">
+                    <button id="dirty-filter-btn" onclick="toggleDirtyFilter()" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50 font-black px-4 py-3 rounded-xl border border-amber-200 dark:border-amber-800/50 transition-colors uppercase tracking-widest text-[10px] shadow-sm flex-shrink-0">⚠️ Find Dirty Tags</button>
                 </div>
             </div>
 
@@ -358,16 +359,106 @@
         </div>
     </div>
 
-    <div id="screen-subject-analysis" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
+    <div id="screen-edit-modal" class="hidden fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
                 <div>
-                    <h2 id="subject-analysis-title" class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Subject - Topic Analysis</h2>
-                    <p class="text-xs font-bold text-blue-500 uppercase tracking-widest mt-1">Global Performance Breakdown by Sub-Topics</p>
+                    <h2 class="text-2xl font-black uppercase text-amber-500 dark:text-amber-400 tracking-tight">✏️ Universal Database Editor</h2>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Strict 4-Tier Tagging Enforced</p>
                 </div>
-                <button onclick="closeSubjectAnalysis()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
+                <button onclick="closeEditModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
             </div>
-            <div class="flex-1 overflow-y-auto pr-2 space-y-4" id="subject-analysis-grid"></div>
+            
+            <div class="flex-1 overflow-y-auto pr-2 space-y-5">
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Question Text</label>
+                    <textarea id="edit-q-text" rows="3" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200"></textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Options (Select the correct one)</label>
+                    <div class="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-0" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-0" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
+                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-1" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-1" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
+                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-2" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-2" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
+                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-3" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-3" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
+                    </div>
+                </div>
+
+                <div class="bg-indigo-50/50 dark:bg-indigo-900/10 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 1: Core Subject</label>
+                            <select id="edit-tag-1" onchange="updateTag2Dropdown()" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
+                                <option value="">-- Select Subject --</option>
+                                <option value="Arithmetic">Arithmetic</option>
+                                <option value="Advanced Maths">Advanced Maths</option>
+                                <option value="Reasoning">Reasoning</option>
+                                <option value="English Language">English Language</option>
+                                <option value="Ancient History">Ancient History</option>
+                                <option value="Medieval History">Medieval History</option>
+                                <option value="Modern History">Modern History</option>
+                                <option value="Art & Culture">Art & Culture</option>
+                                <option value="Geography">Geography</option>
+                                <option value="Polity">Polity</option>
+                                <option value="Economics">Economics</option>
+                                <option value="Physics">Physics</option>
+                                <option value="Chemistry">Chemistry</option>
+                                <option value="Biology">Biology</option>
+                                <option value="Environment & Ecology">Environment & Ecology</option>
+                                <option value="Science & Technology">Science & Technology</option>
+                                <option value="Static GK">Static GK</option>
+                                <option value="Current Affairs">Current Affairs</option>
+                                <option value="Computer Knowledge">Computer Knowledge</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 2: Topic / Chapter</label>
+                            <select id="edit-tag-2" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
+                                <option value="">-- Select Topic --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 3: Concept (Flashcard Trigger)</label>
+                            <input type="text" id="edit-tag-3" placeholder="e.g., Article 72, Incenter..." class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 4: Meta-Trap (Optional)</label>
+                            <select id="edit-tag-4" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
+                                <option value="">-- No Trap Tag --</option>
+                                <option value="#SillyError">#SillyError</option>
+                                <option value="#ReadIncorrectly">#ReadIncorrectly</option>
+                                <option value="#CalculationMistake">#CalculationMistake</option>
+                                <option value="#FormulaForgotten">#FormulaForgotten</option>
+                                <option value="#ConceptualGap">#ConceptualGap</option>
+                                <option value="#MemoryFaded">#MemoryFaded</option>
+                                <option value="#50_50_Fail">#50_50_Fail</option>
+                                <option value="#TimePanic">#TimePanic</option>
+                                <option value="#Bouncer">#Bouncer</option>
+                                <option value="#Chronology">#Chronology</option>
+                                <option value="#MatchThePairs">#MatchThePairs</option>
+                                <option value="#StatementBased">#StatementBased</option>
+                                <option value="#AssertionReason">#AssertionReason</option>
+                                <option value="#ExtremeWordTrap">#ExtremeWordTrap</option>
+                                <option value="#UnitTrap">#UnitTrap</option>
+                                <option value="#UPSC_PYQ">#UPSC_PYQ</option>
+                                <option value="#SSC_Tier2_PYQ">#SSC_Tier2_PYQ</option>
+                                <option value="#HighYield">#HighYield</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Detailed Solution / Shortcuts</label>
+                    <textarea id="edit-solution" rows="4" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200"></textarea>
+                </div>
+            </div>
+            
+            <div class="pt-6 border-t border-slate-100 dark:border-slate-800 mt-4 flex gap-4">
+                <button onclick="closeEditModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase tracking-widest py-4 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+                <button onclick="saveEdit()" class="flex-1 bg-amber-500 text-white font-black uppercase tracking-widest py-4 rounded-xl shadow-lg hover:bg-amber-400 transition-colors shadow-amber-500/30">💾 Save Changes</button>
+            </div>
         </div>
     </div>
 
@@ -395,6 +486,9 @@
     window.currentQuizWrongQs = [];
     window.currentReviewQuestions = []; 
     let currentlyEditingGlobalText = null;
+
+    // V19.21 DIRTY FILTER STATE
+    let isDirtyFilterActive = false;
 
     // V19.14: MASTER SYLLABUS MAPPING FOR TAG 2 DYNAMIC DROPDOWN
     const SYLLABUS_MAP = {
@@ -424,8 +518,7 @@
         if (pwd === "KOBE") { callback(); } else if (pwd !== null) { alert("❌ ACCESS DENIED."); }
     };
 
-    // V19.20 SMART BRIDGE ENGINE (LIVE MASTER DB LOOKUP)
-    // We dynamically build a map of every clean question so we never crash on undefined
+    // V19.20 SMART BRIDGE ENGINE
     function getMasterMap() {
         let map = {};
         Object.keys(db).forEach(qid => {
@@ -436,14 +529,31 @@
         return map;
     }
 
-    // MASTER DB MANAGER
+    // V19.21 DIRTY FILTER TOGGLE
+    window.toggleDirtyFilter = () => {
+        isDirtyFilterActive = !isDirtyFilterActive;
+        const btn = document.getElementById('dirty-filter-btn');
+        if(isDirtyFilterActive) {
+            btn.className = "bg-rose-500 text-white font-black px-4 py-3 rounded-xl border border-rose-600 transition-colors uppercase tracking-widest text-[10px] shadow-lg flex-shrink-0 animate-pulse";
+            btn.innerHTML = "🔴 Filtering Dirty Tags";
+        } else {
+            btn.className = "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50 font-black px-4 py-3 rounded-xl border border-amber-200 dark:border-amber-800/50 transition-colors uppercase tracking-widest text-[10px] shadow-sm flex-shrink-0";
+            btn.innerHTML = "⚠️ Find Dirty Tags";
+        }
+        renderDBList(document.getElementById('db-manager-search').value);
+    };
+
+    // V19.21 UPGRADED MASTER DB MANAGER
     window.openDBManager = () => {
         showScreen('db-manager');
+        isDirtyFilterActive = false;
+        document.getElementById('dirty-filter-btn').className = "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50 font-black px-4 py-3 rounded-xl border border-amber-200 dark:border-amber-800/50 transition-colors uppercase tracking-widest text-[10px] shadow-sm flex-shrink-0";
+        document.getElementById('dirty-filter-btn').innerHTML = "⚠️ Find Dirty Tags";
         document.getElementById('db-manager-search').value = "";
         renderDBList("");
     };
 
-    window.renderDBList = (searchTerm) => {
+    window.renderDBList = (searchTerm = document.getElementById('db-manager-search').value) => {
         const term = (searchTerm || "").toLowerCase().trim();
         const listContainer = document.getElementById('db-manager-list');
         let html = '';
@@ -453,6 +563,17 @@
         const processList = (questionsArray, sourceTitle) => {
             questionsArray.forEach((q) => {
                 if(uniqueTracker.has(q.question)) return; 
+                
+                // V19.21 DIRTY CHECK LOGIC
+                let isDirty = false;
+                if (!q.tags || q.tags.length === 0) {
+                    isDirty = true;
+                } else if (!CORE_SUBJECTS.includes(q.tags[0])) {
+                    isDirty = true;
+                }
+
+                if (isDirtyFilterActive && !isDirty) return; // Skip clean tags if filter is ON
+
                 const searchStr = ((q.question || "") + " " + (q.solution || "") + " " + (q.tags ? q.tags.join(" ") : "")).toLowerCase();
                 
                 if (!term || searchStr.includes(term)) {
@@ -460,13 +581,16 @@
                     uniqueTracker.add(q.question);
                     let tagsHTML = (q.tags || ["Miscellaneous"]).map(t => `<span class="inline-block px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-[9px] mb-1 mr-1">${t}</span>`).join('');
                     
+                    // V19.21 BULLETPROOF ENCODING
+                    let encodedQ = encodeURIComponent(q.question);
+
                     html += `
                     <div class="bg-white dark:bg-slate-900 rounded-xl p-4 grid grid-cols-12 gap-4 items-center border border-slate-200 dark:border-slate-800 shadow-sm hover:border-blue-400 transition-colors">
                         <div class="col-span-2 text-xs font-bold text-slate-500 truncate" title="${sourceTitle}">${sourceTitle}</div>
                         <div class="col-span-2 flex flex-wrap max-h-12 overflow-hidden">${tagsHTML}</div>
                         <div class="col-span-7 text-sm font-bold text-slate-800 dark:text-slate-200 truncate" title="${q.question.replace(/"/g, '&quot;')}">${q.question}</div>
                         <div class="col-span-1 text-center">
-                            <button onclick="openGlobalEditModal(\`${q.question.replace(/`/g, '\\`').replace(/\\/g, '\\\\')}\`)" class="bg-amber-100 hover:bg-amber-200 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 p-2 rounded-lg font-black text-xs transition-colors shadow-sm w-full">✏️</button>
+                            <button onclick="openGlobalEditModal(decodeURIComponent('${encodedQ}'))" class="bg-amber-100 hover:bg-amber-200 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 p-2 rounded-lg font-black text-xs transition-colors shadow-sm w-full">✏️</button>
                         </div>
                     </div>`;
                 }
@@ -477,7 +601,8 @@
         processList(mistakesDb, "🔥 SRS Queue");
 
         if(matchCount === 0) {
-            html = `<div class="text-center text-slate-400 font-bold py-16 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl mt-4">No questions found matching your search.</div>`;
+            let emptyMsg = isDirtyFilterActive ? "✅ Zero Dirty Tags Found! Your Database is 100% Pure." : "No questions found matching your search.";
+            html = `<div class="text-center text-slate-400 font-bold py-16 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl mt-4">${emptyMsg}</div>`;
         }
         
         listContainer.innerHTML = html;
@@ -560,6 +685,7 @@
         currentlyEditingGlobalText = null;
     };
 
+    // V19.21 REAL-TIME RELOCATION & AUTO-HEALING
     window.saveEdit = () => {
         if(!currentlyEditingGlobalText) return;
         let oldText = currentlyEditingGlobalText;
@@ -610,19 +736,73 @@
         }
 
         if(updatedDb) {
+            runDNASync(); // Heal history immediately
             saveData();
-            alert("✅ DNA Successfully Rewritten with Strict 4-Tier Architecture!");
             closeEditModal();
+            
+            // Auto-Refresh Logic based on Active Screen
             if(!document.getElementById('screen-db-manager').classList.contains('hidden')) {
-                renderDBList(document.getElementById('db-manager-search').value);
+                renderDBList();
+            }
+            if(!document.getElementById('screen-target-radar').classList.contains('hidden')) {
+                renderTargetRadar();
             }
             if(!document.getElementById('search-results-container').classList.contains('hidden')) {
                 performSearch(document.getElementById('omni-search').value);
+            }
+            if(!document.getElementById('screen-results').classList.contains('hidden')) {
+                // If they are deep inside a results review, we regenerate the HTML to show correct tags
+                if(window.currentReviewQuestions && window.currentReviewQuestions.length > 0) {
+                    let fullHTML = '';
+                    window.currentReviewQuestions.forEach((qObj, idx) => {
+                        if(qObj.question === oldText) { qObj = {...qObj, ...target}; window.currentReviewQuestions[idx] = qObj; }
+                        let histMatch = historyDb[0] ? historyDb[0].reviewData.find(r => r.question === qObj.question) : null;
+                        let stat = histMatch ? histMatch.status : 'skipped';
+                        let cText = histMatch ? histMatch.cText : 'N/A';
+                        let uText = histMatch ? histMatch.uText : 'N/A';
+                        fullHTML += genDeepReviewCard(qObj, stat, uText, cText, "", idx);
+                    });
+                    document.getElementById('revision-container').innerHTML = fullHTML;
+                }
             }
         } else {
             alert("Save failed: Could not locate original question.");
         }
     };
+
+    function runDNASync() {
+        let updated = false;
+        let masterMap = getMasterMap();
+
+        historyDb.forEach(h => {
+            if (h.reviewData) {
+                h.reviewData.forEach(rd => {
+                    let masterRef = masterMap[rd.question];
+                    if (masterRef && JSON.stringify(rd.tags) !== JSON.stringify(masterRef.tags)) {
+                        rd.tags = [...masterRef.tags];
+                        updated = true;
+                    }
+                });
+            }
+        });
+
+        mistakesDb.forEach(m => {
+            let masterRef = masterMap[m.question];
+            if (masterRef) {
+                if (JSON.stringify(m.tags) !== JSON.stringify(masterRef.tags) || m.subject !== masterRef.subject) {
+                    m.tags = [...masterRef.tags];
+                    m.subject = masterRef.subject;
+                    if(m.tags.length > 0) m.originalSubject = m.tags[0];
+                    updated = true;
+                }
+            }
+        });
+
+        if (updated) {
+            localStorage.setItem('megaQuizHistory_v5', JSON.stringify(historyDb));
+            localStorage.setItem('megaQuizMistakes_v5', JSON.stringify(mistakesDb));
+        }
+    }
 
     function initializeSRSData() {
         mistakesDb.forEach(m => {
@@ -666,7 +846,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.20", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.21", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -676,6 +856,8 @@
     async function initializeSystem() {
         if(localStorage.getItem('megaTheme') === 'dark') document.documentElement.classList.add('dark');
         loadLocalFallback();
+        
+        runDNASync();
         
         renderDashboard();
         showSyncStatus('syncing');
@@ -695,6 +877,7 @@
                 if (data.mistakes) mistakesDb = data.mistakes;
                 
                 updateLocalCache();
+                runDNASync();
                 renderDashboard();
                 showSyncStatus('synced');
             } else { showSyncStatus('error'); }
@@ -718,6 +901,7 @@
 
     window.clearSearch = () => { document.getElementById('omni-search').value = ''; performSearch(''); };
 
+    // V19.21 SECURED OMNI-SEARCH EDIT BUTTON
     window.performSearch = (query) => {
         const term = query.toLowerCase().trim();
         const resContainer = document.getElementById('search-results-container');
@@ -741,12 +925,14 @@
                 if (searchStr.includes(term)) {
                     matchCount++;
                     const cText = (q.options && q.options.find(o=>o.correct)?.text) || "N/A";
+                    let encodedQ = encodeURIComponent(q.question);
+                    
                     resultsHTML += `
                         <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-700 shadow-lg hover:border-emerald-400 dark:hover:border-emerald-500 transition-colors relative overflow-hidden mt-4">
                             <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-400"></div>
                             <div class="flex justify-between items-start mb-4">
                                 <span class="text-[10px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 px-3 py-1 rounded border border-indigo-100 dark:border-indigo-800/50">${quiz.subject} • ${quiz.title}</span>
-                                <button onclick="openGlobalEditModal(\`${q.question.replace(/`/g, '\\`').replace(/\\/g, '\\\\')}\`)" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1 rounded-md font-black text-[10px] uppercase tracking-widest border border-amber-200 hover:bg-amber-200 transition-colors">✏️ Edit</button>
+                                <button onclick="openGlobalEditModal(decodeURIComponent('${encodedQ}'))" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1 rounded-md font-black text-[10px] uppercase tracking-widest border border-amber-200 hover:bg-amber-200 transition-colors">✏️ Edit</button>
                             </div>
                             <div class="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 mb-6 leading-relaxed">${highlightText(q.question, term)}</div>
                             <div class="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800/50 mb-6 inline-block shadow-inner"><span class="block text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Correct Answer</span><span class="text-sm font-bold text-slate-800 dark:text-slate-200">${highlightText(cText, term)}</span></div>
@@ -803,7 +989,6 @@
         openLobby('quiz_topic_practice');
     };
 
-    // V19.20 SMART BRIDGE DEDICATED TARGET RADAR SCREEN
     window.openTargetRadar = () => {
         showScreen('target-radar');
         renderTargetRadar();
@@ -819,7 +1004,7 @@
         
         let globalTopicsStats = {}; 
         let allTopicsFlat = [];
-        let masterMap = getMasterMap(); // Failsafe Live Lookup
+        let masterMap = getMasterMap(); 
         
         historyDb.forEach(h => {
             if(h.reviewData) {
@@ -830,11 +1015,14 @@
                     let t1 = activeTags.length > 0 ? activeTags[0] : "Miscellaneous";
                     let t2 = activeTags.length > 1 ? activeTags[1] : t1;
                     
-                    if(!globalTopicsStats[t1]) globalTopicsStats[t1] = {};
-                    if(!globalTopicsStats[t1][t2]) globalTopicsStats[t1][t2] = { c: 0, t: 0, t1: t1, t2: t2 };
-                    
-                    globalTopicsStats[t1][t2].t++;
-                    if(rd.status === 'correct') globalTopicsStats[t1][t2].c++;
+                    // Filter out invalid/dirty Tag 1s from the Radar display
+                    if(CORE_SUBJECTS.includes(t1)) {
+                        if(!globalTopicsStats[t1]) globalTopicsStats[t1] = {};
+                        if(!globalTopicsStats[t1][t2]) globalTopicsStats[t1][t2] = { c: 0, t: 0, t1: t1, t2: t2 };
+                        
+                        globalTopicsStats[t1][t2].t++;
+                        if(rd.status === 'correct') globalTopicsStats[t1][t2].c++;
+                    }
                 });
             }
         });
@@ -996,7 +1184,7 @@
         subSelect.innerHTML = '';
         
         let subjectsWithDue = {};
-        let masterMap = getMasterMap(); // Failsafe Live Lookup
+        let masterMap = getMasterMap(); 
 
         mistakesDb.forEach(m => {
             if(m.srs && m.srs.nextReview <= Date.now()) {
@@ -1050,7 +1238,7 @@
             let sub = document.getElementById('srs-subject-select').value;
             if(!sub) return alert("No subjects have due questions.");
             
-            let masterMap = getMasterMap(); // Failsafe Live Lookup
+            let masterMap = getMasterMap(); 
             dueQs = mistakesDb.filter(m => {
                 if (!m.srs || m.srs.nextReview > Date.now()) return false;
                 let clean = masterMap[m.question];
@@ -1442,6 +1630,7 @@
         filterReview('all'); 
     }
 
+    // V19.21 SECURED EDIT BUTTON IN REVIEW CARD
     function genDeepReviewCard(q, status, uText, cText, term = "", index = 0) { 
         const styles = {
             'correct': { border: 'bg-emerald-400', badge: 'text-emerald-700 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800/50', box: 'border-emerald-200 dark:border-emerald-800' },
@@ -1449,12 +1638,13 @@
             'skipped': { border: 'bg-slate-400', badge: 'text-slate-700 bg-slate-200 dark:text-slate-400 dark:bg-slate-800 border-slate-300 dark:border-slate-700', box: 'border-slate-200 dark:border-slate-700' }
         };
         const s = styles[status];
+        let encodedQ = encodeURIComponent(q.question);
 
         return `<div class="review-card filter-${status} bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-800 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow">
             <div class="absolute top-0 left-0 w-1.5 h-full ${s.border}"></div>
             <div class="flex justify-between items-center mb-4">
                 <span class="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-md border ${s.badge}">${status}</span>
-                <button onclick="openGlobalEditModal(\`${q.question.replace(/`/g, '\\`').replace(/\\/g, '\\\\')}\`)" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-widest border border-amber-200 dark:border-amber-800/50 hover:bg-amber-200 dark:hover:bg-amber-800/50 transition-colors">✏️ Edit / Fix Error</button>
+                <button onclick="openGlobalEditModal(decodeURIComponent('${encodedQ}'))" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-widest border border-amber-200 dark:border-amber-800/50 hover:bg-amber-200 dark:hover:bg-amber-800/50 transition-colors">✏️ Edit / Fix Error</button>
             </div>
             <div class="font-bold text-slate-800 dark:text-slate-200 mb-6 text-lg md:text-xl leading-relaxed">${highlightText(q.question, term)}</div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -1575,68 +1765,6 @@
     };
     
     window.closeAnalytics = () => document.getElementById('screen-analytics').classList.add('hidden');
-
-    window.showSubjectAnalysis = (subject) => {
-        document.getElementById('screen-analytics').classList.add('hidden');
-        document.getElementById('screen-quiz-history').classList.add('hidden');
-        document.getElementById('screen-subject-analysis').classList.remove('hidden');
-
-        document.getElementById('subject-analysis-title').textContent = `${subject} - Topic Analysis`;
-
-        let globalTopicsStats = {}; 
-        let masterMap = getMasterMap(); // Failsafe Live Lookup
-        
-        historyDb.forEach(h => {
-            if(h.reviewData) {
-                h.reviewData.forEach(rd => {
-                    let clean = masterMap[rd.question];
-                    let activeTags = clean ? clean.tags : (rd.tags || []);
-                    let t1 = activeTags.length > 0 ? activeTags[0] : "Miscellaneous";
-                    let t2 = activeTags.length > 1 ? activeTags[1] : t1;
-                    
-                    if(t1 === subject) {
-                        if(!globalTopicsStats[t2]) globalTopicsStats[t2] = { correct: 0, wrong: 0, skipped: 0, total: 0 };
-                        globalTopicsStats[t2].total++;
-                        if(rd.status === 'correct') globalTopicsStats[t2].correct++;
-                        else if(rd.status === 'wrong') globalTopicsStats[t2].wrong++;
-                        else if(rd.status === 'skipped') globalTopicsStats[t2].skipped++;
-                    }
-                });
-            }
-        });
-
-        let html = '';
-        let sortedTopics = Object.keys(globalTopicsStats).sort((a,b) => globalTopicsStats[b].total - globalTopicsStats[a].total);
-
-        if(sortedTopics.length === 0) {
-            html = `<div class="text-center text-slate-400 font-bold py-10 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl uppercase tracking-widest text-[10px]">No data available. Take some quizzes first!</div>`;
-        } else {
-            sortedTopics.forEach(t => {
-                let stat = globalTopicsStats[t];
-                let acc = Math.round((stat.correct / stat.total) * 100);
-                let barColor = acc >= 80 ? 'bg-emerald-500' : acc >= 50 ? 'bg-amber-500' : 'bg-red-500';
-                
-                html += `
-                <div class="mb-4 p-5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                    <div class="flex justify-between items-end mb-3">
-                        <div class="font-black text-slate-700 dark:text-slate-200 text-sm uppercase tracking-wide">${t}</div>
-                        <div class="text-[10px] font-black text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 px-3 py-1 rounded shadow-sm border border-slate-100 dark:border-slate-700">${stat.correct} / ${stat.total} Correct (${acc}%)</div>
-                    </div>
-                    <div class="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2 mb-4 overflow-hidden">
-                        <div class="${barColor} h-2 rounded-full" style="width: ${acc}%"></div>
-                    </div>
-                    <div class="flex gap-6 text-[10px] font-black uppercase tracking-widest bg-white dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700/50 justify-center">
-                        <span class="text-emerald-600 dark:text-emerald-400">✅ Correct: ${stat.correct}</span>
-                        <span class="text-red-600 dark:text-red-400">❌ Wrong: ${stat.wrong}</span>
-                        <span class="text-slate-500 dark:text-slate-400">⏭️ Skipped: ${stat.skipped}</span>
-                    </div>
-                </div>`;
-            });
-        }
-        document.getElementById('subject-analysis-grid').innerHTML = html;
-    };
-
-    window.closeSubjectAnalysis = () => document.getElementById('screen-subject-analysis').classList.add('hidden');
 
     function showScreen(s) { 
         ['dashboard','lobby','quiz','results','db-manager','target-radar'].forEach(x => {
