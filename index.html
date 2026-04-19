@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.17 (Global Target Matrix)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.20 (Secured Edit Engine)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -55,14 +55,15 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.17</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.20</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Global Target Matrix & Pure SRS Engine</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Elite Triage Radar & Smart Bridge Engine</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
                     <button onclick="toggleDarkMode()" class="bg-white/10 hover:bg-white/20 p-4 rounded-2xl backdrop-blur-md transition-all border border-white/10 shadow-inner hover:scale-105" title="Toggle Dark Mode">🌙</button>
                     <button onclick="openDBManager()" class="bg-gradient-to-br from-blue-500 to-cyan-600 hover:from-blue-400 hover:to-cyan-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-transform hover:-translate-y-1 border border-cyan-400 flex items-center gap-2">🗄️ Master DB</button>
+                    <button onclick="openTargetRadar()" class="bg-gradient-to-br from-rose-500 to-orange-600 hover:from-rose-400 hover:to-orange-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(244,63,94,0.4)] transition-transform hover:-translate-y-1 border border-rose-400 flex items-center gap-2">🎯 Target Radar</button>
                     <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400 flex items-center gap-2">📊 Global Analytics</button>
                 </div>
             </div>
@@ -108,6 +109,28 @@
         </div>
     </div>
 
+    <div id="screen-target-radar" class="hidden max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
+        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-rose-400 to-orange-500"></div>
+            
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+                <div>
+                    <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
+                    <h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Global Target Radar</h2>
+                    <p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Click a weak topic to instantly generate a 30-Question Drill</p>
+                </div>
+            </div>
+
+            <div id="critical-bleed-container" class="mb-10 hidden">
+                <h3 class="text-lg md:text-xl font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-rose-100 dark:border-rose-900/30 pb-2">⚠️ Critical Weaknesses (Triage Zone)</h3>
+                <div id="critical-bleed-grid" class="grid grid-cols-2 md:grid-cols-5 gap-4"></div>
+            </div>
+
+            <div id="target-radar-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                </div>
+        </div>
+    </div>
+
     <div id="screen-db-manager" class="hidden max-w-6xl mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
         <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
             <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 to-cyan-500"></div>
@@ -134,7 +157,6 @@
                 </div>
         </div>
     </div>
-
 
     <div id="screen-srs-modal" class="hidden fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg flex flex-col">
@@ -349,109 +371,6 @@
         </div>
     </div>
 
-    <div id="screen-edit-modal" class="hidden fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl max-h-[90vh] flex flex-col">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
-                <div>
-                    <h2 class="text-2xl font-black uppercase text-amber-500 dark:text-amber-400 tracking-tight">✏️ Universal Database Editor</h2>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Strict 4-Tier Tagging Enforced</p>
-                </div>
-                <button onclick="closeEditModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
-            </div>
-            
-            <div class="flex-1 overflow-y-auto pr-2 space-y-5">
-                <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Question Text</label>
-                    <textarea id="edit-q-text" rows="3" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200"></textarea>
-                </div>
-                
-                <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Options (Select the correct one)</label>
-                    <div class="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-0" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-0" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-1" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-1" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-2" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-2" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-3" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-3" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
-                    </div>
-                </div>
-
-                <div class="bg-indigo-50/50 dark:bg-indigo-900/10 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 1: Core Subject</label>
-                            <select id="edit-tag-1" onchange="updateTag2Dropdown()" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
-                                <option value="">-- Select Subject --</option>
-                                <option value="Arithmetic">Arithmetic</option>
-                                <option value="Advanced Maths">Advanced Maths</option>
-                                <option value="Reasoning">Reasoning</option>
-                                <option value="English Language">English Language</option>
-                                <option value="Ancient History">Ancient History</option>
-                                <option value="Medieval History">Medieval History</option>
-                                <option value="Modern History">Modern History</option>
-                                <option value="Art & Culture">Art & Culture</option>
-                                <option value="Geography">Geography</option>
-                                <option value="Polity">Polity</option>
-                                <option value="Economics">Economics</option>
-                                <option value="Physics">Physics</option>
-                                <option value="Chemistry">Chemistry</option>
-                                <option value="Biology">Biology</option>
-                                <option value="Environment & Ecology">Environment & Ecology</option>
-                                <option value="Science & Technology">Science & Technology</option>
-                                <option value="Static GK">Static GK</option>
-                                <option value="Current Affairs">Current Affairs</option>
-                                <option value="Computer Knowledge">Computer Knowledge</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 2: Topic / Chapter</label>
-                            <select id="edit-tag-2" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
-                                <option value="">-- Select Topic --</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 3: Concept (Flashcard Trigger)</label>
-                            <input type="text" id="edit-tag-3" placeholder="e.g., Article 72, Incenter..." class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 4: Meta-Trap (Optional)</label>
-                            <select id="edit-tag-4" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
-                                <option value="">-- No Trap Tag --</option>
-                                <option value="#SillyError">#SillyError</option>
-                                <option value="#ReadIncorrectly">#ReadIncorrectly</option>
-                                <option value="#CalculationMistake">#CalculationMistake</option>
-                                <option value="#FormulaForgotten">#FormulaForgotten</option>
-                                <option value="#ConceptualGap">#ConceptualGap</option>
-                                <option value="#MemoryFaded">#MemoryFaded</option>
-                                <option value="#50_50_Fail">#50_50_Fail</option>
-                                <option value="#TimePanic">#TimePanic</option>
-                                <option value="#Bouncer">#Bouncer</option>
-                                <option value="#Chronology">#Chronology</option>
-                                <option value="#MatchThePairs">#MatchThePairs</option>
-                                <option value="#StatementBased">#StatementBased</option>
-                                <option value="#AssertionReason">#AssertionReason</option>
-                                <option value="#ExtremeWordTrap">#ExtremeWordTrap</option>
-                                <option value="#UnitTrap">#UnitTrap</option>
-                                <option value="#UPSC_PYQ">#UPSC_PYQ</option>
-                                <option value="#SSC_Tier2_PYQ">#SSC_Tier2_PYQ</option>
-                                <option value="#HighYield">#HighYield</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Detailed Solution / Shortcuts</label>
-                    <textarea id="edit-solution" rows="4" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200"></textarea>
-                </div>
-            </div>
-            
-            <div class="pt-6 border-t border-slate-100 dark:border-slate-800 mt-4 flex gap-4">
-                <button onclick="closeEditModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase tracking-widest py-4 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
-                <button onclick="saveEdit()" class="flex-1 bg-amber-500 text-white font-black uppercase tracking-widest py-4 rounded-xl shadow-lg hover:bg-amber-400 transition-colors shadow-amber-500/30">💾 Save Changes</button>
-            </div>
-        </div>
-    </div>
-
 <script>
     const CLOUD_URL = "https://script.google.com/macros/s/AKfycbyuAFvjWZHAlkDx00DsDoHiPgFMq-CmGgHKyQXq_6cfi1QwmnwUVp3ZNLrtpnLPhOXB/exec";
     
@@ -476,6 +395,17 @@
     window.currentQuizWrongQs = [];
     window.currentReviewQuestions = []; 
     let currentlyEditingGlobalText = null;
+
+    // V19.21 SECURE EDIT REGISTRY
+    window.editRegistry = {};
+    window.editCounter = 0;
+    window.openGlobalEditModalBySafeId = (id) => {
+        if(window.editRegistry[id]) {
+            openGlobalEditModal(window.editRegistry[id]);
+        } else {
+            alert("Error: Question reference lost. Please refresh the page.");
+        }
+    };
 
     // V19.14: MASTER SYLLABUS MAPPING FOR TAG 2 DYNAMIC DROPDOWN
     const SYLLABUS_MAP = {
@@ -505,6 +435,17 @@
         if (pwd === "KOBE") { callback(); } else if (pwd !== null) { alert("❌ ACCESS DENIED."); }
     };
 
+    // V19.20 SMART BRIDGE ENGINE (LIVE MASTER DB LOOKUP)
+    // We dynamically build a map of every clean question so we never crash on undefined
+    function getMasterMap() {
+        let map = {};
+        Object.keys(db).forEach(qid => {
+            db[qid].questions.forEach(q => {
+                map[q.question] = { tags: q.tags || [], subject: q.subject || "Miscellaneous" };
+            });
+        });
+        return map;
+    }
 
     // MASTER DB MANAGER
     window.openDBManager = () => {
@@ -530,13 +471,16 @@
                     uniqueTracker.add(q.question);
                     let tagsHTML = (q.tags || ["Miscellaneous"]).map(t => `<span class="inline-block px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-[9px] mb-1 mr-1">${t}</span>`).join('');
                     
+                    let safeId = 'edit_db_' + window.editCounter++;
+                    window.editRegistry[safeId] = q.question;
+
                     html += `
                     <div class="bg-white dark:bg-slate-900 rounded-xl p-4 grid grid-cols-12 gap-4 items-center border border-slate-200 dark:border-slate-800 shadow-sm hover:border-blue-400 transition-colors">
                         <div class="col-span-2 text-xs font-bold text-slate-500 truncate" title="${sourceTitle}">${sourceTitle}</div>
                         <div class="col-span-2 flex flex-wrap max-h-12 overflow-hidden">${tagsHTML}</div>
                         <div class="col-span-7 text-sm font-bold text-slate-800 dark:text-slate-200 truncate" title="${q.question.replace(/"/g, '&quot;')}">${q.question}</div>
                         <div class="col-span-1 text-center">
-                            <button onclick="openGlobalEditModal(\`${q.question.replace(/`/g, '\\`').replace(/\\/g, '\\\\')}\`)" class="bg-amber-100 hover:bg-amber-200 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 p-2 rounded-lg font-black text-xs transition-colors shadow-sm w-full">✏️</button>
+                            <button onclick="openGlobalEditModalBySafeId('${safeId}')" class="bg-amber-100 hover:bg-amber-200 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 p-2 rounded-lg font-black text-xs transition-colors shadow-sm w-full">✏️</button>
                         </div>
                     </div>`;
                 }
@@ -745,7 +689,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.17", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.20", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -819,12 +763,16 @@
                 if (searchStr.includes(term)) {
                     matchCount++;
                     const cText = (q.options && q.options.find(o=>o.correct)?.text) || "N/A";
+                    
+                    let safeId = 'edit_srch_' + window.editCounter++;
+                    window.editRegistry[safeId] = q.question;
+
                     resultsHTML += `
                         <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-700 shadow-lg hover:border-emerald-400 dark:hover:border-emerald-500 transition-colors relative overflow-hidden mt-4">
                             <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-400"></div>
                             <div class="flex justify-between items-start mb-4">
                                 <span class="text-[10px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 px-3 py-1 rounded border border-indigo-100 dark:border-indigo-800/50">${quiz.subject} • ${quiz.title}</span>
-                                <button onclick="openGlobalEditModal(\`${q.question.replace(/`/g, '\\`').replace(/\\/g, '\\\\')}\`)" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1 rounded-md font-black text-[10px] uppercase tracking-widest border border-amber-200 hover:bg-amber-200 transition-colors">✏️ Edit</button>
+                                <button onclick="openGlobalEditModalBySafeId('${safeId}')" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1 rounded-md font-black text-[10px] uppercase tracking-widest border border-amber-200 hover:bg-amber-200 transition-colors">✏️ Edit</button>
                             </div>
                             <div class="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 mb-6 leading-relaxed">${highlightText(q.question, term)}</div>
                             <div class="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800/50 mb-6 inline-block shadow-inner"><span class="block text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Correct Answer</span><span class="text-sm font-bold text-slate-800 dark:text-slate-200">${highlightText(cText, term)}</span></div>
@@ -885,6 +833,69 @@
         openLobby('quiz_topic_practice');
     };
 
+    // V19.20 SMART BRIDGE DEDICATED TARGET RADAR SCREEN
+    window.openTargetRadar = () => {
+        showScreen('target-radar');
+        renderTargetRadar();
+    };
+
+    window.renderTargetRadar = () => {
+        const grid = document.getElementById('target-radar-grid');
+        grid.innerHTML = '';
+        
+        let globalTopicsStats = {}; 
+        let masterMap = getMasterMap(); // Failsafe Live Lookup
+        
+        historyDb.forEach(h => {
+            if(h.reviewData) {
+                h.reviewData.forEach(rd => {
+                    let clean = masterMap[rd.question];
+                    let activeTags = clean ? clean.tags : (rd.tags || []);
+                    
+                    let t1 = activeTags.length > 0 ? activeTags[0] : "Miscellaneous";
+                    let t2 = activeTags.length > 1 ? activeTags[1] : t1;
+                    
+                    if(!globalTopicsStats[t1]) globalTopicsStats[t1] = {};
+                    if(!globalTopicsStats[t1][t2]) globalTopicsStats[t1][t2] = { c: 0, t: 0 };
+                    
+                    globalTopicsStats[t1][t2].t++;
+                    if(rd.status === 'correct') globalTopicsStats[t1][t2].c++;
+                });
+            }
+        });
+
+        // Only render cards for subjects that actually have data
+        Object.keys(globalTopicsStats).sort().forEach(subject => {
+            let subTopics = globalTopicsStats[subject];
+            if (subTopics && Object.keys(subTopics).length > 0) {
+                
+                let pillsHTML = Object.keys(subTopics).sort((a,b) => subTopics[b].t - subTopics[a].t).map(t => {
+                    let acc = Math.round((subTopics[t].c / subTopics[t].t) * 100);
+                    let colorClasses = acc >= 80 ? 'text-emerald-700 bg-emerald-100 border-emerald-300 dark:text-emerald-400 dark:bg-emerald-900/30 dark:border-emerald-800/50'
+                                     : acc >= 50 ? 'text-amber-700 bg-amber-100 border-amber-300 dark:text-amber-400 dark:bg-amber-900/30 dark:border-amber-800/50'
+                                     : 'text-red-700 bg-red-100 border-red-300 dark:text-red-400 dark:bg-red-900/30 dark:border-red-800/50';
+                    return `<button onclick="generateTopicMock('${subject.replace(/'/g, "\\'")}', '${t.replace(/'/g, "\\'")}')" class="px-3 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg border shadow-sm ${colorClasses} hover:scale-105 transition-transform cursor-pointer flex justify-between items-center w-full" title="Practice ${t} questions"><span>${t}</span> <span>${acc}% ▶</span></button>`;
+                }).join('');
+
+                const card = document.createElement('div'); 
+                card.className = `bg-white dark:bg-slate-900/80 rounded-3xl p-6 shadow-lg border border-slate-200 dark:border-slate-800 relative overflow-hidden`;
+                card.innerHTML = `
+                    <div class="absolute top-0 left-0 w-full h-1.5 ${getCategoryClass(subject)}"></div>
+                    <div class="flex justify-between items-center pb-3 mb-4 border-b border-slate-100 dark:border-slate-800/50">
+                        <h2 class="text-xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">${subject}</h2>
+                    </div>
+                    <div class="flex flex-col gap-2">${pillsHTML}</div>
+                `;
+                grid.appendChild(card);
+            }
+        });
+
+        if(grid.innerHTML === '') {
+            grid.innerHTML = `<div class="col-span-full text-center text-slate-400 font-bold py-16 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl mt-4">No global data found. Take some quizzes to populate the radar.</div>`;
+        }
+    };
+
+
     function renderDashboard() {
         const grid = document.getElementById('dashboard-grid'); grid.innerHTML = '';
         
@@ -910,67 +921,9 @@
                 <div class="text-xs font-black text-amber-400 tracking-widest uppercase">#24</div>
             </div>`;
         grid.appendChild(mambaCard);
-        
-        // V19.17: THE GLOBAL MATRIX SWEEP
-        let globalTopicsStats = {}; 
-        
-        historyDb.forEach(h => {
-            if(h.reviewData) {
-                h.reviewData.forEach(rd => {
-                    // Extract Tag 1 and Tag 2 globally, ignoring the mock folder
-                    let t1 = (rd.tags && rd.tags.length > 0) ? rd.tags[0] : "Miscellaneous";
-                    let t2 = (rd.tags && rd.tags.length > 1) ? rd.tags[1] : t1;
-                    
-                    if(!globalTopicsStats[t1]) globalTopicsStats[t1] = {};
-                    if(!globalTopicsStats[t1][t2]) globalTopicsStats[t1][t2] = { c: 0, t: 0 };
-                    
-                    globalTopicsStats[t1][t2].t++;
-                    if(rd.status === 'correct') globalTopicsStats[t1][t2].c++;
-                });
-            }
-        });
 
         SUBJECTS.forEach(subject => {
-
             const subjectQuizzes = Object.keys(db).filter(id => db[id].subject === subject && !db[id].title.includes("Master Mock") && !db[id].title.includes("🎯") && !db[id].title.includes("SRS"));
-            
-            let matrixHTML = '';
-            let safeSub = subject.replace(/[^a-zA-Z0-9]/g, '');
-            
-            // Pull strictly from the newly generated Global Scorecard
-            let subTopics = globalTopicsStats[subject];
-            
-            if (subTopics && Object.keys(subTopics).length > 0) {
-                let pillsHTML = Object.keys(subTopics).sort((a,b) => subTopics[b].t - subTopics[a].t).map(t => {
-                    let acc = Math.round((subTopics[t].c / subTopics[t].t) * 100);
-                    let colorClasses = acc >= 80 ? 'text-emerald-700 bg-emerald-100 border-emerald-300 dark:text-emerald-400 dark:bg-emerald-900/30 dark:border-emerald-800/50'
-                                     : acc >= 50 ? 'text-amber-700 bg-amber-100 border-amber-300 dark:text-amber-400 dark:bg-amber-900/30 dark:border-amber-800/50'
-                                     : 'text-red-700 bg-red-100 border-red-300 dark:text-red-400 dark:bg-red-900/30 dark:border-red-800/50';
-                    return `<button onclick="generateTopicMock('${subject.replace(/'/g, "\\'")}', '${t.replace(/'/g, "\\'")}')" class="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded border shadow-sm ${colorClasses} hover:scale-105 transition-transform cursor-pointer" title="Practice ${t} questions">${t}: ${acc}% ▶</button>`;
-                }).join('');
-                
-                matrixHTML = `
-                    <div class="mb-4 flex gap-2">
-                        <button onclick="document.getElementById('matrix-${safeSub}').classList.toggle('hidden')" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black text-[10px] uppercase py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 flex justify-between items-center px-4 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors shadow-sm">
-                            🎯 Target Topics <span class="text-xs">▼</span>
-                        </button>
-                        <button onclick="showSubjectAnalysis('${subject.replace(/'/g, "\\'")}')" class="bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 font-black text-[10px] uppercase px-4 py-2.5 rounded-xl border border-blue-100 dark:border-blue-800/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors shadow-sm" title="View Detailed Topic Analysis">
-                            📊 Analysis
-                        </button>
-                    </div>
-                    <div id="matrix-${safeSub}" class="hidden mb-4 p-4 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-slate-100 dark:border-slate-800 shadow-inner">
-                        <div class="mb-3 last:mb-0"><div class="flex flex-wrap gap-1.5">${pillsHTML}</div></div>
-                    </div>
-                `;
-            } else {
-                matrixHTML = `
-                    <div class="mb-4">
-                        <button onclick="showSubjectAnalysis('${subject.replace(/'/g, "\\'")}')" class="w-full bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 font-black text-[10px] uppercase px-4 py-2.5 rounded-xl border border-blue-100 dark:border-blue-800/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors shadow-sm" title="View Detailed Topic Analysis">
-                            📊 Topic Analysis
-                        </button>
-                    </div>
-                `;
-            }
 
             let listHTML = subjectQuizzes.length === 0 ? `<div class="text-xs text-slate-400 font-bold py-4 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg mb-2">No quizzes imported yet.</div>` : '';
             
@@ -995,7 +948,6 @@
                     <h2 class="text-xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">${subject}</h2>
                     <button onclick="deleteSubject('${subject.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-red-500 transition-colors bg-slate-100 dark:bg-slate-800 p-1.5 rounded-lg" title="Delete Subject & Quizzes 🔒">🗑️</button>
                 </div>
-                ${matrixHTML}
                 <div class="flex-1 overflow-y-auto pr-2 mb-3 max-h-64 space-y-1">${listHTML}</div>
                 <div class="flex gap-2 mt-auto pt-3 border-t border-slate-100 dark:border-slate-800/50">
                     <button onclick="triggerImport('${subject.replace(/'/g, "\\'")}')" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 text-slate-600 dark:text-slate-300 hover:text-emerald-700 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm">➕ Add 🔒</button>
@@ -1445,7 +1397,11 @@
             let tags = q.tags || ["Miscellaneous"];
             
             window.currentReviewQuestions.push(q);
-            fullReviewHTML += genDeepReviewCard(q, status, uText, cText, "", i);
+            
+            let safeId = 'edit_rev_' + window.editCounter++;
+            window.editRegistry[safeId] = q.question;
+
+            fullReviewHTML += genDeepReviewCard(q, status, uText, cText, "", i, safeId);
             historicalReviewData.push({ question: q.question, status: status, uText: uText, cText: cText, solution: q.solution, tags: [...new Set(tags)], formulaUsed: q.formulaUsed });
         });
 
@@ -1473,19 +1429,25 @@
         filterReview('all'); 
     }
 
-    function genDeepReviewCard(q, status, uText, cText, term = "", index = 0) { 
+    // V19.21 SECURED EDIT BUTTON IN REVIEW CARD
+    function genDeepReviewCard(q, status, uText, cText, term = "", index = 0, safeId = null) { 
         const styles = {
             'correct': { border: 'bg-emerald-400', badge: 'text-emerald-700 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800/50', box: 'border-emerald-200 dark:border-emerald-800' },
             'wrong': { border: 'bg-red-400', badge: 'text-red-700 bg-red-100 dark:text-red-400 dark:bg-red-900/30 border-red-200 dark:border-red-800/50', box: 'border-red-200 dark:border-red-800' },
             'skipped': { border: 'bg-slate-400', badge: 'text-slate-700 bg-slate-200 dark:text-slate-400 dark:bg-slate-800 border-slate-300 dark:border-slate-700', box: 'border-slate-200 dark:border-slate-700' }
         };
         const s = styles[status];
+        
+        if(!safeId) {
+            safeId = 'edit_rev_' + window.editCounter++;
+            window.editRegistry[safeId] = q.question;
+        }
 
         return `<div class="review-card filter-${status} bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-800 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow">
             <div class="absolute top-0 left-0 w-1.5 h-full ${s.border}"></div>
             <div class="flex justify-between items-center mb-4">
                 <span class="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-md border ${s.badge}">${status}</span>
-                <button onclick="openGlobalEditModal(\`${q.question.replace(/`/g, '\\`').replace(/\\/g, '\\\\')}\`)" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-widest border border-amber-200 dark:border-amber-800/50 hover:bg-amber-200 dark:hover:bg-amber-800/50 transition-colors">✏️ Edit / Fix Error</button>
+                <button onclick="openGlobalEditModalBySafeId('${safeId}')" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-widest border border-amber-200 dark:border-amber-800/50 hover:bg-amber-200 dark:hover:bg-amber-800/50 transition-colors">✏️ Edit / Fix Error</button>
             </div>
             <div class="font-bold text-slate-800 dark:text-slate-200 mb-6 text-lg md:text-xl leading-relaxed">${highlightText(q.question, term)}</div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -1530,7 +1492,11 @@
                 qObj.options = [{text: data.cText, correct: true}, {text: "Option B", correct: false}, {text: "Option C", correct: false}, {text: "Option D", correct: false}];
             }
             window.currentReviewQuestions.push(qObj);
-            fullReviewHTML += genDeepReviewCard(qObj, data.status, data.uText, data.cText, "", i); 
+            
+            let safeId = 'edit_hist_' + window.editCounter++;
+            window.editRegistry[safeId] = qObj.question;
+
+            fullReviewHTML += genDeepReviewCard(qObj, data.status, data.uText, data.cText, "", i, safeId); 
         });
 
         document.getElementById('revision-container').innerHTML = fullReviewHTML;
@@ -1614,13 +1580,16 @@
 
         document.getElementById('subject-analysis-title').textContent = `${subject} - Topic Analysis`;
 
-        // V19.17: RE-WIRED DETAILED ANALYSIS TO USE GLOBAL SCORECARD
         let globalTopicsStats = {}; 
+        let masterMap = getMasterMap(); // Failsafe Live Lookup
+        
         historyDb.forEach(h => {
             if(h.reviewData) {
                 h.reviewData.forEach(rd => {
-                    let t1 = (rd.tags && rd.tags.length > 0) ? rd.tags[0] : "Miscellaneous";
-                    let t2 = (rd.tags && rd.tags.length > 1) ? rd.tags[1] : t1;
+                    let clean = masterMap[rd.question];
+                    let activeTags = clean ? clean.tags : (rd.tags || []);
+                    let t1 = activeTags.length > 0 ? activeTags[0] : "Miscellaneous";
+                    let t2 = activeTags.length > 1 ? activeTags[1] : t1;
                     
                     if(t1 === subject) {
                         if(!globalTopicsStats[t2]) globalTopicsStats[t2] = { correct: 0, wrong: 0, skipped: 0, total: 0 };
@@ -1667,12 +1636,12 @@
     window.closeSubjectAnalysis = () => document.getElementById('screen-subject-analysis').classList.add('hidden');
 
     function showScreen(s) { 
-        ['dashboard','lobby','quiz','results','db-manager'].forEach(x => {
+        ['dashboard','lobby','quiz','results','db-manager','target-radar'].forEach(x => {
             const el = document.getElementById('screen-'+x);
             if(el) el.classList.add('hidden');
         }); 
         document.getElementById('screen-'+s).classList.remove('hidden'); 
-        if(s !== 'dashboard' && s !== 'db-manager') {
+        if(s !== 'dashboard' && s !== 'db-manager' && s !== 'target-radar') {
             document.getElementById('omni-search').value = '';
             document.getElementById('search-results-container').classList.add('hidden');
             document.getElementById('dashboard-main-content').classList.remove('hidden');
