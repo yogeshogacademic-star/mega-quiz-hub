@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.26 (Ironclad Defensive Armor)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.28 (Legacy Generator Sync)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -32,6 +32,12 @@
 
         mark { background-color: rgba(251, 191, 36, 0.4); color: inherit; padding: 0 2px; border-radius: 4px; font-weight: 900; box-shadow: 0 0 8px rgba(251, 191, 36, 0.3); }
         .dark mark { background-color: rgba(245, 158, 11, 0.5); }
+        
+        /* Flashcard Animations */
+        .flashcard-inner { transition: transform 0.6s; transform-style: preserve-3d; }
+        .flashcard.flipped .flashcard-inner { transform: rotateX(180deg); }
+        .flashcard-front, .flashcard-back { backface-visibility: hidden; position: absolute; inset: 0; }
+        .flashcard-back { transform: rotateX(180deg); }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-[#0a0f1c] dark:text-slate-200 min-h-screen flex flex-col pb-20">
@@ -55,15 +61,16 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.26</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.28</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Ironclad Database Armor & Pure Radar System</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Legacy Sync & Ironclad Database Armor</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
                     <button onclick="toggleDarkMode()" class="bg-white/10 hover:bg-white/20 p-4 rounded-2xl backdrop-blur-md transition-all border border-white/10 shadow-inner hover:scale-105" title="Toggle Dark Mode">🌙</button>
                     <button onclick="openDBManager()" class="bg-gradient-to-br from-blue-500 to-cyan-600 hover:from-blue-400 hover:to-cyan-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-transform hover:-translate-y-1 border border-cyan-400 flex items-center gap-2">🗄️ Master DB</button>
                     <button onclick="openTargetRadar()" class="bg-gradient-to-br from-rose-500 to-orange-600 hover:from-rose-400 hover:to-orange-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(244,63,94,0.4)] transition-transform hover:-translate-y-1 border border-rose-400 flex items-center gap-2">🎯 Target Radar</button>
+                    <button onclick="openFlashcardVault()" class="bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-transform hover:-translate-y-1 border border-amber-400 flex items-center gap-2">🃏 Flashcards</button>
                     <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400 flex items-center gap-2">📊 Analytics</button>
                 </div>
             </div>
@@ -127,7 +134,7 @@
             </div>
 
             <div id="target-radar-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                </div>
+            </div>
         </div>
     </div>
 
@@ -545,7 +552,7 @@
     function getMasterMap() {
         let map = {};
         Object.keys(db).forEach(qid => {
-            if (!db[qid] || !Array.isArray(db[qid].questions)) return; // V19.26 ARMOR
+            if (!db[qid] || !Array.isArray(db[qid].questions)) return; 
             db[qid].questions.forEach(q => {
                 map[q.question] = { tags: q.tags || [], subject: q.subject || q.originalSubject || "Miscellaneous" };
             });
@@ -586,9 +593,9 @@
         let matchCount = 0;
 
         const processList = (questionsArray, sourceTitle) => {
-            if(!Array.isArray(questionsArray)) return; // V19.26 ARMOR
+            if(!Array.isArray(questionsArray)) return; 
             questionsArray.forEach((q) => {
-                if(!q || !q.question) return; // V19.26 ARMOR
+                if(!q || !q.question) return; 
                 if(uniqueTracker.has(q.question)) return; 
                 
                 let isDirty = false;
@@ -626,12 +633,12 @@
         };
 
         Object.keys(db).forEach(qid => {
-            if (db[qid] && Array.isArray(db[qid].questions)) { // V19.26 ARMOR
+            if (db[qid] && Array.isArray(db[qid].questions)) {
                 processList(db[qid].questions, db[qid].title);
             }
         });
         
-        if (Array.isArray(mistakesDb)) processList(mistakesDb, "🔥 SRS Queue"); // V19.26 ARMOR
+        if (Array.isArray(mistakesDb)) processList(mistakesDb, "🔥 SRS Queue"); 
 
         if(matchCount === 0) {
             let emptyMsg = isDirtyFilterActive ? "✅ Zero Dirty Tags Found! Your Database is 100% Pure." : "No questions found matching your search.";
@@ -661,12 +668,12 @@
     window.openGlobalEditModal = (qText) => {
         let foundRef = null;
         for(let qid in db) {
-            if (!db[qid] || !Array.isArray(db[qid].questions)) continue; // V19.26 ARMOR
+            if (!db[qid] || !Array.isArray(db[qid].questions)) continue; 
             let qItem = db[qid].questions.find(qx => qx.question === qText);
             if(qItem) { foundRef = qItem; break; }
         }
         
-        if(!foundRef && Array.isArray(mistakesDb)) { // V19.26 ARMOR
+        if(!foundRef && Array.isArray(mistakesDb)) { 
             foundRef = mistakesDb.find(m => m.question === qText);
         }
 
@@ -683,7 +690,7 @@
         document.getElementById('edit-solution').value = foundRef.solution || "";
         
         let t1 = "", t2 = "", t3 = "", t4 = "";
-        if(foundRef.tags && Array.isArray(foundRef.tags) && foundRef.tags.length > 0) { // V19.26 ARMOR
+        if(foundRef.tags && Array.isArray(foundRef.tags) && foundRef.tags.length > 0) { 
             t1 = foundRef.tags[0] || "";
             if(foundRef.tags.length > 1) t2 = foundRef.tags[1];
             
@@ -695,7 +702,7 @@
                 if(foundRef.tags.length > 2) t3 = foundRef.tags.slice(2).join(", ");
             }
         } else if (typeof foundRef.tags === 'string') {
-            t1 = foundRef.tags; // Recovery for old string tags
+            t1 = foundRef.tags; 
         }
 
         let tag1Select = document.getElementById('edit-tag-1');
@@ -757,7 +764,7 @@
         let updatedDb = false;
 
         for(let qid in db) {
-            if (!db[qid] || !Array.isArray(db[qid].questions)) continue; // V19.26 ARMOR
+            if (!db[qid] || !Array.isArray(db[qid].questions)) continue; 
             let idx = db[qid].questions.findIndex(qx => qx.question === oldText);
             if(idx !== -1) {
                 db[qid].questions[idx] = {...db[qid].questions[idx], ...target};
@@ -765,7 +772,7 @@
             }
         }
 
-        if (Array.isArray(mistakesDb)) { // V19.26 ARMOR
+        if (Array.isArray(mistakesDb)) { 
             let mistIdx = mistakesDb.findIndex(m => m.question === oldText);
             if(mistIdx !== -1) {
                 let existingSRS = mistakesDb[mistIdx].srs;
@@ -808,7 +815,7 @@
     };
 
     function initializeSRSData() {
-        if(!Array.isArray(mistakesDb)) mistakesDb = []; // V19.26 ARMOR
+        if(!Array.isArray(mistakesDb)) mistakesDb = []; 
         mistakesDb.forEach(m => {
             if (!m.srs) m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() - 10000 };
         });
@@ -854,7 +861,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.26", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.28", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -922,7 +929,7 @@
         
         Object.keys(db).forEach(quizId => {
             const quiz = db[quizId];
-            if(!quiz || !quiz.title || quiz.title.includes("Master Mock") || quiz.title.includes("SRS") || quiz.title.includes("🎯") || !Array.isArray(quiz.questions)) return; // V19.26 ARMOR
+            if(!quiz || !quiz.title || quiz.title.includes("Master Mock") || quiz.title.includes("SRS") || quiz.title.includes("🎯") || !Array.isArray(quiz.questions)) return;
 
             quiz.questions.forEach((q) => {
                 const searchStr = ((q.question || "") + " " + (q.solution || "") + " " + (q.tags ? (Array.isArray(q.tags) ? q.tags.join(" ") : String(q.tags)) : "")).toLowerCase();
@@ -965,18 +972,22 @@
         return 'border-orange-500'; 
     };
 
+    // V19.28 LEGACY GENERATOR SYNC
     window.generateTopicMock = (parentSubject, targetTopic) => {
         let pool = [];
         
         Object.keys(db).forEach(quizId => {
             const quiz = db[quizId];
-            if (quiz && Array.isArray(quiz.questions) && !quiz.title.includes("🎯") && !quiz.title.includes("Master Mock") && !quiz.title.includes("SRS")) { // V19.26 ARMOR
+            if (quiz && Array.isArray(quiz.questions) && !quiz.title.includes("🎯") && !quiz.title.includes("Master Mock") && !quiz.title.includes("SRS")) { 
                 quiz.questions.forEach(q => {
                     let qTags = Array.isArray(q.tags) ? q.tags : (q.tags ? [String(q.tags)] : []);
                     let t1 = qTags.length > 0 ? qTags[0] : (q.subject || q.originalSubject || "Miscellaneous");
                     let t2 = qTags.length > 1 ? qTags[1] : t1;
                     
-                    if (t1 === parentSubject && t2 === targetTopic) {
+                    // MIRROR RADAR LOGIC ON THE FLY
+                    let mappedT1 = (!CORE_SUBJECTS.includes(t1) && t1 !== "Miscellaneous") ? "Legacy / Uncategorized Data" : t1;
+
+                    if (mappedT1 === parentSubject && t2 === targetTopic) {
                         pool.push(q);
                     }
                 });
@@ -990,7 +1001,7 @@
         
         db['quiz_topic_practice'] = { 
             title: `🎯 ${targetTopic} Practice`, 
-            subject: parentSubject, 
+            subject: parentSubject === "Legacy / Uncategorized Data" ? "Legacy" : parentSubject, 
             timeInMinutes: Math.ceil(shuffled.length * 1.5), 
             questions: shuffled 
         };
@@ -1014,7 +1025,7 @@
         let allTopicsFlat = [];
         let masterMap = getMasterMap(); 
         
-        if (!Array.isArray(historyDb)) return; // V19.26 ARMOR
+        if (!Array.isArray(historyDb)) return; 
 
         historyDb.forEach(h => {
             if(h && Array.isArray(h.reviewData)) {
@@ -1082,45 +1093,32 @@
                 let pillsHTML = sortedTopicKeys.map(t => {
                     let stat = subTopics[t];
                     let acc = Math.round((stat.c / stat.t) * 100);
-                    let colorClasses = acc >= 80 ? 'text-emerald-700 bg-emerald-100 border-emerald-300 dark:text-emerald-400 dark:bg-emerald-900/30 dark:border-emerald-800/50'
-                                     : acc >= 50 ? 'text-amber-700 bg-amber-100 border-amber-300 dark:text-amber-400 dark:bg-amber-900/30 dark:border-amber-800/50'
-                                     : 'text-rose-700 bg-rose-100 border-rose-300 dark:text-rose-400 dark:bg-rose-900/30 dark:border-rose-800/50';
-                    return `<button onclick="generateTopicMock('${subject.replace(/'/g, "\\'")}', '${t.replace(/'/g, "\\'")}')" class="px-3 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-lg border shadow-sm ${colorClasses} hover:scale-105 transition-transform cursor-pointer flex justify-between items-center w-full" title="Practice ${t} questions">
-                        <span class="truncate max-w-[65%] text-left">${t}</span> 
-                        <span class="flex items-center gap-1.5"><span class="opacity-60">[${stat.c}/${stat.t}]</span> <span>${acc}% ▶</span></span>
-                    </button>`;
-                });
-                
-                let limitPills = pillsHTML;
-                let viewMoreBtn = "";
-                if (pillsHTML.length > 8) {
-                    limitPills = pillsHTML.slice(0, 8);
-                    viewMoreBtn = `<button onclick="this.previousElementSibling.innerHTML += \`${pillsHTML.slice(8).join('').replace(/`/g, '\\`')}\`; this.remove();" class="w-full bg-slate-100 dark:bg-slate-800 text-slate-500 font-black text-[10px] uppercase py-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mt-2">View ${pillsHTML.length - 8} More Topics ▼</button>`;
-                }
+                    let barColor = acc >= 80 ? 'bg-emerald-500' : acc >= 50 ? 'bg-amber-500' : 'bg-red-500';
+                    let textClass = acc >= 80 ? 'text-emerald-700 dark:text-emerald-400' : acc >= 50 ? 'text-amber-700 dark:text-amber-400' : 'text-rose-700 dark:text-rose-400';
+                    let bgClass = acc >= 80 ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/50' : acc >= 50 ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50' : 'bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800/50';
 
-                let isLegacy = subject === "Legacy / Uncategorized Data";
-                let cardClass = isLegacy ? `bg-amber-50 dark:bg-amber-900/10 border-amber-300 dark:border-amber-800/50` : `bg-white dark:bg-slate-900/80 border-slate-200 dark:border-slate-800`;
-                let headerClass = isLegacy ? `text-amber-700 dark:text-amber-500` : `text-slate-800 dark:text-slate-100`;
+                    return `
+                    <div class="mb-3 p-3 rounded-xl border ${bgClass} shadow-sm hover:shadow-md transition-shadow cursor-pointer" onclick="generateTopicMock('${subject.replace(/'/g, "\\'")}', '${t.replace(/'/g, "\\'")}')" title="Practice ${t}">
+                        <div class="flex justify-between items-end mb-2">
+                            <div class="font-black ${textClass} text-[10px] sm:text-xs uppercase tracking-widest truncate pr-2">${t}</div>
+                            <div class="text-[10px] font-black ${textClass} bg-white dark:bg-slate-900 px-2 py-0.5 rounded shadow-sm whitespace-nowrap">${stat.c} / ${stat.t} (${acc}%)</div>
+                        </div>
+                        <div class="w-full bg-white dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                            <div class="${barColor} h-1.5 rounded-full" style="width: ${acc}%"></div>
+                        </div>
+                    </div>`;
+                }).join('');
 
-                const card = document.createElement('div'); 
-                card.className = `rounded-3xl p-6 shadow-lg border relative overflow-hidden flex flex-col h-full ${cardClass}`;
+                const card = document.createElement('div');
+                card.className = `bg-white dark:bg-slate-900/80 rounded-3xl p-6 shadow-lg border border-slate-200 dark:border-slate-800 relative overflow-hidden flex flex-col h-full`;
                 card.innerHTML = `
-                    <div class="absolute top-0 left-0 w-full h-1.5 ${isLegacy ? 'bg-amber-500' : getCategoryClass(subject)}"></div>
+                    <div class="absolute top-0 left-0 w-full h-1.5 ${getCategoryClass(subject)}"></div>
                     <div class="flex justify-between items-center pb-3 mb-4 border-b border-slate-100 dark:border-slate-800/50">
-                        <h2 class="text-xl font-black uppercase tracking-tight ${headerClass}">${subject} ${isLegacy ? '⚠️' : ''}</h2>
+                        <h2 class="text-xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">${subject}</h2>
                     </div>
-                    <div class="flex flex-col gap-2 flex-1 overflow-y-auto max-h-[300px] pr-1">
-                        ${limitPills.join('')}
-                        ${viewMoreBtn}
-                    </div>
-                    ${isLegacy ? `<div class="mt-4 pt-3 border-t border-amber-200 dark:border-amber-800/50 text-[10px] font-bold text-amber-600 dark:text-amber-400 text-center uppercase tracking-widest">Go to Master DB -> Find Dirty Tags to fix these.</div>` : ''}
+                    <div class="flex flex-col flex-1 overflow-y-auto max-h-[350px] pr-1">${pillsHTML}</div>
                 `;
-                
-                if(isLegacy) {
-                    setTimeout(() => grid.appendChild(card), 10);
-                } else {
-                    grid.appendChild(card);
-                }
+                grid.appendChild(card);
             }
         });
 
@@ -1128,7 +1126,6 @@
             grid.innerHTML = `<div class="col-span-full text-center text-slate-400 font-bold py-16 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl mt-4">No global data found. Take some quizzes to populate the radar.</div>`;
         }
     };
-
 
     function renderDashboard() {
         const grid = document.getElementById('dashboard-grid'); grid.innerHTML = '';
@@ -1155,8 +1152,9 @@
                 <div class="text-xs font-black text-amber-400 tracking-widest uppercase">#24</div>
             </div>`;
         grid.appendChild(mambaCard);
-
+        
         SUBJECTS.forEach(subject => {
+
             const subjectQuizzes = Object.keys(db).filter(id => db[id].subject === subject && !db[id].title.includes("Master Mock") && !db[id].title.includes("🎯") && !db[id].title.includes("SRS"));
 
             let listHTML = subjectQuizzes.length === 0 ? `<div class="text-xs text-slate-400 font-bold py-4 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg mb-2">No quizzes imported yet.</div>` : '';
@@ -1215,7 +1213,7 @@
         subSelect.innerHTML = '';
         
         let subjectsWithDue = {};
-        let masterMap = getMasterMap(); // Failsafe Live Lookup
+        let masterMap = getMasterMap(); 
 
         mistakesDb.forEach(m => {
             if(m.srs && m.srs.nextReview <= Date.now()) {
@@ -1269,7 +1267,7 @@
             let sub = document.getElementById('srs-subject-select').value;
             if(!sub) return alert("No subjects have due questions.");
             
-            let masterMap = getMasterMap(); // Failsafe Live Lookup
+            let masterMap = getMasterMap(); 
             dueQs = mistakesDb.filter(m => {
                 if (!m.srs || m.srs.nextReview > Date.now()) return false;
                 let clean = masterMap[m.question];
@@ -1612,7 +1610,7 @@
                         let newMistake = JSON.parse(JSON.stringify(q));
                         
                         let assignedSubject = "Miscellaneous";
-                        let safeTags = Array.isArray(newMistake.tags) ? newMistake.tags : []; // V19.26 ARMOR
+                        let safeTags = Array.isArray(newMistake.tags) ? newMistake.tags : []; 
                         if (safeTags.length > 0) {
                             if (CORE_SUBJECTS.includes(safeTags[0])) {
                                 assignedSubject = safeTags[0];
@@ -1721,7 +1719,7 @@
             let qObj = { question: data.question, solution: data.solution, tags: data.tags, formulaUsed: data.formulaUsed };
             let foundInDb = false;
             for(let qid in db) {
-                if (!db[qid] || !Array.isArray(db[qid].questions)) continue; // V19.26 ARMOR
+                if (!db[qid] || !Array.isArray(db[qid].questions)) continue; 
                 let actualQ = db[qid].questions.find(qx => qx.question === data.question);
                 if(actualQ) { qObj = JSON.parse(JSON.stringify(actualQ)); foundInDb = true; break; }
             }
@@ -1810,6 +1808,76 @@
     
     window.closeAnalytics = () => document.getElementById('screen-analytics').classList.add('hidden');
 
+    window.showSubjectAnalysis = (subject) => {
+        document.getElementById('screen-analytics').classList.add('hidden');
+        document.getElementById('screen-quiz-history').classList.add('hidden');
+        document.getElementById('screen-subject-analysis').classList.remove('hidden');
+
+        document.getElementById('subject-analysis-title').textContent = `${subject} - Topic Analysis`;
+
+        let isMixedSubject = subject.includes("MOCK") || subject === "Mixed" || subject === "Miscellaneous";
+        let topicsStats = {}; 
+        historyDb.filter(h => h.subject === subject).forEach(h => {
+            if(h.reviewData) {
+                h.reviewData.forEach(rd => {
+                    let primaryTag = rd.tags && rd.tags.length > 0 ? rd.tags[0] : "General";
+                    let secondaryTag = rd.tags && rd.tags.length > 1 ? rd.tags[1] : primaryTag;
+                    if (!rd.tags || rd.tags.length === 0) { primaryTag = "Miscellaneous"; secondaryTag = "Miscellaneous"; }
+                    
+                    let topicName;
+                    if(isMixedSubject) {
+                        topicName = `${primaryTag} : ${secondaryTag}`;
+                    } else {
+                        if (primaryTag.toUpperCase() === subject.toUpperCase() && rd.tags.length > 1) {
+                            topicName = secondaryTag;
+                        } else {
+                            topicName = primaryTag;
+                        }
+                    }
+                    
+                    if(!topicsStats[topicName]) topicsStats[topicName] = { correct: 0, wrong: 0, skipped: 0, total: 0 };
+                    
+                    topicsStats[topicName].total++;
+                    if(rd.status === 'correct') topicsStats[topicName].correct++;
+                    else if(rd.status === 'wrong') topicsStats[topicName].wrong++;
+                    else if(rd.status === 'skipped') topicsStats[topicName].skipped++;
+                });
+            }
+        });
+
+        let html = '';
+        let sortedTopics = Object.keys(topicsStats).sort((a,b) => topicsStats[b].total - topicsStats[a].total);
+
+        if(sortedTopics.length === 0) {
+            html = `<div class="text-center text-slate-400 font-bold py-10 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl uppercase tracking-widest text-[10px]">No data available. Take some quizzes first!</div>`;
+        } else {
+            sortedTopics.forEach(t => {
+                let stat = topicsStats[t];
+                let acc = Math.round((stat.correct / stat.total) * 100);
+                let barColor = acc >= 80 ? 'bg-emerald-500' : acc >= 50 ? 'bg-amber-500' : 'bg-red-500';
+                
+                html += `
+                <div class="mb-4 p-5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div class="flex justify-between items-end mb-3">
+                        <div class="font-black text-slate-700 dark:text-slate-200 text-sm uppercase tracking-wide">${t}</div>
+                        <div class="text-[10px] font-black text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 px-3 py-1 rounded shadow-sm border border-slate-100 dark:border-slate-700">${stat.correct} / ${stat.total} Correct (${acc}%)</div>
+                    </div>
+                    <div class="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2 mb-4 overflow-hidden">
+                        <div class="${barColor} h-2 rounded-full" style="width: ${acc}%"></div>
+                    </div>
+                    <div class="flex gap-6 text-[10px] font-black uppercase tracking-widest bg-white dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700/50 justify-center">
+                        <span class="text-emerald-600 dark:text-emerald-400">✅ Correct: ${stat.correct}</span>
+                        <span class="text-red-600 dark:text-red-400">❌ Wrong: ${stat.wrong}</span>
+                        <span class="text-slate-500 dark:text-slate-400">⏭️ Skipped: ${stat.skipped}</span>
+                    </div>
+                </div>`;
+            });
+        }
+        document.getElementById('subject-analysis-grid').innerHTML = html;
+    };
+
+    window.closeSubjectAnalysis = () => document.getElementById('screen-subject-analysis').classList.add('hidden');
+
     function showScreen(s) { 
         ['dashboard','lobby','quiz','results','flashcards','db-manager','target-radar'].forEach(x => {
             const el = document.getElementById('screen-'+x);
@@ -1839,7 +1907,109 @@
         });
     };
 
-    // Initialize System
+    window.openFlashcardVault = () => {
+        flashcardState.deck = JSON.parse(localStorage.getItem('megaQuizFlashcards_v1') || "[]");
+        if(flashcardState.deck.length === 0) return alert("Flashcard vault is empty.");
+        
+        let dueCards = flashcardState.deck.filter(fc => fc.srs.nextReview <= Date.now());
+        if(dueCards.length === 0) return alert("✅ All caught up! No flashcards due right now.");
+        
+        flashcardState.currentIndex = 0;
+        flashcardState.isFlipped = false;
+        flashcardState.dueDeck = dueCards;
+        
+        renderCurrentFlashcard();
+        showScreen('flashcards');
+    };
+
+    window.exitFlashcards = () => {
+        document.getElementById('screen-flashcards').classList.add('hidden');
+        showScreen('dashboard');
+    };
+
+    function renderCurrentFlashcard() {
+        if(flashcardState.currentIndex >= flashcardState.dueDeck.length) {
+            localStorage.setItem('megaQuizFlashcards_v1', JSON.stringify(flashcardState.deck));
+            alert("🎉 Session Complete! You crushed the Flashcard Queue.");
+            exitFlashcards();
+            return;
+        }
+
+        const card = flashcardState.dueDeck[flashcardState.currentIndex];
+        flashcardState.isFlipped = false;
+        
+        document.getElementById('fc-card').classList.remove('flipped');
+        document.getElementById('fc-controls').classList.add('hidden');
+        
+        document.getElementById('fc-topic-badge').textContent = card.topic;
+        document.getElementById('fc-counter').textContent = `Card ${flashcardState.currentIndex + 1} / ${flashcardState.dueDeck.length}`;
+        document.getElementById('fc-prompt-type').textContent = card.promptType;
+        document.getElementById('fc-front-text').textContent = card.front;
+        document.getElementById('fc-back-text').textContent = card.back;
+        
+        let ivl = card.srs.interval || 0.1;
+        document.getElementById('fc-hard-time').textContent = formatIvl(Math.max(1, ivl * 1.2));
+        document.getElementById('fc-good-time').textContent = formatIvl(Math.max(1, ivl * 2.5));
+        document.getElementById('fc-easy-time').textContent = formatIvl(Math.max(1, ivl * 4));
+    }
+
+    function formatIvl(days) {
+        if(days < 1) return "< 1d";
+        if(days < 30) return Math.round(days) + "d";
+        return (days/30).toFixed(1) + "mo";
+    }
+
+    window.flipFlashcard = () => {
+        if(flashcardState.isFlipped) return;
+        flashcardState.isFlipped = true;
+        document.getElementById('fc-card').classList.add('flipped');
+        document.getElementById('fc-controls').classList.remove('hidden');
+    };
+
+    window.gradeFlashcard = (grade) => {
+        let card = flashcardState.dueDeck[flashcardState.currentIndex];
+        
+        if(grade === 'again') {
+            card.srs.reps = 0;
+            card.srs.ease = Math.max(1.3, card.srs.ease - 0.2);
+            card.srs.interval = 0; 
+            card.srs.nextReview = Date.now() + (60 * 1000); 
+            flashcardState.dueDeck.push(card); 
+        } else {
+            card.srs.reps++;
+            if(grade === 'hard') {
+                card.srs.ease = Math.max(1.3, card.srs.ease - 0.15);
+                card.srs.interval = Math.max(1, card.srs.interval * 1.2);
+            } else if(grade === 'good') {
+                card.srs.interval = Math.max(1, (card.srs.interval === 0 ? 1 : card.srs.interval) * 2.5);
+            } else if(grade === 'easy') {
+                card.srs.ease += 0.15;
+                card.srs.interval = Math.max(1, (card.srs.interval === 0 ? 1 : card.srs.interval) * card.srs.ease * 1.3);
+            }
+            card.srs.nextReview = Date.now() + (card.srs.interval * 24 * 60 * 60 * 1000);
+        }
+
+        let mainIdx = flashcardState.deck.findIndex(c => c.id === card.id);
+        if(mainIdx !== -1) flashcardState.deck[mainIdx] = card;
+
+        flashcardState.currentIndex++;
+        renderCurrentFlashcard();
+    };
+
+    document.addEventListener('keydown', (e) => {
+        if(!document.getElementById('screen-flashcards').classList.contains('hidden')) {
+            if(e.code === 'Space') {
+                e.preventDefault();
+                flipFlashcard();
+            } else if(flashcardState.isFlipped) {
+                if(e.key === '1') gradeFlashcard('again');
+                if(e.key === '2') gradeFlashcard('hard');
+                if(e.key === '3') gradeFlashcard('good');
+                if(e.key === '4') gradeFlashcard('easy');
+            }
+        }
+    });
+
     initializeSystem();
 </script>
 </body>
