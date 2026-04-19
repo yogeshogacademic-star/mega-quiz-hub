@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.25 (Bulletproof Registry & Pure Radar)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.26 (Ironclad Defensive Armor)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -55,9 +55,9 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.25</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.26</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Pure Master DB Tagging & Radar System</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Ironclad Database Armor & Pure Radar System</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
@@ -121,6 +121,11 @@
                 </div>
             </div>
 
+            <div id="critical-bleed-container" class="mb-10 hidden">
+                <h3 class="text-lg md:text-xl font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-rose-100 dark:border-rose-900/30 pb-2">⚠️ Critical Weaknesses (Triage Zone)</h3>
+                <div id="critical-bleed-grid" class="grid grid-cols-2 md:grid-cols-5 gap-4"></div>
+            </div>
+
             <div id="target-radar-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 </div>
         </div>
@@ -137,7 +142,7 @@
                     <p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Global Vault Editor</p>
                 </div>
                 <div class="w-full md:w-auto flex flex-col sm:flex-row gap-3">
-                    <input type="text" id="db-manager-search" oninput="renderDBList()" placeholder="Search questions or tags..." class="w-full md:w-80 px-5 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-200">
+                    <input type="text" id="db-manager-search" oninput="renderDBList(this.value)" placeholder="Search questions or tags..." class="w-full md:w-80 px-5 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-200">
                     <button id="dirty-filter-btn" onclick="toggleDirtyFilter()" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50 font-black px-4 py-3 rounded-xl border border-amber-200 dark:border-amber-800/50 transition-colors uppercase tracking-widest text-[10px] shadow-sm flex-shrink-0">⚠️ Find Dirty Tags</button>
                 </div>
             </div>
@@ -368,6 +373,109 @@
         </div>
     </div>
 
+    <div id="screen-edit-modal" class="hidden fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div>
+                    <h2 class="text-2xl font-black uppercase text-amber-500 dark:text-amber-400 tracking-tight">✏️ Universal Database Editor</h2>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Strict 4-Tier Tagging Enforced</p>
+                </div>
+                <button onclick="closeEditModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto pr-2 space-y-5">
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Question Text</label>
+                    <textarea id="edit-q-text" rows="3" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200"></textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Options (Select the correct one)</label>
+                    <div class="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-0" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-0" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
+                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-1" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-1" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
+                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-2" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-2" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
+                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-3" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-3" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
+                    </div>
+                </div>
+
+                <div class="bg-indigo-50/50 dark:bg-indigo-900/10 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 1: Core Subject</label>
+                            <select id="edit-tag-1" onchange="updateTag2Dropdown()" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
+                                <option value="">-- Select Subject --</option>
+                                <option value="Arithmetic">Arithmetic</option>
+                                <option value="Advanced Maths">Advanced Maths</option>
+                                <option value="Reasoning">Reasoning</option>
+                                <option value="English Language">English Language</option>
+                                <option value="Ancient History">Ancient History</option>
+                                <option value="Medieval History">Medieval History</option>
+                                <option value="Modern History">Modern History</option>
+                                <option value="Art & Culture">Art & Culture</option>
+                                <option value="Geography">Geography</option>
+                                <option value="Polity">Polity</option>
+                                <option value="Economics">Economics</option>
+                                <option value="Physics">Physics</option>
+                                <option value="Chemistry">Chemistry</option>
+                                <option value="Biology">Biology</option>
+                                <option value="Environment & Ecology">Environment & Ecology</option>
+                                <option value="Science & Technology">Science & Technology</option>
+                                <option value="Static GK">Static GK</option>
+                                <option value="Current Affairs">Current Affairs</option>
+                                <option value="Computer Knowledge">Computer Knowledge</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 2: Topic / Chapter</label>
+                            <select id="edit-tag-2" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
+                                <option value="">-- Select Topic --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 3: Concept (Flashcard Trigger)</label>
+                            <input type="text" id="edit-tag-3" placeholder="e.g., Article 72, Incenter..." class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 4: Meta-Trap (Optional)</label>
+                            <select id="edit-tag-4" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
+                                <option value="">-- No Trap Tag --</option>
+                                <option value="#SillyError">#SillyError</option>
+                                <option value="#ReadIncorrectly">#ReadIncorrectly</option>
+                                <option value="#CalculationMistake">#CalculationMistake</option>
+                                <option value="#FormulaForgotten">#FormulaForgotten</option>
+                                <option value="#ConceptualGap">#ConceptualGap</option>
+                                <option value="#MemoryFaded">#MemoryFaded</option>
+                                <option value="#50_50_Fail">#50_50_Fail</option>
+                                <option value="#TimePanic">#TimePanic</option>
+                                <option value="#Bouncer">#Bouncer</option>
+                                <option value="#Chronology">#Chronology</option>
+                                <option value="#MatchThePairs">#MatchThePairs</option>
+                                <option value="#StatementBased">#StatementBased</option>
+                                <option value="#AssertionReason">#AssertionReason</option>
+                                <option value="#ExtremeWordTrap">#ExtremeWordTrap</option>
+                                <option value="#UnitTrap">#UnitTrap</option>
+                                <option value="#UPSC_PYQ">#UPSC_PYQ</option>
+                                <option value="#SSC_Tier2_PYQ">#SSC_Tier2_PYQ</option>
+                                <option value="#HighYield">#HighYield</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Detailed Solution / Shortcuts</label>
+                    <textarea id="edit-solution" rows="4" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200"></textarea>
+                </div>
+            </div>
+            
+            <div class="pt-6 border-t border-slate-100 dark:border-slate-800 mt-4 flex gap-4">
+                <button onclick="closeEditModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase tracking-widest py-4 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+                <button onclick="saveEdit()" class="flex-1 bg-amber-500 text-white font-black uppercase tracking-widest py-4 rounded-xl shadow-lg hover:bg-amber-400 transition-colors shadow-amber-500/30">💾 Save Changes</button>
+            </div>
+        </div>
+    </div>
+
 <script>
     const CLOUD_URL = "https://script.google.com/macros/s/AKfycbyuAFvjWZHAlkDx00DsDoHiPgFMq-CmGgHKyQXq_6cfi1QwmnwUVp3ZNLrtpnLPhOXB/exec";
     
@@ -433,10 +541,11 @@
         if (pwd === "KOBE") { callback(); } else if (pwd !== null) { alert("❌ ACCESS DENIED."); }
     };
 
-    // V19.25 SMART BRIDGE ENGINE (RESTORED OBJECT RETURN TO PREVENT CRASH)
+    // V19.26 IRONCLAD DEFENSIVE ARMOR: Ensures we never crash on missing questions array
     function getMasterMap() {
         let map = {};
         Object.keys(db).forEach(qid => {
+            if (!db[qid] || !Array.isArray(db[qid].questions)) return; // V19.26 ARMOR
             db[qid].questions.forEach(q => {
                 map[q.question] = { tags: q.tags || [], subject: q.subject || q.originalSubject || "Miscellaneous" };
             });
@@ -477,9 +586,9 @@
         let matchCount = 0;
 
         const processList = (questionsArray, sourceTitle) => {
-            if(!questionsArray) return;
+            if(!Array.isArray(questionsArray)) return; // V19.26 ARMOR
             questionsArray.forEach((q) => {
-                if(!q || !q.question) return;
+                if(!q || !q.question) return; // V19.26 ARMOR
                 if(uniqueTracker.has(q.question)) return; 
                 
                 let isDirty = false;
@@ -491,12 +600,14 @@
 
                 if (isDirtyFilterActive && !isDirty) return; 
 
-                const searchStr = ((q.question || "") + " " + (q.solution || "") + " " + (q.tags ? q.tags.join(" ") : "")).toLowerCase();
+                const searchStr = ((q.question || "") + " " + (q.solution || "") + " " + (q.tags ? (Array.isArray(q.tags) ? q.tags.join(" ") : String(q.tags)) : "")).toLowerCase();
                 
                 if (!term || searchStr.includes(term)) {
                     matchCount++;
                     uniqueTracker.add(q.question);
-                    let tagsHTML = (q.tags || ["Miscellaneous"]).map(t => `<span class="inline-block px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-[9px] mb-1 mr-1">${t}</span>`).join('');
+                    
+                    let tagsToMap = Array.isArray(q.tags) ? q.tags : (q.tags ? [String(q.tags)] : ["Miscellaneous"]);
+                    let tagsHTML = tagsToMap.map(t => `<span class="inline-block px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-[9px] mb-1 mr-1">${t}</span>`).join('');
                     
                     let safeId = 'edit_db_' + window.editCounter++;
                     window.editRegistry[safeId] = q.question;
@@ -514,8 +625,13 @@
             });
         };
 
-        Object.keys(db).forEach(qid => processList(db[qid].questions, db[qid].title));
-        processList(mistakesDb, "🔥 SRS Queue");
+        Object.keys(db).forEach(qid => {
+            if (db[qid] && Array.isArray(db[qid].questions)) { // V19.26 ARMOR
+                processList(db[qid].questions, db[qid].title);
+            }
+        });
+        
+        if (Array.isArray(mistakesDb)) processList(mistakesDb, "🔥 SRS Queue"); // V19.26 ARMOR
 
         if(matchCount === 0) {
             let emptyMsg = isDirtyFilterActive ? "✅ Zero Dirty Tags Found! Your Database is 100% Pure." : "No questions found matching your search.";
@@ -545,10 +661,12 @@
     window.openGlobalEditModal = (qText) => {
         let foundRef = null;
         for(let qid in db) {
+            if (!db[qid] || !Array.isArray(db[qid].questions)) continue; // V19.26 ARMOR
             let qItem = db[qid].questions.find(qx => qx.question === qText);
             if(qItem) { foundRef = qItem; break; }
         }
-        if(!foundRef) {
+        
+        if(!foundRef && Array.isArray(mistakesDb)) { // V19.26 ARMOR
             foundRef = mistakesDb.find(m => m.question === qText);
         }
 
@@ -565,7 +683,7 @@
         document.getElementById('edit-solution').value = foundRef.solution || "";
         
         let t1 = "", t2 = "", t3 = "", t4 = "";
-        if(foundRef.tags && foundRef.tags.length > 0) {
+        if(foundRef.tags && Array.isArray(foundRef.tags) && foundRef.tags.length > 0) { // V19.26 ARMOR
             t1 = foundRef.tags[0] || "";
             if(foundRef.tags.length > 1) t2 = foundRef.tags[1];
             
@@ -576,6 +694,8 @@
             } else {
                 if(foundRef.tags.length > 2) t3 = foundRef.tags.slice(2).join(", ");
             }
+        } else if (typeof foundRef.tags === 'string') {
+            t1 = foundRef.tags; // Recovery for old string tags
         }
 
         let tag1Select = document.getElementById('edit-tag-1');
@@ -637,6 +757,7 @@
         let updatedDb = false;
 
         for(let qid in db) {
+            if (!db[qid] || !Array.isArray(db[qid].questions)) continue; // V19.26 ARMOR
             let idx = db[qid].questions.findIndex(qx => qx.question === oldText);
             if(idx !== -1) {
                 db[qid].questions[idx] = {...db[qid].questions[idx], ...target};
@@ -644,15 +765,17 @@
             }
         }
 
-        let mistIdx = mistakesDb.findIndex(m => m.question === oldText);
-        if(mistIdx !== -1) {
-            let existingSRS = mistakesDb[mistIdx].srs;
-            mistakesDb[mistIdx] = {...mistakesDb[mistIdx], ...target, srs: existingSRS};
-            updatedDb = true;
+        if (Array.isArray(mistakesDb)) { // V19.26 ARMOR
+            let mistIdx = mistakesDb.findIndex(m => m.question === oldText);
+            if(mistIdx !== -1) {
+                let existingSRS = mistakesDb[mistIdx].srs;
+                mistakesDb[mistIdx] = {...mistakesDb[mistIdx], ...target, srs: existingSRS};
+                updatedDb = true;
+            }
         }
 
         if(updatedDb) {
-            saveData();
+            saveData(); 
             closeEditModal();
             
             if(!document.getElementById('screen-db-manager').classList.contains('hidden')) {
@@ -670,7 +793,7 @@
                     let fullHTML = '';
                     window.currentReviewQuestions.forEach((qObj, idx) => {
                         if(qObj.question === oldText) { qObj = {...qObj, ...target}; window.currentReviewQuestions[idx] = qObj; }
-                        let histMatch = historyDb[0] ? historyDb[0].reviewData.find(r => r.question === qObj.question) : null;
+                        let histMatch = (historyDb && historyDb[0]) ? historyDb[0].reviewData.find(r => r.question === qObj.question) : null;
                         let stat = histMatch ? histMatch.status : 'skipped';
                         let cText = histMatch ? histMatch.cText : 'N/A';
                         let uText = histMatch ? histMatch.uText : 'N/A';
@@ -685,6 +808,7 @@
     };
 
     function initializeSRSData() {
+        if(!Array.isArray(mistakesDb)) mistakesDb = []; // V19.26 ARMOR
         mistakesDb.forEach(m => {
             if (!m.srs) m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() - 10000 };
         });
@@ -730,7 +854,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.25", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.26", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -798,10 +922,10 @@
         
         Object.keys(db).forEach(quizId => {
             const quiz = db[quizId];
-            if(!quiz || !quiz.title || quiz.title.includes("Master Mock") || quiz.title.includes("SRS") || quiz.title.includes("🎯") || !quiz.questions) return;
+            if(!quiz || !quiz.title || quiz.title.includes("Master Mock") || quiz.title.includes("SRS") || quiz.title.includes("🎯") || !Array.isArray(quiz.questions)) return; // V19.26 ARMOR
 
             quiz.questions.forEach((q) => {
-                const searchStr = ((q.question || "") + " " + (q.solution || "") + " " + (q.options ? q.options.map(o=>o.text).join(" ") : "")).toLowerCase();
+                const searchStr = ((q.question || "") + " " + (q.solution || "") + " " + (q.tags ? (Array.isArray(q.tags) ? q.tags.join(" ") : String(q.tags)) : "")).toLowerCase();
                 if (searchStr.includes(term)) {
                     matchCount++;
                     const cText = (q.options && q.options.find(o=>o.correct)?.text) || "N/A";
@@ -843,12 +967,14 @@
 
     window.generateTopicMock = (parentSubject, targetTopic) => {
         let pool = [];
-        Object.values(db).forEach(quiz => {
-            if (!quiz.title.includes("🎯") && !quiz.title.includes("Master Mock") && !quiz.title.includes("SRS")) {
+        
+        Object.keys(db).forEach(quizId => {
+            const quiz = db[quizId];
+            if (quiz && Array.isArray(quiz.questions) && !quiz.title.includes("🎯") && !quiz.title.includes("Master Mock") && !quiz.title.includes("SRS")) { // V19.26 ARMOR
                 quiz.questions.forEach(q => {
-                    let qTags = q.tags || [];
-                    let t1 = qTags.length > 0 ? qTags[0] : "Miscellaneous";
-                    let t2 = qTags.length > 1 ? qTags[1] : "Miscellaneous";
+                    let qTags = Array.isArray(q.tags) ? q.tags : (q.tags ? [String(q.tags)] : []);
+                    let t1 = qTags.length > 0 ? qTags[0] : (q.subject || q.originalSubject || "Miscellaneous");
+                    let t2 = qTags.length > 1 ? qTags[1] : t1;
                     
                     if (t1 === parentSubject && t2 === targetTopic) {
                         pool.push(q);
@@ -858,9 +984,16 @@
         });
 
         if(pool.length === 0) return alert(`No questions found for topic: ${targetTopic}`);
+        
         const uniqueQs = Array.from(new Map(pool.map(q => [q.question, q])).values());
         const shuffled = uniqueQs.sort(() => 0.5 - Math.random()).slice(0, 30);
-        db['quiz_topic_practice'] = { title: `🎯 ${targetTopic} Practice`, subject: parentSubject, timeInMinutes: Math.ceil(shuffled.length * 1.5), questions: shuffled };
+        
+        db['quiz_topic_practice'] = { 
+            title: `🎯 ${targetTopic} Practice`, 
+            subject: parentSubject, 
+            timeInMinutes: Math.ceil(shuffled.length * 1.5), 
+            questions: shuffled 
+        };
         openLobby('quiz_topic_practice');
     };
 
@@ -881,16 +1014,18 @@
         let allTopicsFlat = [];
         let masterMap = getMasterMap(); 
         
+        if (!Array.isArray(historyDb)) return; // V19.26 ARMOR
+
         historyDb.forEach(h => {
-            if(h.reviewData) {
+            if(h && Array.isArray(h.reviewData)) {
                 h.reviewData.forEach(rd => {
                     let clean = masterMap[rd.question];
-                    let activeTags = clean ? clean.tags : (rd.tags || []);
+                    let activeTags = clean ? clean.tags : (Array.isArray(rd.tags) ? rd.tags : (rd.tags ? [String(rd.tags)] : []));
                     
                     let t1 = activeTags.length > 0 ? activeTags[0] : "Miscellaneous";
-                    let t2 = activeTags.length > 1 ? activeTags[1] : "Miscellaneous";
+                    let t2 = activeTags.length > 1 ? activeTags[1] : t1; // Default to Tag 1 if missing
                     
-                    if(!CORE_SUBJECTS.includes(t1)) {
+                    if(!CORE_SUBJECTS.includes(t1) && t1 !== "Miscellaneous") {
                         t1 = "Legacy / Uncategorized Data";
                     }
 
@@ -994,6 +1129,7 @@
         }
     };
 
+
     function renderDashboard() {
         const grid = document.getElementById('dashboard-grid'); grid.innerHTML = '';
         
@@ -1079,13 +1215,13 @@
         subSelect.innerHTML = '';
         
         let subjectsWithDue = {};
-        let masterMap = getMasterMap(); 
+        let masterMap = getMasterMap(); // Failsafe Live Lookup
 
         mistakesDb.forEach(m => {
             if(m.srs && m.srs.nextReview <= Date.now()) {
                 globalDue++;
                 let clean = masterMap[m.question];
-                let activeTags = clean ? clean.tags : (m.tags || []);
+                let activeTags = clean ? clean.tags : (Array.isArray(m.tags) ? m.tags : []);
                 let subName = activeTags.length > 0 ? activeTags[0] : (m.subject || m.originalSubject || "Miscellaneous");
                 
                 if (CORE_SUBJECTS.includes(subName)) {
@@ -1133,11 +1269,11 @@
             let sub = document.getElementById('srs-subject-select').value;
             if(!sub) return alert("No subjects have due questions.");
             
-            let masterMap = getMasterMap(); 
+            let masterMap = getMasterMap(); // Failsafe Live Lookup
             dueQs = mistakesDb.filter(m => {
                 if (!m.srs || m.srs.nextReview > Date.now()) return false;
                 let clean = masterMap[m.question];
-                let activeTags = clean ? clean.tags : (m.tags || []);
+                let activeTags = clean ? clean.tags : (Array.isArray(m.tags) ? m.tags : []);
                 let subName = activeTags.length > 0 ? activeTags[0] : (m.subject || m.originalSubject || "Miscellaneous");
                 return subName === sub;
             });
@@ -1179,7 +1315,7 @@
         let wrongQs = [];
         if(prev.length > 0) {
             let lastAttempt = prev[0]; 
-            if(lastAttempt.reviewData) {
+            if(lastAttempt.reviewData && Array.isArray(lastAttempt.reviewData)) {
                 wrongQs = lastAttempt.reviewData.filter(r => r.status === 'wrong' || r.status === 'skipped').map(r => r.question);
             }
         }
@@ -1476,9 +1612,10 @@
                         let newMistake = JSON.parse(JSON.stringify(q));
                         
                         let assignedSubject = "Miscellaneous";
-                        if (newMistake.tags && newMistake.tags.length > 0) {
-                            if (CORE_SUBJECTS.includes(newMistake.tags[0])) {
-                                assignedSubject = newMistake.tags[0];
+                        let safeTags = Array.isArray(newMistake.tags) ? newMistake.tags : []; // V19.26 ARMOR
+                        if (safeTags.length > 0) {
+                            if (CORE_SUBJECTS.includes(safeTags[0])) {
+                                assignedSubject = safeTags[0];
                             }
                         }
                         
@@ -1494,7 +1631,7 @@
                 }
             }
 
-            let tags = q.tags || ["Miscellaneous"];
+            let tags = Array.isArray(q.tags) ? q.tags : ["Miscellaneous"];
             
             window.currentReviewQuestions.push(q);
             
@@ -1584,6 +1721,7 @@
             let qObj = { question: data.question, solution: data.solution, tags: data.tags, formulaUsed: data.formulaUsed };
             let foundInDb = false;
             for(let qid in db) {
+                if (!db[qid] || !Array.isArray(db[qid].questions)) continue; // V19.26 ARMOR
                 let actualQ = db[qid].questions.find(qx => qx.question === data.question);
                 if(actualQ) { qObj = JSON.parse(JSON.stringify(actualQ)); foundInDb = true; break; }
             }
@@ -1672,68 +1810,6 @@
     
     window.closeAnalytics = () => document.getElementById('screen-analytics').classList.add('hidden');
 
-    window.showSubjectAnalysis = (subject) => {
-        document.getElementById('screen-analytics').classList.add('hidden');
-        document.getElementById('screen-quiz-history').classList.add('hidden');
-        document.getElementById('screen-subject-analysis').classList.remove('hidden');
-
-        document.getElementById('subject-analysis-title').textContent = `${subject} - Topic Analysis`;
-
-        let globalTopicsStats = {}; 
-        let masterMap = getMasterMap(); // Failsafe Live Lookup
-        
-        historyDb.forEach(h => {
-            if(h.reviewData) {
-                h.reviewData.forEach(rd => {
-                    let clean = masterMap[rd.question];
-                    let activeTags = clean ? clean.tags : (rd.tags || []);
-                    let t1 = activeTags.length > 0 ? activeTags[0] : "Miscellaneous";
-                    let t2 = activeTags.length > 1 ? activeTags[1] : t1;
-                    
-                    if(t1 === subject) {
-                        if(!globalTopicsStats[t2]) globalTopicsStats[t2] = { correct: 0, wrong: 0, skipped: 0, total: 0 };
-                        globalTopicsStats[t2].total++;
-                        if(rd.status === 'correct') globalTopicsStats[t2].correct++;
-                        else if(rd.status === 'wrong') globalTopicsStats[t2].wrong++;
-                        else if(rd.status === 'skipped') globalTopicsStats[t2].skipped++;
-                    }
-                });
-            }
-        });
-
-        let html = '';
-        let sortedTopics = Object.keys(globalTopicsStats).sort((a,b) => globalTopicsStats[b].total - globalTopicsStats[a].total);
-
-        if(sortedTopics.length === 0) {
-            html = `<div class="text-center text-slate-400 font-bold py-10 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl uppercase tracking-widest text-[10px]">No data available. Take some quizzes first!</div>`;
-        } else {
-            sortedTopics.forEach(t => {
-                let stat = globalTopicsStats[t];
-                let acc = Math.round((stat.correct / stat.total) * 100);
-                let barColor = acc >= 80 ? 'bg-emerald-500' : acc >= 50 ? 'bg-amber-500' : 'bg-red-500';
-                
-                html += `
-                <div class="mb-4 p-5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                    <div class="flex justify-between items-end mb-3">
-                        <div class="font-black text-slate-700 dark:text-slate-200 text-sm uppercase tracking-wide">${t}</div>
-                        <div class="text-[10px] font-black text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 px-3 py-1 rounded shadow-sm border border-slate-100 dark:border-slate-700">${stat.correct} / ${stat.total} Correct (${acc}%)</div>
-                    </div>
-                    <div class="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2 mb-4 overflow-hidden">
-                        <div class="${barColor} h-2 rounded-full" style="width: ${acc}%"></div>
-                    </div>
-                    <div class="flex gap-6 text-[10px] font-black uppercase tracking-widest bg-white dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700/50 justify-center">
-                        <span class="text-emerald-600 dark:text-emerald-400">✅ Correct: ${stat.correct}</span>
-                        <span class="text-red-600 dark:text-red-400">❌ Wrong: ${stat.wrong}</span>
-                        <span class="text-slate-500 dark:text-slate-400">⏭️ Skipped: ${stat.skipped}</span>
-                    </div>
-                </div>`;
-            });
-        }
-        document.getElementById('subject-analysis-grid').innerHTML = html;
-    };
-
-    window.closeSubjectAnalysis = () => document.getElementById('screen-subject-analysis').classList.add('hidden');
-
     function showScreen(s) { 
         ['dashboard','lobby','quiz','results','flashcards','db-manager','target-radar'].forEach(x => {
             const el = document.getElementById('screen-'+x);
@@ -1763,112 +1839,7 @@
         });
     };
 
-    // V19.24 FLASHCARDS RESTORED
-    window.openFlashcardVault = () => {
-        flashcardState.deck = JSON.parse(localStorage.getItem('megaQuizFlashcards_v1') || "[]");
-        if(flashcardState.deck.length === 0) return alert("Flashcard vault is empty.");
-        
-        let dueCards = flashcardState.deck.filter(fc => fc.srs.nextReview <= Date.now());
-        if(dueCards.length === 0) return alert("✅ All caught up! No flashcards due right now.");
-        
-        flashcardState.currentIndex = 0;
-        flashcardState.isFlipped = false;
-        flashcardState.dueDeck = dueCards;
-        
-        renderCurrentFlashcard();
-        showScreen('flashcards');
-    };
-
-    window.exitFlashcards = () => {
-        document.getElementById('screen-flashcards').classList.add('hidden');
-        showScreen('dashboard');
-    };
-
-    function renderCurrentFlashcard() {
-        if(flashcardState.currentIndex >= flashcardState.dueDeck.length) {
-            localStorage.setItem('megaQuizFlashcards_v1', JSON.stringify(flashcardState.deck));
-            alert("🎉 Session Complete! You crushed the Flashcard Queue.");
-            exitFlashcards();
-            return;
-        }
-
-        const card = flashcardState.dueDeck[flashcardState.currentIndex];
-        flashcardState.isFlipped = false;
-        
-        document.getElementById('fc-card').classList.remove('flipped');
-        document.getElementById('fc-controls').classList.add('hidden');
-        
-        document.getElementById('fc-topic-badge').textContent = card.topic;
-        document.getElementById('fc-counter').textContent = `Card ${flashcardState.currentIndex + 1} / ${flashcardState.dueDeck.length}`;
-        document.getElementById('fc-prompt-type').textContent = card.promptType;
-        document.getElementById('fc-front-text').textContent = card.front;
-        document.getElementById('fc-back-text').textContent = card.back;
-        
-        // Calculate dynamic times based on current interval
-        let ivl = card.srs.interval || 0.1;
-        document.getElementById('fc-hard-time').textContent = formatIvl(Math.max(1, ivl * 1.2));
-        document.getElementById('fc-good-time').textContent = formatIvl(Math.max(1, ivl * 2.5));
-        document.getElementById('fc-easy-time').textContent = formatIvl(Math.max(1, ivl * 4));
-    }
-
-    function formatIvl(days) {
-        if(days < 1) return "< 1d";
-        if(days < 30) return Math.round(days) + "d";
-        return (days/30).toFixed(1) + "mo";
-    }
-
-    window.flipFlashcard = () => {
-        if(flashcardState.isFlipped) return;
-        flashcardState.isFlipped = true;
-        document.getElementById('fc-card').classList.add('flipped');
-        document.getElementById('fc-controls').classList.remove('hidden');
-    };
-
-    window.gradeFlashcard = (grade) => {
-        let card = flashcardState.dueDeck[flashcardState.currentIndex];
-        
-        if(grade === 'again') {
-            card.srs.reps = 0;
-            card.srs.ease = Math.max(1.3, card.srs.ease - 0.2);
-            card.srs.interval = 0; 
-            card.srs.nextReview = Date.now() + (60 * 1000); 
-            flashcardState.dueDeck.push(card); 
-        } else {
-            card.srs.reps++;
-            if(grade === 'hard') {
-                card.srs.ease = Math.max(1.3, card.srs.ease - 0.15);
-                card.srs.interval = Math.max(1, card.srs.interval * 1.2);
-            } else if(grade === 'good') {
-                card.srs.interval = Math.max(1, (card.srs.interval === 0 ? 1 : card.srs.interval) * 2.5);
-            } else if(grade === 'easy') {
-                card.srs.ease += 0.15;
-                card.srs.interval = Math.max(1, (card.srs.interval === 0 ? 1 : card.srs.interval) * card.srs.ease * 1.3);
-            }
-            card.srs.nextReview = Date.now() + (card.srs.interval * 24 * 60 * 60 * 1000);
-        }
-
-        // Update main deck reference
-        let mainIdx = flashcardState.deck.findIndex(c => c.id === card.id);
-        if(mainIdx !== -1) flashcardState.deck[mainIdx] = card;
-
-        flashcardState.currentIndex++;
-        renderCurrentFlashcard();
-    };
-
-    document.addEventListener('keydown', (e) => {
-        if(!document.getElementById('screen-flashcards').classList.contains('hidden')) {
-            if(e.code === 'Space') {
-                e.preventDefault();
-                flipFlashcard();
-            } else if(flashcardState.isFlipped) {
-                if(e.key === '1') gradeFlashcard('again');
-                if(e.key === '2') gradeFlashcard('hard');
-                if(e.key === '3') gradeFlashcard('good');
-                if(e.key === '4') gradeFlashcard('easy');
-            }
-        }
-    });
-
+    // Initialize System
     initializeSystem();
 </script>
 </body>
