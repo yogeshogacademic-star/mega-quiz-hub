@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.21 (Omni-Edit & Search/Destroy)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.22 (Armor Restored)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -55,9 +55,9 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.21</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.22</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Search & Destroy Architecture</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">System Restored: Bulletproof Encoding</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
@@ -465,7 +465,6 @@
 <script>
     const CLOUD_URL = "https://script.google.com/macros/s/AKfycbyuAFvjWZHAlkDx00DsDoHiPgFMq-CmGgHKyQXq_6cfi1QwmnwUVp3ZNLrtpnLPhOXB/exec";
     
-    // V19.16 STRICT TAG 1 ENFORCEMENT
     const CORE_SUBJECTS = ["Arithmetic", "Advanced Maths", "Reasoning", "English Language", "Ancient History", "Medieval History", "Modern History", "Art & Culture", "Geography", "Polity", "Economics", "Physics", "Chemistry", "Biology", "Environment & Ecology", "Science & Technology", "Static GK", "Current Affairs", "Computer Knowledge"];
     
     let SUBJECTS = ["Ancient History", "Medieval History", "Modern History", "Geography", "Economics", "Static GK", "Arithmetic", "Advanced Maths", "English", "Reasoning", "Current Affairs", "Polity", "Science", "Environment", "Miscellaneous", "GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS"];
@@ -487,10 +486,8 @@
     window.currentReviewQuestions = []; 
     let currentlyEditingGlobalText = null;
 
-    // V19.21 DIRTY FILTER STATE
     let isDirtyFilterActive = false;
 
-    // V19.14: MASTER SYLLABUS MAPPING FOR TAG 2 DYNAMIC DROPDOWN
     const SYLLABUS_MAP = {
         "Arithmetic": ["Number System", "LCM & HCF", "Percentages", "Profit, Loss & Discount", "Simple & Compound Interest", "Ratio & Proportion", "Partnership & Ages", "Mixture & Alligation", "Average", "Time & Work", "Time, Speed & Distance"],
         "Advanced Maths": ["Algebra", "Geometry", "Coordinate Geometry", "Mensuration 2D", "Mensuration 3D", "Trigonometry", "Heights & Distances", "Probability & Statistics"],
@@ -518,7 +515,6 @@
         if (pwd === "KOBE") { callback(); } else if (pwd !== null) { alert("❌ ACCESS DENIED."); }
     };
 
-    // V19.20 SMART BRIDGE ENGINE
     function getMasterMap() {
         let map = {};
         Object.keys(db).forEach(qid => {
@@ -529,7 +525,6 @@
         return map;
     }
 
-    // V19.21 DIRTY FILTER TOGGLE
     window.toggleDirtyFilter = () => {
         isDirtyFilterActive = !isDirtyFilterActive;
         const btn = document.getElementById('dirty-filter-btn');
@@ -540,10 +535,10 @@
             btn.className = "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50 font-black px-4 py-3 rounded-xl border border-amber-200 dark:border-amber-800/50 transition-colors uppercase tracking-widest text-[10px] shadow-sm flex-shrink-0";
             btn.innerHTML = "⚠️ Find Dirty Tags";
         }
-        renderDBList(document.getElementById('db-manager-search').value);
+        let st = document.getElementById('db-manager-search').value;
+        renderDBList(st);
     };
 
-    // V19.21 UPGRADED MASTER DB MANAGER
     window.openDBManager = () => {
         showScreen('db-manager');
         isDirtyFilterActive = false;
@@ -553,7 +548,8 @@
         renderDBList("");
     };
 
-    window.renderDBList = (searchTerm = document.getElementById('db-manager-search').value) => {
+    window.renderDBList = (searchTerm) => {
+        if(searchTerm === undefined) searchTerm = document.getElementById('db-manager-search').value;
         const term = (searchTerm || "").toLowerCase().trim();
         const listContainer = document.getElementById('db-manager-list');
         let html = '';
@@ -561,10 +557,11 @@
         let matchCount = 0;
 
         const processList = (questionsArray, sourceTitle) => {
+            if(!questionsArray) return;
             questionsArray.forEach((q) => {
+                if(!q || !q.question) return;
                 if(uniqueTracker.has(q.question)) return; 
                 
-                // V19.21 DIRTY CHECK LOGIC
                 let isDirty = false;
                 if (!q.tags || q.tags.length === 0) {
                     isDirty = true;
@@ -572,7 +569,7 @@
                     isDirty = true;
                 }
 
-                if (isDirtyFilterActive && !isDirty) return; // Skip clean tags if filter is ON
+                if (isDirtyFilterActive && !isDirty) return; 
 
                 const searchStr = ((q.question || "") + " " + (q.solution || "") + " " + (q.tags ? q.tags.join(" ") : "")).toLowerCase();
                 
@@ -581,8 +578,8 @@
                     uniqueTracker.add(q.question);
                     let tagsHTML = (q.tags || ["Miscellaneous"]).map(t => `<span class="inline-block px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-[9px] mb-1 mr-1">${t}</span>`).join('');
                     
-                    // V19.21 BULLETPROOF ENCODING
-                    let encodedQ = encodeURIComponent(q.question);
+                    // V19.22 BULLETPROOF BASE64 ENCODING
+                    let encodedQ = btoa(unescape(encodeURIComponent(q.question)));
 
                     html += `
                     <div class="bg-white dark:bg-slate-900 rounded-xl p-4 grid grid-cols-12 gap-4 items-center border border-slate-200 dark:border-slate-800 shadow-sm hover:border-blue-400 transition-colors">
@@ -590,7 +587,7 @@
                         <div class="col-span-2 flex flex-wrap max-h-12 overflow-hidden">${tagsHTML}</div>
                         <div class="col-span-7 text-sm font-bold text-slate-800 dark:text-slate-200 truncate" title="${q.question.replace(/"/g, '&quot;')}">${q.question}</div>
                         <div class="col-span-1 text-center">
-                            <button onclick="openGlobalEditModal(decodeURIComponent('${encodedQ}'))" class="bg-amber-100 hover:bg-amber-200 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 p-2 rounded-lg font-black text-xs transition-colors shadow-sm w-full">✏️</button>
+                            <button onclick="openGlobalEditModal(decodeURIComponent(escape(atob('${encodedQ}'))))" class="bg-amber-100 hover:bg-amber-200 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 p-2 rounded-lg font-black text-xs transition-colors shadow-sm w-full">✏️</button>
                         </div>
                     </div>`;
                 }
@@ -685,7 +682,6 @@
         currentlyEditingGlobalText = null;
     };
 
-    // V19.21 REAL-TIME RELOCATION & AUTO-HEALING
     window.saveEdit = () => {
         if(!currentlyEditingGlobalText) return;
         let oldText = currentlyEditingGlobalText;
@@ -736,13 +732,12 @@
         }
 
         if(updatedDb) {
-            runDNASync(); // Heal history immediately
-            saveData();
+            saveData(); 
             closeEditModal();
             
-            // Auto-Refresh Logic based on Active Screen
             if(!document.getElementById('screen-db-manager').classList.contains('hidden')) {
-                renderDBList();
+                let st = document.getElementById('db-manager-search').value;
+                renderDBList(st);
             }
             if(!document.getElementById('screen-target-radar').classList.contains('hidden')) {
                 renderTargetRadar();
@@ -751,7 +746,6 @@
                 performSearch(document.getElementById('omni-search').value);
             }
             if(!document.getElementById('screen-results').classList.contains('hidden')) {
-                // If they are deep inside a results review, we regenerate the HTML to show correct tags
                 if(window.currentReviewQuestions && window.currentReviewQuestions.length > 0) {
                     let fullHTML = '';
                     window.currentReviewQuestions.forEach((qObj, idx) => {
@@ -769,40 +763,6 @@
             alert("Save failed: Could not locate original question.");
         }
     };
-
-    function runDNASync() {
-        let updated = false;
-        let masterMap = getMasterMap();
-
-        historyDb.forEach(h => {
-            if (h.reviewData) {
-                h.reviewData.forEach(rd => {
-                    let masterRef = masterMap[rd.question];
-                    if (masterRef && JSON.stringify(rd.tags) !== JSON.stringify(masterRef.tags)) {
-                        rd.tags = [...masterRef.tags];
-                        updated = true;
-                    }
-                });
-            }
-        });
-
-        mistakesDb.forEach(m => {
-            let masterRef = masterMap[m.question];
-            if (masterRef) {
-                if (JSON.stringify(m.tags) !== JSON.stringify(masterRef.tags) || m.subject !== masterRef.subject) {
-                    m.tags = [...masterRef.tags];
-                    m.subject = masterRef.subject;
-                    if(m.tags.length > 0) m.originalSubject = m.tags[0];
-                    updated = true;
-                }
-            }
-        });
-
-        if (updated) {
-            localStorage.setItem('megaQuizHistory_v5', JSON.stringify(historyDb));
-            localStorage.setItem('megaQuizMistakes_v5', JSON.stringify(mistakesDb));
-        }
-    }
 
     function initializeSRSData() {
         mistakesDb.forEach(m => {
@@ -823,8 +783,13 @@
         if (localStorage.getItem('megaQuizSubjects_v5')) SUBJECTS = JSON.parse(localStorage.getItem('megaQuizSubjects_v5'));
         if (localStorage.getItem('megaQuizSubCats_v1')) SUBJECT_CATEGORIES = JSON.parse(localStorage.getItem('megaQuizSubCats_v1'));
         if (localStorage.getItem('megaQuizDB_v4')) db = JSON.parse(localStorage.getItem('megaQuizDB_v4'));
-        if (localStorage.getItem('megaQuizHistory_v5')) historyDb = JSON.parse(localStorage.getItem('megaQuizHistory_v5'));
-        if (localStorage.getItem('megaQuizMistakes_v5')) mistakesDb = JSON.parse(localStorage.getItem('megaQuizMistakes_v5'));
+        
+        // V19.22 FALLBACK ARMOR
+        historyDb = localStorage.getItem('megaQuizHistory_v5') ? JSON.parse(localStorage.getItem('megaQuizHistory_v5')) : [];
+        mistakesDb = localStorage.getItem('megaQuizMistakes_v5') ? JSON.parse(localStorage.getItem('megaQuizMistakes_v5')) : [];
+        if(!Array.isArray(historyDb)) historyDb = [];
+        if(!Array.isArray(mistakesDb)) mistakesDb = [];
+        
         initializeSRSData();
     }
 
@@ -846,7 +811,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.21", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.22", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -856,8 +821,6 @@
     async function initializeSystem() {
         if(localStorage.getItem('megaTheme') === 'dark') document.documentElement.classList.add('dark');
         loadLocalFallback();
-        
-        runDNASync();
         
         renderDashboard();
         showSyncStatus('syncing');
@@ -873,11 +836,10 @@
                 if (data.subjects) SUBJECTS = data.subjects;
                 if (data.categories) SUBJECT_CATEGORIES = data.categories;
                 if (data.db) db = data.db;
-                if (data.history) historyDb = data.history;
-                if (data.mistakes) mistakesDb = data.mistakes;
+                if (data.history) historyDb = data.history || [];
+                if (data.mistakes) mistakesDb = data.mistakes || [];
                 
                 updateLocalCache();
-                runDNASync();
                 renderDashboard();
                 showSyncStatus('synced');
             } else { showSyncStatus('error'); }
@@ -901,7 +863,6 @@
 
     window.clearSearch = () => { document.getElementById('omni-search').value = ''; performSearch(''); };
 
-    // V19.21 SECURED OMNI-SEARCH EDIT BUTTON
     window.performSearch = (query) => {
         const term = query.toLowerCase().trim();
         const resContainer = document.getElementById('search-results-container');
@@ -925,14 +886,14 @@
                 if (searchStr.includes(term)) {
                     matchCount++;
                     const cText = (q.options && q.options.find(o=>o.correct)?.text) || "N/A";
-                    let encodedQ = encodeURIComponent(q.question);
+                    let encodedQ = btoa(unescape(encodeURIComponent(q.question)));
                     
                     resultsHTML += `
                         <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-700 shadow-lg hover:border-emerald-400 dark:hover:border-emerald-500 transition-colors relative overflow-hidden mt-4">
                             <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-400"></div>
                             <div class="flex justify-between items-start mb-4">
                                 <span class="text-[10px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 px-3 py-1 rounded border border-indigo-100 dark:border-indigo-800/50">${quiz.subject} • ${quiz.title}</span>
-                                <button onclick="openGlobalEditModal(decodeURIComponent('${encodedQ}'))" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1 rounded-md font-black text-[10px] uppercase tracking-widest border border-amber-200 hover:bg-amber-200 transition-colors">✏️ Edit</button>
+                                <button onclick="openGlobalEditModal(decodeURIComponent(escape(atob('${encodedQ}'))))" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1 rounded-md font-black text-[10px] uppercase tracking-widest border border-amber-200 hover:bg-amber-200 transition-colors">✏️ Edit</button>
                             </div>
                             <div class="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 mb-6 leading-relaxed">${highlightText(q.question, term)}</div>
                             <div class="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800/50 mb-6 inline-block shadow-inner"><span class="block text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Correct Answer</span><span class="text-sm font-bold text-slate-800 dark:text-slate-200">${highlightText(cText, term)}</span></div>
@@ -989,6 +950,7 @@
         openLobby('quiz_topic_practice');
     };
 
+    // V19.22 LEGACY-SAFE TARGET RADAR
     window.openTargetRadar = () => {
         showScreen('target-radar');
         renderTargetRadar();
@@ -1015,14 +977,16 @@
                     let t1 = activeTags.length > 0 ? activeTags[0] : "Miscellaneous";
                     let t2 = activeTags.length > 1 ? activeTags[1] : t1;
                     
-                    // Filter out invalid/dirty Tag 1s from the Radar display
-                    if(CORE_SUBJECTS.includes(t1)) {
-                        if(!globalTopicsStats[t1]) globalTopicsStats[t1] = {};
-                        if(!globalTopicsStats[t1][t2]) globalTopicsStats[t1][t2] = { c: 0, t: 0, t1: t1, t2: t2 };
-                        
-                        globalTopicsStats[t1][t2].t++;
-                        if(rd.status === 'correct') globalTopicsStats[t1][t2].c++;
+                    // V19.22: IF IT'S DIRTY, PUT IT IN THE LEGACY BUCKET INSTEAD OF HIDING IT
+                    if(!CORE_SUBJECTS.includes(t1)) {
+                        t1 = "Legacy / Uncategorized Data";
                     }
+
+                    if(!globalTopicsStats[t1]) globalTopicsStats[t1] = {};
+                    if(!globalTopicsStats[t1][t2]) globalTopicsStats[t1][t2] = { c: 0, t: 0, t1: t1, t2: t2 };
+                    
+                    globalTopicsStats[t1][t2].t++;
+                    if(rd.status === 'correct') globalTopicsStats[t1][t2].c++;
                 });
             }
         });
@@ -1033,7 +997,7 @@
             });
         });
 
-        let criticalTopics = allTopicsFlat.filter(x => x.t >= 3).sort((a,b) => {
+        let criticalTopics = allTopicsFlat.filter(x => x.t >= 3 && x.t1 !== "Legacy / Uncategorized Data").sort((a,b) => {
             let accA = a.c / a.t;
             let accB = b.c / b.t;
             if(accA !== accB) return accA - accB; 
@@ -1078,18 +1042,40 @@
                         <span class="truncate max-w-[65%] text-left">${t}</span> 
                         <span class="flex items-center gap-1.5"><span class="opacity-60">[${stat.c}/${stat.t}]</span> <span>${acc}% ▶</span></span>
                     </button>`;
-                }).join('');
+                });
+                
+                let limitPills = pillsHTML;
+                let viewMoreBtn = "";
+                if (pillsHTML.length > 8) {
+                    limitPills = pillsHTML.slice(0, 8);
+                    viewMoreBtn = `<button onclick="this.previousElementSibling.innerHTML += \`${pillsHTML.slice(8).join('').replace(/`/g, '\\`')}\`; this.remove();" class="w-full bg-slate-100 dark:bg-slate-800 text-slate-500 font-black text-[10px] uppercase py-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mt-2">View ${pillsHTML.length - 8} More Topics ▼</button>`;
+                }
+
+                // Make the Legacy card stand out
+                let isLegacy = subject === "Legacy / Uncategorized Data";
+                let cardClass = isLegacy ? `bg-amber-50 dark:bg-amber-900/10 border-amber-300 dark:border-amber-800/50` : `bg-white dark:bg-slate-900/80 border-slate-200 dark:border-slate-800`;
+                let headerClass = isLegacy ? `text-amber-700 dark:text-amber-500` : `text-slate-800 dark:text-slate-100`;
 
                 const card = document.createElement('div'); 
-                card.className = `bg-white dark:bg-slate-900/80 rounded-3xl p-6 shadow-lg border border-slate-200 dark:border-slate-800 relative overflow-hidden flex flex-col h-full`;
+                card.className = `rounded-3xl p-6 shadow-lg border relative overflow-hidden flex flex-col h-full ${cardClass}`;
                 card.innerHTML = `
-                    <div class="absolute top-0 left-0 w-full h-1.5 ${getCategoryClass(subject)}"></div>
+                    <div class="absolute top-0 left-0 w-full h-1.5 ${isLegacy ? 'bg-amber-500' : getCategoryClass(subject)}"></div>
                     <div class="flex justify-between items-center pb-3 mb-4 border-b border-slate-100 dark:border-slate-800/50">
-                        <h2 class="text-xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">${subject}</h2>
+                        <h2 class="text-xl font-black uppercase tracking-tight ${headerClass}">${subject} ${isLegacy ? '⚠️' : ''}</h2>
                     </div>
-                    <div class="flex flex-col gap-2 flex-1 overflow-y-auto max-h-[300px] pr-1">${pillsHTML}</div>
+                    <div class="flex flex-col gap-2 flex-1 overflow-y-auto max-h-[300px] pr-1">
+                        ${limitPills.join('')}
+                        ${viewMoreBtn}
+                    </div>
+                    ${isLegacy ? `<div class="mt-4 pt-3 border-t border-amber-200 dark:border-amber-800/50 text-[10px] font-bold text-amber-600 dark:text-amber-400 text-center uppercase tracking-widest">Go to Master DB -> Find Dirty Tags to fix these.</div>` : ''}
                 `;
-                grid.appendChild(card);
+                
+                // Append Legacy card to the end, others normally
+                if(isLegacy) {
+                    setTimeout(() => grid.appendChild(card), 10);
+                } else {
+                    grid.appendChild(card);
+                }
             }
         });
 
@@ -1630,7 +1616,7 @@
         filterReview('all'); 
     }
 
-    // V19.21 SECURED EDIT BUTTON IN REVIEW CARD
+    // V19.22 BULLETPROOF ENCODED EDIT BUTTON
     function genDeepReviewCard(q, status, uText, cText, term = "", index = 0) { 
         const styles = {
             'correct': { border: 'bg-emerald-400', badge: 'text-emerald-700 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800/50', box: 'border-emerald-200 dark:border-emerald-800' },
@@ -1638,13 +1624,13 @@
             'skipped': { border: 'bg-slate-400', badge: 'text-slate-700 bg-slate-200 dark:text-slate-400 dark:bg-slate-800 border-slate-300 dark:border-slate-700', box: 'border-slate-200 dark:border-slate-700' }
         };
         const s = styles[status];
-        let encodedQ = encodeURIComponent(q.question);
+        let encodedQ = btoa(unescape(encodeURIComponent(q.question)));
 
         return `<div class="review-card filter-${status} bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-800 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow">
             <div class="absolute top-0 left-0 w-1.5 h-full ${s.border}"></div>
             <div class="flex justify-between items-center mb-4">
                 <span class="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-md border ${s.badge}">${status}</span>
-                <button onclick="openGlobalEditModal(decodeURIComponent('${encodedQ}'))" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-widest border border-amber-200 dark:border-amber-800/50 hover:bg-amber-200 dark:hover:bg-amber-800/50 transition-colors">✏️ Edit / Fix Error</button>
+                <button onclick="openGlobalEditModal(decodeURIComponent(escape(atob('${encodedQ}'))))" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-widest border border-amber-200 dark:border-amber-800/50 hover:bg-amber-200 dark:hover:bg-amber-800/50 transition-colors">✏️ Edit / Fix Error</button>
             </div>
             <div class="font-bold text-slate-800 dark:text-slate-200 mb-6 text-lg md:text-xl leading-relaxed">${highlightText(q.question, term)}</div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -1765,6 +1751,68 @@
     };
     
     window.closeAnalytics = () => document.getElementById('screen-analytics').classList.add('hidden');
+
+    window.showSubjectAnalysis = (subject) => {
+        document.getElementById('screen-analytics').classList.add('hidden');
+        document.getElementById('screen-quiz-history').classList.add('hidden');
+        document.getElementById('screen-subject-analysis').classList.remove('hidden');
+
+        document.getElementById('subject-analysis-title').textContent = `${subject} - Topic Analysis`;
+
+        let globalTopicsStats = {}; 
+        let masterMap = getMasterMap(); 
+        
+        historyDb.forEach(h => {
+            if(h.reviewData) {
+                h.reviewData.forEach(rd => {
+                    let clean = masterMap[rd.question];
+                    let activeTags = clean ? clean.tags : (rd.tags || []);
+                    let t1 = activeTags.length > 0 ? activeTags[0] : "Miscellaneous";
+                    let t2 = activeTags.length > 1 ? activeTags[1] : t1;
+                    
+                    if(t1 === subject) {
+                        if(!globalTopicsStats[t2]) globalTopicsStats[t2] = { correct: 0, wrong: 0, skipped: 0, total: 0 };
+                        globalTopicsStats[t2].total++;
+                        if(rd.status === 'correct') globalTopicsStats[t2].correct++;
+                        else if(rd.status === 'wrong') globalTopicsStats[t2].wrong++;
+                        else if(rd.status === 'skipped') globalTopicsStats[t2].skipped++;
+                    }
+                });
+            }
+        });
+
+        let html = '';
+        let sortedTopics = Object.keys(globalTopicsStats).sort((a,b) => globalTopicsStats[b].total - globalTopicsStats[a].total);
+
+        if(sortedTopics.length === 0) {
+            html = `<div class="text-center text-slate-400 font-bold py-10 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl uppercase tracking-widest text-[10px]">No data available. Take some quizzes first!</div>`;
+        } else {
+            sortedTopics.forEach(t => {
+                let stat = globalTopicsStats[t];
+                let acc = Math.round((stat.correct / stat.total) * 100);
+                let barColor = acc >= 80 ? 'bg-emerald-500' : acc >= 50 ? 'bg-amber-500' : 'bg-red-500';
+                
+                html += `
+                <div class="mb-4 p-5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div class="flex justify-between items-end mb-3">
+                        <div class="font-black text-slate-700 dark:text-slate-200 text-sm uppercase tracking-wide">${t}</div>
+                        <div class="text-[10px] font-black text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 px-3 py-1 rounded shadow-sm border border-slate-100 dark:border-slate-700">${stat.correct} / ${stat.total} Correct (${acc}%)</div>
+                    </div>
+                    <div class="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2 mb-4 overflow-hidden">
+                        <div class="${barColor} h-2 rounded-full" style="width: ${acc}%"></div>
+                    </div>
+                    <div class="flex gap-6 text-[10px] font-black uppercase tracking-widest bg-white dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700/50 justify-center">
+                        <span class="text-emerald-600 dark:text-emerald-400">✅ Correct: ${stat.correct}</span>
+                        <span class="text-red-600 dark:text-red-400">❌ Wrong: ${stat.wrong}</span>
+                        <span class="text-slate-500 dark:text-slate-400">⏭️ Skipped: ${stat.skipped}</span>
+                    </div>
+                </div>`;
+            });
+        }
+        document.getElementById('subject-analysis-grid').innerHTML = html;
+    };
+
+    window.closeSubjectAnalysis = () => document.getElementById('screen-subject-analysis').classList.add('hidden');
 
     function showScreen(s) { 
         ['dashboard','lobby','quiz','results','db-manager','target-radar'].forEach(x => {
