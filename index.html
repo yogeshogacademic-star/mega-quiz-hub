@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.30 (Ironclad Architecture)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.31 (Dynamic Tag Armor)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -55,9 +55,9 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.30</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.31</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Legacy Sync & Ironclad Database Armor</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Dynamic Tags & Ironclad Architecture</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
@@ -428,7 +428,7 @@
                         </div>
                         <div>
                             <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 2: Topic / Chapter</label>
-                            <select id="edit-tag-2" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
+                            <select id="edit-tag-2" onchange="handleTag2Change()" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
                                 <option value="">-- Select Topic --</option>
                             </select>
                         </div>
@@ -642,14 +642,55 @@
         const selectedSub = subSelect.value;
         
         topicSelect.innerHTML = '<option value="">-- Select Topic --</option>';
-        
+        let availableTopics = new Set();
+
         if(selectedSub && SYLLABUS_MAP[selectedSub]) {
-            SYLLABUS_MAP[selectedSub].forEach(topic => {
-                let isSelected = (topic === preselectedTopic) ? "selected" : "";
-                topicSelect.innerHTML += `<option value="${topic}" ${isSelected}>${topic}</option>`;
-            });
-        } else if (preselectedTopic) {
-            topicSelect.innerHTML += `<option value="${preselectedTopic}" selected>${preselectedTopic} (Custom)</option>`;
+            SYLLABUS_MAP[selectedSub].forEach(t => availableTopics.add(t));
+        }
+
+        Object.keys(db).forEach(qid => {
+            if(db[qid] && Array.isArray(db[qid].questions)) {
+                db[qid].questions.forEach(q => {
+                    let t1 = (q.tags && q.tags.length > 0) ? q.tags[0] : (q.subject || "Miscellaneous");
+                    if (t1 === selectedSub && q.tags && q.tags.length > 1) {
+                        availableTopics.add(q.tags[1]);
+                    }
+                });
+            }
+        });
+        
+        mistakesDb.forEach(q => {
+             let t1 = (q.tags && q.tags.length > 0) ? q.tags[0] : (q.subject || "Miscellaneous");
+             if (t1 === selectedSub && q.tags && q.tags.length > 1) {
+                 availableTopics.add(q.tags[1]);
+             }
+        });
+
+        if (preselectedTopic) availableTopics.add(preselectedTopic);
+
+        let sortedTopics = Array.from(availableTopics).sort();
+        sortedTopics.forEach(topic => {
+            let isSelected = (topic === preselectedTopic) ? "selected" : "";
+            topicSelect.innerHTML += `<option value="${topic}" ${isSelected}>${topic}</option>`;
+        });
+
+        topicSelect.innerHTML += `<option value="__CUSTOM__" class="font-black text-amber-600 dark:text-amber-400">➕ Add Custom Topic...</option>`;
+    };
+
+    window.handleTag2Change = () => {
+        const topicSelect = document.getElementById('edit-tag-2');
+        if (topicSelect.value === "__CUSTOM__") {
+            let customTopic = prompt("Enter new Custom Topic (Tag 2):");
+            if (customTopic && customTopic.trim() !== "") {
+                customTopic = customTopic.trim();
+                const newOption = document.createElement("option");
+                newOption.value = customTopic;
+                newOption.text = customTopic + " (Custom)";
+                topicSelect.insertBefore(newOption, topicSelect.lastElementChild);
+                topicSelect.value = customTopic;
+            } else {
+                topicSelect.value = ""; 
+            }
         }
     };
 
@@ -849,7 +890,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.30", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.31", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -1895,7 +1936,7 @@
     };
 
     // ---------------------------------------------------------
-    // V19.30 ENGINE PATCH: Import, Master Mock, Rename & Utilities
+    // V19.31 ENGINE PATCH: Dynamic Tags & Fixes
     // ---------------------------------------------------------
 
     window.triggerImport = (subject) => {
