@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.31 (Dynamic Tag Armor)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.32 (Tag Sanitization)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -55,9 +55,9 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.31</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.32</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Dynamic Tags & Ironclad Architecture</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Dynamic Tags & Auto-Sanitization Armor</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
@@ -515,7 +515,7 @@
         "Arithmetic": ["Number System", "LCM & HCF", "Percentages", "Profit, Loss & Discount", "Simple & Compound Interest", "Ratio & Proportion", "Partnership & Ages", "Mixture & Alligation", "Average", "Time & Work", "Time, Speed & Distance"],
         "Advanced Maths": ["Algebra", "Geometry", "Coordinate Geometry", "Mensuration 2D", "Mensuration 3D", "Trigonometry", "Heights & Distances", "Probability & Statistics"],
         "Reasoning": ["Analogy & Classification", "Number & Letter Series", "Coding-Decoding", "Blood Relations", "Direction & Distance", "Syllogism", "Order & Ranking", "Clock & Calendar", "Venn Diagrams", "Missing Number & Matrix", "Non-Verbal Reasoning", "Logical Reasoning"],
-        "English": ["Reading Comprehension", "Cloze Test", "Para Jumbles", "Grammar & Error Spotting", "Sentence Improvement", "Active & Passive Voice", "Direct & Indirect Speech", "Vocabulary: Synonyms & Antonyms", "Idioms & Phrases", "One Word Substitution", "Spelling Corrections"],
+        "English": ["Reading Comprehension", "Cloze Test", "Para Jumbles", "Grammar & Error Spotting", "Sentence Improvement", "Active & Passive Voice", "Direct & Indirect Speech", "Synonyms & Antonyms", "Idioms & Phrases", "One Word Substitution", "Spelling Corrections"],
         "Ancient History": ["Prehistoric & Indus Valley", "Vedic Age", "Buddhism & Jainism", "Mahajanapadas & Magadha", "Mauryan Empire", "Post-Mauryan Period", "Gupta Empire", "Post-Gupta & Harsha"],
         "Medieval History": ["Early Medieval India", "Delhi Sultanate", "Provincial Kingdoms", "Mughal Empire", "Maratha Empire", "Bhakti & Sufi Movements"],
         "Modern History": ["Advent of Europeans", "British Expansion & Policies", "Revolt of 1857", "Socio-Religious Reform Movements", "Indian National Congress", "Gandhian Era", "Revolutionary Nationalism", "Partition & Independence", "Post-Independence Consolidation"],
@@ -548,6 +548,50 @@
         });
         return map;
     }
+
+    // --- AUTO-SANITIZER ---
+    window.sanitizeEnglishTags = () => {
+        let changedAny = false;
+        const cleanTagArray = (tags) => {
+            if (!tags || !Array.isArray(tags) || tags.length < 2) return false;
+            let t1 = tags[0];
+            if (t1 === "English" || t1 === "English Language") {
+                let t2 = tags[1];
+                if (t2 === "Vocabulary: Synonyms & Antonyms" || t2 === "Synonyms and Antonyms") {
+                    tags[1] = "Synonyms & Antonyms";
+                    return true;
+                }
+                if (t2 === "Error Spotting" || t2 === "Spotting Errors") {
+                    tags[1] = "Grammar & Error Spotting";
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        Object.keys(db).forEach(qid => {
+            if (db[qid] && Array.isArray(db[qid].questions)) {
+                db[qid].questions.forEach(q => { if(cleanTagArray(q.tags)) changedAny = true; });
+            }
+        });
+
+        if (Array.isArray(historyDb)) {
+            historyDb.forEach(h => {
+                if (h.reviewData && Array.isArray(h.reviewData)) {
+                    h.reviewData.forEach(rd => { if(cleanTagArray(rd.tags)) changedAny = true; });
+                }
+            });
+        }
+
+        if (Array.isArray(mistakesDb)) {
+            mistakesDb.forEach(m => { if(cleanTagArray(m.tags)) changedAny = true; });
+        }
+
+        if (changedAny) {
+            console.log("Sanitized English tags automatically.");
+            saveData();
+        }
+    };
 
     window.toggleDirtyFilter = () => {
         isDirtyFilterActive = !isDirtyFilterActive;
@@ -890,7 +934,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.31", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.32", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -901,6 +945,8 @@
         if(localStorage.getItem('megaTheme') === 'dark') document.documentElement.classList.add('dark');
         loadLocalFallback();
         
+        sanitizeEnglishTags();
+
         renderDashboard();
         showSyncStatus('syncing');
 
@@ -917,6 +963,8 @@
                 if (data.db) db = data.db;
                 if (data.history) historyDb = data.history || [];
                 if (data.mistakes) mistakesDb = data.mistakes || [];
+                
+                sanitizeEnglishTags();
                 
                 updateLocalCache();
                 renderDashboard();
@@ -1934,10 +1982,6 @@
             }
         });
     };
-
-    // ---------------------------------------------------------
-    // V19.31 ENGINE PATCH: Dynamic Tags & Fixes
-    // ---------------------------------------------------------
 
     window.triggerImport = (subject) => {
         requireAuth(() => {
