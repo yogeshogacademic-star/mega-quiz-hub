@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.34 (Ultimate Master Build)</title>
+    <title>Yogesh's Mega Quiz Hub - V20.0 (Command Center Build)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -13,7 +13,17 @@
         }
     </script>
     <style>
-        body { font-family: 'Nunito Sans', sans-serif; user-select: none; transition: background-color 0.3s, color 0.3s; }
+        :root {
+            --mamba-green: #10b981;
+            --sidebar-bg: #0f172a;
+        }
+        
+        /* Prevent body scroll, let the 80% zone handle it */
+        body { font-family: 'Nunito Sans', sans-serif; user-select: none; transition: background-color 0.3s, color 0.3s; margin: 0; padding: 0; overflow: hidden; height: 100vh; }
+        
+        /* Smooth scrolling for the 80% container */
+        #main-strike-zone { scroll-behavior: smooth; }
+        
         .subject-card, .mamba-card { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .subject-card:hover, .mamba-card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
         
@@ -32,134 +42,324 @@
 
         mark { background-color: rgba(251, 191, 36, 0.4); color: inherit; padding: 0 2px; border-radius: 4px; font-weight: 900; box-shadow: 0 0 8px rgba(251, 191, 36, 0.3); }
         .dark mark { background-color: rgba(245, 158, 11, 0.5); }
+        
+        /* Sidebar TickTick Custom Styles */
+        .tt-widget { background: rgba(30, 41, 59, 0.6); border-radius: 12px; padding: 15px; border: 1px solid rgba(255, 255, 255, 0.05); margin-bottom: 15px; }
+        .task-item { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.85rem; color: #e2e8f0; font-weight: 700; transition: color 0.2s; }
+        .task-item:last-child { border-bottom: none; }
+        .task-item:hover { color: var(--mamba-green); }
+        .tt-checkbox { width: 16px; height: 16px; border: 2px solid #64748b; border-radius: 4px; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 dark:bg-[#0a0f1c] dark:text-slate-200 min-h-screen flex flex-col pb-20">
+<body class="flex flex-col lg:flex-row bg-slate-50 text-slate-800 dark:bg-[#0a0f1c] dark:text-slate-200">
 
     <input type="file" id="global-file-input" accept=".json, .txt" class="hidden">
     <input type="file" id="backup-file-input" accept=".json" class="hidden">
 
-    <div id="screen-dashboard" class="max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 flex-1 w-full block">
-        <header class="bg-slate-900 dark:bg-slate-900 text-white rounded-[2rem] p-6 sm:p-10 mb-10 shadow-2xl relative overflow-hidden border border-slate-800 group">
-            <div class="absolute inset-0 bg-cover bg-center opacity-60 dark:opacity-70 transition-transform duration-1000 group-hover:scale-105" style="background-image: url('wp2550249-kobe-bryant-wallpaper.jpg'); pointer-events: none;"></div>
-            <div class="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-900/50 to-transparent dark:from-[#0a0f1c]/90 dark:via-[#0a0f1c]/60 pointer-events-none"></div>
+    <div id="main-strike-zone" class="w-full lg:w-[80%] h-full overflow-y-auto pb-20 relative">
 
-            <div class="absolute -top-32 -right-32 w-96 h-96 bg-emerald-500 rounded-full mix-blend-multiply filter blur-[100px] opacity-40 animate-pulse pointer-events-none"></div>
-            <div class="absolute -bottom-32 -left-32 w-96 h-96 bg-indigo-600 rounded-full mix-blend-multiply filter blur-[100px] opacity-40 animate-pulse pointer-events-none" style="animation-delay: 2s;"></div>
+        <div id="screen-dashboard" class="max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 flex-1 w-full block">
+            <header class="bg-slate-900 dark:bg-slate-900 text-white rounded-[2rem] p-6 sm:p-10 mb-10 shadow-2xl relative overflow-hidden border border-slate-800 group">
+                <div class="absolute inset-0 bg-cover bg-center opacity-60 dark:opacity-70 transition-transform duration-1000 group-hover:scale-105" style="background-image: url('wp2550249-kobe-bryant-wallpaper.jpg'); pointer-events: none;"></div>
+                <div class="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-900/50 to-transparent dark:from-[#0a0f1c]/90 dark:via-[#0a0f1c]/60 pointer-events-none"></div>
 
-            <div id="sync-status" class="absolute top-6 right-6 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full bg-slate-800/80 text-slate-400 border border-slate-700 flex items-center gap-2 z-20 backdrop-blur-md shadow-lg">
-                <span class="w-2 h-2 rounded-full bg-slate-500 animate-pulse"></span> Connecting...
+                <div class="absolute -top-32 -right-32 w-96 h-96 bg-emerald-500 rounded-full mix-blend-multiply filter blur-[100px] opacity-40 animate-pulse pointer-events-none"></div>
+                <div class="absolute -bottom-32 -left-32 w-96 h-96 bg-indigo-600 rounded-full mix-blend-multiply filter blur-[100px] opacity-40 animate-pulse pointer-events-none" style="animation-delay: 2s;"></div>
+
+                <div id="sync-status" class="absolute top-6 right-6 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full bg-slate-800/80 text-slate-400 border border-slate-700 flex items-center gap-2 z-20 backdrop-blur-md shadow-lg">
+                    <span class="w-2 h-2 rounded-full bg-slate-500 animate-pulse"></span> Connecting...
+                </div>
+
+                <div class="relative z-10 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mt-4 md:mt-0">
+                    <div class="w-full xl:w-auto overflow-hidden">
+                        <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
+                            Yogesh's Mega Hub
+                            <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V20.0</span>
+                        </h1>
+                        <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Command Center & TickTick Integration</p>
+                    </div>
+                    
+                    <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
+                        <button onclick="toggleDarkMode()" class="bg-white/10 hover:bg-white/20 p-4 rounded-2xl backdrop-blur-md transition-all border border-white/10 shadow-inner hover:scale-105" title="Toggle Dark Mode">🌙</button>
+                        <button onclick="openDBManager()" class="bg-gradient-to-br from-blue-500 to-cyan-600 hover:from-blue-400 hover:to-cyan-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-transform hover:-translate-y-1 border border-cyan-400 flex items-center gap-2">🗄️ Master DB</button>
+                        <button onclick="openTargetRadar()" class="bg-gradient-to-br from-rose-500 to-orange-600 hover:from-rose-400 hover:to-orange-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(244,63,94,0.4)] transition-transform hover:-translate-y-1 border border-rose-400 flex items-center gap-2">🎯 Target Radar</button>
+                        <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400 flex items-center gap-2">📊 Analytics</button>
+                    </div>
+                </div>
+
+                <div class="w-full mt-10 relative group z-10">
+                    <div class="absolute inset-0 bg-gradient-to-r from-emerald-400 to-indigo-500 rounded-2xl blur-md opacity-30 group-hover:opacity-50 transition duration-500"></div>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none"><span class="text-slate-400 text-xl">🔍</span></div>
+                        <input type="text" id="omni-search" oninput="performSearch(this.value)" placeholder="Omni-Search: Find any question, formula, or topic..." class="w-full pl-16 pr-14 py-5 bg-white/95 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-2xl shadow-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-bold text-lg placeholder-slate-400 dark:placeholder-slate-500 backdrop-blur-xl">
+                        <button onclick="clearSearch()" id="clear-search-btn" class="hidden absolute inset-y-0 right-0 pr-5 flex items-center text-slate-400 hover:text-red-500 font-black text-2xl transition-colors cursor-pointer" title="Clear Search">&times;</button>
+                    </div>
+                </div>
+            </header>
+
+            <div id="search-results-container" class="hidden mb-16 max-w-5xl mx-auto space-y-6"></div>
+
+            <div id="dashboard-main-content">
+                <div onclick="openSRSModal()" class="bg-gradient-to-r from-purple-600 via-indigo-600 to-indigo-700 rounded-[2rem] p-6 md:p-8 mb-10 cursor-pointer shadow-[0_10px_30px_rgba(79,70,229,0.3)] hover:shadow-[0_15px_40px_rgba(79,70,229,0.5)] transition-all transform hover:-translate-y-1.5 flex justify-between items-center group border border-purple-500/50 relative overflow-hidden">
+                    <div class="absolute right-0 top-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700 pointer-events-none"></div>
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-black text-white mb-2 tracking-tight drop-shadow-md flex items-center gap-3">
+                            🔥 Spaced Repetition Engine
+                            <span id="global-srs-badge" class="hidden text-xs bg-rose-500 px-3 py-1 rounded-full shadow-lg border border-rose-400 uppercase tracking-widest">0 Due</span>
+                        </h2>
+                        <p class="text-purple-100 font-bold text-sm md:text-base">Launch targeted 10-Q Sprints strictly isolated by your Tag 1 Subjects.</p>
+                    </div>
+                    <div class="text-white font-black text-3xl group-hover:translate-x-3 transition-transform drop-shadow-lg relative z-10">→</div>
+                </div>
+
+                <div id="dashboard-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-16"></div>
+                
+                <div class="mt-auto text-center pb-10 border-t border-slate-200 dark:border-slate-800/50 pt-10">
+                    <div class="text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em] text-[10px] mb-8 flex items-center justify-center gap-4">
+                        <span class="w-10 h-px bg-slate-200 dark:bg-slate-700"></span> System Administration (Secured) <span class="w-10 h-px bg-slate-200 dark:bg-slate-700"></span>
+                    </div>
+                    <div class="flex justify-center gap-4 flex-wrap">
+                        <button onclick="exportBackup()" class="bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-blue-100 dark:border-blue-900/30">💾 Backup Database</button>
+                        <button onclick="triggerRestore()" class="bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-amber-100 dark:border-amber-900/30">📂 Restore Backup 🔒</button>
+                        <button onclick="factoryReset()" class="bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-red-100 dark:border-red-900/30">⚠️ Reset System 🔒</button>
+                    </div>
+                </div>
             </div>
+        </div>
 
-            <div class="relative z-10 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mt-4 md:mt-0">
-                <div class="w-full xl:w-auto overflow-hidden">
-                    <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
-                        Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.34</span>
-                    </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Ultimate Master Build & Auto-Optimization</p>
+        <div id="screen-target-radar" class="hidden max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
+            <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-rose-400 to-orange-500"></div>
+                
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 border-b border-slate-100 dark:border-slate-800 pb-6">
+                    <div>
+                        <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
+                        <h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Global Target Radar</h2>
+                        <p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Powered directly by Master DB Tags</p>
+                    </div>
+                </div>
+
+                <div id="critical-bleed-container" class="mb-10 hidden">
+                    <h3 class="text-lg md:text-xl font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-rose-100 dark:border-rose-900/30 pb-2">⚠️ Critical Weaknesses (Triage Zone)</h3>
+                    <div id="critical-bleed-grid" class="grid grid-cols-2 md:grid-cols-5 gap-4"></div>
+                </div>
+
+                <div id="target-radar-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                </div>
+            </div>
+        </div>
+
+        <div id="screen-db-manager" class="hidden max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
+            <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 to-cyan-500"></div>
+                
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
+                    <div>
+                        <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
+                        <h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Master DB Ledger</h2>
+                        <p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Global Vault Editor</p>
+                    </div>
+                    <div class="w-full md:w-auto flex flex-col sm:flex-row gap-3">
+                        <input type="text" id="db-manager-search" oninput="renderDBList(this.value)" placeholder="Search questions or tags..." class="w-full md:w-80 px-5 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-200">
+                        <button id="dirty-filter-btn" onclick="toggleDirtyFilter()" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50 font-black px-4 py-3 rounded-xl border border-amber-200 dark:border-amber-800/50 transition-colors uppercase tracking-widest text-[10px] shadow-sm flex-shrink-0">⚠️ Find Dirty Tags</button>
+                    </div>
+                </div>
+
+                <div class="bg-slate-100 dark:bg-slate-800 rounded-t-xl p-4 grid grid-cols-12 gap-4 border-b border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                    <div class="col-span-2">Source / Subject</div>
+                    <div class="col-span-2">Tags</div>
+                    <div class="col-span-7">Question Preview</div>
+                    <div class="col-span-1 text-center">Action</div>
                 </div>
                 
-                <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
-                    <button onclick="toggleDarkMode()" class="bg-white/10 hover:bg-white/20 p-4 rounded-2xl backdrop-blur-md transition-all border border-white/10 shadow-inner hover:scale-105" title="Toggle Dark Mode">🌙</button>
-                    <button onclick="openDBManager()" class="bg-gradient-to-br from-blue-500 to-cyan-600 hover:from-blue-400 hover:to-cyan-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-transform hover:-translate-y-1 border border-cyan-400 flex items-center gap-2">🗄️ Master DB</button>
-                    <button onclick="openTargetRadar()" class="bg-gradient-to-br from-rose-500 to-orange-600 hover:from-rose-400 hover:to-orange-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(244,63,94,0.4)] transition-transform hover:-translate-y-1 border border-rose-400 flex items-center gap-2">🎯 Target Radar</button>
-                    <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400 flex items-center gap-2">📊 Analytics</button>
+                <div id="db-manager-list" class="flex-1 overflow-y-auto max-h-[60vh] space-y-2 py-2"></div>
+            </div>
+        </div>
+
+        <div id="screen-lobby" class="hidden max-w-3xl mx-auto p-6 pt-10 w-full flex-1">
+            <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-indigo-500"></div>
+                <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-8 flex items-center gap-2 transition-colors">← Back to Hub</button>
+                <h2 id="lobby-title" class="text-4xl font-black text-slate-800 dark:text-slate-100 mb-2 tracking-tight">Quiz Title</h2>
+                <p id="lobby-meta" class="text-sm font-bold text-emerald-600 dark:text-emerald-400 mb-8 uppercase tracking-widest">0 Questions</p>
+                
+                <div class="mb-8 p-6 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
+                    <div class="flex flex-col md:flex-row gap-6 items-center justify-between">
+                        <div class="w-full md:w-1/2">
+                            <label class="block text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mb-3">Candidate Name</label>
+                            <input type="text" id="candidate-name" class="w-full p-4 rounded-xl border border-indigo-200 dark:border-indigo-700/50 bg-white dark:bg-slate-950 font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm" placeholder="Enter your name...">
+                        </div>
+                        <div class="w-full md:w-1/2 md:text-right">
+                            <div id="attempt-info" class="text-sm font-bold text-slate-600 dark:text-slate-400"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="lobby-mode-selection" class="hidden mb-6 p-6 bg-rose-50 dark:bg-rose-900/10 rounded-2xl border border-rose-100 dark:border-rose-800/30">
+                    <label class="block text-[10px] font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-3 flex items-center gap-2">🧠 Smart Revision Mode</label>
+                    <div class="flex gap-4 flex-wrap">
+                        <button id="btn-mode-full" onclick="setQuizMode('full')" class="time-btn flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Full Quiz</button>
+                        <button id="btn-mode-wrong" onclick="setQuizMode('wrong')" class="time-btn flex-1 bg-rose-100 text-rose-800 border-rose-500 dark:bg-rose-900/40 dark:text-rose-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Wrong/Skipped Only (<span id="wrong-count-badge">0</span>)</button>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                        <label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4">⏱️ Overall Time Limit</label>
+                        <div class="flex gap-3 flex-wrap">
+                            <button onclick="setLobbyTime('default')" id="btn-time-default" class="time-btn-main flex-1 bg-emerald-100 text-emerald-800 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Default</button>
+                            <button onclick="setLobbyTime('15')" id="btn-time-15" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">15 Min</button>
+                            <button onclick="setLobbyTime('30')" id="btn-time-30" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">30 Min</button>
+                            <button onclick="setLobbyTime('custom')" id="btn-time-custom" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">Custom</button>
+                        </div>
+                        <input type="number" id="custom-time-input" class="hidden w-full mt-4 p-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-950 font-bold text-lg shadow-inner" placeholder="Enter minutes...">
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="toggleLobbyMode('shuffle')">
+                            <span class="font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-[10px]">🔀 Shuffle Q's</span>
+                            <div id="toggle-shuffle" class="w-12 h-6 bg-emerald-500 rounded-full relative transition-colors shadow-inner"><div class="absolute right-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div>
+                        </div>
+                        <div class="bg-indigo-50 dark:bg-indigo-900/20 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/30 flex justify-between items-center cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors" onclick="toggleLobbyMode('perQTimer')">
+                            <span class="font-black text-indigo-700 dark:text-indigo-300 uppercase tracking-widest text-[10px]">⏱️ Per-Q Timer</span>
+                            <div id="toggle-perQTimer" class="w-12 h-6 bg-slate-300 dark:bg-slate-700 rounded-full relative transition-colors shadow-inner"><div class="absolute left-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div>
+                        </div>
+                    </div>
+                    <input type="number" id="per-q-time-input" class="hidden w-full p-4 rounded-xl border border-indigo-300 dark:border-indigo-600 bg-white dark:bg-slate-950 font-bold text-lg shadow-inner text-indigo-800 dark:text-indigo-300 placeholder-indigo-300 dark:placeholder-indigo-700" placeholder="Enter Seconds per Question (e.g., 60)">
+                    <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="toggleLobbyMode('blind')">
+                        <span class="font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-[10px]">🙈 Blind Mode (Spacebar Reveal)</span>
+                        <div id="toggle-blind" class="w-12 h-6 bg-slate-300 dark:bg-slate-700 rounded-full relative transition-colors shadow-inner"><div class="absolute left-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div>
+                    </div>
+                </div>
+                <button onclick="startQuizFromLobby()" class="w-full mt-10 bg-slate-900 dark:bg-emerald-500 text-white dark:text-slate-900 font-black text-xl py-5 rounded-2xl shadow-[0_10px_20px_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-all tracking-widest uppercase">LAUNCH EXAM</button>
+            </div>
+        </div>
+
+        <div id="screen-quiz" class="hidden max-w-[1400px] mx-auto p-4 pt-6 relative w-full flex-1">
+            <div id="pause-overlay" class="hidden fixed inset-0 z-[100] bg-slate-100/95 dark:bg-slate-950/95 backdrop-blur-lg flex flex-col justify-center items-center">
+                <h2 class="text-5xl md:text-7xl font-black text-slate-800 dark:text-slate-100 mb-10 uppercase tracking-tighter drop-shadow-sm">Exam Paused</h2>
+                <button onclick="togglePause()" class="bg-emerald-500 text-white font-black text-2xl md:text-3xl px-16 py-6 rounded-3xl shadow-[0_10px_30px_rgba(16,185,129,0.4)] hover:scale-105 hover:bg-emerald-400 transition-all uppercase tracking-widest border border-emerald-400">▶ Resume</button>
+            </div>
+
+            <div class="flex justify-between items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 px-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 mb-6 sticky top-4 z-50">
+                <button onclick="showScreen('dashboard'); clearInterval(quizState.interval);" class="text-slate-400 font-bold hover:text-red-500 uppercase tracking-widest text-[10px] transition-colors">← Abort</button>
+                <div class="flex gap-4 items-center">
+                    <button onclick="togglePause()" id="pause-btn" class="bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black px-5 py-2.5 rounded-xl text-xs uppercase tracking-widest transition-colors hover:bg-slate-300 dark:hover:bg-slate-700">⏸ Pause (P)</button>
+                    <div id="quiz-timer" class="font-mono font-black text-2xl bg-slate-100 dark:bg-slate-950 px-6 py-2 rounded-xl text-slate-800 dark:text-emerald-400 border border-slate-200 dark:border-slate-800 shadow-inner tracking-widest">00:00</div>
                 </div>
             </div>
 
-            <div class="w-full mt-10 relative group z-10">
-                <div class="absolute inset-0 bg-gradient-to-r from-emerald-400 to-indigo-500 rounded-2xl blur-md opacity-30 group-hover:opacity-50 transition duration-500"></div>
-                <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none"><span class="text-slate-400 text-xl">🔍</span></div>
-                    <input type="text" id="omni-search" oninput="performSearch(this.value)" placeholder="Omni-Search: Find any question, formula, or topic..." class="w-full pl-16 pr-14 py-5 bg-white/95 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-2xl shadow-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-bold text-lg placeholder-slate-400 dark:placeholder-slate-500 backdrop-blur-xl">
-                    <button onclick="clearSearch()" id="clear-search-btn" class="hidden absolute inset-y-0 right-0 pr-5 flex items-center text-slate-400 hover:text-red-500 font-black text-2xl transition-colors cursor-pointer" title="Clear Search">&times;</button>
-                </div>
-            </div>
-        </header>
-
-        <div id="search-results-container" class="hidden mb-16 max-w-5xl mx-auto space-y-6"></div>
-
-        <div id="dashboard-main-content">
-            <div onclick="openSRSModal()" class="bg-gradient-to-r from-purple-600 via-indigo-600 to-indigo-700 rounded-[2rem] p-6 md:p-8 mb-10 cursor-pointer shadow-[0_10px_30px_rgba(79,70,229,0.3)] hover:shadow-[0_15px_40px_rgba(79,70,229,0.5)] transition-all transform hover:-translate-y-1.5 flex justify-between items-center group border border-purple-500/50 relative overflow-hidden">
-                <div class="absolute right-0 top-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700 pointer-events-none"></div>
-                <div>
-                    <h2 class="text-2xl md:text-3xl font-black text-white mb-2 tracking-tight drop-shadow-md flex items-center gap-3">
-                        🔥 Spaced Repetition Engine
-                        <span id="global-srs-badge" class="hidden text-xs bg-rose-500 px-3 py-1 rounded-full shadow-lg border border-rose-400 uppercase tracking-widest">0 Due</span>
-                    </h2>
-                    <p class="text-purple-100 font-bold text-sm md:text-base">Launch targeted 10-Q Sprints strictly isolated by your Tag 1 Subjects.</p>
-                </div>
-                <div class="text-white font-black text-3xl group-hover:translate-x-3 transition-transform drop-shadow-lg relative z-10">→</div>
+            <div class="bg-indigo-50/80 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-300 text-[10px] uppercase tracking-widest font-black p-3 rounded-xl mb-6 flex justify-center gap-8 hidden md:flex">
+                <span>⌨️ SHORTCUTS:</span>
+                <span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">◀</kbd> <kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">▶</kbd> Prev/Next</span>
+                <span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">M</kbd> Mark</span>
+                <span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-4 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">SPACE</kbd> Reveal</span>
             </div>
 
-            <div id="dashboard-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-16"></div>
-            
-            <div class="mt-auto text-center pb-10 border-t border-slate-200 dark:border-slate-800/50 pt-10">
-                <div class="text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em] text-[10px] mb-8 flex items-center justify-center gap-4">
-                    <span class="w-10 h-px bg-slate-200 dark:bg-slate-700"></span> System Administration (Secured) <span class="w-10 h-px bg-slate-200 dark:bg-slate-700"></span>
-                </div>
-                <div class="flex justify-center gap-4 flex-wrap">
-                    <button onclick="exportBackup()" class="bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-blue-100 dark:border-blue-900/30">💾 Backup Database</button>
-                    <button onclick="triggerRestore()" class="bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-amber-100 dark:border-amber-900/30">📂 Restore Backup 🔒</button>
-                    <button onclick="factoryReset()" class="bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-red-100 dark:border-red-900/30">⚠️ Reset System 🔒</button>
+            <div class="flex flex-col lg:flex-row gap-6 items-start">
+                <div id="quiz-container" class="flex-1 w-full space-y-8"></div>
+                
+                <div class="w-full lg:w-80 bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-md border border-slate-200 dark:border-slate-800 lg:sticky lg:top-28">
+                    <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
+                        <h3 class="font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight">Question Palette</h3>
+                        <span id="answered-count" class="text-xs font-black bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded text-slate-500 dark:text-slate-400">0 / 0</span>
+                    </div>
+                    <div id="palette-grid" class="grid grid-cols-5 sm:grid-cols-8 lg:grid-cols-5 gap-2.5 mb-8 max-h-[30vh] lg:max-h-[45vh] overflow-y-auto pr-2"></div>
+                    <button onclick="submitQuiz()" class="w-full bg-emerald-500 text-white font-black py-4 rounded-xl shadow-[0_5px_15px_rgba(16,185,129,0.3)] hover:bg-emerald-400 hover:-translate-y-0.5 transition-all uppercase tracking-widest">Submit Test</button>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div id="screen-target-radar" class="hidden max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
-        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-rose-400 to-orange-500"></div>
-            
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 border-b border-slate-100 dark:border-slate-800 pb-6">
-                <div>
-                    <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
-                    <h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Global Target Radar</h2>
-                    <p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Powered directly by Master DB Tags</p>
+        <div id="screen-results" class="hidden max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 w-full flex-1">
+            <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-indigo-500"></div>
+                
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+                    <div>
+                        <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
+                        <h2 id="results-title" class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Performance Report</h2>
+                    </div>
                 </div>
-            </div>
+                
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-14 text-center">
+                    <div class="bg-slate-900 dark:bg-slate-950 text-white p-6 rounded-2xl shadow-lg border border-slate-800 relative overflow-hidden">
+                        <div class="absolute inset-0 bg-emerald-500 opacity-5 blur-xl"></div>
+                        <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 relative z-10">Total Score</div>
+                        <div id="res-score" class="text-5xl font-black text-emerald-400 tracking-tighter relative z-10">0</div>
+                    </div>
+                    <div class="bg-emerald-50 border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50 p-6 rounded-2xl">
+                        <div class="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-500 mb-2">Correct (+2)</div>
+                        <div id="res-correct" class="text-4xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter">0</div>
+                    </div>
+                    <div class="bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800/50 p-6 rounded-2xl">
+                        <div class="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-500 mb-2">Wrong (-0.66)</div>
+                        <div id="res-wrong" class="text-4xl font-black text-red-600 dark:text-red-400 tracking-tighter">0</div>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700/50 p-6 rounded-2xl">
+                        <div class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Skipped (0)</div>
+                        <div id="res-skipped" class="text-4xl font-black text-slate-600 dark:text-slate-300 tracking-tighter">0</div>
+                    </div>
+                </div>
 
-            <div id="critical-bleed-container" class="mb-10 hidden">
-                <h3 class="text-lg md:text-xl font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-rose-100 dark:border-rose-900/30 pb-2">⚠️ Critical Weaknesses (Triage Zone)</h3>
-                <div id="critical-bleed-grid" class="grid grid-cols-2 md:grid-cols-5 gap-4"></div>
-            </div>
-
-            <div id="target-radar-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="border-b-2 border-slate-100 dark:border-slate-800 pb-5 mb-8 flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
+                    <div>
+                        <h3 class="text-2xl font-black text-slate-800 dark:text-slate-200 tracking-tight">🔍 Deep Review Vault</h3>
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Complete Test Analysis</span>
+                    </div>
+                    <div class="flex gap-2 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-xl shadow-inner w-full md:w-auto overflow-x-auto">
+                        <button onclick="filterReview('all')" id="btn-filt-all" class="filter-btn active-filt flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-white">All</button>
+                        <button onclick="filterReview('correct')" id="btn-filt-correct" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700">Correct</button>
+                        <button onclick="filterReview('wrong')" id="btn-filt-wrong" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700">Wrong</button>
+                        <button onclick="filterReview('skipped')" id="btn-filt-skipped" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700">Skipped</button>
+                    </div>
+                </div>
+                
+                <div id="revision-container" class="space-y-6"></div>
+                
+                <div class="mt-12 text-center border-t border-slate-100 dark:border-slate-800 pt-10">
+                    <button onclick="showScreen('dashboard')" class="bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 hover:scale-105 transition-transform font-black py-4 px-12 rounded-xl uppercase tracking-widest shadow-xl">Return to Dashboard</button>
+                </div>
             </div>
         </div>
-    </div>
-
-    <div id="screen-db-manager" class="hidden max-w-6xl mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
-        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 to-cyan-500"></div>
-            
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
-                <div>
-                    <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
-                    <h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Master DB Ledger</h2>
-                    <p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Global Vault Editor</p>
-                </div>
-                <div class="w-full md:w-auto flex flex-col sm:flex-row gap-3">
-                    <input type="text" id="db-manager-search" oninput="renderDBList(this.value)" placeholder="Search questions or tags..." class="w-full md:w-80 px-5 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-200">
-                    <button id="dirty-filter-btn" onclick="toggleDirtyFilter()" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50 font-black px-4 py-3 rounded-xl border border-amber-200 dark:border-amber-800/50 transition-colors uppercase tracking-widest text-[10px] shadow-sm flex-shrink-0">⚠️ Find Dirty Tags</button>
-                </div>
-            </div>
-
-            <div class="bg-slate-100 dark:bg-slate-800 rounded-t-xl p-4 grid grid-cols-12 gap-4 border-b border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                <div class="col-span-2">Source / Subject</div>
-                <div class="col-span-2">Tags</div>
-                <div class="col-span-7">Question Preview</div>
-                <div class="col-span-1 text-center">Action</div>
-            </div>
-            
-            <div id="db-manager-list" class="flex-1 overflow-y-auto max-h-[60vh] space-y-2 py-2">
-                </div>
+    </div> <div id="ticktick-sidebar" class="w-full lg:w-[20%] h-auto lg:h-full bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 p-6 flex flex-col gap-4 text-white overflow-y-auto">
+        <div class="sidebar-title font-black text-lg text-white pb-4 border-b border-slate-700 mb-2 flex items-center gap-2">
+            ⏱️ TickTick Sync
         </div>
+
+        <div class="tt-widget">
+            <div class="text-[10px] uppercase font-black text-emerald-400 tracking-widest mb-2">Today's Focus</div>
+            <div class="text-3xl font-black text-white" id="tt-hours-stat">0h 0m</div>
+            <div class="text-xs text-slate-400 font-bold mt-1">Ready for Sync</div>
+        </div>
+
+        <div class="tt-widget flex-1">
+            <div class="flex justify-between items-center mb-3">
+                <span class="text-[10px] uppercase font-black text-indigo-400 tracking-widest">🎯 Target Tasks</span>
+                <span class="text-[10px] text-slate-500 font-bold">CGL List</span>
+            </div>
+            <div id="tt-task-list" class="space-y-1">
+                <div class="task-item"><div class="tt-checkbox"></div> Parliament Set 3</div>
+                <div class="task-item"><div class="tt-checkbox"></div> Geometry JSON Sync</div>
+                <div class="task-item"><div class="tt-checkbox"></div> English OWS Review</div>
+            </div>
+        </div>
+
+        <div class="tt-widget">
+            <div class="text-[10px] uppercase font-black text-amber-400 tracking-widest mb-3">🔥 Daily Habits</div>
+            <div class="flex gap-2">
+                <div class="w-8 h-8 rounded-lg bg-amber-500 text-slate-900 flex items-center justify-center font-black text-xs">V</div>
+                <div class="w-8 h-8 rounded-lg bg-amber-500 text-slate-900 flex items-center justify-center font-black text-xs">F</div>
+                <div class="w-8 h-8 rounded-lg bg-slate-700 text-slate-400 flex items-center justify-center font-black text-xs">R</div>
+                <div class="w-8 h-8 rounded-lg bg-slate-700 text-slate-400 flex items-center justify-center font-black text-xs">C</div>
+            </div>
+        </div>
+
+        <button onclick="launchTickTickPomo()" class="mt-4 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black p-4 rounded-xl shadow-[0_5px_15px_rgba(16,185,129,0.3)] hover:-translate-y-1 transition-all uppercase tracking-widest w-full">
+            🚀 Launch Pomo
+        </button>
     </div>
 
-
-    <div id="screen-srs-modal" class="hidden fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
+    <div id="screen-srs-modal" class="hidden absolute inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg flex flex-col">
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
                 <div>
@@ -192,153 +392,7 @@
         </div>
     </div>
 
-    <div id="screen-lobby" class="hidden max-w-3xl mx-auto p-6 pt-10 w-full flex-1">
-        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-indigo-500"></div>
-            <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-8 flex items-center gap-2 transition-colors">← Back to Hub</button>
-            <h2 id="lobby-title" class="text-4xl font-black text-slate-800 dark:text-slate-100 mb-2 tracking-tight">Quiz Title</h2>
-            <p id="lobby-meta" class="text-sm font-bold text-emerald-600 dark:text-emerald-400 mb-8 uppercase tracking-widest">0 Questions</p>
-            
-            <div class="mb-8 p-6 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
-                <div class="flex flex-col md:flex-row gap-6 items-center justify-between">
-                    <div class="w-full md:w-1/2">
-                        <label class="block text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mb-3">Candidate Name</label>
-                        <input type="text" id="candidate-name" class="w-full p-4 rounded-xl border border-indigo-200 dark:border-indigo-700/50 bg-white dark:bg-slate-950 font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm" placeholder="Enter your name...">
-                    </div>
-                    <div class="w-full md:w-1/2 md:text-right">
-                        <div id="attempt-info" class="text-sm font-bold text-slate-600 dark:text-slate-400"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="lobby-mode-selection" class="hidden mb-6 p-6 bg-rose-50 dark:bg-rose-900/10 rounded-2xl border border-rose-100 dark:border-rose-800/30">
-                <label class="block text-[10px] font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-3 flex items-center gap-2">🧠 Smart Revision Mode</label>
-                <div class="flex gap-4 flex-wrap">
-                    <button id="btn-mode-full" onclick="setQuizMode('full')" class="time-btn flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Full Quiz</button>
-                    <button id="btn-mode-wrong" onclick="setQuizMode('wrong')" class="time-btn flex-1 bg-rose-100 text-rose-800 border-rose-500 dark:bg-rose-900/40 dark:text-rose-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Wrong/Skipped Only (<span id="wrong-count-badge">0</span>)</button>
-                </div>
-            </div>
-
-            <div class="space-y-6">
-                <div class="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-700/50">
-                    <label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4">⏱️ Overall Time Limit</label>
-                    <div class="flex gap-3 flex-wrap">
-                        <button onclick="setLobbyTime('default')" id="btn-time-default" class="time-btn-main flex-1 bg-emerald-100 text-emerald-800 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Default</button>
-                        <button onclick="setLobbyTime('15')" id="btn-time-15" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">15 Min</button>
-                        <button onclick="setLobbyTime('30')" id="btn-time-30" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">30 Min</button>
-                        <button onclick="setLobbyTime('custom')" id="btn-time-custom" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">Custom</button>
-                    </div>
-                    <input type="number" id="custom-time-input" class="hidden w-full mt-4 p-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-950 font-bold text-lg shadow-inner" placeholder="Enter minutes...">
-                </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="toggleLobbyMode('shuffle')">
-                        <span class="font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-[10px]">🔀 Shuffle Q's</span>
-                        <div id="toggle-shuffle" class="w-12 h-6 bg-emerald-500 rounded-full relative transition-colors shadow-inner"><div class="absolute right-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div>
-                    </div>
-                    <div class="bg-indigo-50 dark:bg-indigo-900/20 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/30 flex justify-between items-center cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors" onclick="toggleLobbyMode('perQTimer')">
-                        <span class="font-black text-indigo-700 dark:text-indigo-300 uppercase tracking-widest text-[10px]">⏱️ Per-Q Timer</span>
-                        <div id="toggle-perQTimer" class="w-12 h-6 bg-slate-300 dark:bg-slate-700 rounded-full relative transition-colors shadow-inner"><div class="absolute left-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div>
-                    </div>
-                </div>
-                <input type="number" id="per-q-time-input" class="hidden w-full p-4 rounded-xl border border-indigo-300 dark:border-indigo-600 bg-white dark:bg-slate-950 font-bold text-lg shadow-inner text-indigo-800 dark:text-indigo-300 placeholder-indigo-300 dark:placeholder-indigo-700" placeholder="Enter Seconds per Question (e.g., 60)">
-                <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="toggleLobbyMode('blind')">
-                    <span class="font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-[10px]">🙈 Blind Mode (Spacebar Reveal)</span>
-                    <div id="toggle-blind" class="w-12 h-6 bg-slate-300 dark:bg-slate-700 rounded-full relative transition-colors shadow-inner"><div class="absolute left-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div>
-                </div>
-            </div>
-            <button onclick="startQuizFromLobby()" class="w-full mt-10 bg-slate-900 dark:bg-emerald-500 text-white dark:text-slate-900 font-black text-xl py-5 rounded-2xl shadow-[0_10px_20px_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-all tracking-widest uppercase">LAUNCH EXAM</button>
-        </div>
-    </div>
-
-    <div id="screen-quiz" class="hidden max-w-6xl mx-auto p-4 pt-6 relative w-full flex-1">
-        <div id="pause-overlay" class="hidden fixed inset-0 z-[100] bg-slate-100/95 dark:bg-slate-950/95 backdrop-blur-lg flex flex-col justify-center items-center">
-            <h2 class="text-5xl md:text-7xl font-black text-slate-800 dark:text-slate-100 mb-10 uppercase tracking-tighter drop-shadow-sm">Exam Paused</h2>
-            <button onclick="togglePause()" class="bg-emerald-500 text-white font-black text-2xl md:text-3xl px-16 py-6 rounded-3xl shadow-[0_10px_30px_rgba(16,185,129,0.4)] hover:scale-105 hover:bg-emerald-400 transition-all uppercase tracking-widest border border-emerald-400">▶ Resume</button>
-        </div>
-
-        <div class="flex justify-between items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 px-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 mb-6 sticky top-4 z-50">
-            <button onclick="showScreen('dashboard'); clearInterval(quizState.interval);" class="text-slate-400 font-bold hover:text-red-500 uppercase tracking-widest text-[10px] transition-colors">← Abort</button>
-            <div class="flex gap-4 items-center">
-                <button onclick="togglePause()" id="pause-btn" class="bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black px-5 py-2.5 rounded-xl text-xs uppercase tracking-widest transition-colors hover:bg-slate-300 dark:hover:bg-slate-700">⏸ Pause (P)</button>
-                <div id="quiz-timer" class="font-mono font-black text-2xl bg-slate-100 dark:bg-slate-950 px-6 py-2 rounded-xl text-slate-800 dark:text-emerald-400 border border-slate-200 dark:border-slate-800 shadow-inner tracking-widest">00:00</div>
-            </div>
-        </div>
-
-        <div class="bg-indigo-50/80 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-300 text-[10px] uppercase tracking-widest font-black p-3 rounded-xl mb-6 flex justify-center gap-8 hidden md:flex">
-            <span>⌨️ SHORTCUTS:</span>
-            <span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">◀</kbd> <kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">▶</kbd> Prev/Next</span>
-            <span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">M</kbd> Mark</span>
-            <span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-4 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">SPACE</kbd> Reveal</span>
-        </div>
-
-        <div class="flex flex-col lg:flex-row gap-6 items-start">
-            <div id="quiz-container" class="flex-1 w-full space-y-8"></div>
-            
-            <div class="w-full lg:w-80 bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-md border border-slate-200 dark:border-slate-800 lg:sticky lg:top-28">
-                <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
-                    <h3 class="font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight">Question Palette</h3>
-                    <span id="answered-count" class="text-xs font-black bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded text-slate-500 dark:text-slate-400">0 / 0</span>
-                </div>
-                <div id="palette-grid" class="grid grid-cols-5 sm:grid-cols-8 lg:grid-cols-5 gap-2.5 mb-8 max-h-[30vh] lg:max-h-[45vh] overflow-y-auto pr-2"></div>
-                <button onclick="submitQuiz()" class="w-full bg-emerald-500 text-white font-black py-4 rounded-xl shadow-[0_5px_15px_rgba(16,185,129,0.3)] hover:bg-emerald-400 hover:-translate-y-0.5 transition-all uppercase tracking-widest">Submit Test</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="screen-results" class="hidden max-w-5xl mx-auto p-4 sm:p-6 pt-10 w-full flex-1">
-        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-indigo-500"></div>
-            
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
-                <div>
-                    <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
-                    <h2 id="results-title" class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Performance Report</h2>
-                </div>
-            </div>
-            
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-14 text-center">
-                <div class="bg-slate-900 dark:bg-slate-950 text-white p-6 rounded-2xl shadow-lg border border-slate-800 relative overflow-hidden">
-                    <div class="absolute inset-0 bg-emerald-500 opacity-5 blur-xl"></div>
-                    <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 relative z-10">Total Score</div>
-                    <div id="res-score" class="text-5xl font-black text-emerald-400 tracking-tighter relative z-10">0</div>
-                </div>
-                <div class="bg-emerald-50 border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50 p-6 rounded-2xl">
-                    <div class="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-500 mb-2">Correct (+2)</div>
-                    <div id="res-correct" class="text-4xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter">0</div>
-                </div>
-                <div class="bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800/50 p-6 rounded-2xl">
-                    <div class="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-500 mb-2">Wrong (-0.66)</div>
-                    <div id="res-wrong" class="text-4xl font-black text-red-600 dark:text-red-400 tracking-tighter">0</div>
-                </div>
-                <div class="bg-slate-50 border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700/50 p-6 rounded-2xl">
-                    <div class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Skipped (0)</div>
-                    <div id="res-skipped" class="text-4xl font-black text-slate-600 dark:text-slate-300 tracking-tighter">0</div>
-                </div>
-            </div>
-
-            <div class="border-b-2 border-slate-100 dark:border-slate-800 pb-5 mb-8 flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
-                <div>
-                    <h3 class="text-2xl font-black text-slate-800 dark:text-slate-200 tracking-tight">🔍 Deep Review Vault</h3>
-                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Complete Test Analysis</span>
-                </div>
-                <div class="flex gap-2 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-xl shadow-inner w-full md:w-auto overflow-x-auto">
-                    <button onclick="filterReview('all')" id="btn-filt-all" class="filter-btn active-filt flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-white">All</button>
-                    <button onclick="filterReview('correct')" id="btn-filt-correct" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700">Correct</button>
-                    <button onclick="filterReview('wrong')" id="btn-filt-wrong" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700">Wrong</button>
-                    <button onclick="filterReview('skipped')" id="btn-filt-skipped" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700">Skipped</button>
-                </div>
-            </div>
-            
-            <div id="revision-container" class="space-y-6"></div>
-            
-            <div class="mt-12 text-center border-t border-slate-100 dark:border-slate-800 pt-10">
-                <button onclick="showScreen('dashboard')" class="bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 hover:scale-105 transition-transform font-black py-4 px-12 rounded-xl uppercase tracking-widest shadow-xl">Return to Dashboard</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="screen-analytics" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
+    <div id="screen-analytics" class="hidden absolute inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
                 <h2 class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Global Quiz History & Reports</h2>
@@ -348,7 +402,7 @@
         </div>
     </div>
 
-    <div id="screen-quiz-history" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
+    <div id="screen-quiz-history" class="hidden absolute inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl max-h-[80vh] flex flex-col">
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
                 <h2 id="quiz-history-title" class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Quiz History</h2>
@@ -358,7 +412,7 @@
         </div>
     </div>
 
-    <div id="screen-subject-analysis" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
+    <div id="screen-subject-analysis" class="hidden absolute inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
                 <div>
@@ -371,7 +425,7 @@
         </div>
     </div>
 
-    <div id="screen-edit-modal" class="hidden fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
+    <div id="screen-edit-modal" class="hidden absolute inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
                 <div>
@@ -475,6 +529,23 @@
     </div>
 
 <script>
+    // ==========================================
+    // TICKTICK V20 INTEGRATION CONFIG
+    // ==========================================
+    const TICKTICK_CONFIG = {
+        clientId: "jR3BcKGF8po841TqrI", // Your official API Key
+        clientSecret: "PASTE_YOUR_SECRET_HERE",
+        redirectUri: "http://127.0.0.1:8080/"
+    };
+
+    window.launchTickTickPomo = () => {
+        alert("Launching CGL Execution Mode...");
+        window.location.href = "ticktick://v1/show?smartlist=all";
+    };
+
+    // ==========================================
+    // MASTER DB & LOGIC ENGINE (V19.34 PRESERVED)
+    // ==========================================
     const CLOUD_URL = "https://script.google.com/macros/s/AKfycbyuAFvjWZHAlkDx00DsDoHiPgFMq-CmGgHKyQXq_6cfi1QwmnwUVp3ZNLrtpnLPhOXB/exec";
     
     const CORE_SUBJECTS = ["Arithmetic", "Advanced Maths", "Reasoning", "English", "Ancient History", "Medieval History", "Modern History", "Art & Culture", "Geography", "Polity", "Economics", "Physics", "Chemistry", "Biology", "Environment & Ecology", "Science & Technology", "Static GK", "Current Affairs", "Computer Knowledge"];
@@ -501,6 +572,7 @@
 
     window.editRegistry = {};
     window.editCounter = 0;
+    
     window.openGlobalEditModalBySafeId = (id) => {
         if(window.editRegistry[id]) {
             openGlobalEditModal(window.editRegistry[id]);
@@ -514,21 +586,9 @@
         "Advanced Maths": ["Algebra", "Geometry", "Coordinate Geometry", "Mensuration 2D", "Mensuration 3D", "Trigonometry", "Heights & Distances", "Probability & Statistics"],
         "Reasoning": ["Analogy & Classification", "Number & Letter Series", "Coding-Decoding", "Blood Relations", "Direction & Distance", "Syllogism", "Order & Ranking", "Clock & Calendar", "Venn Diagrams", "Missing Number & Matrix", "Non-Verbal Reasoning", "Logical Reasoning"],
         "English": [
-            "Active & Passive Voice",
-            "Cloze Test",
-            "Direct & Indirect Speech",
-            "Figures of Speech",
-            "Grammar & Error Spotting",
-            "HOMONYMS",
-            "Idioms & Phrases",
-            "One Word Substitution",
-            "Para Jumbles",
-            "PREPOSITION",
-            "Phrasal Verbs",
-            "Reading Comprehension",
-            "Sentence Improvement",
-            "Spelling Errors",
-            "Synonyms & Antonyms"
+            "Active & Passive Voice", "Cloze Test", "Direct & Indirect Speech", "Figures of Speech", "Grammar & Error Spotting",
+            "HOMONYMS", "Idioms & Phrases", "One Word Substitution", "Para Jumbles", "PREPOSITION",
+            "Phrasal Verbs", "Reading Comprehension", "Sentence Improvement", "Spelling Errors", "Synonyms & Antonyms"
         ],
         "Ancient History": ["Prehistoric & Indus Valley", "Vedic Age", "Buddhism & Jainism", "Mahajanapadas & Magadha", "Mauryan Empire", "Post-Mauryan Period", "Gupta Empire", "Post-Gupta & Harsha"],
         "Medieval History": ["Early Medieval India", "Delhi Sultanate", "Provincial Kingdoms", "Mughal Empire", "Maratha Empire", "Bhakti & Sufi Movements"],
@@ -907,7 +967,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.34", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v20.0", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -1421,7 +1481,10 @@
         setFocus(0);
         let totalSecs = mins * 60;
         startTimer(totalSecs);
-        showScreen('quiz'); window.scrollTo(0,0);
+        showScreen('quiz'); 
+        
+        // Scroll the strike zone up
+        document.getElementById('main-strike-zone').scrollTo(0,0);
     }
 
     window.speakText = (text) => { window.speechSynthesis.cancel(); window.speechSynthesis.speak(new SpeechSynthesisUtterance(text.replace(/<[^>]*>?/gm, ' '))); };
@@ -1703,11 +1766,11 @@
                 candidateName: candName, attemptNumber: currentAttemptNum, totalCorrect: correct, totalWrong: wrong, totalSkipped: skipped, reviewData: historicalReviewData
             });
 
-            // V19.34: Safety Cap - Prevent infinite localStorage growth to avoid Google Cloud timeouts and browser crashes
             if (historyDb.length > 50) historyDb.length = 50;
         }
         
-        saveData(); showScreen('results'); window.scrollTo(0,0);
+        saveData(); showScreen('results'); 
+        document.getElementById('main-strike-zone').scrollTo(0,0);
         filterReview('all'); 
     }
 
@@ -1782,7 +1845,8 @@
         });
 
         document.getElementById('revision-container').innerHTML = fullReviewHTML;
-        showScreen('results'); window.scrollTo(0,0);
+        showScreen('results'); 
+        document.getElementById('main-strike-zone').scrollTo(0,0);
         filterReview('all'); 
     };
 
@@ -1937,6 +2001,7 @@
             document.getElementById('dashboard-main-content').classList.remove('hidden');
         }
         document.getElementById('screen-subject-analysis').classList.add('hidden');
+        document.getElementById('main-strike-zone').scrollTo(0,0);
     }
     
     function formatTime(s) { return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`; }
