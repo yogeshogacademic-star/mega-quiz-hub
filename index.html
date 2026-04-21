@@ -542,7 +542,7 @@
         redirectUri: window.location.href.split('?')[0] // Automatically grabs your current GitHub URL
     };
 
-    window.startTickTickLogin = () => {
+   window.startTickTickLogin = () => {
         alert("Initiating TickTick Sync Handshake...");
         const scope = "tasks:read tasks:write";
         const authUrl = `https://ticktick.com/oauth/authorize?client_id=${TICKTICK_CONFIG.clientId}&scope=${encodeURIComponent(scope)}&state=mamba_sync&response_type=code&redirect_uri=${encodeURIComponent(TICKTICK_CONFIG.redirectUri)}`;
@@ -552,6 +552,64 @@
     window.launchTickTickPomo = () => {
         alert("Launching CGL Execution Mode...");
         window.location.href = "ticktick://v1/show?smartlist=all";
+    };
+
+    // ==========================================
+    // NEW: CATCH THE REDIRECT AND GET THE TOKEN 
+    // ==========================================
+    window.handleTickTickRedirect = async () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        
+        if (code) {
+            // Clean the URL so the code doesn't sit in your address bar
+            window.history.replaceState({}, document.title, window.location.pathname);
+            
+            try {
+                // Exchange the code for the permanent Access Token
+                const response = await fetch('https://ticktick.com/oauth/token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        client_id: TICKTICK_CONFIG.clientId,
+                        client_secret: TICKTICK_CONFIG.clientSecret,
+                        code: code,
+                        grant_type: 'authorization_code',
+                        scope: 'tasks:read tasks:write',
+                        redirect_uri: TICKTICK_CONFIG.redirectUri
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.access_token) {
+                    localStorage.setItem('ticktick_access_token', data.access_token);
+                    alert("✅ TICKTICK SYNC SUCCESSFUL! 🐍🔥");
+                    updateTickTickUI();
+                } else {
+                    alert("TickTick Token Error: " + JSON.stringify(data));
+                }
+            } catch (error) {
+                alert("Sync blocked by browser security. We will need a CORS proxy.");
+            }
+        }
+    };
+
+    // --- UPDATE THE UI ONCE SYNCED ---
+    window.updateTickTickUI = () => {
+        if (localStorage.getItem('ticktick_access_token')) {
+            // Find the sync button and change it to green "SYNCED"
+            const btn = document.querySelector('button[onclick="startTickTickLogin()"]');
+            if (btn) {
+                btn.className = "w-full bg-emerald-900/40 text-emerald-400 font-black p-3 rounded-xl mb-4 uppercase tracking-widest text-xs shadow-lg border border-emerald-500/30 cursor-default";
+                btn.innerHTML = "✅ TickTick Synced";
+                btn.onclick = null; // Disable clicking again
+            }
+        }
+    };
+
+    // --- RUN THESE WHEN THE PAGE LOADS ---
+    handleTickTickRedirect();
+    updateTickTickUI();
     };
 
     // ==========================================
