@@ -326,6 +326,10 @@
             ⏱️ TickTick Sync
         </div>
 
+        <button onclick="startTickTickLogin()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black p-3 rounded-xl mb-4 uppercase tracking-widest text-xs shadow-lg transition-colors">
+            🔗 Authorize Sync
+        </button>
+
         <div class="tt-widget">
             <div class="text-[10px] uppercase font-black text-emerald-400 tracking-widest mb-2">Today's Focus</div>
             <div class="text-3xl font-black text-white" id="tt-hours-stat">0h 0m</div>
@@ -533,9 +537,16 @@
     // TICKTICK V20 INTEGRATION CONFIG
     // ==========================================
     const TICKTICK_CONFIG = {
-        clientId: "jR3BcKGF8po841TqrI", // Your official API Key
-        clientSecret: "PASTE_YOUR_SECRET_HERE",
-        redirectUri: "http://127.0.0.1:8080/"
+        clientId: "jR3BcKGF8po841TqrI", 
+        clientSecret: "91nyV8w8iDiNN8dVxN5cy5Kima4reW6M", 
+        redirectUri: window.location.href.split('?')[0] // Automatically grabs your current GitHub URL
+    };
+
+    window.startTickTickLogin = () => {
+        alert("Initiating TickTick Sync Handshake...");
+        const scope = "tasks:read tasks:write";
+        const authUrl = `https://ticktick.com/oauth/authorize?client_id=${TICKTICK_CONFIG.clientId}&scope=${encodeURIComponent(scope)}&state=mamba_sync&response_type=code&redirect_uri=${encodeURIComponent(TICKTICK_CONFIG.redirectUri)}`;
+        window.location.href = authUrl;
     };
 
     window.launchTickTickPomo = () => {
