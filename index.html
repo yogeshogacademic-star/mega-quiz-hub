@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.40 (Library Editor Patch)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.45 (Ultimate Engine)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -36,29 +36,54 @@
         mark { background-color: rgba(251, 191, 36, 0.4); color: inherit; padding: 0 2px; border-radius: 4px; font-weight: 900; box-shadow: 0 0 8px rgba(251, 191, 36, 0.3); }
         .dark mark { background-color: rgba(245, 158, 11, 0.5); }
 
-        /* NATIVE CLOZE ACTIVE RECALL CSS */
+        /* THE SCIENCE OF ACTIVE RECALL - PURE BLACKOUT CSS */
         .mamba-cloze { 
-            background-color: #0f172a; 
-            color: transparent; 
+            background-color: #94a3b8; 
+            color: transparent !important; 
             border-radius: 4px; 
             padding: 2px 8px; 
             cursor: pointer; 
             transition: all 0.2s ease; 
             user-select: none; 
-            border: 1px solid #334155; 
+            border: 1px solid #64748b; 
             display: inline-block;
             font-weight: 900;
+            line-height: 1.2;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
         }
-        .light .mamba-cloze { background-color: #94a3b8; border-color: #64748b; }
-        .mamba-cloze:hover { box-shadow: 0 0 8px rgba(59, 130, 246, 0.5); border-color: #3b82f6; }
+        .dark .mamba-cloze { 
+            background-color: #1e293b; /* Dark Slate Blackout */
+            border-color: #0f172a; 
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+        }
+        .mamba-cloze:hover { 
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5); 
+            border-color: #3b82f6; 
+        }
         
         .mamba-cloze.revealed { 
-            background-color: rgba(16, 185, 129, 0.1); 
-            color: #10b981; 
-            border-color: #10b981; 
-            text-shadow: 0 0 1px rgba(16, 185, 129, 0.3);
+            background-color: rgba(16, 185, 129, 0.1) !important; 
+            color: #059669 !important; 
+            border-color: #10b981 !important; 
+            text-shadow: 0 0 1px rgba(16, 185, 129, 0.2);
+            box-shadow: none;
         }
-        .light .mamba-cloze.revealed { color: #059669; border-color: #059669; background-color: rgba(5, 150, 105, 0.1); }
+        .dark .mamba-cloze.revealed { 
+            color: #10b981 !important; 
+            background-color: rgba(16, 185, 129, 0.15) !important;
+        }
+        
+        /* GLASSMORPHISM UI FOR NOTES */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        .dark .glass-panel {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(51, 65, 85, 0.5);
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-[#0a0f1c] dark:text-slate-200 min-h-screen flex flex-col pb-20">
@@ -82,9 +107,9 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.40</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.45</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Note Editor Patch Active</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Ultimate Note Engine Deployed</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
@@ -120,322 +145,65 @@
                 </div>
                 <div class="text-white font-black text-3xl group-hover:translate-x-3 transition-transform drop-shadow-lg relative z-10">→</div>
             </div>
-
             <div id="dashboard-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-16"></div>
-            
-            <div class="mt-auto text-center pb-10 border-t border-slate-200 dark:border-slate-800/50 pt-10">
-                <div class="text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em] text-[10px] mb-8 flex items-center justify-center gap-4">
-                    <span class="w-10 h-px bg-slate-200 dark:bg-slate-700"></span> System Administration (Secured) <span class="w-10 h-px bg-slate-200 dark:bg-slate-700"></span>
-                </div>
-                <div class="flex justify-center gap-4 flex-wrap">
-                    <button onclick="exportBackup()" class="bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-blue-100 dark:border-blue-900/30">💾 Backup Database</button>
-                    <button onclick="triggerRestore()" class="bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-amber-100 dark:border-amber-900/30">📂 Restore Backup 🔒</button>
-                    <button onclick="factoryReset()" class="bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-red-100 dark:border-red-900/30">⚠️ Reset System 🔒</button>
-                </div>
-            </div>
         </div>
     </div>
 
     <div id="screen-library" class="hidden max-w-[1500px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
-        <div class="bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden flex flex-col md:flex-row min-h-[85vh]">
-            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-500 to-fuchsia-600 z-20"></div>
-            
-            <div class="w-full md:w-1/3 lg:w-1/4 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 p-6 flex flex-col z-10" data-html2canvas-ignore="true">
+        <div class="bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden flex flex-col md:flex-row h-[85vh]">
+            <div class="w-full md:w-1/4 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 p-6 flex flex-col z-10">
                 <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-6 flex items-center gap-2 transition-colors w-fit">← Back to Hub</button>
                 <h2 class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight mb-2">Library Index</h2>
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">Auto-Mapped Folders</p>
-                
-                <div id="library-index" class="space-y-4 flex-1 overflow-y-auto pr-2 pb-10">
-                    </div>
+                <div id="library-index" class="space-y-4 flex-1 overflow-y-auto pr-2 pb-10"></div>
             </div>
-
-            <div class="w-full md:w-2/3 lg:w-3/4 bg-white dark:bg-slate-900 flex-1 overflow-y-auto relative" id="library-content-viewer">
-                <div class="h-full flex flex-col items-center justify-center text-slate-400 opacity-50">
-                    <div class="text-6xl mb-4">📚</div>
-                    <div class="font-black uppercase tracking-widest text-sm">Select a topic from the Ghost Index</div>
+            <div class="w-full md:w-3/4 flex flex-col relative bg-white dark:bg-slate-900" id="library-right-panel">
+                <div id="library-content-viewer" class="flex-1 overflow-y-auto p-6 md:p-10 relative">
+                    <div class="h-full flex flex-col items-center justify-center text-slate-400 opacity-50">
+                        <div class="text-6xl mb-4">📚</div>
+                        <div class="font-black uppercase tracking-widest text-sm">Select a topic from the Ghost Index</div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <div id="screen-add-note-modal" class="hidden fixed inset-0 z-[300] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl flex flex-col max-h-[90vh]">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-4xl flex flex-col max-h-[95vh]">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4 shrink-0">
                 <div>
                     <h2 class="text-2xl font-black uppercase text-emerald-600 dark:text-emerald-400 tracking-tight">✏️ Note Injector</h2>
                     <p id="add-note-target-label" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Targeting: Subject > Topic</p>
                 </div>
                 <button onclick="closeAddNoteModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
             </div>
-            
             <div class="space-y-4 overflow-y-auto pr-2 flex-1">
                 <div>
                     <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Note Title</label>
-                    <input type="text" id="add-note-title-input" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800 dark:text-slate-200 shadow-inner" placeholder="Enter title for this note...">
+                    <input type="text" id="add-note-title-input" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800 dark:text-slate-200 shadow-inner">
                 </div>
-
                 <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <p class="text-xs font-bold text-slate-500 mb-2">Paste your Mamba HTML code below. You can update existing code here.</p>
-                    <textarea id="add-note-html-input" rows="12" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 font-mono text-xs focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800 dark:text-slate-200 shadow-inner" placeholder="<div><h1>My Notes...</h1>..."></textarea>
+                    <p class="text-xs font-bold text-slate-500 mb-2">Paste your HTML code below.</p>
+                    <textarea id="add-note-html-input" rows="18" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 font-mono text-[10px] sm:text-xs focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800 dark:text-slate-200 shadow-inner"></textarea>
                 </div>
                 <input type="hidden" id="add-note-hidden-subject">
                 <input type="hidden" id="add-note-hidden-topic">
                 <input type="hidden" id="add-note-hidden-id">
             </div>
-            <div class="pt-4 mt-2 border-t border-slate-100 dark:border-slate-800">
+            <div class="pt-4 mt-2 border-t border-slate-100 dark:border-slate-800 shrink-0">
                 <button onclick="saveNewNote()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-black uppercase tracking-widest py-4 rounded-xl shadow-lg transition-all shadow-[0_5px_15px_rgba(16,185,129,0.3)] hover:-translate-y-1 text-sm">💾 Save & Inject Code</button>
             </div>
         </div>
     </div>
 
-
-    <div id="screen-target-radar" class="hidden max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
-        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-rose-400 to-orange-500"></div>
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 border-b border-slate-100 dark:border-slate-800 pb-6">
-                <div>
-                    <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
-                    <h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Global Target Radar</h2>
-                    <p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Powered directly by Master DB Tags</p>
-                </div>
-            </div>
-            <div id="critical-bleed-container" class="mb-10 hidden">
-                <h3 class="text-lg md:text-xl font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-rose-100 dark:border-rose-900/30 pb-2">⚠️ Critical Weaknesses (Triage Zone)</h3>
-                <div id="critical-bleed-grid" class="grid grid-cols-2 md:grid-cols-5 gap-4"></div>
-            </div>
-            <div id="target-radar-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
-        </div>
-    </div>
-
-    <div id="screen-db-manager" class="hidden max-w-6xl mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
-        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 to-cyan-500"></div>
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
-                <div>
-                    <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
-                    <h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Master DB Ledger</h2>
-                    <p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Global Vault Editor</p>
-                </div>
-                <div class="w-full md:w-auto flex flex-col sm:flex-row gap-3">
-                    <input type="text" id="db-manager-search" oninput="renderDBList(this.value)" placeholder="Search questions or tags..." class="w-full md:w-80 px-5 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-200">
-                    <button id="dirty-filter-btn" onclick="toggleDirtyFilter()" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50 font-black px-4 py-3 rounded-xl border border-amber-200 dark:border-amber-800/50 transition-colors uppercase tracking-widest text-[10px] shadow-sm flex-shrink-0">⚠️ Find Dirty Tags</button>
-                </div>
-            </div>
-            <div class="bg-slate-100 dark:bg-slate-800 rounded-t-xl p-4 grid grid-cols-12 gap-4 border-b border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                <div class="col-span-2">Source / Subject</div>
-                <div class="col-span-2">Tags</div>
-                <div class="col-span-7">Question Preview</div>
-                <div class="col-span-1 text-center">Action</div>
-            </div>
-            <div id="db-manager-list" class="flex-1 overflow-y-auto max-h-[60vh] space-y-2 py-2"></div>
-        </div>
-    </div>
-
-
-    <div id="screen-srs-modal" class="hidden fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg flex flex-col">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
-                <div>
-                    <h2 class="text-2xl font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-tight">🔥 SRS Engine</h2>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Tag 1 Driven 10-Q Sprints</p>
-                </div>
-                <button onclick="closeSRSModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
-            </div>
-            <div class="space-y-6">
-                <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 text-center shadow-inner">
-                    <div class="text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2">Master Global Quiz</div>
-                    <div class="text-xs text-slate-500 dark:text-slate-400 mb-4 font-bold">10 Random Questions from ALL due subjects.</div>
-                    <button onclick="launchSRSSprint('global')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all">Launch Master 10-Q (<span id="srs-global-count-modal">0</span> Due)</button>
-                </div>
-                <div class="flex items-center justify-center gap-4">
-                    <span class="h-px w-full bg-slate-200 dark:bg-slate-700"></span>
-                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">OR</span>
-                    <span class="h-px w-full bg-slate-200 dark:bg-slate-700"></span>
-                </div>
-                <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 text-center shadow-inner">
-                    <div class="text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2">Subject Mode</div>
-                    <div class="text-xs text-slate-500 dark:text-slate-400 mb-4 font-bold">Targeted firepower. Select a Tag 1 Subject.</div>
-                    <select id="srs-subject-select" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300 mb-4 outline-none focus:ring-2 focus:ring-indigo-500"></select>
-                    <button id="srs-subject-launch-btn" onclick="launchSRSSprint('subject')" class="w-full bg-emerald-50 hover:bg-emerald-400 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all">Launch Subject 10-Q</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="screen-lobby" class="hidden max-w-3xl mx-auto p-6 pt-10 w-full flex-1">
-        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-indigo-500"></div>
-            <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-8 flex items-center gap-2 transition-colors">← Back to Hub</button>
-            <h2 id="lobby-title" class="text-4xl font-black text-slate-800 dark:text-slate-100 mb-2 tracking-tight">Quiz Title</h2>
-            <p id="lobby-meta" class="text-sm font-bold text-emerald-600 dark:text-emerald-400 mb-8 uppercase tracking-widest">0 Questions</p>
-            <div class="mb-8 p-6 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
-                <div class="flex flex-col md:flex-row gap-6 items-center justify-between">
-                    <div class="w-full md:w-1/2">
-                        <label class="block text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mb-3">Candidate Name</label>
-                        <input type="text" id="candidate-name" class="w-full p-4 rounded-xl border border-indigo-200 dark:border-indigo-700/50 bg-white dark:bg-slate-950 font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm" placeholder="Enter your name...">
-                    </div>
-                    <div class="w-full md:w-1/2 md:text-right">
-                        <div id="attempt-info" class="text-sm font-bold text-slate-600 dark:text-slate-400"></div>
-                    </div>
-                </div>
-            </div>
-            <div id="lobby-mode-selection" class="hidden mb-6 p-6 bg-rose-50 dark:bg-slate-900/10 rounded-2xl border border-rose-100 dark:border-rose-800/30">
-                <label class="block text-[10px] font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-3 flex items-center gap-2">🧠 Smart Revision Mode</label>
-                <div class="flex gap-4 flex-wrap">
-                    <button id="btn-mode-full" onclick="setQuizMode('full')" class="time-btn flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Full Quiz</button>
-                    <button id="btn-mode-wrong" onclick="setQuizMode('wrong')" class="time-btn flex-1 bg-rose-100 text-rose-800 border-rose-500 dark:bg-rose-900/40 dark:text-rose-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Wrong/Skipped Only (<span id="wrong-count-badge">0</span>)</button>
-                </div>
-            </div>
-            <div class="space-y-6">
-                <div class="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-700/50">
-                    <label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4">⏱️ Overall Time Limit</label>
-                    <div class="flex gap-3 flex-wrap">
-                        <button onclick="setLobbyTime('default')" id="btn-time-default" class="time-btn-main flex-1 bg-emerald-100 text-emerald-800 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Default</button>
-                        <button onclick="setLobbyTime('15')" id="btn-time-15" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">15 Min</button>
-                        <button onclick="setLobbyTime('30')" id="btn-time-30" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">30 Min</button>
-                        <button onclick="setLobbyTime('custom')" id="btn-time-custom" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">Custom</button>
-                    </div>
-                    <input type="number" id="custom-time-input" class="hidden w-full mt-4 p-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-950 font-bold text-lg shadow-inner" placeholder="Enter minutes...">
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="toggleLobbyMode('shuffle')">
-                        <span class="font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-[10px]">🔀 Shuffle Q's</span>
-                        <div id="toggle-shuffle" class="w-12 h-6 bg-emerald-500 rounded-full relative transition-colors shadow-inner"><div class="absolute right-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div>
-                    </div>
-                    <div class="bg-indigo-50 dark:bg-indigo-900/20 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/30 flex justify-between items-center cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors" onclick="toggleLobbyMode('perQTimer')">
-                        <span class="font-black text-indigo-700 dark:text-indigo-300 uppercase tracking-widest text-[10px]">⏱️ Per-Q Timer</span>
-                        <div id="toggle-perQTimer" class="w-12 h-6 bg-slate-300 dark:bg-slate-700 rounded-full relative transition-colors shadow-inner"><div class="absolute left-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div>
-                    </div>
-                </div>
-                <input type="number" id="per-q-time-input" class="hidden w-full p-4 rounded-xl border border-indigo-300 dark:border-indigo-600 bg-white dark:bg-slate-950 font-bold text-lg shadow-inner text-indigo-800 dark:text-indigo-300 placeholder-indigo-300 dark:placeholder-indigo-700" placeholder="Enter Seconds per Question (e.g., 60)">
-                <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="toggleLobbyMode('blind')">
-                    <span class="font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-[10px]">🙈 Blind Mode (Spacebar Reveal)</span>
-                    <div id="toggle-blind" class="w-12 h-6 bg-slate-300 dark:bg-slate-700 rounded-full relative transition-colors shadow-inner"><div class="absolute left-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div>
-                </div>
-            </div>
-            <button onclick="startQuizFromLobby()" class="w-full mt-10 bg-slate-900 dark:bg-emerald-500 text-white dark:text-slate-900 font-black text-xl py-5 rounded-2xl shadow-[0_10px_20px_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-all tracking-widest uppercase">LAUNCH EXAM</button>
-        </div>
-    </div>
-
-    <div id="screen-quiz" class="hidden max-w-6xl mx-auto p-4 pt-6 relative w-full flex-1">
-        <div id="pause-overlay" class="hidden fixed inset-0 z-[100] bg-slate-100/95 dark:bg-slate-950/95 backdrop-blur-lg flex flex-col justify-center items-center">
-            <h2 class="text-5xl md:text-7xl font-black text-slate-800 dark:text-slate-100 mb-10 uppercase tracking-tighter drop-shadow-sm">Exam Paused</h2>
-            <button onclick="togglePause()" class="bg-emerald-500 text-white font-black text-2xl md:text-3xl px-16 py-6 rounded-3xl shadow-[0_10px_30px_rgba(16,185,129,0.4)] hover:scale-105 hover:bg-emerald-400 transition-all uppercase tracking-widest border border-emerald-400">▶ Resume</button>
-        </div>
-
-        <div class="flex justify-between items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 px-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 mb-6 sticky top-4 z-50">
-            <button onclick="showScreen('dashboard'); clearInterval(quizState.interval);" class="text-slate-400 font-bold hover:text-red-500 uppercase tracking-widest text-[10px] transition-colors">← Abort</button>
-            <div class="flex gap-4 items-center">
-                <button onclick="togglePause()" id="pause-btn" class="bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black px-5 py-2.5 rounded-xl text-xs uppercase tracking-widest transition-colors hover:bg-slate-300 dark:hover:bg-slate-700">⏸ Pause (P)</button>
-                <div id="quiz-timer" class="font-mono font-black text-2xl bg-slate-100 dark:bg-slate-950 px-6 py-2 rounded-xl text-slate-800 dark:text-emerald-400 border border-slate-200 dark:border-slate-800 shadow-inner tracking-widest">00:00</div>
-            </div>
-        </div>
-
-        <div class="bg-indigo-50/80 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-300 text-[10px] uppercase tracking-widest font-black p-3 rounded-xl mb-6 flex justify-center gap-8 hidden md:flex">
-            <span>⌨️ SHORTCUTS:</span>
-            <span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">◀</kbd> <kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">▶</kbd> Prev/Next</span>
-            <span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">M</kbd> Mark</span>
-            <span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-4 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">SPACE</kbd> Reveal</span>
-        </div>
-
-        <div class="flex flex-col lg:flex-row gap-6 items-start">
-            <div id="quiz-container" class="flex-1 w-full space-y-8"></div>
-            
-            <div class="w-full lg:w-80 bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-md border border-slate-200 dark:border-slate-800 lg:sticky lg:top-28">
-                <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
-                    <h3 class="font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight">Question Palette</h3>
-                    <span id="answered-count" class="text-xs font-black bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded text-slate-500 dark:text-slate-400">0 / 0</span>
-                </div>
-                <div id="palette-grid" class="grid grid-cols-5 sm:grid-cols-8 lg:grid-cols-5 gap-2.5 mb-8 max-h-[30vh] lg:max-h-[45vh] overflow-y-auto pr-2"></div>
-                <button onclick="submitQuiz()" class="w-full bg-emerald-500 text-white font-black py-4 rounded-xl shadow-[0_5px_15px_rgba(16,185,129,0.3)] hover:bg-emerald-400 hover:-translate-y-0.5 transition-all uppercase tracking-widest">Submit Test</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="screen-results" class="hidden max-w-5xl mx-auto p-4 sm:p-6 pt-10 w-full flex-1">
-        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-indigo-500"></div>
-            
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
-                <div>
-                    <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
-                    <h2 id="results-title" class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Performance Report</h2>
-                </div>
-            </div>
-            
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-14 text-center">
-                <div class="bg-slate-900 dark:bg-slate-950 text-white p-6 rounded-2xl shadow-lg border border-slate-800 relative overflow-hidden">
-                    <div class="absolute inset-0 bg-emerald-500 opacity-5 blur-xl"></div>
-                    <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 relative z-10">Total Score</div>
-                    <div id="res-score" class="text-5xl font-black text-emerald-400 tracking-tighter relative z-10">0</div>
-                </div>
-                <div class="bg-emerald-50 border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50 p-6 rounded-2xl">
-                    <div class="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-500 mb-2">Correct (+2)</div>
-                    <div id="res-correct" class="text-4xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter">0</div>
-                </div>
-                <div class="bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800/50 p-6 rounded-2xl">
-                    <div class="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-500 mb-2">Wrong (-0.66)</div>
-                    <div id="res-wrong" class="text-4xl font-black text-red-600 dark:text-red-400 tracking-tighter">0</div>
-                </div>
-                <div class="bg-slate-50 border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700/50 p-6 rounded-2xl">
-                    <div class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Skipped (0)</div>
-                    <div id="res-skipped" class="text-4xl font-black text-slate-600 dark:text-slate-300 tracking-tighter">0</div>
-                </div>
-            </div>
-
-            <div class="border-b-2 border-slate-100 dark:border-slate-800 pb-5 mb-8 flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
-                <div>
-                    <h3 class="text-2xl font-black text-slate-800 dark:text-slate-200 tracking-tight">🔍 Deep Review Vault</h3>
-                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Complete Test Analysis</span>
-                </div>
-                <div class="flex gap-2 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-xl shadow-inner w-full md:w-auto overflow-x-auto">
-                    <button onclick="filterReview('all')" id="btn-filt-all" class="filter-btn active-filt flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-white">All</button>
-                    <button onclick="filterReview('correct')" id="btn-filt-correct" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700">Correct</button>
-                    <button onclick="filterReview('wrong')" id="btn-filt-wrong" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700">Wrong</button>
-                    <button onclick="filterReview('skipped')" id="btn-filt-skipped" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700">Skipped</button>
-                </div>
-            </div>
-            
-            <div id="revision-container" class="space-y-6"></div>
-            
-            <div class="mt-12 text-center border-t border-slate-100 dark:border-slate-800 pt-10">
-                <button onclick="showScreen('dashboard')" class="bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 hover:scale-105 transition-transform font-black py-4 px-12 rounded-xl uppercase tracking-widest shadow-xl">Return to Dashboard</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="screen-analytics" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl max-h-[90vh] flex flex-col">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
-                <h2 class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Global Quiz History & Reports</h2>
-                <button onclick="closeAnalytics()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
-            </div>
-            <div class="flex-1 overflow-y-auto pr-2" id="mastery-grid"></div>
-        </div>
-    </div>
-
-    <div id="screen-quiz-history" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl max-h-[80vh] flex flex-col">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
-                <h2 id="quiz-history-title" class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Quiz History</h2>
-                <button onclick="closeQuizHistory()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
-            </div>
-            <div class="flex-1 overflow-y-auto pr-2 space-y-3" id="quiz-history-list"></div>
-        </div>
-    </div>
-
-    <div id="screen-subject-analysis" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl max-h-[90vh] flex flex-col">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
-                <div>
-                    <h2 id="subject-analysis-title" class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Subject - Topic Analysis</h2>
-                    <p class="text-xs font-bold text-blue-500 uppercase tracking-widest mt-1">Global Performance Breakdown by Sub-Topics</p>
-                </div>
-                <button onclick="closeSubjectAnalysis()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
-            </div>
-            <div class="flex-1 overflow-y-auto pr-2 space-y-4" id="subject-analysis-grid"></div>
-        </div>
-    </div>
+    <div id="screen-target-radar" class="hidden max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1"><div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden"><div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-rose-400 to-orange-500"></div><div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 border-b border-slate-100 dark:border-slate-800 pb-6"><div><button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button><h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Global Target Radar</h2><p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Powered directly by Master DB Tags</p></div></div><div id="critical-bleed-container" class="mb-10 hidden"><h3 class="text-lg md:text-xl font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-rose-100 dark:border-rose-900/30 pb-2">⚠️ Critical Weaknesses (Triage Zone)</h3><div id="critical-bleed-grid" class="grid grid-cols-2 md:grid-cols-5 gap-4"></div></div><div id="target-radar-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div></div></div>
+    <div id="screen-db-manager" class="hidden max-w-6xl mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1"><div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden"><div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 to-cyan-500"></div><div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6"><div><button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button><h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Master DB Ledger</h2><p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Global Vault Editor</p></div><div class="w-full md:w-auto flex flex-col sm:flex-row gap-3"><input type="text" id="db-manager-search" oninput="renderDBList(this.value)" placeholder="Search questions or tags..." class="w-full md:w-80 px-5 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-200"><button id="dirty-filter-btn" onclick="toggleDirtyFilter()" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50 font-black px-4 py-3 rounded-xl border border-amber-200 dark:border-amber-800/50 transition-colors uppercase tracking-widest text-[10px] shadow-sm flex-shrink-0">⚠️ Find Dirty Tags</button></div></div><div class="bg-slate-100 dark:bg-slate-800 rounded-t-xl p-4 grid grid-cols-12 gap-4 border-b border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400"><div class="col-span-2">Source / Subject</div><div class="col-span-2">Tags</div><div class="col-span-7">Question Preview</div><div class="col-span-1 text-center">Action</div></div><div id="db-manager-list" class="flex-1 overflow-y-auto max-h-[60vh] space-y-2 py-2"></div></div></div>
+    <div id="screen-srs-modal" class="hidden fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4"><div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg flex flex-col"><div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4"><div><h2 class="text-2xl font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-tight">🔥 SRS Engine</h2><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Tag 1 Driven 10-Q Sprints</p></div><button onclick="closeSRSModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button></div><div class="space-y-6"><div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 text-center shadow-inner"><div class="text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2">Master Global Quiz</div><div class="text-xs text-slate-500 dark:text-slate-400 mb-4 font-bold">10 Random Questions from ALL due subjects.</div><button onclick="launchSRSSprint('global')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all">Launch Master 10-Q (<span id="srs-global-count-modal">0</span> Due)</button></div><div class="flex items-center justify-center gap-4"><span class="h-px w-full bg-slate-200 dark:bg-slate-700"></span><span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">OR</span><span class="h-px w-full bg-slate-200 dark:bg-slate-700"></span></div><div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 text-center shadow-inner"><div class="text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2">Subject Mode</div><div class="text-xs text-slate-500 dark:text-slate-400 mb-4 font-bold">Targeted firepower. Select a Tag 1 Subject.</div><select id="srs-subject-select" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300 mb-4 outline-none focus:ring-2 focus:ring-indigo-50"></select><button id="srs-subject-launch-btn" onclick="launchSRSSprint('subject')" class="w-full bg-emerald-50 hover:bg-emerald-400 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all">Launch Subject 10-Q</button></div></div></div></div>
+    <div id="screen-lobby" class="hidden max-w-3xl mx-auto p-6 pt-10 w-full flex-1"><div class="bg-white dark:bg-slate-900 rounded-[2rem] p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden"><div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-indigo-500"></div><button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-8 flex items-center gap-2 transition-colors">← Back to Hub</button><h2 id="lobby-title" class="text-4xl font-black text-slate-800 dark:text-slate-100 mb-2 tracking-tight">Quiz Title</h2><p id="lobby-meta" class="text-sm font-bold text-emerald-600 dark:text-emerald-400 mb-8 uppercase tracking-widest">0 Questions</p><div class="mb-8 p-6 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-800/30"><div class="flex flex-col md:flex-row gap-6 items-center justify-between"><div class="w-full md:w-1/2"><label class="block text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mb-3">Candidate Name</label><input type="text" id="candidate-name" class="w-full p-4 rounded-xl border border-indigo-200 dark:border-indigo-700/50 bg-white dark:bg-slate-950 font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm" placeholder="Enter your name..."></div><div class="w-full md:w-1/2 md:text-right"><div id="attempt-info" class="text-sm font-bold text-slate-600 dark:text-slate-400"></div></div></div></div><div id="lobby-mode-selection" class="hidden mb-6 p-6 bg-rose-50 dark:bg-slate-900/10 rounded-2xl border border-rose-100 dark:border-rose-800/30"><label class="block text-[10px] font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-3 flex items-center gap-2">🧠 Smart Revision Mode</label><div class="flex gap-4 flex-wrap"><button id="btn-mode-full" onclick="setQuizMode('full')" class="time-btn flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Full Quiz</button><button id="btn-mode-wrong" onclick="setQuizMode('wrong')" class="time-btn flex-1 bg-rose-100 text-rose-800 border-rose-500 dark:bg-rose-900/40 dark:text-rose-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Wrong/Skipped Only (<span id="wrong-count-badge">0</span>)</button></div></div><div class="space-y-6"><div class="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-700/50"><label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4">⏱️ Overall Time Limit</label><div class="flex gap-3 flex-wrap"><button onclick="setLobbyTime('default')" id="btn-time-default" class="time-btn-main flex-1 bg-emerald-100 text-emerald-800 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Default</button><button onclick="setLobbyTime('15')" id="btn-time-15" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">15 Min</button><button onclick="setLobbyTime('30')" id="btn-time-30" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">30 Min</button><button onclick="setLobbyTime('custom')" id="btn-time-custom" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">Custom</button></div><input type="number" id="custom-time-input" class="hidden w-full mt-4 p-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-950 font-bold text-lg shadow-inner" placeholder="Enter minutes..."></div><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="toggleLobbyMode('shuffle')"><span class="font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-[10px]">🔀 Shuffle Q's</span><div id="toggle-shuffle" class="w-12 h-6 bg-emerald-500 rounded-full relative transition-colors shadow-inner"><div class="absolute right-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div></div><div class="bg-indigo-50 dark:bg-indigo-900/20 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/30 flex justify-between items-center cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors" onclick="toggleLobbyMode('perQTimer')"><span class="font-black text-indigo-700 dark:text-indigo-300 uppercase tracking-widest text-[10px]">⏱️ Per-Q Timer</span><div id="toggle-perQTimer" class="w-12 h-6 bg-slate-300 dark:bg-slate-700 rounded-full relative transition-colors shadow-inner"><div class="absolute left-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div></div></div><input type="number" id="per-q-time-input" class="hidden w-full p-4 rounded-xl border border-indigo-300 dark:border-indigo-600 bg-white dark:bg-slate-950 font-bold text-lg shadow-inner text-indigo-800 dark:text-indigo-300 placeholder-indigo-300 dark:placeholder-indigo-700" placeholder="Enter Seconds per Question (e.g., 60)"><div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="toggleLobbyMode('blind')"><span class="font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-[10px]">🙈 Blind Mode (Spacebar Reveal)</span><div id="toggle-blind" class="w-12 h-6 bg-slate-300 dark:bg-slate-700 rounded-full relative transition-colors shadow-inner"><div class="absolute left-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div></div></div><button onclick="startQuizFromLobby()" class="w-full mt-10 bg-slate-900 dark:bg-emerald-500 text-white dark:text-slate-900 font-black text-xl py-5 rounded-2xl shadow-[0_10px_20px_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-all tracking-widest uppercase">LAUNCH EXAM</button></div></div>
+    <div id="screen-quiz" class="hidden max-w-6xl mx-auto p-4 pt-6 relative w-full flex-1"><div id="pause-overlay" class="hidden fixed inset-0 z-[100] bg-slate-100/95 dark:bg-slate-950/95 backdrop-blur-lg flex flex-col justify-center items-center"><h2 class="text-5xl md:text-7xl font-black text-slate-800 dark:text-slate-100 mb-10 uppercase tracking-tighter drop-shadow-sm">Exam Paused</h2><button onclick="togglePause()" class="bg-emerald-500 text-white font-black text-2xl md:text-3xl px-16 py-6 rounded-3xl shadow-[0_10px_30px_rgba(16,185,129,0.4)] hover:scale-105 hover:bg-emerald-400 transition-all uppercase tracking-widest border border-emerald-400">▶ Resume</button></div><div class="flex justify-between items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 px-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 mb-6 sticky top-4 z-50"><button onclick="showScreen('dashboard'); clearInterval(quizState.interval);" class="text-slate-400 font-bold hover:text-red-500 uppercase tracking-widest text-[10px] transition-colors">← Abort</button><div class="flex gap-4 items-center"><button onclick="togglePause()" id="pause-btn" class="bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black px-5 py-2.5 rounded-xl text-xs uppercase tracking-widest transition-colors hover:bg-slate-300 dark:hover:bg-slate-700">⏸ Pause (P)</button><div id="quiz-timer" class="font-mono font-black text-2xl bg-slate-100 dark:bg-slate-950 px-6 py-2 rounded-xl text-slate-800 dark:text-emerald-400 border border-slate-200 dark:border-slate-800 shadow-inner tracking-widest">00:00</div></div></div><div class="bg-indigo-50/80 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-300 text-[10px] uppercase tracking-widest font-black p-3 rounded-xl mb-6 flex justify-center gap-8 hidden md:flex"><span>⌨️ SHORTCUTS:</span><span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">◀</kbd> <kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">▶</kbd> Prev/Next</span><span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">M</kbd> Mark</span><span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-4 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">SPACE</kbd> Reveal</span></div><div class="flex flex-col lg:flex-row gap-6 items-start"><div id="quiz-container" class="flex-1 w-full space-y-8"></div><div class="w-full lg:w-80 bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-md border border-slate-200 dark:border-slate-800 lg:sticky lg:top-28"><div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4"><h3 class="font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight">Question Palette</h3><span id="answered-count" class="text-xs font-black bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded text-slate-500 dark:text-slate-400">0 / 0</span></div><div id="palette-grid" class="grid grid-cols-5 sm:grid-cols-8 lg:grid-cols-5 gap-2.5 mb-8 max-h-[30vh] lg:max-h-[45vh] overflow-y-auto pr-2"></div><button onclick="submitQuiz()" class="w-full bg-emerald-500 text-white font-black py-4 rounded-xl shadow-[0_5px_15px_rgba(16,185,129,0.3)] hover:bg-emerald-400 hover:-translate-y-0.5 transition-all uppercase tracking-widest">Submit Test</button></div></div></div>
+    <div id="screen-results" class="hidden max-w-5xl mx-auto p-4 sm:p-6 pt-10 w-full flex-1"><div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden"><div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-indigo-500"></div><div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6"><div><button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button><h2 id="results-title" class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Performance Report</h2></div></div><div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-14 text-center"><div class="bg-slate-900 dark:bg-slate-950 text-white p-6 rounded-2xl shadow-lg border border-slate-800 relative overflow-hidden"><div class="absolute inset-0 bg-emerald-500 opacity-5 blur-xl"></div><div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 relative z-10">Total Score</div><div id="res-score" class="text-5xl font-black text-emerald-400 tracking-tighter relative z-10">0</div></div><div class="bg-emerald-50 border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50 p-6 rounded-2xl"><div class="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-500 mb-2">Correct (+2)</div><div id="res-correct" class="text-4xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter">0</div></div><div class="bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800/50 p-6 rounded-2xl"><div class="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-500 mb-2">Wrong (-0.66)</div><div id="res-wrong" class="text-4xl font-black text-red-600 dark:text-red-400 tracking-tighter">0</div></div><div class="bg-slate-50 border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700/50 p-6 rounded-2xl"><div class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Skipped (0)</div><div id="res-skipped" class="text-4xl font-black text-slate-600 dark:text-slate-300 tracking-tighter">0</div></div></div><div class="border-b-2 border-slate-100 dark:border-slate-800 pb-5 mb-8 flex flex-col md:flex-row items-start md:items-end justify-between gap-6"><div><h3 class="text-2xl font-black text-slate-800 dark:text-slate-200 tracking-tight">🔍 Deep Review Vault</h3><span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Complete Test Analysis</span></div><div class="flex gap-2 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-xl shadow-inner w-full md:w-auto overflow-x-auto"><button onclick="filterReview('all')" id="btn-filt-all" class="filter-btn active-filt flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-white">All</button><button onclick="filterReview('correct')" id="btn-filt-correct" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700">Correct</button><button onclick="filterReview('wrong')" id="btn-filt-wrong" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700">Wrong</button><button onclick="filterReview('skipped')" id="btn-filt-skipped" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700">Skipped</button></div></div><div id="revision-container" class="space-y-6"></div><div class="mt-12 text-center border-t border-slate-100 dark:border-slate-800 pt-10"><button onclick="showScreen('dashboard')" class="bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 hover:scale-105 transition-transform font-black py-4 px-12 rounded-xl uppercase tracking-widest shadow-xl">Return to Dashboard</button></div></div></div>
+    <div id="screen-analytics" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4"><div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl max-h-[90vh] flex flex-col"><div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4"><h2 class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Global Quiz History & Reports</h2><button onclick="closeAnalytics()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button></div><div class="flex-1 overflow-y-auto pr-2" id="mastery-grid"></div></div></div>
+    <div id="screen-quiz-history" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4"><div class="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl max-h-[80vh] flex flex-col"><div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4"><h2 id="quiz-history-title" class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Quiz History</h2><button onclick="closeQuizHistory()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button></div><div class="flex-1 overflow-y-auto pr-2 space-y-3" id="quiz-history-list"></div></div></div>
+    <div id="screen-subject-analysis" class="hidden fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4"><div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl max-h-[90vh] flex flex-col"><div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4"><div><h2 id="subject-analysis-title" class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Subject - Topic Analysis</h2><p class="text-xs font-bold text-blue-500 uppercase tracking-widest mt-1">Global Performance Breakdown by Sub-Topics</p></div><button onclick="closeSubjectAnalysis()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button></div><div class="flex-1 overflow-y-auto pr-2 space-y-4" id="subject-analysis-grid"></div></div></div>
 
 <script>
     const CLOUD_URL = "https://script.google.com/macros/s/AKfycbyuAFvjWZHAlkDx00DsDoHiPgFMq-CmGgHKyQXq_6cfi1QwmnwUVp3ZNLrtpnLPhOXB/exec";
@@ -449,27 +217,272 @@
     let historyDb = [];
     let mistakesDb = []; 
     
-    // Notes Database
-    let notesDb = {};
+    // Notes Database - Preloaded with Supreme Court
+    let notesDb = {
+        "Polity_Judiciary_01": {
+            subject: "Polity",
+            topic: "Judiciary", 
+            title: "Supreme Court of India",
+            displayTitle: "Supreme Court of India",
+            additionalDetails: [], 
+            htmlContent: `
+<div class="note-document max-w-4xl mx-auto font-sans">
+    
+    <div class="relative bg-gradient-to-br from-slate-900 to-[#0f172a] rounded-3xl p-8 md:p-12 shadow-2xl border border-slate-700 overflow-hidden mb-10">
+        <div class="absolute -top-20 -right-20 w-64 h-64 bg-indigo-500 rounded-full mix-blend-multiply filter blur-[80px] opacity-30"></div>
+        <div class="absolute -bottom-20 -left-20 w-64 h-64 bg-[#6b8e23] rounded-full mix-blend-multiply filter blur-[80px] opacity-20"></div>
+        
+        <div class="relative z-10">
+            <div class="flex flex-wrap gap-2 mb-4">
+                <span class="text-[10px] font-black uppercase tracking-widest bg-[#6b8e23]/20 text-[#8fbc8f] px-3 py-1 rounded-md border border-[#6b8e23]/50 shadow-sm">Part V</span>
+                <span class="text-[10px] font-black uppercase tracking-widest bg-[#6b8e23]/20 text-[#8fbc8f] px-3 py-1 rounded-md border border-[#6b8e23]/50 shadow-sm">Articles 124 to 147</span>
+            </div>
+            <h1 class="text-4xl md:text-6xl font-black text-white tracking-tight leading-none mb-4 drop-shadow-lg">Supreme Court of India</h1>
+            <div class="text-slate-300 font-bold text-sm md:text-base border-l-2 border-[#6b8e23] pl-4 space-y-2">
+                <p>1) Independent Integrated judicial system (Govt of India act, <span class="mamba-cloze">1935</span>).</p>
+                <p>2) Inaugurated <span class="mamba-cloze">1950</span>, succeeded Federal Court of India, replaced British privy council.</p>
+                <p>3) Articles <span class="mamba-cloze">124 to 147</span> in part V.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-panel p-6 md:p-8 rounded-2xl shadow-lg mb-10">
+        <h3 class="text-xl font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-4 flex items-center gap-2"><span class="text-2xl">🏛️</span> Art 124: Composition & Conditions</h3>
+        <ul class="space-y-4 text-sm font-bold text-slate-700 dark:text-slate-300">
+            <li class="flex items-start gap-3">
+                <div class="mt-1 w-2 h-2 rounded-full bg-indigo-500 shrink-0 shadow-[0_0_8px_#6366f1]"></div>
+                <div><b>124:</b> there shell be Supreme Court of India consist of CJI + Other judges. Initially <span class="mamba-cloze">1 + 7</span>, Now <span class="mamba-cloze">1 + 33</span>. Decided by parliament by law.</div>
+            </li>
+            <li class="flex items-start gap-3">
+                <div class="mt-1 w-2 h-2 rounded-full bg-indigo-500 shrink-0 shadow-[0_0_8px_#6366f1]"></div>
+                <div><b>Condition:</b> Citizen of India <span class="text-rose-500">+</span> <span class="mamba-cloze">5 yrs</span> of Judge of HC <u class="decoration-rose-500 text-rose-500">OR</u> <span class="mamba-cloze">10 yrs</span> of High court advocate <u class="decoration-rose-500 text-rose-500">OR</u> DISTINGUISH JURIST In the eye of President.</div>
+            </li>
+        </ul>
+    </div>
+
+    <div class="glass-panel p-6 md:p-8 rounded-2xl shadow-lg mb-10">
+        <h3 class="text-xl font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-4 flex items-center gap-2"><span class="text-2xl">🤝</span> Appointment & Collegium</h3>
+        
+        <div class="space-y-4 text-sm font-bold text-slate-700 dark:text-slate-300 mb-6">
+            <div class="p-4 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                <p><b>1) CJI:</b> Appointed by President after consultation with judges of supreme court & high court.</p>
+                <p class="text-emerald-600 dark:text-emerald-400 mt-1"><i>MOP: Senior most judge (CJI Violated 2 times <span class="mamba-cloze">A.N Ray</span> & <span class="mamba-cloze">M.U Beg</span>).</i></p>
+            </div>
+            <div class="p-4 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                <p><b>2) Other:</b> President after CONSULTATION with CJI.</p>
+            </div>
+        </div>
+
+        <h4 class="text-md font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight mb-3">Meaning of Consultation?</h4>
+        <div class="flex flex-col md:flex-row gap-4 mb-6">
+            <div class="flex-1 bg-rose-50 dark:bg-rose-900/10 p-4 rounded-xl border-l-4 border-rose-400">
+                <div class="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">First Judge Case (1982)</div>
+                <div>Consultation is <mark class="bg-rose-200 dark:bg-rose-900/40 text-rose-800 dark:text-rose-300 px-1 rounded">not</mark> concurrence (Executive supremacy).</div>
+            </div>
+            <div class="flex-1 bg-emerald-50 dark:bg-emerald-900/10 p-4 rounded-xl border-l-4 border-emerald-400">
+                <div class="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">Second Judge Case (1993)</div>
+                <div>Consultation <mark class="bg-emerald-200 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 px-1 rounded">Meens</mark> concurrence.</div>
+            </div>
+            <div class="flex-1 bg-indigo-50 dark:bg-indigo-900/10 p-4 rounded-xl border-l-4 border-indigo-400">
+                <div class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">Third Judge Case (1998)</div>
+                <div>Consultation process include Collegium.</div>
+            </div>
+        </div>
+
+        <div class="p-5 bg-slate-100 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+            <p class="text-sm font-bold text-slate-800 dark:text-slate-200 mb-2"><b>Collegium:</b></p>
+            <ul class="list-disc pl-5 text-sm font-bold text-slate-600 dark:text-slate-400 space-y-1 mb-4">
+                <li>SC judge = <span class="mamba-cloze">5 judge</span> collegium.</li>
+                <li>HC Judge = <span class="mamba-cloze">3 judge</span> Collegium.</li>
+            </ul>
+            <p class="text-sm font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest mt-4">But Modi came -> 99 Amendment [2014]: formation of NJAC [124A]</p>
+            <p class="text-xs font-bold text-slate-500 mt-1 mb-2">Table: CJI, 2 SC Judges, Union law minister (Ex offico), 2 Eminent persons (Nominated by: CJI, PM, Opposition).</p>
+            <p class="text-sm font-bold text-rose-600"><mark class="bg-rose-200 dark:bg-rose-900/40 text-rose-800 dark:text-rose-300 px-1 rounded">2015:</mark> SC declared both amendment & NJAC void. Against the independent of judiciary.</p>
+        </div>
+    </div>
+
+    <h3 class="text-xl font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight mb-4 ml-2 flex items-center gap-2">📜 Article Master List</h3>
+    <div class="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 shadow-lg mb-10 bg-white dark:bg-slate-900">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-slate-100 dark:bg-[#0f172a] text-[10px] uppercase tracking-widest text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                    <th class="p-5 font-black w-24">Article</th>
+                    <th class="p-5 font-black">Exact Provisions</th>
+                </tr>
+            </thead>
+            <tbody class="text-sm font-bold text-slate-700 dark:text-slate-300 divide-y divide-slate-100 dark:divide-slate-800/50">
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td class="p-5 text-indigo-600 dark:text-indigo-400 font-black"><span class="mamba-cloze">125</span></td>
+                    <td class="p-5"><b>Salaries & Allowances</b> determined by parliament by law. Cannot be reduced.</td>
+                </tr>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td class="p-5 text-indigo-600 dark:text-indigo-400 font-black"><span class="mamba-cloze">126</span></td>
+                    <td class="p-5"><b>Acting CJI:</b> From SC.</td>
+                </tr>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td class="p-5 text-indigo-600 dark:text-indigo-400 font-black"><span class="mamba-cloze">127</span></td>
+                    <td class="p-5"><b>Adhoc judges:</b> from HC.</td>
+                </tr>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td class="p-5 text-indigo-600 dark:text-indigo-400 font-black"><span class="mamba-cloze">128</span></td>
+                    <td class="p-5"><b>Retired judges:</b> from SC/HC. Appointed by President with Consultation with CJI.</td>
+                </tr>
+                <tr class="bg-slate-50 dark:bg-slate-800/20">
+                    <td class="p-5 text-indigo-600 dark:text-indigo-400 font-black align-top">129</td>
+                    <td class="p-5 leading-relaxed">
+                        <b>SC to be a court of record. {HC:- <span class="mamba-cloze">215</span>}</b><br>
+                        <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">
+                            Judgements are recorded for prepetual memory & they act as legal precedents. power to punish not only ites elf but also other couts.<br>
+                            <b>Contempt of court: statutory power codified in Contempt of Court Act, 1971</b><br>
+                            1) <b>Civil contempt:</b> wilful disobedieme to any judgement.<br>
+                            2) <b>Criminal contempt:</b> 1) Scandalises or lowers the authority of any court. 2) prejudices or interfare. 3) Intefare or obstructs the administration of justice.<br>
+                            <i class="text-emerald-600 dark:text-emerald-400 mt-2 block">HN Sanyal Committee: But fair comments on meeit / accurate report of judical judgement is not COC. 6 month jail.</i>
+                        </span>
+                    </td>
+                </tr>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td class="p-5 text-indigo-600 dark:text-indigo-400 font-black"><span class="mamba-cloze">130</span></td>
+                    <td class="p-5"><b>Seat of Supreme Court:</b> SC shall sit in delhi or such other places as CJI with approved of president.</td>
+                </tr>
+                <tr class="bg-slate-50 dark:bg-slate-800/20">
+                    <td class="p-5 text-indigo-600 dark:text-indigo-400 font-black align-top"><span class="mamba-cloze">131</span></td>
+                    <td class="p-5 leading-relaxed">
+                        <b>Original jurisdiction of the Superme Court</b><br>
+                        <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">
+                            1) A vs B -> Civil | State vs A -> Criminal.<br>
+                            <b>Between:</b> a) Centre & one/more states. b) Centere any state on one side & other state on other side. c) between 2 or more states.<br>
+                            <span class="text-rose-500 font-black uppercase mt-2 block">Not extend to:</span> 
+                            a) Sub-ordinate courts having original jurisdiction in Criminal cases.<br>
+                            b) HC/DC in civil cases (Original jurisdiction of HC/DC).<br>
+                            c) pre-constitutional treety.<br>
+                            d) Inter-State water dispute.<br>
+                            e) SC have original jurisdiction/Exclusive Union territory.<br>
+                            f) Finance commission.<br>
+                            g) Expenses b w Centre & state.
+                        </span>
+                    </td>
+                </tr>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td class="p-5 text-indigo-600 dark:text-indigo-400 font-black align-top">132</td>
+                    <td class="p-5 leading-relaxed">
+                        <b>Certain Appellate Jurisdiction.</b><br>
+                        <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">
+                            d) Writ Jurisdiction Not Exclusive. Directly go to SC in first stance in case of FR violation [<span class="mamba-cloze">Article 32</span>].<br>
+                            e) Any case can reach to SC through Apellate Jurisdiction.
+                        </span>
+                    </td>
+                </tr>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td class="p-5 text-indigo-600 dark:text-indigo-400 font-black">133</td>
+                    <td class="p-5"><b>Civil Appellate Jurisdiction.</b></td>
+                </tr>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td class="p-5 text-indigo-600 dark:text-indigo-400 font-black">134</td>
+                    <td class="p-5"><b>Criminal Appellate Jurisdiction:</b> HC reversed the order accquital Sentence him to death or taken himself.</td>
+                </tr>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td class="p-5 text-indigo-600 dark:text-indigo-400 font-black">134A</td>
+                    <td class="p-5"><b>High court appealing itself to SC</b> when it is the case of interpretation of const/substantial question of law. (appeeled in HC from sub-ordinate).</td>
+                </tr>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td class="p-5 text-indigo-600 dark:text-indigo-400 font-black align-top"><span class="mamba-cloze">136</span></td>
+                    <td class="p-5"><b>Special leave petition:</b> Lawyer tell SC to hear his case as it might involved interpretation of constitution/Substantial question of law.</td>
+                </tr>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td class="p-5 text-indigo-600 dark:text-indigo-400 font-black"><span class="mamba-cloze">137</span></td>
+                    <td class="p-5"><b>Review of judgements or ordees by SC</b> & Revisional jurisdiction.</td>
+                </tr>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td class="p-5 text-indigo-600 dark:text-indigo-400 font-black">138</td>
+                    <td class="p-5">Parliament pouree to <b>Enlargement of the jurisdiction of SC.</b></td>
+                </tr>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td class="p-5 text-indigo-600 dark:text-indigo-400 font-black"><span class="mamba-cloze">141</span></td>
+                    <td class="p-5"><b>LAW OF THE LAND:</b> Law deckered by sc binding on all courts.</td>
+                </tr>
+                <tr class="bg-slate-50 dark:bg-slate-800/20">
+                    <td class="p-5 text-indigo-600 dark:text-indigo-400 font-black align-top"><span class="mamba-cloze">142</span></td>
+                    <td class="p-5 leading-relaxed">
+                        <b>Complete justice.</b><br>
+                        <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">
+                            b) Bhopal Gas tregady -> Compensation to all suffred.<br>
+                            a) Ram Janam Bhumi Gave land to Muslim Community too.<br>
+                            c) Rajiv Ghendi Assesination Relend.<br>
+                            <i>"Article 142 is not a source of unlimited power for you to go far aheed. There should be self-restraint - Venugopal".</i>
+                        </span>
+                    </td>
+                </tr>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td class="p-5 text-indigo-600 dark:text-indigo-400 font-black align-top"><span class="mamba-cloze">143</span></td>
+                    <td class="p-5 leading-relaxed">
+                        <b>Power of Besident to consult SC.</b><br>
+                        <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">a) A question of law or fart has arisen -> <mark class="bg-rose-200 dark:bg-rose-900/40 text-rose-800 dark:text-rose-300 px-1 rounded">May refuse</mark>.<br>b) pee-constitution treety, ageenat -> <mark class="bg-emerald-200 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 px-1 rounded">Must terdee it's opinion</mark> (Berubali Case).</span>
+                    </td>
+                </tr>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td class="p-5 text-indigo-600 dark:text-indigo-400 font-black">144</td>
+                    <td class="p-5">Civil and judicial authorities to act in the aid of SC.</td>
+                </tr>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td class="p-5 text-indigo-600 dark:text-indigo-400 font-black">145</td>
+                    <td class="p-5">Rules of Court ) Master of Roster.</td>
+                </tr>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td class="p-5 text-indigo-600 dark:text-indigo-400 font-black">146</td>
+                    <td class="p-5">officile & servants of the SC -> CFI.</td>
+                </tr>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td class="p-5 text-indigo-600 dark:text-indigo-400 font-black">147</td>
+                    <td class="p-5">Intrepetation.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="bg-slate-800/40 p-8 rounded-3xl border border-[#e2725b]/40 shadow-inner mb-6 relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-r from-[#e2725b]/5 to-transparent pointer-events-none"></div>
+        <h3 class="text-lg font-black text-[#e2725b] uppercase tracking-widest mb-2 flex items-center gap-2 relative z-10">🔨 Removel of Judge / Impeachment</h3>
+        <p class="text-sm font-bold text-slate-700 dark:text-slate-300 mb-6 relative z-10"><b>Ground of Removel:</b> <span class="mamba-cloze">Proved Misbehaviour</span> | <span class="mamba-cloze">Inceparity</span>. Process of Removel given in Judges inquiry act 1968 + 124.</p>
+        
+        <div class="flex flex-col lg:flex-row gap-3 lg:items-center text-sm font-black text-slate-700 dark:text-slate-200 relative z-10">
+            <div class="glass-panel p-4 rounded-xl shadow flex-1 text-center">1. LS <span class="mamba-cloze">100</span> member or RS <span class="mamba-cloze">50</span> member -> Motion of Removel of Justice SC/HC</div>
+            <span class="text-[#e2725b] hidden lg:block font-black text-xl">➔</span>
+            <span class="text-[#e2725b] lg:hidden font-black text-xl text-center">↓</span>
+            <div class="glass-panel p-4 rounded-xl shadow flex-1 text-center">2. Speeker approval-May acept/decline</div>
+            <span class="text-[#e2725b] hidden lg:block font-black text-xl">➔</span>
+            <span class="text-[#e2725b] lg:hidden font-black text-xl text-center">↓</span>
+            <div class="glass-panel p-4 rounded-xl shadow flex-1 text-center">3. 3 member committee (CJI+ CJ HC+ Prominent jurist)</div>
+            <span class="text-[#e2725b] hidden lg:block font-black text-xl">➔</span>
+            <span class="text-[#e2725b] lg:hidden font-black text-xl text-center">↓</span>
+            <div class="bg-[#e2725b] text-white p-4 rounded-xl shadow-lg border border-[#e2725b] flex-1 text-center">4. special Majority</div>
+            <span class="text-[#e2725b] hidden lg:block font-black text-xl">➔</span>
+            <span class="text-[#e2725b] lg:hidden font-black text-xl text-center">↓</span>
+            <div class="glass-panel p-4 rounded-xl shadow flex-1 text-center">5. President Removed</div>
+        </div>
+    </div>
+
+</div>`
+        }
+    };
 
     let currentQuizId = null;
     let currentAttemptNum = 1;
     let activeQuestions = []; 
     let quizState = { answers: {}, marked: {}, revealed: {}, locked: {}, qTimeLeft: 0, submitted: false, interval: null, isPaused: false, currentFocus: -1 };
     let lobbySettings = { timeMode: 'default', customMinutes: 0, shuffle: true, blind: false, perQTimer: false };
-    let targetImportSubject = ""; 
 
-    let lobbyQuizMode = 'full';
-    window.currentQuizWrongQs = [];
-    window.currentReviewQuestions = []; 
-    let currentlyEditingGlobalText = null;
-    let isDirtyFilterActive = false;
-
-    window.editRegistry = {};
-    window.editCounter = 0;
-    
     // ==========================================
-    // MASTER LIBRARY LOGIC (THE GHOST FOLDER INDEX)
+    // GLOBAL CLOZE EVENT LISTENER (BULLETPROOF)
+    // ==========================================
+    document.addEventListener('click', function(e) {
+        let cloze = e.target.closest('.mamba-cloze');
+        if(cloze) {
+            cloze.classList.toggle('revealed');
+        }
+    });
+
+    // ==========================================
+    // MASTER LIBRARY LOGIC
     // ==========================================
     window.openLibrary = () => {
         showScreen('library');
@@ -504,7 +517,6 @@
                 
                 html += `<div class="text-[11px] font-black text-slate-400 mt-4 mb-2 uppercase tracking-widest flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-700"></span> ${top}</div>`;
                 
-                // Render all notes inside this folder
                 for(let nid in notesDb) {
                     if(notesDb[nid].subject === sub && notesDb[nid].topic === top) {
                         let title = notesDb[nid].title || notesDb[nid].displayTitle || top;
@@ -512,7 +524,6 @@
                     }
                 }
 
-                // The continuous ADD button for this folder
                 html += `<button onclick="openAddNoteModal('${sub.replace(/'/g, "\\'")}', '${top.replace(/'/g, "\\'")}')" class="w-full text-left p-2.5 rounded-xl bg-white dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 font-black text-[10px] transition-all mb-4 border border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-400 hover:text-emerald-500 uppercase tracking-widest outline-none opacity-60 hover:opacity-100 flex items-center justify-center gap-2">➕ Add Note to ${top}</button>`;
             });
         });
@@ -528,32 +539,31 @@
         document.getElementById('add-note-target-label').textContent = `Targeting: ${sub} > ${top}`;
         document.getElementById('add-note-hidden-subject').value = sub;
         document.getElementById('add-note-hidden-topic').value = top;
-        document.getElementById('add-note-hidden-id').value = ""; // Clear ID for new note
+        document.getElementById('add-note-hidden-id').value = ""; 
         document.getElementById('add-note-title-input').value = "";
         document.getElementById('add-note-html-input').value = "";
         document.getElementById('screen-add-note-modal').classList.remove('hidden');
     };
     
-    // NEW: EDIT NOTE FUNCTION
     window.editNote = (id) => {
         const note = notesDb[id];
         if(!note) return;
         document.getElementById('add-note-target-label').textContent = `Editing Note: ${note.subject} > ${note.topic}`;
         document.getElementById('add-note-hidden-subject').value = note.subject;
         document.getElementById('add-note-hidden-topic').value = note.topic;
-        document.getElementById('add-note-hidden-id').value = id; // Set ID to overwrite
+        document.getElementById('add-note-hidden-id').value = id; 
         document.getElementById('add-note-title-input').value = note.displayTitle || note.title;
         document.getElementById('add-note-html-input').value = note.htmlContent;
         document.getElementById('screen-add-note-modal').classList.remove('hidden');
     };
 
-    // NEW: DELETE NOTE FUNCTION
     window.deleteNote = (id) => {
         if(confirm("Are you sure you want to permanently delete this note?")) {
             delete notesDb[id];
             updateLocalCache();
             renderLibraryIndex();
             document.getElementById('library-content-viewer').innerHTML = `<div class="h-full flex flex-col items-center justify-center text-slate-400 opacity-50"><div class="text-6xl mb-4">📚</div><div class="font-black uppercase tracking-widest text-sm">Note Deleted. Select a topic.</div></div>`;
+            document.getElementById('library-action-bar').classList.add('hidden');
         }
     };
 
@@ -564,13 +574,15 @@
     window.saveNewNote = () => {
         let sub = document.getElementById('add-note-hidden-subject').value;
         let top = document.getElementById('add-note-hidden-topic').value;
-        let noteId = document.getElementById('add-note-hidden-id').value; // Check if editing
+        let noteId = document.getElementById('add-note-hidden-id').value; 
         let title = document.getElementById('add-note-title-input').value.trim() || top;
         let htmlCode = document.getElementById('add-note-html-input').value.trim();
 
         if(!htmlCode) return alert("Paste the HTML code first.");
 
-        // If no ID, generate a new one. Otherwise, overwrite the existing one.
+        // AUTO-SCRUBBER: Instantly deletes any tags automatically injected by Google Drive/Docs
+        htmlCode = htmlCode.replace(/\/g, '').replace(/\]+\]/g, '');
+
         if(!noteId) {
             noteId = `${sub}_${top}_${Date.now()}`.replace(/\s+/g, '_');
             notesDb[noteId] = { additionalDetails: [] }; 
@@ -595,20 +607,32 @@
 
     window.viewNote = (id) => {
         const viewer = document.getElementById('library-content-viewer');
+        const actionBar = document.getElementById('library-action-bar');
+        const currentPath = document.getElementById('library-current-path');
         const note = notesDb[id];
+        
         if(!note) return;
 
         let displayTxt = note.displayTitle || note.title || note.topic;
 
-        // RENDER ADDITIONAL DETAILS LIST
+        // Populate Action Bar
+        currentPath.textContent = `${note.subject} > ${note.topic}`;
+        document.getElementById('btn-edit-note').onclick = () => editNote(id);
+        document.getElementById('btn-del-note').onclick = () => deleteNote(id);
+        actionBar.classList.remove('hidden');
+
+        // RENDER ADDITIONAL DETAILS LIST WITH DELETE BUTTON
         let detailsListHTML = '';
         if(note.additionalDetails && note.additionalDetails.length > 0) {
             detailsListHTML = `<div class="mb-4 space-y-2">`;
             note.additionalDetails.forEach((detail, idx) => {
                 detailsListHTML += `
-                    <div class="flex items-start gap-3 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">
-                        <span class="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 font-black text-[10px] w-6 h-6 flex items-center justify-center rounded-full shrink-0 mt-0.5">${idx + 1}</span>
-                        <p class="text-sm font-bold text-slate-700 dark:text-slate-300 leading-snug">${detail}</p>
+                    <div class="flex items-start justify-between gap-3 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm group">
+                        <div class="flex items-start gap-3">
+                            <span class="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 font-black text-[10px] w-6 h-6 flex items-center justify-center rounded-full shrink-0 mt-0.5">${idx + 1}</span>
+                            <p class="text-sm font-bold text-slate-700 dark:text-slate-300 leading-snug">${detail}</p>
+                        </div>
+                        <button onclick="deleteDetail('${id}', ${idx})" class="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 focus:opacity-100 outline-none" title="Delete Point">🗑️</button>
                     </div>`;
             });
             detailsListHTML += `</div>`;
@@ -616,7 +640,7 @@
             detailsListHTML = `<div class="text-xs text-slate-400 font-bold italic mb-4">No additional points added yet.</div>`;
         }
         
-        // THE MAMBA BOTTOM BAR (Additional Details + Instant Strike)
+        // THE MAMBA BOTTOM BAR
         let mambaBottomBar = `
             <div class="mt-10 border-t border-slate-200 dark:border-slate-800 pt-8 max-w-4xl mx-auto" data-html2canvas-ignore="true">
                 <h3 class="text-lg font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tight mb-4 flex items-center gap-2">📝 Additional Details Ledger</h3>
@@ -636,22 +660,8 @@
                 </div>
             </div>
         `;
-        
-        // UPDATED HEADER TOOLS (NOW WITH EDIT AND DELETE BUTTONS)
-        let headerTools = `
-            <div class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md pb-4 mb-6 border-b border-slate-200 dark:border-slate-800 max-w-4xl mx-auto" data-html2canvas-ignore="true">
-                <div class="flex justify-between items-center pt-2">
-                    <span class="text-xs font-black text-slate-400 uppercase tracking-widest">${note.subject} > ${note.topic}</span>
-                    <div class="flex gap-2">
-                        <button onclick="editNote('${id}')" class="bg-amber-100 text-amber-700 hover:bg-amber-200 font-black px-3 py-1.5 rounded-lg text-[10px] uppercase tracking-widest transition-colors border border-amber-200 shadow-sm flex items-center gap-1">✏️ Edit</button>
-                        <button onclick="deleteNote('${id}')" class="bg-red-100 text-red-700 hover:bg-red-200 font-black px-3 py-1.5 rounded-lg text-[10px] uppercase tracking-widest transition-colors border border-red-200 shadow-sm flex items-center gap-1">🗑️ Del</button>
-                        <button onclick="downloadNotePDF()" class="bg-rose-500 hover:bg-rose-400 text-white font-black px-3 py-1.5 rounded-lg shadow-md transition-transform hover:-translate-y-0.5 text-[10px] uppercase tracking-widest flex items-center gap-2 border border-rose-400">📄 Export PDF</button>
-                    </div>
-                </div>
-            </div>
-        `;
 
-        viewer.innerHTML = headerTools + `<div id="pdf-content-wrapper" class="pb-10">` + note.htmlContent + `</div>` + mambaBottomBar;
+        viewer.innerHTML = `<div id="pdf-content-wrapper" class="pb-10">` + note.htmlContent + `</div>` + mambaBottomBar;
         viewer.scrollTo(0,0);
     };
 
@@ -668,26 +678,39 @@
         }
     };
 
+    window.deleteDetail = (noteId, idx) => {
+        if(confirm("Are you sure you want to delete this detail?")) {
+            notesDb[noteId].additionalDetails.splice(idx, 1);
+            updateLocalCache();
+            viewNote(noteId);
+        }
+    };
+
     window.launchTargetedStrike = (noteId) => {
         const note = notesDb[noteId];
         let pool = [];
+        let noteTitleLow = (note.title || "").toLowerCase();
+        let noteTopicLow = (note.topic || "").toLowerCase();
         
         Object.keys(db).forEach(quizId => {
             if(db[quizId] && Array.isArray(db[quizId].questions) && !db[quizId].title.includes("🎯") && !db[quizId].title.includes("SRS")) {
                 db[quizId].questions.forEach(q => {
                     let qTags = Array.isArray(q.tags) ? q.tags : (q.tags ? [String(q.tags)] : []);
-                    let t1 = qTags.length > 0 ? qTags[0] : (q.subject || q.originalSubject || "Miscellaneous");
-                    let t2 = qTags.length > 1 ? qTags[1] : t1;
+                    let t1 = qTags.length > 0 ? String(qTags[0]).toLowerCase() : (String(q.subject || q.originalSubject || "Miscellaneous")).toLowerCase();
+                    let tagStr = qTags.join(" ").toLowerCase();
                     
-                    if (t1 === note.subject && t2 === note.topic) {
-                        pool.push(q);
+                    if (t1 === note.subject.toLowerCase()) {
+                        // FIX: Search tags for either the Folder Name (Judiciary) OR the Note Title (Supreme Court)
+                        if (tagStr.includes(noteTopicLow) || tagStr.includes(noteTitleLow)) {
+                            pool.push(q);
+                        }
                     }
                 });
             }
         });
 
         if(pool.length === 0) {
-            return alert(`No questions found in your vault tagged exactly with Subject: "${note.subject}" and Topic: "${note.topic}".`);
+            return alert(`No questions found in your vault tagged with Subject: "${note.subject}" and Topic containing "${note.topic}" or "${note.title}".`);
         }
 
         const uniqueQs = Array.from(new Map(pool.map(q => [q.question, q])).values());
@@ -1130,7 +1153,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.40", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.45", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
