@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.36 (Ultimate Library Edition)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.37 (Ultimate Library & Cloze Engine)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -37,10 +37,29 @@
         .dark mark { background-color: rgba(245, 158, 11, 0.5); }
 
         /* NATIVE CLOZE ACTIVE RECALL CSS */
-        .cloze { background-color: #1e293b; color: transparent; border-radius: 6px; padding: 0 8px; cursor: pointer; transition: all 0.2s ease; user-select: none; border: 1px solid #334155; }
-        .light .cloze { background-color: #cbd5e1; border-color: #94a3b8; }
-        .cloze:hover { background-color: #3b82f6; color: white; opacity: 0.9; border-color: #2563eb; }
-        .cloze.revealed { background-color: transparent; color: #10b981; font-weight: 900; border-color: transparent; padding: 0 2px; }
+        .mamba-cloze { 
+            background-color: #0f172a; 
+            color: transparent; 
+            border-radius: 4px; 
+            padding: 2px 8px; 
+            cursor: pointer; 
+            transition: all 0.2s ease; 
+            user-select: none; 
+            border: 1px solid #334155; 
+            display: inline-block;
+            font-weight: 900;
+        }
+        .light .mamba-cloze { background-color: #94a3b8; border-color: #64748b; }
+        .mamba-cloze:hover { box-shadow: 0 0 8px rgba(59, 130, 246, 0.5); border-color: #3b82f6; }
+        
+        /* When Clicked */
+        .mamba-cloze.revealed { 
+            background-color: rgba(16, 185, 129, 0.1); 
+            color: #10b981; 
+            border-color: #10b981; 
+            text-shadow: 0 0 1px rgba(16, 185, 129, 0.3);
+        }
+        .light .mamba-cloze.revealed { color: #059669; border-color: #059669; background-color: rgba(5, 150, 105, 0.1); }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-[#0a0f1c] dark:text-slate-200 min-h-screen flex flex-col pb-20">
@@ -64,9 +83,9 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.36</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.37</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Active Recall Library & Instant Strike Integration</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">100% Exact Notes + Cloze Active Recall</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
@@ -131,7 +150,7 @@
                     </div>
             </div>
 
-            <div class="w-full md:w-2/3 lg:w-3/4 bg-white dark:bg-slate-900 p-6 md:p-10 flex-1 overflow-y-auto relative" id="library-content-viewer">
+            <div class="w-full md:w-2/3 lg:w-3/4 bg-white dark:bg-slate-900 flex-1 overflow-y-auto relative" id="library-content-viewer">
                 <div class="h-full flex flex-col items-center justify-center text-slate-400 opacity-50">
                     <div class="text-6xl mb-4">📚</div>
                     <div class="font-black uppercase tracking-widest text-sm">Select a topic from the index</div>
@@ -230,7 +249,7 @@
                     </div>
                 </div>
             </div>
-            <div id="lobby-mode-selection" class="hidden mb-6 p-6 bg-rose-50 dark:bg-rose-900/10 rounded-2xl border border-rose-100 dark:border-rose-800/30">
+            <div id="lobby-mode-selection" class="hidden mb-6 p-6 bg-rose-50 dark:bg-slate-900/10 rounded-2xl border border-rose-100 dark:border-rose-800/30">
                 <label class="block text-[10px] font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-3 flex items-center gap-2">🧠 Smart Revision Mode</label>
                 <div class="flex gap-4 flex-wrap">
                     <button id="btn-mode-full" onclick="setQuizMode('full')" class="time-btn flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Full Quiz</button>
@@ -401,122 +420,228 @@
     let mistakesDb = []; 
     
     // ==========================================
-    // NEW: MASTER LIBRARY DATABASE
+    // MASTER LIBRARY DATABASE (V19.37 100% Exact Notes)
     // ==========================================
     let notesDb = {
-        "polity_supreme_court": {
+        "polity_supreme_court_exact": {
             subject: "Polity",
-            topic: "Supreme Court of India",
-            tags: ["Article 124", "Judiciary", "High Yield"],
+            topic: "Judiciary", // Changed to Judiciary so the Instant Strike finds your existing questions!
+            displayTitle: "Supreme Court of India", // Keeps the UI looking like "Supreme Court"
+            tags: ["Article 124", "Supreme Court", "High Yield"],
             htmlContent: `
-            <div class="note-container bg-slate-50 dark:bg-slate-900 p-6 md:p-10 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl relative">
+            <div class="p-6 md:p-10 bg-white dark:bg-slate-900" id="pdf-content-wrapper relative">
                 
-                <button onclick="downloadNotePDF()" data-html2canvas-ignore="true" class="absolute top-6 right-6 bg-rose-500 hover:bg-rose-400 text-white font-black px-4 py-2 rounded-xl shadow-lg transition-transform hover:-translate-y-1 text-[10px] uppercase tracking-widest flex items-center gap-2 z-10 border border-rose-400">📄 Export PDF</button>
+                <div class="sticky top-0 right-0 z-50 flex justify-end mb-6" data-html2canvas-ignore="true">
+                    <button onclick="downloadNotePDF()" class="bg-rose-500 hover:bg-rose-400 text-white font-black px-6 py-3 rounded-xl shadow-[0_5px_15px_rgba(244,63,94,0.4)] transition-transform hover:-translate-y-1 text-xs uppercase tracking-widest flex items-center gap-2 border border-rose-400">
+                        📄 Download PDF
+                    </button>
+                </div>
 
                 <div class="border-b border-slate-200 dark:border-slate-800 pb-6 mb-8 relative">
-                    <div class="absolute -top-10 -right-10 text-9xl opacity-5 pointer-events-none" data-html2canvas-ignore="true">⚖️</div>
                     <div class="flex gap-2 mb-3">
                         <span class="text-[10px] font-black uppercase tracking-widest bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 px-3 py-1 rounded border border-indigo-200 dark:border-indigo-800/50">Part V</span>
-                        <span class="text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-3 py-1 rounded border border-emerald-200 dark:border-emerald-800/50">Articles 124 - 147</span>
+                        <span class="text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-3 py-1 rounded border border-emerald-200 dark:border-emerald-800/50">Articles 124 to 147</span>
                     </div>
                     <h1 class="text-3xl md:text-5xl font-black text-slate-800 dark:text-slate-100 tracking-tight">Supreme Court of India</h1>
-                    <p class="text-sm font-bold text-slate-500 mt-2">Inaugurated in <span class="cloze" onclick="this.classList.toggle('revealed')">1950</span>. Replaced the British Privy Council & Federal Court of India.</p>
+                    <div class="text-sm font-bold text-slate-600 dark:text-slate-400 mt-4 leading-relaxed">
+                        <p>1) Independent Integrated judicial system (Govt of India act, <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">1935</span>).</p>
+                        <p>2) Inaugurated in <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">1950</span>. Succeeded the Federal Court of India and replaced the British Privy Council.</p>
+                    </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div class="mb-8">
+                    <h3 class="text-xl font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight mb-4 border-l-4 border-emerald-500 pl-4">Article 124: Establishment & Composition</h3>
+                    <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-inner text-sm font-bold text-slate-700 dark:text-slate-300 space-y-3">
+                        <p>There shall be a Supreme Court of India consisting of CJI + Other judges.</p>
+                        <p>Initially: <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">1 + 7</span> judges. Now: <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">1 + 33</span> (Decided by Parliament by law).</p>
+                        
+                        <div class="mt-4 border-t border-slate-200 dark:border-slate-700 pt-4">
+                            <p class="text-emerald-600 dark:text-emerald-400 font-black uppercase text-[10px] tracking-widest mb-2">Conditions / Qualifications:</p>
+                            <ul class="list-disc pl-5 space-y-1">
+                                <li>Citizen of India <span class="text-rose-500">AND</span></li>
+                                <li><span class="mamba-cloze" onclick="this.classList.toggle('revealed')">5 yrs</span> as Judge of High Court <span class="text-rose-500">OR</span></li>
+                                <li><span class="mamba-cloze" onclick="this.classList.toggle('revealed')">10 yrs</span> as Advocate of High Court <span class="text-rose-500">OR</span></li>
+                                <li>Distinguished Jurist (in the eye of the President).</li>
+                            </ul>
+                        </div>
+
+                        <div class="mt-4 border-t border-slate-200 dark:border-slate-700 pt-4">
+                            <p class="text-blue-600 dark:text-blue-400 font-black uppercase text-[10px] tracking-widest mb-2">Appointment:</p>
+                            <ul class="space-y-2">
+                                <li><b>CJI:</b> Appointed by President after consultation with judges of SC & HC. <br><i>MOP (Memorandum of Procedure): Senior-most judge. (Violated 2 times: A.N. Ray & M.U. Beg).</i></li>
+                                <li><b>Other Judges:</b> Appointed by President after CONSULTATION with CJI.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-8">
+                    <h3 class="text-xl font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight mb-4 border-l-4 border-blue-500 pl-4">Meaning of "Consultation" & Collegium</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-blue-50 dark:bg-blue-900/10 p-5 rounded-xl border border-blue-200 dark:border-blue-800/30">
+                            <div class="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">First Judge Case (1982)</div>
+                            <div class="text-sm font-bold text-slate-700 dark:text-slate-300">Consultation is <mark class="bg-rose-200 dark:bg-rose-900/40 text-rose-800 dark:text-rose-300">not</mark> concurrence. (Established Executive supremacy).</div>
+                        </div>
+                        <div class="bg-blue-50 dark:bg-blue-900/10 p-5 rounded-xl border border-blue-200 dark:border-blue-800/30">
+                            <div class="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Second Judge Case (1993)</div>
+                            <div class="text-sm font-bold text-slate-700 dark:text-slate-300">Consultation <mark class="bg-emerald-200 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300">means</mark> concurrence.</div>
+                        </div>
+                        <div class="bg-blue-50 dark:bg-blue-900/10 p-5 rounded-xl border border-blue-200 dark:border-blue-800/30">
+                            <div class="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Third Judge Case (1998)</div>
+                            <div class="text-sm font-bold text-slate-700 dark:text-slate-300">Consultation process includes Collegium.</div>
+                        </div>
+                    </div>
                     
-                    <div class="bg-slate-100 dark:bg-slate-800/50 p-6 rounded-2xl shadow-inner border border-slate-200 dark:border-slate-700/50">
-                        <h3 class="text-lg font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-4 border-b border-emerald-200 dark:border-emerald-800/30 pb-2">1. Composition & Qualifications</h3>
-                        <ul class="space-y-3 text-sm font-bold text-slate-700 dark:text-slate-300">
-                            <li class="flex items-start gap-2"><span class="text-emerald-500">▪</span> <div><b>Strength:</b> <span class="cloze" onclick="this.classList.toggle('revealed')">34 Judges</span> (1 CJI + 33 Others). Determined by Parliament by law.</div></li>
-                            <li class="flex items-start gap-2"><span class="text-emerald-500">▪</span> <div><b>Qualification 1:</b> Citizen of India.</div></li>
-                            <li class="flex items-start gap-2"><span class="text-emerald-500">▪</span> <div><b>Qualification 2:</b> <span class="cloze" onclick="this.classList.toggle('revealed')">5 years</span> as HC Judge <span class="text-rose-500 underline">OR</span> <span class="cloze" onclick="this.classList.toggle('revealed')">10 years</span> as HC Advocate <span class="text-rose-500 underline">OR</span> Distinguished Jurist.</div></li>
+                    <div class="mt-4 bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700">
+                        <p class="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3"><b>Collegium Structure:</b></p>
+                        <ul class="list-disc pl-5 space-y-1 text-sm font-bold text-slate-600 dark:text-slate-400">
+                            <li>SC Judge Appointment = CJI + <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">4 Senior-most</span> Judges.</li>
+                            <li>HC Judge Appointment = CJI + <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">2 Senior-most</span> Judges.</li>
                         </ul>
-                    </div>
-
-                    <div class="bg-slate-100 dark:bg-slate-800/50 p-6 rounded-2xl shadow-inner border border-slate-200 dark:border-slate-700/50">
-                        <h3 class="text-lg font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-4 border-b border-blue-200 dark:border-blue-800/30 pb-2">2. Appointment & Collegium</h3>
-                        <ul class="space-y-3 text-sm font-bold text-slate-700 dark:text-slate-300">
-                            <li class="flex items-start gap-2"><span class="text-blue-500">▪</span> <div><b>Appointed By:</b> The President.</div></li>
-                            <li class="flex items-start gap-2"><span class="text-blue-500">▪</span> <div><b>The Collegium (3rd Judge Case 1998):</b> "Consultation" means <span class="cloze" onclick="this.classList.toggle('revealed')">concurrence</span>. CJI + <span class="cloze" onclick="this.classList.toggle('revealed')">4 Senior-most</span> judges.</div></li>
-                            <li class="flex items-start gap-2"><span class="text-blue-500">▪</span> <div><b>99th Amendment (2014):</b> Created NJAC to replace Collegium. Struck down by SC in 2015.</div></li>
-                        </ul>
+                        
+                        <div class="mt-4 p-4 bg-rose-50 dark:bg-rose-900/10 rounded-xl border-l-2 border-rose-400">
+                            <p class="text-sm font-black text-rose-800 dark:text-rose-300 mb-1">99th Amendment Act (2014) - NJAC [Art 124A]</p>
+                            <p class="text-xs font-bold text-slate-600 dark:text-slate-400">6 Members: CJI + 2 SC Judges + Union Law Minister + 2 Eminent persons (Nominated by CJI+PM+Opposition).<br>
+                            <b>2015 Result:</b> SC declared both the amendment and NJAC void as it was against the independence of the judiciary.</p>
+                        </div>
                     </div>
                 </div>
 
-                <h3 class="text-xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight mb-4 mt-8">📜 High-Yield Articles Cheat Sheet</h3>
-                <div class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm mb-8">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-slate-100 dark:bg-slate-800 text-[10px] uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                                <th class="p-4 border-b border-slate-200 dark:border-slate-700">Article</th>
-                                <th class="p-4 border-b border-slate-200 dark:border-slate-700">Provision</th>
-                                <th class="p-4 border-b border-slate-200 dark:border-slate-700">SSC CGL Key Focus</th>
-                            </tr>
-                        </thead>
-                        <tbody class="text-sm font-bold text-slate-700 dark:text-slate-300">
-                            <tr class="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black"><span class="cloze" onclick="this.classList.toggle('revealed')">Art 126</span></td>
-                                <td class="p-4">Acting CJI</td>
-                                <td class="p-4 text-slate-500">Appointed from within SC.</td>
-                            </tr>
-                            <tr class="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black"><span class="cloze" onclick="this.classList.toggle('revealed')">Art 127</span></td>
-                                <td class="p-4">Ad-hoc Judges</td>
-                                <td class="p-4 text-slate-500">Brought from <mark>High Courts</mark> (not subordinate courts) by CJI with President's prior consent.</td>
-                            </tr>
-                            <tr class="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black"><span class="cloze" onclick="this.classList.toggle('revealed')">Art 129</span></td>
-                                <td class="p-4">Court of Record</td>
-                                <td class="p-4 text-slate-500">Judgements have evidentiary value. Power to punish for contempt (Civil/Criminal).</td>
-                            </tr>
-                            <tr class="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black"><span class="cloze" onclick="this.classList.toggle('revealed')">Art 131</span></td>
-                                <td class="p-4">Original Jurisdiction</td>
-                                <td class="p-4 text-slate-500">Exclusive power over fed disputes (Centre vs State). <span class="text-rose-500">Excludes:</span> Pre-constitution treaties & Finance Comm.</td>
-                            </tr>
-                            <tr class="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black"><span class="cloze" onclick="this.classList.toggle('revealed')">Art 136</span></td>
-                                <td class="p-4">Special Leave Petition</td>
-                                <td class="p-4 text-slate-500">Discretionary power of SC to hear appeals from any court/tribunal (except military).</td>
-                            </tr>
-                            <tr class="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black"><span class="cloze" onclick="this.classList.toggle('revealed')">Art 142</span></td>
-                                <td class="p-4">Complete Justice</td>
-                                <td class="p-4 text-slate-500">Used in Bhopal Gas Tragedy & Ayodhya case.</td>
-                            </tr>
-                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black"><span class="cloze" onclick="this.classList.toggle('revealed')">Art 143</span></td>
-                                <td class="p-4">Advisory Jurisdiction</td>
-                                <td class="p-4 text-slate-500">President consults SC. SC <mark>may refuse</mark> normal queries, but <mark>must advise</mark> on pre-constitution treaties.</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div class="mb-8">
+                    <h3 class="text-xl font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight mb-4 border-l-4 border-purple-500 pl-4">Constitutional Articles List</h3>
+                    <div class="space-y-3">
+                        
+                        <div class="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div class="font-black text-purple-600 dark:text-purple-400 whitespace-nowrap"><span class="mamba-cloze" onclick="this.classList.toggle('revealed')">125</span></div>
+                            <div class="text-sm font-bold text-slate-700 dark:text-slate-300">Salaries & Allowances determined by parliament by law. Cannot be reduced.</div>
+                        </div>
+
+                        <div class="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div class="font-black text-purple-600 dark:text-purple-400 whitespace-nowrap"><span class="mamba-cloze" onclick="this.classList.toggle('revealed')">126</span></div>
+                            <div class="text-sm font-bold text-slate-700 dark:text-slate-300">Acting CJI (Appointed from SC).</div>
+                        </div>
+
+                        <div class="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div class="font-black text-purple-600 dark:text-purple-400 whitespace-nowrap"><span class="mamba-cloze" onclick="this.classList.toggle('revealed')">127</span></div>
+                            <div class="text-sm font-bold text-slate-700 dark:text-slate-300">Adhoc judges (Appointed from HC).</div>
+                        </div>
+
+                        <div class="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div class="font-black text-purple-600 dark:text-purple-400 whitespace-nowrap"><span class="mamba-cloze" onclick="this.classList.toggle('revealed')">128</span></div>
+                            <div class="text-sm font-bold text-slate-700 dark:text-slate-300">Retired judges (from SC/HC). Appointed by President with Consultation with CJI.</div>
+                        </div>
+
+                        <div class="flex flex-col gap-2 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div class="flex gap-4"><div class="font-black text-purple-600 dark:text-purple-400 whitespace-nowrap"><span class="mamba-cloze" onclick="this.classList.toggle('revealed')">129</span></div><div class="text-sm font-bold text-slate-700 dark:text-slate-300">SC to be a Court of Record (HC is <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">215</span>).</div></div>
+                            <div class="text-sm font-bold text-slate-600 dark:text-slate-400 pl-11">
+                                Judgements recorded for perpetual memory & act as legal precedents.<br>
+                                Power to punish not only itself but also other courts.<br>
+                                <b>Contempt of Court Act, 1971:</b><br>
+                                1) Civil Contempt: Wilful disobedience to any judgement.<br>
+                                2) Criminal Contempt: Scandalises or lowers authority, prejudices or interferes, or obstructs administration of justice.<br>
+                                <i>Exception: Fair comments on merit/accurate report is not COC (H.N. Sanyal Committee). Punishment: 6 month jail.</i>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div class="font-black text-purple-600 dark:text-purple-400 whitespace-nowrap"><span class="mamba-cloze" onclick="this.classList.toggle('revealed')">130</span></div>
+                            <div class="text-sm font-bold text-slate-700 dark:text-slate-300">Seat of SC shall sit in Delhi or such other places as CJI with approval of president.</div>
+                        </div>
+
+                        <div class="flex flex-col gap-2 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div class="flex gap-4"><div class="font-black text-purple-600 dark:text-purple-400 whitespace-nowrap"><span class="mamba-cloze" onclick="this.classList.toggle('revealed')">131</span></div><div class="text-sm font-bold text-slate-700 dark:text-slate-300">Original Jurisdiction of the SC.</div></div>
+                            <div class="text-sm font-bold text-slate-600 dark:text-slate-400 pl-11">
+                                <b>Included:</b> Civil (A vs B), Criminal (State vs A). Between: Centre vs 1/more states, Centre & state vs other state, State vs State.<br>
+                                <b>NOT Extended To:</b> Sub-ordinate courts having original jurisdiction in criminal cases, HC/DC in civil cases, Pre-constitutional treaties, Inter-State water dispute, Finance Commission, Expenses b/w Centre & State.
+                            </div>
+                        </div>
+
+                        <div class="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div class="font-black text-purple-600 dark:text-purple-400 whitespace-nowrap">132</div>
+                            <div class="text-sm font-bold text-slate-700 dark:text-slate-300">Certain Appellate Jurisdiction.</div>
+                        </div>
+                        <div class="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div class="font-black text-purple-600 dark:text-purple-400 whitespace-nowrap"><span class="mamba-cloze" onclick="this.classList.toggle('revealed')">133</span></div>
+                            <div class="text-sm font-bold text-slate-700 dark:text-slate-300">Civil Appellate Jurisdiction.</div>
+                        </div>
+                        <div class="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div class="font-black text-purple-600 dark:text-purple-400 whitespace-nowrap"><span class="mamba-cloze" onclick="this.classList.toggle('revealed')">134</span></div>
+                            <div class="text-sm font-bold text-slate-700 dark:text-slate-300">Criminal Appellate. (HC reversed the order of acquittal, sentence him to death or taken himself).</div>
+                        </div>
+                        <div class="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div class="font-black text-purple-600 dark:text-purple-400 whitespace-nowrap">134A</div>
+                            <div class="text-sm font-bold text-slate-700 dark:text-slate-300">High court appealing itself to SC when it is the case of interpretation of const/substantial question of law.</div>
+                        </div>
+
+                        <div class="flex flex-col gap-2 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div class="flex gap-4"><div class="font-black text-purple-600 dark:text-purple-400 whitespace-nowrap"><span class="mamba-cloze" onclick="this.classList.toggle('revealed')">136</span></div><div class="text-sm font-bold text-slate-700 dark:text-slate-300">Special Leave Petition.</div></div>
+                            <div class="text-sm font-bold text-slate-600 dark:text-slate-400 pl-11">
+                                Lawyer tells SC to hear his case as it might involve interpretation of constitution/substantial question of law.
+                            </div>
+                        </div>
+
+                        <div class="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div class="font-black text-purple-600 dark:text-purple-400 whitespace-nowrap"><span class="mamba-cloze" onclick="this.classList.toggle('revealed')">137</span></div>
+                            <div class="text-sm font-bold text-slate-700 dark:text-slate-300">Review of judgements or orders by SC & Revisional jurisdiction.</div>
+                        </div>
+                        <div class="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div class="font-black text-purple-600 dark:text-purple-400 whitespace-nowrap"><span class="mamba-cloze" onclick="this.classList.toggle('revealed')">138</span></div>
+                            <div class="text-sm font-bold text-slate-700 dark:text-slate-300">Parliament power to Enlargement of the jurisdiction of SC.</div>
+                        </div>
+                        <div class="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div class="font-black text-purple-600 dark:text-purple-400 whitespace-nowrap"><span class="mamba-cloze" onclick="this.classList.toggle('revealed')">141</span></div>
+                            <div class="text-sm font-bold text-slate-700 dark:text-slate-300">LAW OF THE LAND. Law declared by SC binding on all courts.</div>
+                        </div>
+
+                        <div class="flex flex-col gap-2 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div class="flex gap-4"><div class="font-black text-purple-600 dark:text-purple-400 whitespace-nowrap"><span class="mamba-cloze" onclick="this.classList.toggle('revealed')">142</span></div><div class="text-sm font-bold text-slate-700 dark:text-slate-300">Complete Justice.</div></div>
+                            <div class="text-sm font-bold text-slate-600 dark:text-slate-400 pl-11">
+                                Examples: Ram Janam Bhumi (Gave land to Muslim Community too), Bhopal Gas tragedy (Compensation to all suffered), Rajiv Gandhi Assassination.<br>
+                                <i>"Article 142 is not a source of unlimited power for you to go far ahead. There should be self-restraint - Venugopal"</i>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col gap-2 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div class="flex gap-4"><div class="font-black text-purple-600 dark:text-purple-400 whitespace-nowrap"><span class="mamba-cloze" onclick="this.classList.toggle('revealed')">143</span></div><div class="text-sm font-bold text-slate-700 dark:text-slate-300">Power of President to consult SC (Advisory).</div></div>
+                            <div class="text-sm font-bold text-slate-600 dark:text-slate-400 pl-11">
+                                a) A question of law or fact has arisen -> SC <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">May refuse</span>.<br>
+                                b) Pre-constitution treaty, agreement -> SC <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">Must</span> tender its opinion. (e.g. Berubari Case).
+                            </div>
+                        </div>
+
+                        <div class="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div class="font-black text-purple-600 dark:text-purple-400 whitespace-nowrap">144</div>
+                            <div class="text-sm font-bold text-slate-700 dark:text-slate-300">Civil and judicial authorities to act in the aid of SC.</div>
+                        </div>
+                        <div class="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div class="font-black text-purple-600 dark:text-purple-400 whitespace-nowrap">145</div>
+                            <div class="text-sm font-bold text-slate-700 dark:text-slate-300">Rules of Court / Master of Roster.</div>
+                        </div>
+                        <div class="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div class="font-black text-purple-600 dark:text-purple-400 whitespace-nowrap">146</div>
+                            <div class="text-sm font-bold text-slate-700 dark:text-slate-300">Officers & servants of the SC (CFI).</div>
+                        </div>
+                        <div class="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div class="font-black text-purple-600 dark:text-purple-400 whitespace-nowrap">147</div>
+                            <div class="text-sm font-bold text-slate-700 dark:text-slate-300">Interpretation.</div>
+                        </div>
+                    </div>
                 </div>
 
-                <h3 class="text-xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight mb-4 mt-8">🔨 Removal Process (Judges Inquiry Act, 1968)</h3>
-                <div class="bg-amber-50 dark:bg-amber-900/10 p-6 rounded-2xl border-l-4 border-amber-500 shadow-sm mb-8">
-                    <p class="text-sm font-bold text-amber-800 dark:text-amber-400 mb-4"><b>Grounds:</b> Proved Misbehaviour or Incapacity.</p>
+                <h3 class="text-xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight mb-4 mt-8 border-l-4 border-amber-500 pl-4">Removal of Judge / Impeachment</h3>
+                <div class="bg-amber-50 dark:bg-amber-900/10 p-6 rounded-2xl border border-amber-200 dark:border-amber-800/50 shadow-inner mb-8">
+                    <p class="text-sm font-bold text-amber-800 dark:text-amber-400 mb-4"><b>Grounds:</b> <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">Proved Misbehaviour</span> | <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">Incapacity</span>. (Process given in Judges inquiry act 1968 + 124).</p>
                     <div class="flex flex-col md:flex-row gap-2 md:items-center text-sm font-black text-slate-700 dark:text-slate-300">
-                        <div class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-amber-200 dark:border-amber-800">1. LS (<span class="cloze" onclick="this.classList.toggle('revealed')">100</span>) or RS (<span class="cloze" onclick="this.classList.toggle('revealed')">50</span>) signs motion</div>
+                        <div class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-amber-200 dark:border-amber-800">LS (<span class="mamba-cloze" onclick="this.classList.toggle('revealed')">100</span>) or RS (<span class="mamba-cloze" onclick="this.classList.toggle('revealed')">50</span>) member motion</div>
                         <span class="text-amber-500 hidden md:block">➔</span>
-                        <div class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-amber-200 dark:border-amber-800">2. Speaker/Chairman accepts</div>
+                        <div class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-amber-200 dark:border-amber-800">Speaker approval (May accept/decline)</div>
                         <span class="text-amber-500 hidden md:block">➔</span>
-                        <div class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-amber-200 dark:border-amber-800">3. 3-Member Comm. Investigates</div>
+                        <div class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-amber-200 dark:border-amber-800">3 member committee (CJI + CJ HC + Prominent jurist)</div>
                         <span class="text-amber-500 hidden md:block">➔</span>
-                        <div class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-rose-200 dark:border-rose-800"><span class="text-rose-500">4. Special Majority in Parliament</span></div>
+                        <div class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-rose-200 dark:border-rose-800"><span class="text-rose-500">Special Majority in Parliament</span></div>
                         <span class="text-amber-500 hidden md:block">➔</span>
-                        <div class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-amber-200 dark:border-amber-800">5. President Removes</div>
+                        <div class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-amber-200 dark:border-amber-800">President removes</div>
                     </div>
-                </div>
-
-                <div class="bg-rose-50 dark:bg-rose-900/10 p-6 rounded-2xl border border-rose-200 dark:border-rose-800/50 shadow-inner mt-8">
-                    <h3 class="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-3 flex items-center gap-2">⚠️ SSC CGL Meta-Traps</h3>
-                    <ul class="space-y-2 text-sm font-bold text-rose-800 dark:text-rose-300">
-                        <li><span class="text-rose-500">Trap #1:</span> Subordinate courts <mark class="bg-rose-200 dark:bg-rose-800 text-rose-900 dark:text-rose-100">cannot</mark> be involved in Article 131 (Original Jurisdiction). It is ONLY Centre vs State or State vs State.</li>
-                        <li><span class="text-rose-500">Trap #2:</span> Contempt of Court (Art 129) is both Civil (wilful disobedience) and Criminal (scandalizing the court).</li>
-                        <li><span class="text-rose-500">Trap #3:</span> The President <mark class="bg-rose-200 dark:bg-rose-800 text-rose-900 dark:text-rose-100">must</mark> consult the CJI to appoint other judges (Art 124), but the President <mark class="bg-rose-200 dark:bg-rose-800 text-rose-900 dark:text-rose-100">may refuse</mark> to follow the SC's advice under normal Advisory Jurisdiction (Art 143).</li>
-                    </ul>
                 </div>
 
             </div>
@@ -567,7 +692,8 @@
         for(let sub in subjects) {
             let subHtml = `<div class="mt-4 mb-2"><h3 class="text-[10px] font-black text-emerald-500 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800 pb-2">${sub}</h3></div>`;
             subjects[sub].forEach(n => {
-                subHtml += `<button onclick="viewNote('${n.id}')" class="w-full text-left p-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-slate-700 dark:text-slate-300 font-bold text-sm transition-all mb-2 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md truncate focus:ring-2 focus:ring-emerald-500 outline-none">${n.topic}</button>`;
+                let displayTxt = n.displayTitle ? n.displayTitle : n.topic;
+                subHtml += `<button onclick="viewNote('${n.id}')" class="w-full text-left p-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-slate-700 dark:text-slate-300 font-bold text-sm transition-all mb-2 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md truncate focus:ring-2 focus:ring-emerald-500 outline-none">${displayTxt}</button>`;
             });
             indexContainer.innerHTML += subHtml;
         }
@@ -578,16 +704,17 @@
         const note = notesDb[id];
         if(note) {
             let tricks = note.tricks || "";
+            let displayTxt = note.displayTitle ? note.displayTitle : note.topic;
             
             // The Mamba Bottom Bar (Editable Trick Vault + Instant Strike)
             let mambaBottomBar = `
-                <div class="mt-10 border-t border-slate-200 dark:border-slate-800 pt-8" data-html2canvas-ignore="true">
+                <div class="p-6 md:p-10 bg-slate-100 dark:bg-slate-950 border-t-2 border-slate-200 dark:border-slate-800" data-html2canvas-ignore="true">
                     <h3 class="text-xl font-black text-purple-600 dark:text-purple-400 uppercase tracking-tight mb-4 flex items-center gap-2">🧠 Mamba Trick Vault</h3>
                     <textarea id="trick-vault-input" rows="3" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-purple-50/50 dark:bg-purple-900/10 font-bold text-sm focus:ring-2 focus:ring-purple-500 outline-none text-slate-800 dark:text-slate-200 shadow-inner mb-4" placeholder="Type your mnemonics, chronological shortcuts, or memory hooks here...">${tricks}</textarea>
                     
                     <div class="flex flex-col sm:flex-row gap-4">
-                        <button onclick="saveTrick('${id}')" class="flex-1 bg-slate-200 dark:bg-slate-800 hover:bg-purple-500 hover:text-white text-slate-700 dark:text-slate-300 font-black py-4 rounded-xl shadow-sm transition-all uppercase tracking-widest text-[10px] border border-slate-300 dark:border-slate-700 hover:border-purple-500">💾 Save Trick</button>
-                        <button onclick="launchTargetedStrike('${id}')" class="flex-1 bg-slate-900 dark:bg-emerald-500 text-white dark:text-slate-900 font-black py-4 rounded-xl shadow-[0_5px_15px_rgba(0,0,0,0.2)] hover:-translate-y-0.5 transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2">⚡ Launch Instant Strike</button>
+                        <button onclick="saveTrick('${id}')" class="flex-1 bg-white dark:bg-slate-800 hover:bg-purple-500 hover:text-white text-slate-700 dark:text-slate-300 font-black py-4 rounded-xl shadow-sm transition-all uppercase tracking-widest text-[10px] border border-slate-300 dark:border-slate-700 hover:border-purple-500">💾 Save Trick</button>
+                        <button onclick="launchTargetedStrike('${id}')" class="flex-1 bg-slate-900 dark:bg-emerald-500 text-white dark:text-slate-900 font-black py-4 rounded-xl shadow-[0_5px_15px_rgba(0,0,0,0.2)] hover:-translate-y-0.5 transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2">⚡ Launch Instant Strike: ${displayTxt}</button>
                     </div>
                 </div>
             `;
@@ -600,7 +727,7 @@
     window.saveTrick = (id) => {
         const val = document.getElementById('trick-vault-input').value;
         notesDb[id].tricks = val;
-        updateLocalCache(); // Save to local storage without pinging Google Cloud immediately
+        updateLocalCache(); 
         alert("✅ Mamba Trick Saved Permanently!");
     };
 
@@ -608,7 +735,7 @@
         const note = notesDb[id];
         let pool = [];
         
-        // Scan the entire database for questions matching this note's Subject and Topic
+        // Scan DB for questions matching Subject and Topic (using includes to catch variations)
         Object.keys(db).forEach(quizId => {
             if(db[quizId] && Array.isArray(db[quizId].questions) && !db[quizId].title.includes("🎯") && !db[quizId].title.includes("SRS")) {
                 db[quizId].questions.forEach(q => {
@@ -616,7 +743,7 @@
                     let t1 = qTags.length > 0 ? qTags[0] : (q.subject || q.originalSubject || "Miscellaneous");
                     let t2 = qTags.length > 1 ? qTags[1] : t1;
                     
-                    if (t1 === note.subject && t2 === note.topic) {
+                    if (t1 === note.subject && t2.toLowerCase().includes(note.topic.toLowerCase())) {
                         pool.push(q);
                     }
                 });
@@ -624,17 +751,17 @@
         });
 
         if(pool.length === 0) {
-            return alert(`No questions found in your vault tagged with Subject: "${note.subject}" and Topic: "${note.topic}". Go add some questions first!`);
+            return alert(`No questions found in your vault tagged with Subject: "${note.subject}" and Topic containing: "${note.topic}".\n\n(Tip: When you add questions in the DB Editor, make sure Tag 2 matches this note's topic).`);
         }
 
-        // De-duplicate and randomize
         const uniqueQs = Array.from(new Map(pool.map(q => [q.question, q])).values());
-        const shuffled = uniqueQs.sort(() => 0.5 - Math.random()).slice(0, 15); // Max 15 questions for a quick strike
+        const shuffled = uniqueQs.sort(() => 0.5 - Math.random()).slice(0, 15); 
+        let displayTxt = note.displayTitle ? note.displayTitle : note.topic;
 
         db['quiz_strike'] = { 
-            title: `⚡ Instant Strike - ${note.topic}`, 
+            title: `⚡ Instant Strike - ${displayTxt}`, 
             subject: note.subject, 
-            timeInMinutes: Math.ceil(shuffled.length * 1.0), // Fast pace: 1 min per question
+            timeInMinutes: Math.ceil(shuffled.length * 1.0), 
             questions: shuffled 
         };
         
@@ -642,23 +769,32 @@
     };
 
     window.downloadNotePDF = () => {
-        const element = document.getElementById('library-content-viewer');
+        const element = document.getElementById('pdf-content-wrapper');
         
-        // Temporarily change background to light for printing if in dark mode
+        // Ensure all Clozes are revealed for the PDF printout
+        const clozes = element.querySelectorAll('.mamba-cloze');
+        clozes.forEach(c => c.classList.add('revealed'));
+
+        // Change background to light for printing if in dark mode
         const wasDark = document.documentElement.classList.contains('dark');
         if(wasDark) document.documentElement.classList.remove('dark');
 
+        // Alert user
+        alert("Preparing PDF. This will take a few seconds to render in high-res.");
+
         const opt = {
             margin:       [0.5, 0.5],
-            filename:     `Mamba_Notes_${new Date().getTime()}.pdf`,
+            filename:     `Mamba_Notes.pdf`,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
+            html2canvas:  { scale: 2, useCORS: true, letterRendering: true, backgroundColor: '#ffffff' },
             jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
         };
 
         html2pdf().set(opt).from(element).save().then(() => {
-            // Restore dark mode if it was on
+            // Restore dark mode
             if(wasDark) document.documentElement.classList.add('dark');
+            // Hide clozes again
+            clozes.forEach(c => c.classList.remove('revealed'));
         });
     };
 
@@ -1063,7 +1199,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.36", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.37", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
