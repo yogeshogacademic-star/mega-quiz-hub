@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.38 (The Ghost Index Build)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.41 (Library Editor Fix)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -52,7 +52,6 @@
         .light .mamba-cloze { background-color: #94a3b8; border-color: #64748b; }
         .mamba-cloze:hover { box-shadow: 0 0 8px rgba(59, 130, 246, 0.5); border-color: #3b82f6; }
         
-        /* When Clicked */
         .mamba-cloze.revealed { 
             background-color: rgba(16, 185, 129, 0.1); 
             color: #10b981; 
@@ -83,9 +82,9 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.38</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.41</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">The Ghost Index & Ledger System</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Library Editor UI Fixed</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
@@ -144,7 +143,7 @@
             <div class="w-full md:w-1/3 lg:w-1/4 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 p-6 flex flex-col z-10" data-html2canvas-ignore="true">
                 <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-6 flex items-center gap-2 transition-colors w-fit">← Back to Hub</button>
                 <h2 class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight mb-2">Library Index</h2>
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">Auto-Mapped to Quiz DB Tags</p>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">Auto-Mapped Folders</p>
                 
                 <div id="library-index" class="space-y-4 flex-1 overflow-y-auto pr-2 pb-10">
                     </div>
@@ -160,24 +159,31 @@
     </div>
 
     <div id="screen-add-note-modal" class="hidden fixed inset-0 z-[300] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl flex flex-col">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-4xl flex flex-col max-h-[95vh]">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4 shrink-0">
                 <div>
-                    <h2 class="text-2xl font-black uppercase text-emerald-600 dark:text-emerald-400 tracking-tight">➕ Bind New Note</h2>
+                    <h2 class="text-2xl font-black uppercase text-emerald-600 dark:text-emerald-400 tracking-tight">✏️ Note Injector</h2>
                     <p id="add-note-target-label" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Targeting: Subject > Topic</p>
                 </div>
                 <button onclick="closeAddNoteModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
             </div>
             
-            <div class="space-y-4">
+            <div class="space-y-4 overflow-y-auto pr-2 flex-1">
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Note Title</label>
+                    <input type="text" id="add-note-title-input" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800 dark:text-slate-200 shadow-inner" placeholder="Enter title for this note...">
+                </div>
+
                 <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <p class="text-xs font-bold text-slate-500 mb-2">Paste the Mamba-Formatted HTML code below to permanently bind it to this specific topic. The Instant Strike will automatically target these tags.</p>
-                    <textarea id="add-note-html-input" rows="12" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 font-mono text-xs focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800 dark:text-slate-200 shadow-inner" placeholder="<div><h1>My Notes...</h1>..."></textarea>
+                    <p class="text-xs font-bold text-slate-500 mb-2">Paste your Mamba HTML code below. You can update existing code here.</p>
+                    <textarea id="add-note-html-input" rows="18" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 font-mono text-[10px] sm:text-xs focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800 dark:text-slate-200 shadow-inner" placeholder="<div><h1>My Notes...</h1>..."></textarea>
                 </div>
                 <input type="hidden" id="add-note-hidden-subject">
                 <input type="hidden" id="add-note-hidden-topic">
-                
-                <button onclick="saveNewNote()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-black uppercase tracking-widest py-4 rounded-xl shadow-lg transition-all shadow-[0_5px_15px_rgba(16,185,129,0.3)] hover:-translate-y-1 text-sm">💾 Inject Code to Database</button>
+                <input type="hidden" id="add-note-hidden-id">
+            </div>
+            <div class="pt-4 mt-2 border-t border-slate-100 dark:border-slate-800 shrink-0">
+                <button onclick="saveNewNote()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-black uppercase tracking-widest py-4 rounded-xl shadow-lg transition-all shadow-[0_5px_15px_rgba(16,185,129,0.3)] hover:-translate-y-1 text-sm">💾 Save & Inject Code</button>
             </div>
         </div>
     </div>
@@ -443,150 +449,8 @@
     let historyDb = [];
     let mistakesDb = []; 
     
-    // ==========================================
-    // MASTER LIBRARY DATABASE
-    // ==========================================
-    // Pre-loaded with the exact Supreme Court note, mapped to "Polity -> Judiciary"
-    let notesDb = {
-        "Polity_Judiciary_01": {
-            subject: "Polity",
-            topic: "Judiciary", 
-            title: "Supreme Court of India (Exact Notes)",
-            additionalDetails: [], // Starts empty, fills up as you add points
-            htmlContent: `
-                <div class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md pb-4 mb-6 border-b border-slate-200 dark:border-slate-800" data-html2canvas-ignore="true">
-                    <div class="flex justify-between items-center pt-2">
-                        <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Polity > Judiciary</span>
-                        <button onclick="downloadNotePDF()" class="bg-rose-500 hover:bg-rose-400 text-white font-black px-4 py-2 rounded-lg shadow-md transition-transform hover:-translate-y-0.5 text-[10px] uppercase tracking-widest flex items-center gap-2 border border-rose-400">
-                            📄 Export PDF
-                        </button>
-                    </div>
-                </div>
-
-                <div id="pdf-content-wrapper" class="relative pb-10">
-                    <div class="mb-8">
-                        <h1 class="text-3xl md:text-5xl font-black text-slate-800 dark:text-slate-100 tracking-tight">Supreme Court of India</h1>
-                        <div class="text-sm font-bold text-slate-600 dark:text-slate-400 mt-4 space-y-2">
-                            <p>1) Independent Integrated judicial system (Govt of India act, <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">1935</span>).</p>
-                            <p>2) Inaugurated in <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">1950</span>. Succeeded the Federal Court of India and replaced the British Privy Council.</p>
-                            <p>3) Articles <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">124 to 147</span> in Part <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">V</span>.</p>
-                        </div>
-                    </div>
-
-                    <div class="mb-8 border-l-4 border-emerald-500 pl-4">
-                        <h3 class="text-lg font-black text-slate-800 dark:text-slate-200 mb-2">Article 124</h3>
-                        <div class="text-sm font-bold text-slate-700 dark:text-slate-300 space-y-3">
-                            <p>There shall be a Supreme Court of India consisting of CJI + Other judges.</p>
-                            <p>Initially: <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">1 + 7</span> judges. Now: <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">1 + 33</span> (Decided by Parliament by law).</p>
-                            
-                            <p class="text-emerald-600 dark:text-emerald-400 font-black mt-4">Conditions:</p>
-                            <ul class="list-disc pl-5">
-                                <li>Citizen of India <span class="text-rose-500">+</span></li>
-                                <li><span class="mamba-cloze" onclick="this.classList.toggle('revealed')">5 yrs</span> of Judge of HC <span class="text-rose-500">OR</span> <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">10 yrs</span> of High Court Advocate <span class="text-rose-500">OR</span> DISTINGUISHED JURIST (In the eye of President).</li>
-                            </ul>
-
-                            <p class="text-blue-600 dark:text-blue-400 font-black mt-4">Appointment:</p>
-                            <ul class="space-y-1">
-                                <li>1) <b>CJI:</b> Appointed by President after consultation with judges of supreme court & high court.</li>
-                                <li><i>MOP: Senior most judge (CJI Violated 2 times A'N Ray, M.U Beg).</i></li>
-                                <li>2) <b>Other:</b> President after CONSULTATION with CJI.</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div class="mb-8 border-l-4 border-blue-500 pl-4">
-                        <h3 class="text-lg font-black text-slate-800 dark:text-slate-200 mb-2">Meaning of Consultation?</h3>
-                        <div class="text-sm font-bold text-slate-700 dark:text-slate-300 space-y-2">
-                            <p><b>First Judge Case (1982):</b> Consultation is <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">not concurrence</span> (Executive supremacy).</p>
-                            <p><b>Second Judge Case (1993):</b> Consultation <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">Means concurrence</span>.</p>
-                            <p><b>Third Judge Case (1998):</b> Consultation process include Collegium.</p>
-                            
-                            <div class="mt-4 p-4 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                                <p class="font-black text-slate-800 dark:text-slate-200 mb-2">Collegium:</p>
-                                <p>SC Judge = CJI + <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">4</span> judge collegium.</p>
-                                <p>HC Judge = CJI + <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">2</span> judge collegium.</p>
-                                <p class="mt-3 text-rose-600 dark:text-rose-400"><b>99th Amendment [2014]:</b> Formation of NJAC [124A]. (6 members: CJI, 2 SC Judges, Union law minister, 2 Eminent persons). <b>2015:</b> SC declared both amendment & NJAC void against the independent of judiciary.</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mb-8 border-l-4 border-purple-500 pl-4">
-                        <h3 class="text-lg font-black text-slate-800 dark:text-slate-200 mb-2">Articles</h3>
-                        <div class="text-sm font-bold text-slate-700 dark:text-slate-300 space-y-4">
-                            <p><span class="text-purple-600 dark:text-purple-400 font-black">125:</span> Salaries & Allowances determined by parliament by law. Cannot be reduced.</p>
-                            <p><span class="text-purple-600 dark:text-purple-400 font-black">126:</span> Acting CJI:- From SC.</p>
-                            <p><span class="text-purple-600 dark:text-purple-400 font-black">127:</span> Adhoc judges:- from <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">HC</span>.</p>
-                            <p><span class="text-purple-600 dark:text-purple-400 font-black">128:</span> Retired judges:- from SC/HC. (Appointed by President with Consultation with CJI).</p>
-                            
-                            <div class="bg-slate-100 dark:bg-slate-800 p-4 rounded-lg">
-                                <p><span class="text-purple-600 dark:text-purple-400 font-black">129:</span> SC to be a court of record. {HC:- 215}</p>
-                                <p class="text-xs text-slate-500 mt-1">Judgements are recorded for perpetual memory & they act as legal precedents. Power to punish not only itself but also other courts.</p>
-                                <p class="mt-2"><b>Contempt of court (Act 1971):</b></p>
-                                <ul class="list-disc pl-4 text-xs">
-                                    <li>Civil: wilful disobedience to any judgement.</li>
-                                    <li>Criminal: 1) Scandalises or lowers authority. 2) prejudices or interfere. 3) interferes or obstructs administration of justice.</li>
-                                </ul>
-                                <p class="text-xs mt-1 text-emerald-600 dark:text-emerald-400"><i>H.N. Sanyal Committee: fair comments on merit/accurate report of judicial judgement is not COC. (6 month jail).</i></p>
-                            </div>
-
-                            <p><span class="text-purple-600 dark:text-purple-400 font-black">130:</span> Seat of SC shall sit in Delhi or such other places as CJI with approval of president.</p>
-                            
-                            <div class="bg-slate-100 dark:bg-slate-800 p-4 rounded-lg">
-                                <p><span class="text-purple-600 dark:text-purple-400 font-black">131:</span> Original jurisdiction of the Supreme Court.</p>
-                                <ul class="list-disc pl-4 text-xs mt-1 space-y-1">
-                                    <li>Civil (A vs B), Criminal (State vs A).</li>
-                                    <li>Between: a) Centre & one/more states. b) Centre & state vs other state. c) between 2 or more states.</li>
-                                    <li><span class="text-rose-500">Not extend to:</span> Sub-ordinate courts in criminal cases, HC/DC in civil cases, pre-constitutional treaty, Inter-State water dispute, Finance commission, Expenses b/w Centre & state.</li>
-                                </ul>
-                            </div>
-
-                            <p><span class="text-purple-600 dark:text-purple-400 font-black">132:</span> Certain Appellate Jurisdiction.</p>
-                            <p><span class="text-purple-600 dark:text-purple-400 font-black">133:</span> Civil Appellate Jurisdiction.</p>
-                            <p><span class="text-purple-600 dark:text-purple-400 font-black">134:</span> Criminal Appellate. (HC reversed the order of acquittal, sentence him to death or taken himself).</p>
-                            <p><span class="text-purple-600 dark:text-purple-400 font-black">134A:</span> High court appealing itself to SC when it is the case of interpretation of const/substantial question of law.</p>
-                            <p><span class="text-purple-600 dark:text-purple-400 font-black">136:</span> Special leave petition. (Lawyer tell SC to hear his case...).</p>
-                            <p><span class="text-purple-600 dark:text-purple-400 font-black">137:</span> Review of judgements or orders by SC & Revisional jurisdiction.</p>
-                            <p><span class="text-purple-600 dark:text-purple-400 font-black">138:</span> Parliament power to Enlargement of the jurisdiction of SC.</p>
-                            <p><span class="text-purple-600 dark:text-purple-400 font-black">141:</span> LAW OF THE LAND. Law declared by sc binding on all courts.</p>
-
-                            <div class="bg-slate-100 dark:bg-slate-800 p-4 rounded-lg">
-                                <p><span class="text-purple-600 dark:text-purple-400 font-black">142:</span> Complete justice.</p>
-                                <p class="text-xs text-slate-500 mt-1">a) Ram Janam Bhumi. b) Bhopal Gas tragedy. c) Rajiv Gandhi Assassination.</p>
-                                <p class="text-xs mt-1"><i>"Article 142 is not a source of unlimited power... There should be self-restraint - Venugopal"</i></p>
-                            </div>
-
-                            <div class="bg-slate-100 dark:bg-slate-800 p-4 rounded-lg">
-                                <p><span class="text-purple-600 dark:text-purple-400 font-black">143:</span> Power of President to consult SC.</p>
-                                <ul class="list-disc pl-4 text-xs mt-1">
-                                    <li>a) A question of law or fact has arisen -> SC <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">May refuse</span>.</li>
-                                    <li>b) pre-constitution treaty, agreement -> SC <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">Must</span> tender its opinion (e.g. Berubari Case).</li>
-                                </ul>
-                            </div>
-
-                            <p><span class="text-purple-600 dark:text-purple-400 font-black">144:</span> Civil and judicial authorities to act in the aid of SC.</p>
-                            <p><span class="text-purple-600 dark:text-purple-400 font-black">145:</span> Rules of Court / Master of Roster.</p>
-                            <p><span class="text-purple-600 dark:text-purple-400 font-black">146:</span> Officials & servants of the SC (CFI).</p>
-                            <p><span class="text-purple-600 dark:text-purple-400 font-black">147:</span> Interpretation.</p>
-                        </div>
-                    </div>
-
-                    <div class="mb-4 border-l-4 border-amber-500 pl-4">
-                        <h3 class="text-lg font-black text-slate-800 dark:text-slate-200 mb-2">Removal of Judge / Impeachment</h3>
-                        <div class="text-sm font-bold text-slate-700 dark:text-slate-300">
-                            <p><b>Grounds:</b> <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">Proved Misbehaviour</span> or <span class="mamba-cloze" onclick="this.classList.toggle('revealed')">Incapacity</span>.</p>
-                            <p class="text-xs text-slate-500 mt-1 mb-3">Process given in Judges inquiry act 1968 + 124.</p>
-                            <div class="flex flex-col gap-1 p-4 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                                <p>1) LS (<span class="mamba-cloze" onclick="this.classList.toggle('revealed')">100</span>) or RS (<span class="mamba-cloze" onclick="this.classList.toggle('revealed')">50</span>) member motion.</p>
-                                <p>2) Speaker approval - May accept/decline.</p>
-                                <p>3) 3 member committee (CJI + CJ HC + Prominent jurist).</p>
-                                <p class="text-rose-500">4) Special Majority in Parliament.</p>
-                                <p>5) President Removes.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div> `
-        }
-    };
+    // Notes Database (Prototype removed to prevent UI conflicts. Will be populated by LocalStorage or User Add)
+    let notesDb = {};
 
     let currentQuizId = null;
     let currentAttemptNum = 1;
@@ -605,7 +469,7 @@
     window.editCounter = 0;
     
     // ==========================================
-    // NEW: MASTER LIBRARY LOGIC (THE GHOST INDEX)
+    // MASTER LIBRARY LOGIC (THE GHOST FOLDER INDEX)
     // ==========================================
     window.openLibrary = () => {
         showScreen('library');
@@ -618,7 +482,6 @@
         
         let masterTree = {};
         
-        // SCAN DB TO BUILD THE GHOST INDEX
         Object.keys(db).forEach(quizId => {
             if(db[quizId] && Array.isArray(db[quizId].questions) && !db[quizId].title.includes("🎯") && !db[quizId].title.includes("SRS")) {
                 db[quizId].questions.forEach(q => {
@@ -632,29 +495,25 @@
             }
         });
 
-        // RENDER THE INDEX
         let html = '';
         Object.keys(masterTree).sort().forEach(sub => {
-            html += `<div class="mt-5 mb-2"><h3 class="text-[10px] font-black text-emerald-500 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800 pb-2">${sub}</h3></div>`;
+            html += `<div class="mt-6 mb-2"><h3 class="text-[10px] font-black text-emerald-500 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800 pb-2">${sub}</h3></div>`;
             
             let topics = Array.from(masterTree[sub]).sort();
             topics.forEach(top => {
-                // Find if any note exists for this exact Subject and Topic
-                let matchingNoteId = null;
+                
+                html += `<div class="text-[11px] font-black text-slate-400 mt-4 mb-2 uppercase tracking-widest flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-700"></span> ${top}</div>`;
+                
+                // Render all notes inside this folder
                 for(let nid in notesDb) {
                     if(notesDb[nid].subject === sub && notesDb[nid].topic === top) {
-                        matchingNoteId = nid; break;
+                        let title = notesDb[nid].title || notesDb[nid].displayTitle || top;
+                        html += `<button onclick="viewNote('${nid}')" class="w-full text-left p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 font-bold text-sm transition-all mb-2 border border-emerald-200 dark:border-emerald-800/50 shadow-sm hover:shadow-md truncate focus:ring-2 focus:ring-emerald-500 outline-none flex items-center gap-3"><span class="text-lg">📖</span> <span class="truncate">${title}</span></button>`;
                     }
                 }
 
-                if(matchingNoteId) {
-                    // Note Exists -> Green Reading Button
-                    let title = notesDb[matchingNoteId].title || top;
-                    html += `<button onclick="viewNote('${matchingNoteId}')" class="w-full text-left p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 font-bold text-sm transition-all mb-2 border border-emerald-200 dark:border-emerald-800/50 shadow-sm hover:shadow-md truncate focus:ring-2 focus:ring-emerald-500 outline-none">📖 ${title}</button>`;
-                } else {
-                    // No Note -> Gray Add Button
-                    html += `<button onclick="openAddNoteModal('${sub.replace(/'/g, "\\'")}', '${top.replace(/'/g, "\\'")}')" class="w-full text-left p-3 rounded-xl bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-xs transition-all mb-2 border border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-400 hover:text-emerald-500 truncate outline-none opacity-60 hover:opacity-100">➕ Add Note: ${top}</button>`;
-                }
+                // The continuous ADD button for this folder
+                html += `<button onclick="openAddNoteModal('${sub.replace(/'/g, "\\'")}', '${top.replace(/'/g, "\\'")}')" class="w-full text-left p-2.5 rounded-xl bg-white dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 font-black text-[10px] transition-all mb-4 border border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-400 hover:text-emerald-500 uppercase tracking-widest outline-none opacity-60 hover:opacity-100 flex items-center justify-center gap-2">➕ Add Note to ${top}</button>`;
             });
         });
         
@@ -669,10 +528,35 @@
         document.getElementById('add-note-target-label').textContent = `Targeting: ${sub} > ${top}`;
         document.getElementById('add-note-hidden-subject').value = sub;
         document.getElementById('add-note-hidden-topic').value = top;
+        document.getElementById('add-note-hidden-id').value = ""; // Clear ID for new note
+        document.getElementById('add-note-title-input').value = "";
         document.getElementById('add-note-html-input').value = "";
         document.getElementById('screen-add-note-modal').classList.remove('hidden');
     };
     
+    // NEW: EDIT NOTE FUNCTION
+    window.editNote = (id) => {
+        const note = notesDb[id];
+        if(!note) return;
+        document.getElementById('add-note-target-label').textContent = `Editing Note: ${note.subject} > ${note.topic}`;
+        document.getElementById('add-note-hidden-subject').value = note.subject;
+        document.getElementById('add-note-hidden-topic').value = note.topic;
+        document.getElementById('add-note-hidden-id').value = id; // Set ID to overwrite
+        document.getElementById('add-note-title-input').value = note.displayTitle || note.title;
+        document.getElementById('add-note-html-input').value = note.htmlContent;
+        document.getElementById('screen-add-note-modal').classList.remove('hidden');
+    };
+
+    // NEW: DELETE NOTE FUNCTION
+    window.deleteNote = (id) => {
+        if(confirm("Are you sure you want to permanently delete this note?")) {
+            delete notesDb[id];
+            updateLocalCache();
+            renderLibraryIndex();
+            document.getElementById('library-content-viewer').innerHTML = `<div class="h-full flex flex-col items-center justify-center text-slate-400 opacity-50"><div class="text-6xl mb-4">📚</div><div class="font-black uppercase tracking-widest text-sm">Note Deleted. Select a topic.</div></div>`;
+        }
+    };
+
     window.closeAddNoteModal = () => {
         document.getElementById('screen-add-note-modal').classList.add('hidden');
     };
@@ -680,17 +564,26 @@
     window.saveNewNote = () => {
         let sub = document.getElementById('add-note-hidden-subject').value;
         let top = document.getElementById('add-note-hidden-topic').value;
+        let noteId = document.getElementById('add-note-hidden-id').value; // Check if editing
+        let title = document.getElementById('add-note-title-input').value.trim() || top;
         let htmlCode = document.getElementById('add-note-html-input').value.trim();
 
         if(!htmlCode) return alert("Paste the HTML code first.");
 
-        let noteId = `${sub}_${top}_${Date.now()}`.replace(/\s+/g, '_');
+        // If no ID, generate a new one. Otherwise, overwrite the existing one.
+        if(!noteId) {
+            noteId = `${sub}_${top}_${Date.now()}`.replace(/\s+/g, '_');
+            notesDb[noteId] = { additionalDetails: [] }; 
+        }
         
+        let existingDetails = notesDb[noteId] && notesDb[noteId].additionalDetails ? notesDb[noteId].additionalDetails : [];
+
         notesDb[noteId] = {
             subject: sub,
             topic: top,
-            title: top, // Default title to topic name
-            additionalDetails: [],
+            title: title, 
+            displayTitle: title,
+            additionalDetails: existingDetails,
             htmlContent: htmlCode
         };
 
@@ -704,6 +597,8 @@
         const viewer = document.getElementById('library-content-viewer');
         const note = notesDb[id];
         if(!note) return;
+
+        let displayTxt = note.displayTitle || note.title || note.topic;
 
         // RENDER ADDITIONAL DETAILS LIST
         let detailsListHTML = '';
@@ -723,7 +618,7 @@
         
         // THE MAMBA BOTTOM BAR (Additional Details + Instant Strike)
         let mambaBottomBar = `
-            <div class="mt-10 border-t border-slate-200 dark:border-slate-800 pt-8" data-html2canvas-ignore="true">
+            <div class="mt-10 border-t border-slate-200 dark:border-slate-800 pt-8 max-w-4xl mx-auto" data-html2canvas-ignore="true">
                 <h3 class="text-lg font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tight mb-4 flex items-center gap-2">📝 Additional Details Ledger</h3>
                 
                 ${detailsListHTML}
@@ -735,14 +630,28 @@
 
                 <div class="border-t border-slate-200 dark:border-slate-800 pt-6">
                     <button onclick="launchTargetedStrike('${id}')" class="w-full bg-slate-900 dark:bg-emerald-500 text-white dark:text-slate-900 font-black py-4 rounded-xl shadow-[0_5px_15px_rgba(0,0,0,0.2)] hover:-translate-y-0.5 transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2">
-                        ⚡ Launch Instant Strike: ${note.topic}
+                        ⚡ Launch Instant Strike: ${displayTxt}
                     </button>
                     <p class="text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Auto-targeting: ${note.subject} > ${note.topic}</p>
                 </div>
             </div>
         `;
         
-        viewer.innerHTML = note.htmlContent + mambaBottomBar;
+        // UPDATED HEADER TOOLS (NOW WITH MASSIVE YELLOW EDIT BUTTON)
+        let headerTools = `
+            <div class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md pb-4 mb-6 border-b border-slate-200 dark:border-slate-800 max-w-4xl mx-auto" data-html2canvas-ignore="true">
+                <div class="flex justify-between items-center pt-2">
+                    <span class="text-xs font-black text-slate-400 uppercase tracking-widest">${note.subject} > ${note.topic}</span>
+                    <div class="flex gap-2">
+                        <button onclick="editNote('${id}')" class="bg-amber-400 text-amber-900 hover:bg-amber-300 font-black px-5 py-2 rounded-xl text-xs uppercase tracking-widest transition-transform hover:-translate-y-0.5 border border-amber-500 shadow-[0_5px_15px_rgba(251,191,36,0.3)] flex items-center gap-2">✏️ Edit Note</button>
+                        <button onclick="deleteNote('${id}')" class="bg-slate-100 dark:bg-slate-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 font-black px-4 py-2 rounded-xl text-[10px] uppercase tracking-widest transition-colors border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-1">🗑️ Del</button>
+                        <button onclick="downloadNotePDF()" class="bg-rose-500 hover:bg-rose-400 text-white font-black px-4 py-2 rounded-xl shadow-md transition-transform hover:-translate-y-0.5 text-[10px] uppercase tracking-widest flex items-center gap-2 border border-rose-400">📄 Export PDF</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        viewer.innerHTML = headerTools + `<div id="pdf-content-wrapper" class="pb-10">` + note.htmlContent + `</div>` + mambaBottomBar;
         viewer.scrollTo(0,0);
     };
 
@@ -755,7 +664,7 @@
             if(!notesDb[noteId].additionalDetails) notesDb[noteId].additionalDetails = [];
             notesDb[noteId].additionalDetails.push(val);
             updateLocalCache(); 
-            viewNote(noteId); // Re-render to show the new point
+            viewNote(noteId); 
         }
     };
 
@@ -763,7 +672,6 @@
         const note = notesDb[noteId];
         let pool = [];
         
-        // Scan DB automatically using the Ghost Index mapping
         Object.keys(db).forEach(quizId => {
             if(db[quizId] && Array.isArray(db[quizId].questions) && !db[quizId].title.includes("🎯") && !db[quizId].title.includes("SRS")) {
                 db[quizId].questions.forEach(q => {
@@ -784,9 +692,10 @@
 
         const uniqueQs = Array.from(new Map(pool.map(q => [q.question, q])).values());
         const shuffled = uniqueQs.sort(() => 0.5 - Math.random()).slice(0, 15); 
+        let displayTxt = note.displayTitle || note.title || note.topic;
 
         db['quiz_strike'] = { 
-            title: `⚡ Instant Strike - ${note.topic}`, 
+            title: `⚡ Instant Strike - ${displayTxt}`, 
             subject: note.subject, 
             timeInMinutes: Math.ceil(shuffled.length * 1.0), 
             questions: shuffled 
@@ -798,15 +707,12 @@
     window.downloadNotePDF = () => {
         const element = document.getElementById('pdf-content-wrapper');
         
-        // Ensure all Clozes are revealed for the PDF printout
         const clozes = element.querySelectorAll('.mamba-cloze');
         clozes.forEach(c => c.classList.add('revealed'));
 
-        // Change background to light for printing if in dark mode
         const wasDark = document.documentElement.classList.contains('dark');
         if(wasDark) document.documentElement.classList.remove('dark');
 
-        // Alert user
         alert("Preparing PDF. This will take a few seconds to render in high-res.");
 
         const opt = {
@@ -818,9 +724,7 @@
         };
 
         html2pdf().set(opt).from(element).save().then(() => {
-            // Restore dark mode
             if(wasDark) document.documentElement.classList.add('dark');
-            // Hide clozes again
             clozes.forEach(c => c.classList.remove('revealed'));
         });
     };
@@ -1226,7 +1130,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.38", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.41", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
