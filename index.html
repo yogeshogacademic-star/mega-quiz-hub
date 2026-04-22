@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V20.0 (Command Center Build)</title>
+    <title>Yogesh's Mega Quiz Hub - V20.1 (Live Sync Build)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -18,10 +18,7 @@
             --sidebar-bg: #0f172a;
         }
         
-        /* Prevent body scroll, let the 80% zone handle it */
         body { font-family: 'Nunito Sans', sans-serif; user-select: none; transition: background-color 0.3s, color 0.3s; margin: 0; padding: 0; overflow: hidden; height: 100vh; }
-        
-        /* Smooth scrolling for the 80% container */
         #main-strike-zone { scroll-behavior: smooth; }
         
         .subject-card, .mamba-card { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -45,10 +42,13 @@
         
         /* Sidebar TickTick Custom Styles */
         .tt-widget { background: rgba(30, 41, 59, 0.6); border-radius: 12px; padding: 15px; border: 1px solid rgba(255, 255, 255, 0.05); margin-bottom: 15px; }
-        .task-item { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.85rem; color: #e2e8f0; font-weight: 700; transition: color 0.2s; }
+        .task-item { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: flex-start; gap: 10px; font-size: 0.85rem; color: #e2e8f0; font-weight: 700; transition: color 0.2s; }
         .task-item:last-child { border-bottom: none; }
-        .task-item:hover { color: var(--mamba-green); }
-        .tt-checkbox { width: 16px; height: 16px; border: 2px solid #64748b; border-radius: 4px; }
+        .task-item:hover { background: rgba(255,255,255,0.02); border-radius: 6px; }
+        .tt-checkbox { min-width: 16px; width: 16px; height: 16px; border: 2px solid #64748b; border-radius: 4px; cursor: pointer; transition: all 0.2s; margin-top: 2px; }
+        .tt-checkbox:hover { background: var(--mamba-green); border-color: var(--mamba-green); }
+        .tt-input { background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 10px; border-radius: 8px; width: 100%; font-size: 0.8rem; font-weight: bold; outline: none; transition: border 0.2s; }
+        .tt-input:focus { border-color: var(--mamba-green); }
     </style>
 </head>
 <body class="flex flex-col lg:flex-row bg-slate-50 text-slate-800 dark:bg-[#0a0f1c] dark:text-slate-200">
@@ -74,9 +74,9 @@
                     <div class="w-full xl:w-auto overflow-hidden">
                         <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                             Yogesh's Mega Hub
-                            <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V20.0</span>
+                            <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V20.1</span>
                         </h1>
-                        <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Command Center & TickTick Integration</p>
+                        <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Live Command Center Integration</p>
                     </div>
                     
                     <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
@@ -127,419 +127,62 @@
             </div>
         </div>
 
-        <div id="screen-target-radar" class="hidden max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
-            <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
-                <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-rose-400 to-orange-500"></div>
-                
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 border-b border-slate-100 dark:border-slate-800 pb-6">
-                    <div>
-                        <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
-                        <h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Global Target Radar</h2>
-                        <p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Powered directly by Master DB Tags</p>
-                    </div>
-                </div>
+        <div id="screen-target-radar" class="hidden max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1"><div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden"><div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-rose-400 to-orange-500"></div><div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 border-b border-slate-100 dark:border-slate-800 pb-6"><div><button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button><h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Global Target Radar</h2><p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Powered directly by Master DB Tags</p></div></div><div id="critical-bleed-container" class="mb-10 hidden"><h3 class="text-lg md:text-xl font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-rose-100 dark:border-rose-900/30 pb-2">⚠️ Critical Weaknesses (Triage Zone)</h3><div id="critical-bleed-grid" class="grid grid-cols-2 md:grid-cols-5 gap-4"></div></div><div id="target-radar-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div></div></div>
+        <div id="screen-db-manager" class="hidden max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1"><div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden"><div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 to-cyan-500"></div><div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6"><div><button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button><h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Master DB Ledger</h2><p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Global Vault Editor</p></div><div class="w-full md:w-auto flex flex-col sm:flex-row gap-3"><input type="text" id="db-manager-search" oninput="renderDBList(this.value)" placeholder="Search questions or tags..." class="w-full md:w-80 px-5 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-200"><button id="dirty-filter-btn" onclick="toggleDirtyFilter()" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50 font-black px-4 py-3 rounded-xl border border-amber-200 dark:border-amber-800/50 transition-colors uppercase tracking-widest text-[10px] shadow-sm flex-shrink-0">⚠️ Find Dirty Tags</button></div></div><div class="bg-slate-100 dark:bg-slate-800 rounded-t-xl p-4 grid grid-cols-12 gap-4 border-b border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400"><div class="col-span-2">Source / Subject</div><div class="col-span-2">Tags</div><div class="col-span-7">Question Preview</div><div class="col-span-1 text-center">Action</div></div><div id="db-manager-list" class="flex-1 overflow-y-auto max-h-[60vh] space-y-2 py-2"></div></div></div>
+        <div id="screen-lobby" class="hidden max-w-3xl mx-auto p-6 pt-10 w-full flex-1"><div class="bg-white dark:bg-slate-900 rounded-[2rem] p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden"><div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-indigo-500"></div><button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-8 flex items-center gap-2 transition-colors">← Back to Hub</button><h2 id="lobby-title" class="text-4xl font-black text-slate-800 dark:text-slate-100 mb-2 tracking-tight">Quiz Title</h2><p id="lobby-meta" class="text-sm font-bold text-emerald-600 dark:text-emerald-400 mb-8 uppercase tracking-widest">0 Questions</p><div class="mb-8 p-6 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-800/30"><div class="flex flex-col md:flex-row gap-6 items-center justify-between"><div class="w-full md:w-1/2"><label class="block text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mb-3">Candidate Name</label><input type="text" id="candidate-name" class="w-full p-4 rounded-xl border border-indigo-200 dark:border-indigo-700/50 bg-white dark:bg-slate-950 font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm" placeholder="Enter your name..."></div><div class="w-full md:w-1/2 md:text-right"><div id="attempt-info" class="text-sm font-bold text-slate-600 dark:text-slate-400"></div></div></div></div><div id="lobby-mode-selection" class="hidden mb-6 p-6 bg-rose-50 dark:bg-rose-900/10 rounded-2xl border border-rose-100 dark:border-rose-800/30"><label class="block text-[10px] font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-3 flex items-center gap-2">🧠 Smart Revision Mode</label><div class="flex gap-4 flex-wrap"><button id="btn-mode-full" onclick="setQuizMode('full')" class="time-btn flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Full Quiz</button><button id="btn-mode-wrong" onclick="setQuizMode('wrong')" class="time-btn flex-1 bg-rose-100 text-rose-800 border-rose-500 dark:bg-rose-900/40 dark:text-rose-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Wrong/Skipped Only (<span id="wrong-count-badge">0</span>)</button></div></div><div class="space-y-6"><div class="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-700/50"><label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4">⏱️ Overall Time Limit</label><div class="flex gap-3 flex-wrap"><button onclick="setLobbyTime('default')" id="btn-time-default" class="time-btn-main flex-1 bg-emerald-100 text-emerald-800 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Default</button><button onclick="setLobbyTime('15')" id="btn-time-15" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">15 Min</button><button onclick="setLobbyTime('30')" id="btn-time-30" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">30 Min</button><button onclick="setLobbyTime('custom')" id="btn-time-custom" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">Custom</button></div><input type="number" id="custom-time-input" class="hidden w-full mt-4 p-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-950 font-bold text-lg shadow-inner" placeholder="Enter minutes..."></div><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="toggleLobbyMode('shuffle')"><span class="font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-[10px]">🔀 Shuffle Q's</span><div id="toggle-shuffle" class="w-12 h-6 bg-emerald-500 rounded-full relative transition-colors shadow-inner"><div class="absolute right-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div></div><div class="bg-indigo-50 dark:bg-indigo-900/20 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/30 flex justify-between items-center cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors" onclick="toggleLobbyMode('perQTimer')"><span class="font-black text-indigo-700 dark:text-indigo-300 uppercase tracking-widest text-[10px]">⏱️ Per-Q Timer</span><div id="toggle-perQTimer" class="w-12 h-6 bg-slate-300 dark:bg-slate-700 rounded-full relative transition-colors shadow-inner"><div class="absolute left-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div></div></div><input type="number" id="per-q-time-input" class="hidden w-full p-4 rounded-xl border border-indigo-300 dark:border-indigo-600 bg-white dark:bg-slate-950 font-bold text-lg shadow-inner text-indigo-800 dark:text-indigo-300 placeholder-indigo-300 dark:placeholder-indigo-700" placeholder="Enter Seconds per Question (e.g., 60)"><div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="toggleLobbyMode('blind')"><span class="font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-[10px]">🙈 Blind Mode (Spacebar Reveal)</span><div id="toggle-blind" class="w-12 h-6 bg-slate-300 dark:bg-slate-700 rounded-full relative transition-colors shadow-inner"><div class="absolute left-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div></div></div><button onclick="startQuizFromLobby()" class="w-full mt-10 bg-slate-900 dark:bg-emerald-500 text-white dark:text-slate-900 font-black text-xl py-5 rounded-2xl shadow-[0_10px_20px_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-all tracking-widest uppercase">LAUNCH EXAM</button></div></div>
+        <div id="screen-quiz" class="hidden max-w-[1400px] mx-auto p-4 pt-6 relative w-full flex-1"><div id="pause-overlay" class="hidden fixed inset-0 z-[100] bg-slate-100/95 dark:bg-slate-950/95 backdrop-blur-lg flex flex-col justify-center items-center"><h2 class="text-5xl md:text-7xl font-black text-slate-800 dark:text-slate-100 mb-10 uppercase tracking-tighter drop-shadow-sm">Exam Paused</h2><button onclick="togglePause()" class="bg-emerald-500 text-white font-black text-2xl md:text-3xl px-16 py-6 rounded-3xl shadow-[0_10px_30px_rgba(16,185,129,0.4)] hover:scale-105 hover:bg-emerald-400 transition-all uppercase tracking-widest border border-emerald-400">▶ Resume</button></div><div class="flex justify-between items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 px-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 mb-6 sticky top-4 z-50"><button onclick="showScreen('dashboard'); clearInterval(quizState.interval);" class="text-slate-400 font-bold hover:text-red-500 uppercase tracking-widest text-[10px] transition-colors">← Abort</button><div class="flex gap-4 items-center"><button onclick="togglePause()" id="pause-btn" class="bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black px-5 py-2.5 rounded-xl text-xs uppercase tracking-widest transition-colors hover:bg-slate-300 dark:hover:bg-slate-700">⏸ Pause (P)</button><div id="quiz-timer" class="font-mono font-black text-2xl bg-slate-100 dark:bg-slate-950 px-6 py-2 rounded-xl text-slate-800 dark:text-emerald-400 border border-slate-200 dark:border-slate-800 shadow-inner tracking-widest">00:00</div></div></div><div class="bg-indigo-50/80 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-300 text-[10px] uppercase tracking-widest font-black p-3 rounded-xl mb-6 flex justify-center gap-8 hidden md:flex"><span>⌨️ SHORTCUTS:</span><span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">◀</kbd> <kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">▶</kbd> Prev/Next</span><span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">M</kbd> Mark</span><span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-4 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">SPACE</kbd> Reveal</span></div><div class="flex flex-col lg:flex-row gap-6 items-start"><div id="quiz-container" class="flex-1 w-full space-y-8"></div><div class="w-full lg:w-80 bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-md border border-slate-200 dark:border-slate-800 lg:sticky lg:top-28"><div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4"><h3 class="font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight">Question Palette</h3><span id="answered-count" class="text-xs font-black bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded text-slate-500 dark:text-slate-400">0 / 0</span></div><div id="palette-grid" class="grid grid-cols-5 sm:grid-cols-8 lg:grid-cols-5 gap-2.5 mb-8 max-h-[30vh] lg:max-h-[45vh] overflow-y-auto pr-2"></div><button onclick="submitQuiz()" class="w-full bg-emerald-500 text-white font-black py-4 rounded-xl shadow-[0_5px_15px_rgba(16,185,129,0.3)] hover:bg-emerald-400 hover:-translate-y-0.5 transition-all uppercase tracking-widest">Submit Test</button></div></div></div>
+        <div id="screen-results" class="hidden max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 w-full flex-1"><div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden"><div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-indigo-500"></div><div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6"><div><button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button><h2 id="results-title" class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Performance Report</h2></div></div><div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-14 text-center"><div class="bg-slate-900 dark:bg-slate-950 text-white p-6 rounded-2xl shadow-lg border border-slate-800 relative overflow-hidden"><div class="absolute inset-0 bg-emerald-500 opacity-5 blur-xl"></div><div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 relative z-10">Total Score</div><div id="res-score" class="text-5xl font-black text-emerald-400 tracking-tighter relative z-10">0</div></div><div class="bg-emerald-50 border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50 p-6 rounded-2xl"><div class="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-500 mb-2">Correct (+2)</div><div id="res-correct" class="text-4xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter">0</div></div><div class="bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800/50 p-6 rounded-2xl"><div class="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-500 mb-2">Wrong (-0.66)</div><div id="res-wrong" class="text-4xl font-black text-red-600 dark:text-red-400 tracking-tighter">0</div></div><div class="bg-slate-50 border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700/50 p-6 rounded-2xl"><div class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Skipped (0)</div><div id="res-skipped" class="text-4xl font-black text-slate-600 dark:text-slate-300 tracking-tighter">0</div></div></div><div class="border-b-2 border-slate-100 dark:border-slate-800 pb-5 mb-8 flex flex-col md:flex-row items-start md:items-end justify-between gap-6"><div><h3 class="text-2xl font-black text-slate-800 dark:text-slate-200 tracking-tight">🔍 Deep Review Vault</h3><span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Complete Test Analysis</span></div><div class="flex gap-2 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-xl shadow-inner w-full md:w-auto overflow-x-auto"><button onclick="filterReview('all')" id="btn-filt-all" class="filter-btn active-filt flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-white">All</button><button onclick="filterReview('correct')" id="btn-filt-correct" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700">Correct</button><button onclick="filterReview('wrong')" id="btn-filt-wrong" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700">Wrong</button><button onclick="filterReview('skipped')" id="btn-filt-skipped" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700">Skipped</button></div></div><div id="revision-container" class="space-y-6"></div><div class="mt-12 text-center border-t border-slate-100 dark:border-slate-800 pt-10"><button onclick="showScreen('dashboard')" class="bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 hover:scale-105 transition-transform font-black py-4 px-12 rounded-xl uppercase tracking-widest shadow-xl">Return to Dashboard</button></div></div></div>
 
-                <div id="critical-bleed-container" class="mb-10 hidden">
-                    <h3 class="text-lg md:text-xl font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-rose-100 dark:border-rose-900/30 pb-2">⚠️ Critical Weaknesses (Triage Zone)</h3>
-                    <div id="critical-bleed-grid" class="grid grid-cols-2 md:grid-cols-5 gap-4"></div>
-                </div>
-
-                <div id="target-radar-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                </div>
-            </div>
-        </div>
-
-        <div id="screen-db-manager" class="hidden max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
-            <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
-                <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 to-cyan-500"></div>
-                
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
-                    <div>
-                        <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
-                        <h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Master DB Ledger</h2>
-                        <p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Global Vault Editor</p>
-                    </div>
-                    <div class="w-full md:w-auto flex flex-col sm:flex-row gap-3">
-                        <input type="text" id="db-manager-search" oninput="renderDBList(this.value)" placeholder="Search questions or tags..." class="w-full md:w-80 px-5 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-200">
-                        <button id="dirty-filter-btn" onclick="toggleDirtyFilter()" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50 font-black px-4 py-3 rounded-xl border border-amber-200 dark:border-amber-800/50 transition-colors uppercase tracking-widest text-[10px] shadow-sm flex-shrink-0">⚠️ Find Dirty Tags</button>
-                    </div>
-                </div>
-
-                <div class="bg-slate-100 dark:bg-slate-800 rounded-t-xl p-4 grid grid-cols-12 gap-4 border-b border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                    <div class="col-span-2">Source / Subject</div>
-                    <div class="col-span-2">Tags</div>
-                    <div class="col-span-7">Question Preview</div>
-                    <div class="col-span-1 text-center">Action</div>
-                </div>
-                
-                <div id="db-manager-list" class="flex-1 overflow-y-auto max-h-[60vh] space-y-2 py-2"></div>
-            </div>
-        </div>
-
-        <div id="screen-lobby" class="hidden max-w-3xl mx-auto p-6 pt-10 w-full flex-1">
-            <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
-                <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-indigo-500"></div>
-                <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-8 flex items-center gap-2 transition-colors">← Back to Hub</button>
-                <h2 id="lobby-title" class="text-4xl font-black text-slate-800 dark:text-slate-100 mb-2 tracking-tight">Quiz Title</h2>
-                <p id="lobby-meta" class="text-sm font-bold text-emerald-600 dark:text-emerald-400 mb-8 uppercase tracking-widest">0 Questions</p>
-                
-                <div class="mb-8 p-6 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
-                    <div class="flex flex-col md:flex-row gap-6 items-center justify-between">
-                        <div class="w-full md:w-1/2">
-                            <label class="block text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mb-3">Candidate Name</label>
-                            <input type="text" id="candidate-name" class="w-full p-4 rounded-xl border border-indigo-200 dark:border-indigo-700/50 bg-white dark:bg-slate-950 font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm" placeholder="Enter your name...">
-                        </div>
-                        <div class="w-full md:w-1/2 md:text-right">
-                            <div id="attempt-info" class="text-sm font-bold text-slate-600 dark:text-slate-400"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="lobby-mode-selection" class="hidden mb-6 p-6 bg-rose-50 dark:bg-rose-900/10 rounded-2xl border border-rose-100 dark:border-rose-800/30">
-                    <label class="block text-[10px] font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-3 flex items-center gap-2">🧠 Smart Revision Mode</label>
-                    <div class="flex gap-4 flex-wrap">
-                        <button id="btn-mode-full" onclick="setQuizMode('full')" class="time-btn flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Full Quiz</button>
-                        <button id="btn-mode-wrong" onclick="setQuizMode('wrong')" class="time-btn flex-1 bg-rose-100 text-rose-800 border-rose-500 dark:bg-rose-900/40 dark:text-rose-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Wrong/Skipped Only (<span id="wrong-count-badge">0</span>)</button>
-                    </div>
-                </div>
-
-                <div class="space-y-6">
-                    <div class="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-700/50">
-                        <label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4">⏱️ Overall Time Limit</label>
-                        <div class="flex gap-3 flex-wrap">
-                            <button onclick="setLobbyTime('default')" id="btn-time-default" class="time-btn-main flex-1 bg-emerald-100 text-emerald-800 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Default</button>
-                            <button onclick="setLobbyTime('15')" id="btn-time-15" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">15 Min</button>
-                            <button onclick="setLobbyTime('30')" id="btn-time-30" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">30 Min</button>
-                            <button onclick="setLobbyTime('custom')" id="btn-time-custom" class="time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600">Custom</button>
-                        </div>
-                        <input type="number" id="custom-time-input" class="hidden w-full mt-4 p-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-950 font-bold text-lg shadow-inner" placeholder="Enter minutes...">
-                    </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="toggleLobbyMode('shuffle')">
-                            <span class="font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-[10px]">🔀 Shuffle Q's</span>
-                            <div id="toggle-shuffle" class="w-12 h-6 bg-emerald-500 rounded-full relative transition-colors shadow-inner"><div class="absolute right-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div>
-                        </div>
-                        <div class="bg-indigo-50 dark:bg-indigo-900/20 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/30 flex justify-between items-center cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors" onclick="toggleLobbyMode('perQTimer')">
-                            <span class="font-black text-indigo-700 dark:text-indigo-300 uppercase tracking-widest text-[10px]">⏱️ Per-Q Timer</span>
-                            <div id="toggle-perQTimer" class="w-12 h-6 bg-slate-300 dark:bg-slate-700 rounded-full relative transition-colors shadow-inner"><div class="absolute left-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div>
-                        </div>
-                    </div>
-                    <input type="number" id="per-q-time-input" class="hidden w-full p-4 rounded-xl border border-indigo-300 dark:border-indigo-600 bg-white dark:bg-slate-950 font-bold text-lg shadow-inner text-indigo-800 dark:text-indigo-300 placeholder-indigo-300 dark:placeholder-indigo-700" placeholder="Enter Seconds per Question (e.g., 60)">
-                    <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="toggleLobbyMode('blind')">
-                        <span class="font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-[10px]">🙈 Blind Mode (Spacebar Reveal)</span>
-                        <div id="toggle-blind" class="w-12 h-6 bg-slate-300 dark:bg-slate-700 rounded-full relative transition-colors shadow-inner"><div class="absolute left-1 top-[2px] w-5 h-5 bg-white rounded-full shadow-sm"></div></div>
-                    </div>
-                </div>
-                <button onclick="startQuizFromLobby()" class="w-full mt-10 bg-slate-900 dark:bg-emerald-500 text-white dark:text-slate-900 font-black text-xl py-5 rounded-2xl shadow-[0_10px_20px_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-all tracking-widest uppercase">LAUNCH EXAM</button>
-            </div>
-        </div>
-
-        <div id="screen-quiz" class="hidden max-w-[1400px] mx-auto p-4 pt-6 relative w-full flex-1">
-            <div id="pause-overlay" class="hidden fixed inset-0 z-[100] bg-slate-100/95 dark:bg-slate-950/95 backdrop-blur-lg flex flex-col justify-center items-center">
-                <h2 class="text-5xl md:text-7xl font-black text-slate-800 dark:text-slate-100 mb-10 uppercase tracking-tighter drop-shadow-sm">Exam Paused</h2>
-                <button onclick="togglePause()" class="bg-emerald-500 text-white font-black text-2xl md:text-3xl px-16 py-6 rounded-3xl shadow-[0_10px_30px_rgba(16,185,129,0.4)] hover:scale-105 hover:bg-emerald-400 transition-all uppercase tracking-widest border border-emerald-400">▶ Resume</button>
-            </div>
-
-            <div class="flex justify-between items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 px-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 mb-6 sticky top-4 z-50">
-                <button onclick="showScreen('dashboard'); clearInterval(quizState.interval);" class="text-slate-400 font-bold hover:text-red-500 uppercase tracking-widest text-[10px] transition-colors">← Abort</button>
-                <div class="flex gap-4 items-center">
-                    <button onclick="togglePause()" id="pause-btn" class="bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black px-5 py-2.5 rounded-xl text-xs uppercase tracking-widest transition-colors hover:bg-slate-300 dark:hover:bg-slate-700">⏸ Pause (P)</button>
-                    <div id="quiz-timer" class="font-mono font-black text-2xl bg-slate-100 dark:bg-slate-950 px-6 py-2 rounded-xl text-slate-800 dark:text-emerald-400 border border-slate-200 dark:border-slate-800 shadow-inner tracking-widest">00:00</div>
-                </div>
-            </div>
-
-            <div class="bg-indigo-50/80 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-300 text-[10px] uppercase tracking-widest font-black p-3 rounded-xl mb-6 flex justify-center gap-8 hidden md:flex">
-                <span>⌨️ SHORTCUTS:</span>
-                <span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">◀</kbd> <kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">▶</kbd> Prev/Next</span>
-                <span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">M</kbd> Mark</span>
-                <span class="flex items-center gap-2"><kbd class="bg-white dark:bg-slate-800 px-4 py-0.5 rounded shadow-sm border border-slate-300 dark:border-slate-700">SPACE</kbd> Reveal</span>
-            </div>
-
-            <div class="flex flex-col lg:flex-row gap-6 items-start">
-                <div id="quiz-container" class="flex-1 w-full space-y-8"></div>
-                
-                <div class="w-full lg:w-80 bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-md border border-slate-200 dark:border-slate-800 lg:sticky lg:top-28">
-                    <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
-                        <h3 class="font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight">Question Palette</h3>
-                        <span id="answered-count" class="text-xs font-black bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded text-slate-500 dark:text-slate-400">0 / 0</span>
-                    </div>
-                    <div id="palette-grid" class="grid grid-cols-5 sm:grid-cols-8 lg:grid-cols-5 gap-2.5 mb-8 max-h-[30vh] lg:max-h-[45vh] overflow-y-auto pr-2"></div>
-                    <button onclick="submitQuiz()" class="w-full bg-emerald-500 text-white font-black py-4 rounded-xl shadow-[0_5px_15px_rgba(16,185,129,0.3)] hover:bg-emerald-400 hover:-translate-y-0.5 transition-all uppercase tracking-widest">Submit Test</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="screen-results" class="hidden max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 w-full flex-1">
-            <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
-                <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-indigo-500"></div>
-                
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
-                    <div>
-                        <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
-                        <h2 id="results-title" class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Performance Report</h2>
-                    </div>
-                </div>
-                
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-14 text-center">
-                    <div class="bg-slate-900 dark:bg-slate-950 text-white p-6 rounded-2xl shadow-lg border border-slate-800 relative overflow-hidden">
-                        <div class="absolute inset-0 bg-emerald-500 opacity-5 blur-xl"></div>
-                        <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 relative z-10">Total Score</div>
-                        <div id="res-score" class="text-5xl font-black text-emerald-400 tracking-tighter relative z-10">0</div>
-                    </div>
-                    <div class="bg-emerald-50 border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50 p-6 rounded-2xl">
-                        <div class="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-500 mb-2">Correct (+2)</div>
-                        <div id="res-correct" class="text-4xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter">0</div>
-                    </div>
-                    <div class="bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800/50 p-6 rounded-2xl">
-                        <div class="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-500 mb-2">Wrong (-0.66)</div>
-                        <div id="res-wrong" class="text-4xl font-black text-red-600 dark:text-red-400 tracking-tighter">0</div>
-                    </div>
-                    <div class="bg-slate-50 border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700/50 p-6 rounded-2xl">
-                        <div class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Skipped (0)</div>
-                        <div id="res-skipped" class="text-4xl font-black text-slate-600 dark:text-slate-300 tracking-tighter">0</div>
-                    </div>
-                </div>
-
-                <div class="border-b-2 border-slate-100 dark:border-slate-800 pb-5 mb-8 flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
-                    <div>
-                        <h3 class="text-2xl font-black text-slate-800 dark:text-slate-200 tracking-tight">🔍 Deep Review Vault</h3>
-                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Complete Test Analysis</span>
-                    </div>
-                    <div class="flex gap-2 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-xl shadow-inner w-full md:w-auto overflow-x-auto">
-                        <button onclick="filterReview('all')" id="btn-filt-all" class="filter-btn active-filt flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-white">All</button>
-                        <button onclick="filterReview('correct')" id="btn-filt-correct" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700">Correct</button>
-                        <button onclick="filterReview('wrong')" id="btn-filt-wrong" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700">Wrong</button>
-                        <button onclick="filterReview('skipped')" id="btn-filt-skipped" class="filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700">Skipped</button>
-                    </div>
-                </div>
-                
-                <div id="revision-container" class="space-y-6"></div>
-                
-                <div class="mt-12 text-center border-t border-slate-100 dark:border-slate-800 pt-10">
-                    <button onclick="showScreen('dashboard')" class="bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 hover:scale-105 transition-transform font-black py-4 px-12 rounded-xl uppercase tracking-widest shadow-xl">Return to Dashboard</button>
-                </div>
-            </div>
-        </div>
     </div> <div id="ticktick-sidebar" class="w-full lg:w-[20%] h-auto lg:h-full bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 p-6 flex flex-col gap-4 text-white overflow-y-auto">
         <div class="sidebar-title font-black text-lg text-white pb-4 border-b border-slate-700 mb-2 flex items-center gap-2">
-            ⏱️ TickTick Sync
+            ⏱️ TickTick Live Sync
         </div>
 
-        <button onclick="startTickTickLogin()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black p-3 rounded-xl mb-4 uppercase tracking-widest text-xs shadow-lg transition-colors">
+        <button onclick="startTickTickLogin()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black p-3 rounded-xl mb-2 uppercase tracking-widest text-xs shadow-lg transition-colors">
             🔗 Authorize Sync
         </button>
 
         <div class="tt-widget">
-            <div class="text-[10px] uppercase font-black text-emerald-400 tracking-widest mb-2">Today's Focus</div>
-            <div class="text-3xl font-black text-white" id="tt-hours-stat">0h 0m</div>
-            <div class="text-xs text-slate-400 font-bold mt-1">Ready for Sync</div>
-        </div>
-
-        <div class="tt-widget flex-1">
-            <div class="flex justify-between items-center mb-3">
-                <span class="text-[10px] uppercase font-black text-indigo-400 tracking-widest">🎯 Target Tasks</span>
-                <span class="text-[10px] text-slate-500 font-bold">CGL List</span>
-            </div>
-            <div id="tt-task-list" class="space-y-1">
-                <div class="task-item"><div class="tt-checkbox"></div> Parliament Set 3</div>
-                <div class="task-item"><div class="tt-checkbox"></div> Geometry JSON Sync</div>
-                <div class="task-item"><div class="tt-checkbox"></div> English OWS Review</div>
-            </div>
-        </div>
-
-        <div class="tt-widget">
-            <div class="text-[10px] uppercase font-black text-amber-400 tracking-widest mb-3">🔥 Daily Habits</div>
+            <div class="text-[10px] uppercase font-black text-amber-400 tracking-widest mb-3">📥 Quick Add Task</div>
             <div class="flex gap-2">
-                <div class="w-8 h-8 rounded-lg bg-amber-500 text-slate-900 flex items-center justify-center font-black text-xs">V</div>
-                <div class="w-8 h-8 rounded-lg bg-amber-500 text-slate-900 flex items-center justify-center font-black text-xs">F</div>
-                <div class="w-8 h-8 rounded-lg bg-slate-700 text-slate-400 flex items-center justify-center font-black text-xs">R</div>
-                <div class="w-8 h-8 rounded-lg bg-slate-700 text-slate-400 flex items-center justify-center font-black text-xs">C</div>
+                <input type="text" id="tt-quick-input" class="tt-input" placeholder="Type a task and hit Enter..." onkeypress="if(event.key === 'Enter') ttAddTask()">
             </div>
         </div>
 
-        <button onclick="launchTickTickPomo()" class="mt-4 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black p-4 rounded-xl shadow-[0_5px_15px_rgba(16,185,129,0.3)] hover:-translate-y-1 transition-all uppercase tracking-widest w-full">
-            🚀 Launch Pomo
+        <div class="tt-widget hidden" id="tt-overdue-widget">
+            <div class="text-[10px] uppercase font-black text-rose-500 tracking-widest mb-3">⚠️ Overdue</div>
+            <div id="tt-overdue-list" class="space-y-1"></div>
+        </div>
+
+        <div class="tt-widget flex-1 flex flex-col min-h-[300px]">
+            <div class="flex justify-between items-center mb-3">
+                <span class="text-[10px] uppercase font-black text-emerald-400 tracking-widest">🎯 Today</span>
+                <span class="text-[10px] text-slate-500 font-bold cursor-pointer hover:text-white" onclick="updateTickTickUI()">↻ Refresh</span>
+            </div>
+            <div id="tt-task-list" class="space-y-1 flex-1 overflow-y-auto pr-1">
+                <div class="text-xs text-slate-500 italic mt-4 text-center">Click "Authorize Sync" above to load tasks.</div>
+            </div>
+        </div>
+
+        <button onclick="launchTickTickPomo()" class="mt-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-black p-4 rounded-xl shadow-[0_5px_15px_rgba(16,185,129,0.3)] hover:-translate-y-1 transition-all uppercase tracking-widest w-full">
+            🚀 Open Desktop App
         </button>
     </div>
 
-    <div id="screen-srs-modal" class="hidden absolute inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg flex flex-col">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
-                <div>
-                    <h2 class="text-2xl font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-tight">🔥 SRS Engine</h2>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Tag 1 Driven 10-Q Sprints</p>
-                </div>
-                <button onclick="closeSRSModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
-            </div>
-            
-            <div class="space-y-6">
-                <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 text-center shadow-inner">
-                    <div class="text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2">Master Global Quiz</div>
-                    <div class="text-xs text-slate-500 dark:text-slate-400 mb-4 font-bold">10 Random Questions from ALL due subjects.</div>
-                    <button onclick="launchSRSSprint('global')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all">Launch Master 10-Q (<span id="srs-global-count-modal">0</span> Due)</button>
-                </div>
-
-                <div class="flex items-center justify-center gap-4">
-                    <span class="h-px w-full bg-slate-200 dark:bg-slate-700"></span>
-                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">OR</span>
-                    <span class="h-px w-full bg-slate-200 dark:bg-slate-700"></span>
-                </div>
-
-                <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 text-center shadow-inner">
-                    <div class="text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2">Subject Mode</div>
-                    <div class="text-xs text-slate-500 dark:text-slate-400 mb-4 font-bold">Targeted firepower. Select a Tag 1 Subject.</div>
-                    <select id="srs-subject-select" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300 mb-4 outline-none focus:ring-2 focus:ring-indigo-500"></select>
-                    <button id="srs-subject-launch-btn" onclick="launchSRSSprint('subject')" class="w-full bg-emerald-50 hover:bg-emerald-400 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all">Launch Subject 10-Q</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="screen-analytics" class="hidden absolute inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl max-h-[90vh] flex flex-col">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
-                <h2 class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Global Quiz History & Reports</h2>
-                <button onclick="closeAnalytics()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
-            </div>
-            <div class="flex-1 overflow-y-auto pr-2" id="mastery-grid"></div>
-        </div>
-    </div>
-
-    <div id="screen-quiz-history" class="hidden absolute inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl max-h-[80vh] flex flex-col">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
-                <h2 id="quiz-history-title" class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Quiz History</h2>
-                <button onclick="closeQuizHistory()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
-            </div>
-            <div class="flex-1 overflow-y-auto pr-2 space-y-3" id="quiz-history-list"></div>
-        </div>
-    </div>
-
-    <div id="screen-subject-analysis" class="hidden absolute inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl max-h-[90vh] flex flex-col">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
-                <div>
-                    <h2 id="subject-analysis-title" class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Subject - Topic Analysis</h2>
-                    <p class="text-xs font-bold text-blue-500 uppercase tracking-widest mt-1">Global Performance Breakdown by Sub-Topics</p>
-                </div>
-                <button onclick="closeSubjectAnalysis()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
-            </div>
-            <div class="flex-1 overflow-y-auto pr-2 space-y-4" id="subject-analysis-grid"></div>
-        </div>
-    </div>
-
-    <div id="screen-edit-modal" class="hidden absolute inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl max-h-[90vh] flex flex-col">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
-                <div>
-                    <h2 class="text-2xl font-black uppercase text-amber-500 dark:text-amber-400 tracking-tight">✏️ Universal Database Editor</h2>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Strict 4-Tier Tagging Enforced</p>
-                </div>
-                <button onclick="closeEditModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
-            </div>
-            
-            <div class="flex-1 overflow-y-auto pr-2 space-y-5">
-                <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Question Text</label>
-                    <textarea id="edit-q-text" rows="3" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200"></textarea>
-                </div>
-                
-                <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Options (Select the correct one)</label>
-                    <div class="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-0" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-0" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-1" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-1" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-2" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-2" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-3" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-3" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
-                    </div>
-                </div>
-
-                <div class="bg-indigo-50/50 dark:bg-indigo-900/10 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 1: Core Subject</label>
-                            <select id="edit-tag-1" onchange="updateTag2Dropdown()" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
-                                <option value="">-- Select Subject --</option>
-                                <option value="Arithmetic">Arithmetic</option>
-                                <option value="Advanced Maths">Advanced Maths</option>
-                                <option value="Reasoning">Reasoning</option>
-                                <option value="English">English</option>
-                                <option value="Ancient History">Ancient History</option>
-                                <option value="Medieval History">Medieval History</option>
-                                <option value="Modern History">Modern History</option>
-                                <option value="Art & Culture">Art & Culture</option>
-                                <option value="Geography">Geography</option>
-                                <option value="Polity">Polity</option>
-                                <option value="Economics">Economics</option>
-                                <option value="Physics">Physics</option>
-                                <option value="Chemistry">Chemistry</option>
-                                <option value="Biology">Biology</option>
-                                <option value="Environment & Ecology">Environment & Ecology</option>
-                                <option value="Science & Technology">Science & Technology</option>
-                                <option value="Static GK">Static GK</option>
-                                <option value="Current Affairs">Current Affairs</option>
-                                <option value="Computer Knowledge">Computer Knowledge</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 2: Topic / Chapter</label>
-                            <select id="edit-tag-2" onchange="handleTag2Change()" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
-                                <option value="">-- Select Topic --</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 3: Concept (Flashcard Trigger)</label>
-                            <input type="text" id="edit-tag-3" placeholder="e.g., Article 72, Incenter..." class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 4: Meta-Trap (Optional)</label>
-                            <select id="edit-tag-4" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
-                                <option value="">-- No Trap Tag --</option>
-                                <option value="#SillyError">#SillyError</option>
-                                <option value="#ReadIncorrectly">#ReadIncorrectly</option>
-                                <option value="#CalculationMistake">#CalculationMistake</option>
-                                <option value="#FormulaForgotten">#FormulaForgotten</option>
-                                <option value="#ConceptualGap">#ConceptualGap</option>
-                                <option value="#MemoryFaded">#MemoryFaded</option>
-                                <option value="#50_50_Fail">#50_50_Fail</option>
-                                <option value="#TimePanic">#TimePanic</option>
-                                <option value="#Bouncer">#Bouncer</option>
-                                <option value="#Chronology">#Chronology</option>
-                                <option value="#MatchThePairs">#MatchThePairs</option>
-                                <option value="#StatementBased">#StatementBased</option>
-                                <option value="#AssertionReason">#AssertionReason</option>
-                                <option value="#ExtremeWordTrap">#ExtremeWordTrap</option>
-                                <option value="#UnitTrap">#UnitTrap</option>
-                                <option value="#UPSC_PYQ">#UPSC_PYQ</option>
-                                <option value="#SSC_Tier2_PYQ">#SSC_Tier2_PYQ</option>
-                                <option value="#HighYield">#HighYield</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Detailed Solution / Shortcuts</label>
-                    <textarea id="edit-solution" rows="4" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200"></textarea>
-                </div>
-            </div>
-            
-            <div class="pt-6 border-t border-slate-100 dark:border-slate-800 mt-4 flex gap-4">
-                <button onclick="closeEditModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase tracking-widest py-4 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
-                <button onclick="saveEdit()" class="flex-1 bg-amber-500 text-white font-black uppercase tracking-widest py-4 rounded-xl shadow-lg hover:bg-amber-400 transition-colors shadow-amber-500/30">💾 Save Changes</button>
-            </div>
-        </div>
-    </div>
+    <div id="screen-srs-modal" class="hidden absolute inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4"><div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg flex flex-col"><div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4"><div><h2 class="text-2xl font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-tight">🔥 SRS Engine</h2><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Tag 1 Driven 10-Q Sprints</p></div><button onclick="closeSRSModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button></div><div class="space-y-6"><div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 text-center shadow-inner"><div class="text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2">Master Global Quiz</div><div class="text-xs text-slate-500 dark:text-slate-400 mb-4 font-bold">10 Random Questions from ALL due subjects.</div><button onclick="launchSRSSprint('global')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all">Launch Master 10-Q (<span id="srs-global-count-modal">0</span> Due)</button></div><div class="flex items-center justify-center gap-4"><span class="h-px w-full bg-slate-200 dark:bg-slate-700"></span><span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">OR</span><span class="h-px w-full bg-slate-200 dark:bg-slate-700"></span></div><div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 text-center shadow-inner"><div class="text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2">Subject Mode</div><div class="text-xs text-slate-500 dark:text-slate-400 mb-4 font-bold">Targeted firepower. Select a Tag 1 Subject.</div><select id="srs-subject-select" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300 mb-4 outline-none focus:ring-2 focus:ring-indigo-500"></select><button id="srs-subject-launch-btn" onclick="launchSRSSprint('subject')" class="w-full bg-emerald-50 hover:bg-emerald-400 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all">Launch Subject 10-Q</button></div></div></div></div>
+    <div id="screen-analytics" class="hidden absolute inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4"><div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl max-h-[90vh] flex flex-col"><div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4"><h2 class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Global Quiz History & Reports</h2><button onclick="closeAnalytics()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button></div><div class="flex-1 overflow-y-auto pr-2" id="mastery-grid"></div></div></div>
+    <div id="screen-quiz-history" class="hidden absolute inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4"><div class="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl max-h-[80vh] flex flex-col"><div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4"><h2 id="quiz-history-title" class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Quiz History</h2><button onclick="closeQuizHistory()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button></div><div class="flex-1 overflow-y-auto pr-2 space-y-3" id="quiz-history-list"></div></div></div>
+    <div id="screen-subject-analysis" class="hidden absolute inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex justify-center items-center p-4"><div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl max-h-[90vh] flex flex-col"><div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4"><div><h2 id="subject-analysis-title" class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight">Subject - Topic Analysis</h2><p class="text-xs font-bold text-blue-500 uppercase tracking-widest mt-1">Global Performance Breakdown by Sub-Topics</p></div><button onclick="closeSubjectAnalysis()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button></div><div class="flex-1 overflow-y-auto pr-2 space-y-4" id="subject-analysis-grid"></div></div></div>
+    <div id="screen-edit-modal" class="hidden absolute inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4"><div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl max-h-[90vh] flex flex-col"><div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4"><div><h2 class="text-2xl font-black uppercase text-amber-500 dark:text-amber-400 tracking-tight">✏️ Universal Database Editor</h2><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Strict 4-Tier Tagging Enforced</p></div><button onclick="closeEditModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button></div><div class="flex-1 overflow-y-auto pr-2 space-y-5"><div><label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Question Text</label><textarea id="edit-q-text" rows="3" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200"></textarea></div><div><label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Options (Select the correct one)</label><div class="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700"><label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-0" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-0" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label><label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-1" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-1" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label><label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-2" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-2" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label><label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-3" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-3" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label></div></div><div class="bg-indigo-50/50 dark:bg-indigo-900/10 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/30"><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 1: Core Subject</label><select id="edit-tag-1" onchange="updateTag2Dropdown()" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200"><option value="">-- Select Subject --</option><option value="Arithmetic">Arithmetic</option><option value="Advanced Maths">Advanced Maths</option><option value="Reasoning">Reasoning</option><option value="English">English</option><option value="Ancient History">Ancient History</option><option value="Medieval History">Medieval History</option><option value="Modern History">Modern History</option><option value="Art & Culture">Art & Culture</option><option value="Geography">Geography</option><option value="Polity">Polity</option><option value="Economics">Economics</option><option value="Physics">Physics</option><option value="Chemistry">Chemistry</option><option value="Biology">Biology</option><option value="Environment & Ecology">Environment & Ecology</option><option value="Science & Technology">Science & Technology</option><option value="Static GK">Static GK</option><option value="Current Affairs">Current Affairs</option><option value="Computer Knowledge">Computer Knowledge</option></select></div><div><label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 2: Topic / Chapter</label><select id="edit-tag-2" onchange="handleTag2Change()" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200"><option value="">-- Select Topic --</option></select></div><div><label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 3: Concept (Flashcard Trigger)</label><input type="text" id="edit-tag-3" placeholder="e.g., Article 72, Incenter..." class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200"></div><div><label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 4: Meta-Trap (Optional)</label><select id="edit-tag-4" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200"><option value="">-- No Trap Tag --</option><option value="#SillyError">#SillyError</option><option value="#ReadIncorrectly">#ReadIncorrectly</option><option value="#CalculationMistake">#CalculationMistake</option><option value="#FormulaForgotten">#FormulaForgotten</option><option value="#ConceptualGap">#ConceptualGap</option><option value="#MemoryFaded">#MemoryFaded</option><option value="#50_50_Fail">#50_50_Fail</option><option value="#TimePanic">#TimePanic</option><option value="#Bouncer">#Bouncer</option><option value="#Chronology">#Chronology</option><option value="#MatchThePairs">#MatchThePairs</option><option value="#StatementBased">#StatementBased</option><option value="#AssertionReason">#AssertionReason</option><option value="#ExtremeWordTrap">#ExtremeWordTrap</option><option value="#UnitTrap">#UnitTrap</option><option value="#UPSC_PYQ">#UPSC_PYQ</option><option value="#SSC_Tier2_PYQ">#SSC_Tier2_PYQ</option><option value="#HighYield">#HighYield</option></select></div></div></div><div><label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Detailed Solution / Shortcuts</label><textarea id="edit-solution" rows="4" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200"></textarea></div></div><div class="pt-6 border-t border-slate-100 dark:border-slate-800 mt-4 flex gap-4"><button onclick="closeEditModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase tracking-widest py-4 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button><button onclick="saveEdit()" class="flex-1 bg-amber-500 text-white font-black uppercase tracking-widest py-4 rounded-xl shadow-lg hover:bg-amber-400 transition-colors shadow-amber-500/30">💾 Save Changes</button></div></div></div>
 
 <script>
     // ==========================================
-    // TICKTICK V20 INTEGRATION CONFIG
+    // TICKTICK 2-WAY LIVE SYNC ENGINE
     // ==========================================
     const TICKTICK_CONFIG = {
         clientId: "jR3BcKGF8po841Tqrl", 
         clientSecret: "91nyV8w8iDiNN8dVxN5cy5Kima4reW6M", 
-        redirectUri: window.location.href.split('?')[0] // Automatically grabs your current GitHub URL
+        redirectUri: window.location.href.split('?')[0] 
     };
 
     window.startTickTickLogin = () => {
@@ -550,23 +193,16 @@
     };
 
     window.launchTickTickPomo = () => {
-        alert("Launching CGL Execution Mode...");
         window.location.href = "ticktick://v1/show?smartlist=all";
     };
 
-    // ==========================================
-    // NEW: CATCH THE REDIRECT AND GET THE TOKEN 
-    // ==========================================
     window.handleTickTickRedirect = async () => {
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
         
         if (code) {
-            // Clean the URL so the code doesn't sit in your address bar
             window.history.replaceState({}, document.title, window.location.pathname);
-            
             try {
-                // Exchange the code for the permanent Access Token
                 const response = await fetch('https://ticktick.com/oauth/token', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -583,33 +219,163 @@
                 const data = await response.json();
                 if (data.access_token) {
                     localStorage.setItem('ticktick_access_token', data.access_token);
-                    alert("✅ TICKTICK SYNC SUCCESSFUL! 🐍🔥");
                     updateTickTickUI();
                 } else {
                     alert("TickTick Token Error: " + JSON.stringify(data));
                 }
             } catch (error) {
-                alert("Sync blocked by browser security. We will need a CORS proxy.");
+                alert("Sync blocked by browser security.");
             }
         }
     };
 
-    // --- UPDATE THE UI ONCE SYNCED ---
-    window.updateTickTickUI = () => {
-        if (localStorage.getItem('ticktick_access_token')) {
-            // Find the sync button and change it to green "SYNCED"
+    // --- FETCH LIVE TASKS & UPDATE UI ---
+    window.updateTickTickUI = async () => {
+        const token = localStorage.getItem('ticktick_access_token');
+        if (token) {
             const btn = document.querySelector('button[onclick="startTickTickLogin()"]');
             if (btn) {
                 btn.className = "w-full bg-emerald-900/40 text-emerald-400 font-black p-3 rounded-xl mb-4 uppercase tracking-widest text-xs shadow-lg border border-emerald-500/30 cursor-default";
-                btn.innerHTML = "✅ TickTick Synced";
-                btn.onclick = null; // Disable clicking again
+                btn.innerHTML = "✅ Live Sync Active";
+                btn.onclick = null; 
+            }
+
+            try {
+                document.getElementById('tt-task-list').innerHTML = '<div class="text-xs text-slate-400 font-bold mt-4 animate-pulse">Scanning all TickTick lists...</div>';
+                
+                // 1. Get all projects
+                const projRes = await fetch('https://ticktick.com/open/v1/project', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const projects = await projRes.json();
+                
+                let projectIds = projects.map(p => p.id);
+                if(!projectIds.includes('inbox')) projectIds.push('inbox');
+
+                // 2. Fetch tasks for ALL projects
+                const taskPromises = projectIds.map(id => 
+                    fetch(`https://ticktick.com/open/v1/project/${id}/data`, {
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    }).then(res => res.ok ? res.json() : {tasks: []}).catch(() => ({tasks: []}))
+                );
+                
+                const projectsData = await Promise.all(taskPromises);
+                
+                let allTasks = [];
+                projectsData.forEach(pd => {
+                    if(pd.tasks) allTasks = allTasks.concat(pd.tasks);
+                });
+
+                // 3. Filter and Sort
+                const now = new Date();
+                const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).getTime();
+
+                let overdueTasks = [];
+                let todayTasks = [];
+
+                allTasks.forEach(t => {
+                    if (t.status !== 0) return; // Skip completed
+                    if (!t.dueDate) return; // Skip un-dated
+                    
+                    const dueTime = new Date(t.dueDate).getTime();
+                    
+                    if (dueTime < now.setHours(0,0,0,0)) {
+                        overdueTasks.push(t);
+                    } else if (dueTime <= endOfToday) {
+                        todayTasks.push(t);
+                    }
+                });
+
+                overdueTasks.sort((a, b) => b.priority - a.priority);
+                todayTasks.sort((a, b) => b.priority - a.priority);
+
+                // 4. Render Overdue
+                const ovWidget = document.getElementById('tt-overdue-widget');
+                const ovList = document.getElementById('tt-overdue-list');
+                if(overdueTasks.length > 0) {
+                    ovWidget.classList.remove('hidden');
+                    ovList.innerHTML = overdueTasks.slice(0,3).map(t => `<div class="task-item text-rose-300"><div class="tt-checkbox border-rose-500" onclick="ttCompleteTask('${t.projectId}', '${t.id}')"></div> <span class="truncate">${t.title}</span></div>`).join('');
+                } else {
+                    ovWidget.classList.add('hidden');
+                }
+
+                // 5. Render Today
+                let todayHTML = '';
+                if(todayTasks.length > 0) {
+                    todayTasks.slice(0, 10).forEach(t => {
+                        let prioColor = t.priority === 5 ? 'border-red-500' : t.priority === 3 ? 'border-amber-500' : t.priority === 1 ? 'border-blue-500' : 'border-slate-500';
+                        todayHTML += `<div class="task-item" id="task-${t.id}"><div class="tt-checkbox ${prioColor}" onclick="ttCompleteTask('${t.projectId}', '${t.id}')"></div> <span class="truncate">${t.title}</span></div>`;
+                    });
+                }
+                
+                document.getElementById('tt-task-list').innerHTML = todayHTML || '<div class="text-xs text-emerald-500 font-bold mt-4">✅ All caught up for today!</div>';
+                
+            } catch (e) {
+                document.getElementById('tt-task-list').innerHTML = '<div class="text-xs text-rose-400 font-bold mt-4">API Limit Reached. Will retry later.</div>';
             }
         }
     };
 
-    // --- RUN THESE WHEN THE PAGE LOADS ---
+    // --- COMPLETE A TASK (API PUSH) ---
+    window.ttCompleteTask = async (projectId, taskId) => {
+        const token = localStorage.getItem('ticktick_access_token');
+        if (!token) return;
+
+        // Visual instant feedback
+        const el = document.getElementById(`task-${taskId}`);
+        if(el) {
+            el.style.textDecoration = "line-through";
+            el.style.opacity = "0.5";
+            el.querySelector('.tt-checkbox').style.background = "#10b981";
+            el.querySelector('.tt-checkbox').style.borderColor = "#10b981";
+        }
+
+        try {
+            await fetch(`https://ticktick.com/open/v1/project/${projectId}/task/${taskId}/complete`, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            setTimeout(() => updateTickTickUI(), 1000); // Refresh list
+        } catch(e) {
+            console.log("Error completing task");
+        }
+    };
+
+    // --- QUICK ADD A TASK (API PUSH) ---
+    window.ttAddTask = async () => {
+        const token = localStorage.getItem('ticktick_access_token');
+        const input = document.getElementById('tt-quick-input');
+        const title = input.value.trim();
+        
+        if (!token) return alert("Authorize Sync first!");
+        if (!title) return;
+
+        input.disabled = true;
+        input.value = "Adding...";
+
+        try {
+            await fetch(`https://ticktick.com/open/v1/task`, {
+                method: 'POST',
+                headers: { 
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ title: title })
+            });
+            input.value = "";
+            input.disabled = false;
+            input.placeholder = "Added to Inbox!";
+            setTimeout(() => input.placeholder = "Type a task and hit Enter...", 2000);
+            updateTickTickUI(); // Refresh list to show it if due today
+        } catch(e) {
+            input.disabled = false;
+            input.value = title;
+            alert("Error adding task.");
+        }
+    };
+
     handleTickTickRedirect();
-    updateTickTickUI();
+    setTimeout(updateTickTickUI, 500);
 
     // ==========================================
     // MASTER DB & LOGIC ENGINE (V19.34 PRESERVED)
@@ -1035,7 +801,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v20.0", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v20.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
