@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.34 (Ultimate Master Build)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.35 (Library Edition)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -55,13 +55,15 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.34</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.35</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Ultimate Master Build & Auto-Optimization</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Ultimate Master Build + Master Library</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
                     <button onclick="toggleDarkMode()" class="bg-white/10 hover:bg-white/20 p-4 rounded-2xl backdrop-blur-md transition-all border border-white/10 shadow-inner hover:scale-105" title="Toggle Dark Mode">🌙</button>
+                    <button onclick="openLibrary()" class="bg-gradient-to-br from-purple-500 to-fuchsia-600 hover:from-purple-400 hover:to-fuchsia-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(168,85,247,0.4)] transition-transform hover:-translate-y-1 border border-purple-400 flex items-center gap-2">📚 Master Library</button>
+                    
                     <button onclick="openDBManager()" class="bg-gradient-to-br from-blue-500 to-cyan-600 hover:from-blue-400 hover:to-cyan-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-transform hover:-translate-y-1 border border-cyan-400 flex items-center gap-2">🗄️ Master DB</button>
                     <button onclick="openTargetRadar()" class="bg-gradient-to-br from-rose-500 to-orange-600 hover:from-rose-400 hover:to-orange-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(244,63,94,0.4)] transition-transform hover:-translate-y-1 border border-rose-400 flex items-center gap-2">🎯 Target Radar</button>
                     <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400 flex items-center gap-2">📊 Analytics</button>
@@ -103,6 +105,28 @@
                     <button onclick="exportBackup()" class="bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-blue-100 dark:border-blue-900/30">💾 Backup Database</button>
                     <button onclick="triggerRestore()" class="bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-amber-100 dark:border-amber-900/30">📂 Restore Backup 🔒</button>
                     <button onclick="factoryReset()" class="bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-red-100 dark:border-red-900/30">⚠️ Reset System 🔒</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-library" class="hidden max-w-[1500px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
+        <div class="bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden flex flex-col md:flex-row min-h-[85vh]">
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-500 to-fuchsia-600 z-20"></div>
+            
+            <div class="w-full md:w-1/3 lg:w-1/4 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 p-6 flex flex-col z-10">
+                <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-6 flex items-center gap-2 transition-colors w-fit">← Back to Hub</button>
+                <h2 class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight mb-2">Library Index</h2>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">Native Theory Vault</p>
+                
+                <div id="library-index" class="space-y-4 flex-1 overflow-y-auto pr-2 pb-10">
+                    </div>
+            </div>
+
+            <div class="w-full md:w-2/3 lg:w-3/4 bg-white dark:bg-slate-900 p-6 md:p-10 flex-1 overflow-y-auto" id="library-content-viewer">
+                <div class="h-full flex flex-col items-center justify-center text-slate-400 opacity-50">
+                    <div class="text-6xl mb-4">📚</div>
+                    <div class="font-black uppercase tracking-widest text-sm">Select a topic from the index</div>
                 </div>
             </div>
         </div>
@@ -371,109 +395,6 @@
         </div>
     </div>
 
-    <div id="screen-edit-modal" class="hidden fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl max-h-[90vh] flex flex-col">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
-                <div>
-                    <h2 class="text-2xl font-black uppercase text-amber-500 dark:text-amber-400 tracking-tight">✏️ Universal Database Editor</h2>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Strict 4-Tier Tagging Enforced</p>
-                </div>
-                <button onclick="closeEditModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
-            </div>
-            
-            <div class="flex-1 overflow-y-auto pr-2 space-y-5">
-                <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Question Text</label>
-                    <textarea id="edit-q-text" rows="3" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200"></textarea>
-                </div>
-                
-                <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Options (Select the correct one)</label>
-                    <div class="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-0" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-0" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-1" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-1" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-2" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-2" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-3" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-3" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
-                    </div>
-                </div>
-
-                <div class="bg-indigo-50/50 dark:bg-indigo-900/10 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 1: Core Subject</label>
-                            <select id="edit-tag-1" onchange="updateTag2Dropdown()" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
-                                <option value="">-- Select Subject --</option>
-                                <option value="Arithmetic">Arithmetic</option>
-                                <option value="Advanced Maths">Advanced Maths</option>
-                                <option value="Reasoning">Reasoning</option>
-                                <option value="English">English</option>
-                                <option value="Ancient History">Ancient History</option>
-                                <option value="Medieval History">Medieval History</option>
-                                <option value="Modern History">Modern History</option>
-                                <option value="Art & Culture">Art & Culture</option>
-                                <option value="Geography">Geography</option>
-                                <option value="Polity">Polity</option>
-                                <option value="Economics">Economics</option>
-                                <option value="Physics">Physics</option>
-                                <option value="Chemistry">Chemistry</option>
-                                <option value="Biology">Biology</option>
-                                <option value="Environment & Ecology">Environment & Ecology</option>
-                                <option value="Science & Technology">Science & Technology</option>
-                                <option value="Static GK">Static GK</option>
-                                <option value="Current Affairs">Current Affairs</option>
-                                <option value="Computer Knowledge">Computer Knowledge</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 2: Topic / Chapter</label>
-                            <select id="edit-tag-2" onchange="handleTag2Change()" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
-                                <option value="">-- Select Topic --</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 3: Concept (Flashcard Trigger)</label>
-                            <input type="text" id="edit-tag-3" placeholder="e.g., Article 72, Incenter..." class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 4: Meta-Trap (Optional)</label>
-                            <select id="edit-tag-4" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
-                                <option value="">-- No Trap Tag --</option>
-                                <option value="#SillyError">#SillyError</option>
-                                <option value="#ReadIncorrectly">#ReadIncorrectly</option>
-                                <option value="#CalculationMistake">#CalculationMistake</option>
-                                <option value="#FormulaForgotten">#FormulaForgotten</option>
-                                <option value="#ConceptualGap">#ConceptualGap</option>
-                                <option value="#MemoryFaded">#MemoryFaded</option>
-                                <option value="#50_50_Fail">#50_50_Fail</option>
-                                <option value="#TimePanic">#TimePanic</option>
-                                <option value="#Bouncer">#Bouncer</option>
-                                <option value="#Chronology">#Chronology</option>
-                                <option value="#MatchThePairs">#MatchThePairs</option>
-                                <option value="#StatementBased">#StatementBased</option>
-                                <option value="#AssertionReason">#AssertionReason</option>
-                                <option value="#ExtremeWordTrap">#ExtremeWordTrap</option>
-                                <option value="#UnitTrap">#UnitTrap</option>
-                                <option value="#UPSC_PYQ">#UPSC_PYQ</option>
-                                <option value="#SSC_Tier2_PYQ">#SSC_Tier2_PYQ</option>
-                                <option value="#HighYield">#HighYield</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Detailed Solution / Shortcuts</label>
-                    <textarea id="edit-solution" rows="4" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 dark:text-slate-200"></textarea>
-                </div>
-            </div>
-            
-            <div class="pt-6 border-t border-slate-100 dark:border-slate-800 mt-4 flex gap-4">
-                <button onclick="closeEditModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase tracking-widest py-4 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
-                <button onclick="saveEdit()" class="flex-1 bg-amber-500 text-white font-black uppercase tracking-widest py-4 rounded-xl shadow-lg hover:bg-amber-400 transition-colors shadow-amber-500/30">💾 Save Changes</button>
-            </div>
-        </div>
-    </div>
-
 <script>
     const CLOUD_URL = "https://script.google.com/macros/s/AKfycbyuAFvjWZHAlkDx00DsDoHiPgFMq-CmGgHKyQXq_6cfi1QwmnwUVp3ZNLrtpnLPhOXB/exec";
     
@@ -486,6 +407,128 @@
     let historyDb = [];
     let mistakesDb = []; 
     
+    // ==========================================
+    // NEW: MASTER LIBRARY DATABASE
+    // ==========================================
+    let notesDb = {
+        "polity_supreme_court": {
+            subject: "Polity",
+            topic: "Supreme Court of India",
+            tags: ["Article 124", "Judiciary", "High Yield"],
+            htmlContent: `
+            <div class="note-container bg-slate-50 dark:bg-slate-900 p-6 md:p-10 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl">
+                
+                <div class="border-b border-slate-200 dark:border-slate-800 pb-6 mb-8 relative">
+                    <div class="absolute -top-10 -right-10 text-9xl opacity-5 pointer-events-none">⚖️</div>
+                    <div class="flex gap-2 mb-3">
+                        <span class="text-[10px] font-black uppercase tracking-widest bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 px-3 py-1 rounded">Part V</span>
+                        <span class="text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-3 py-1 rounded">Articles 124 - 147</span>
+                    </div>
+                    <h1 class="text-3xl md:text-5xl font-black text-slate-800 dark:text-slate-100 tracking-tight">Supreme Court of India</h1>
+                    <p class="text-sm font-bold text-slate-500 mt-2">Inaugurated in 1950. Replaced the British Privy Council & Federal Court of India.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    
+                    <div class="bg-slate-100 dark:bg-slate-800/50 p-6 rounded-2xl shadow-inner border border-slate-200 dark:border-slate-700/50">
+                        <h3 class="text-lg font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-4 border-b border-emerald-200 dark:border-emerald-800/30 pb-2">1. Composition & Qualifications</h3>
+                        <ul class="space-y-3 text-sm font-bold text-slate-700 dark:text-slate-300">
+                            <li class="flex items-start gap-2"><span class="text-emerald-500">▪</span> <div><b>Strength:</b> 34 Judges (1 CJI + 33 Others). Determined by Parliament by law.</div></li>
+                            <li class="flex items-start gap-2"><span class="text-emerald-500">▪</span> <div><b>Qualification 1:</b> Citizen of India.</div></li>
+                            <li class="flex items-start gap-2"><span class="text-emerald-500">▪</span> <div><b>Qualification 2:</b> 5 years as HC Judge <span class="text-rose-500 underline">OR</span> 10 years as HC Advocate <span class="text-rose-500 underline">OR</span> Distinguished Jurist (in President's eyes).</div></li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-slate-100 dark:bg-slate-800/50 p-6 rounded-2xl shadow-inner border border-slate-200 dark:border-slate-700/50">
+                        <h3 class="text-lg font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-4 border-b border-blue-200 dark:border-blue-800/30 pb-2">2. Appointment & Collegium</h3>
+                        <ul class="space-y-3 text-sm font-bold text-slate-700 dark:text-slate-300">
+                            <li class="flex items-start gap-2"><span class="text-blue-500">▪</span> <div><b>Appointed By:</b> The President.</div></li>
+                            <li class="flex items-start gap-2"><span class="text-blue-500">▪</span> <div><b>The Collegium (3rd Judge Case 1998):</b> "Consultation" means concurrence. CJI + 4 Senior-most judges.</div></li>
+                            <li class="flex items-start gap-2"><span class="text-blue-500">▪</span> <div><b>99th Amendment (2014):</b> Created NJAC to replace Collegium. Struck down by SC in 2015 for violating judicial independence.</div></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h3 class="text-xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight mb-4 mt-8">📜 High-Yield Articles Cheat Sheet</h3>
+                <div class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm mb-8">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 dark:bg-slate-800 text-[10px] uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                                <th class="p-4 border-b border-slate-200 dark:border-slate-700">Article</th>
+                                <th class="p-4 border-b border-slate-200 dark:border-slate-700">Provision</th>
+                                <th class="p-4 border-b border-slate-200 dark:border-slate-700">SSC CGL Key Focus</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm font-bold text-slate-700 dark:text-slate-300">
+                            <tr class="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black">Art 126</td>
+                                <td class="p-4">Acting CJI</td>
+                                <td class="p-4 text-slate-500">Appointed from within SC.</td>
+                            </tr>
+                            <tr class="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black">Art 127</td>
+                                <td class="p-4">Ad-hoc Judges</td>
+                                <td class="p-4 text-slate-500">Brought from <mark>High Courts</mark> (not subordinate courts) by CJI with President's prior consent.</td>
+                            </tr>
+                            <tr class="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black">Art 129</td>
+                                <td class="p-4">Court of Record</td>
+                                <td class="p-4 text-slate-500">Judgements have evidentiary value. Power to punish for contempt (Civil/Criminal).</td>
+                            </tr>
+                            <tr class="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black">Art 131</td>
+                                <td class="p-4">Original Jurisdiction</td>
+                                <td class="p-4 text-slate-500">Exclusive power over fed disputes (Centre vs State). <span class="text-rose-500">Excludes:</span> Pre-constitution treaties & Finance Comm.</td>
+                            </tr>
+                            <tr class="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black">Art 136</td>
+                                <td class="p-4">Special Leave Petition</td>
+                                <td class="p-4 text-slate-500">Discretionary power of SC to hear appeals from any court/tribunal (except military).</td>
+                            </tr>
+                            <tr class="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black">Art 142</td>
+                                <td class="p-4">Complete Justice</td>
+                                <td class="p-4 text-slate-500">Used in Bhopal Gas Tragedy & Ayodhya case.</td>
+                            </tr>
+                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black">Art 143</td>
+                                <td class="p-4">Advisory Jurisdiction</td>
+                                <td class="p-4 text-slate-500">President consults SC. SC <mark>may refuse</mark> normal queries, but <mark>must advise</mark> on pre-constitution treaties.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 class="text-xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight mb-4 mt-8">🔨 Removal Process (Judges Inquiry Act, 1968)</h3>
+                <div class="bg-amber-50 dark:bg-amber-900/10 p-6 rounded-2xl border-l-4 border-amber-500 shadow-sm mb-8">
+                    <p class="text-sm font-bold text-amber-800 dark:text-amber-400 mb-4"><b>Grounds:</b> Proved Misbehaviour or Incapacity.</p>
+                    <div class="flex flex-col md:flex-row gap-2 md:items-center text-sm font-black text-slate-700 dark:text-slate-300">
+                        <div class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-amber-200 dark:border-amber-800">1. LS (100) or RS (50) signs motion</div>
+                        <span class="text-amber-500 hidden md:block">➔</span>
+                        <div class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-amber-200 dark:border-amber-800">2. Speaker/Chairman accepts</div>
+                        <span class="text-amber-500 hidden md:block">➔</span>
+                        <div class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-amber-200 dark:border-amber-800">3. 3-Member Comm. Investigates</div>
+                        <span class="text-amber-500 hidden md:block">➔</span>
+                        <div class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-rose-200 dark:border-rose-800"><span class="text-rose-500">4. Special Majority in Parliament</span></div>
+                        <span class="text-amber-500 hidden md:block">➔</span>
+                        <div class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-amber-200 dark:border-amber-800">5. President Removes</div>
+                    </div>
+                </div>
+
+                <div class="bg-rose-50 dark:bg-rose-900/10 p-6 rounded-2xl border border-rose-200 dark:border-rose-800/50 shadow-inner mt-8">
+                    <h3 class="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-3 flex items-center gap-2">⚠️ SSC CGL Meta-Traps</h3>
+                    <ul class="space-y-2 text-sm font-bold text-rose-800 dark:text-rose-300">
+                        <li><span class="text-rose-500">Trap #1:</span> Subordinate courts <mark class="bg-rose-200 dark:bg-rose-800 text-rose-900 dark:text-rose-100">cannot</mark> be involved in Article 131 (Original Jurisdiction). It is ONLY Centre vs State or State vs State.</li>
+                        <li><span class="text-rose-500">Trap #2:</span> Contempt of Court (Art 129) is both Civil (wilful disobedience) and Criminal (scandalizing the court).</li>
+                        <li><span class="text-rose-500">Trap #3:</span> The President <mark class="bg-rose-200 dark:bg-rose-800 text-rose-900 dark:text-rose-100">must</mark> consult the CJI to appoint other judges (Art 124), but the President <mark class="bg-rose-200 dark:bg-rose-800 text-rose-900 dark:text-rose-100">may refuse</mark> to follow the SC's advice under normal Advisory Jurisdiction (Art 143).</li>
+                    </ul>
+                </div>
+
+            </div>
+            `
+        }
+    };
+
     let currentQuizId = null;
     let currentAttemptNum = 1;
     let activeQuestions = []; 
@@ -501,6 +544,48 @@
 
     window.editRegistry = {};
     window.editCounter = 0;
+    
+    // ==========================================
+    // NEW: MASTER LIBRARY LOGIC
+    // ==========================================
+    window.openLibrary = () => {
+        showScreen('library');
+        renderLibraryIndex();
+    };
+
+    window.renderLibraryIndex = () => {
+        const indexContainer = document.getElementById('library-index');
+        indexContainer.innerHTML = '';
+        
+        if(Object.keys(notesDb).length === 0) {
+            indexContainer.innerHTML = `<div class="text-xs text-slate-500 font-bold italic">No notes uploaded yet.</div>`;
+            return;
+        }
+
+        let subjects = {};
+        Object.keys(notesDb).forEach(key => {
+            let note = notesDb[key];
+            if(!subjects[note.subject]) subjects[note.subject] = [];
+            subjects[note.subject].push({ id: key, ...note });
+        });
+
+        for(let sub in subjects) {
+            let subHtml = `<div class="mt-4 mb-2"><h3 class="text-[10px] font-black text-emerald-500 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800 pb-2">${sub}</h3></div>`;
+            subjects[sub].forEach(n => {
+                subHtml += `<button onclick="viewNote('${n.id}')" class="w-full text-left p-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-slate-700 dark:text-slate-300 font-bold text-sm transition-all mb-2 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md truncate focus:ring-2 focus:ring-emerald-500 outline-none">${n.topic}</button>`;
+            });
+            indexContainer.innerHTML += subHtml;
+        }
+    };
+
+    window.viewNote = (id) => {
+        const viewer = document.getElementById('library-content-viewer');
+        if(notesDb[id]) {
+            viewer.innerHTML = notesDb[id].htmlContent;
+            viewer.scrollTo(0,0);
+        }
+    };
+
     window.openGlobalEditModalBySafeId = (id) => {
         if(window.editRegistry[id]) {
             openGlobalEditModal(window.editRegistry[id]);
@@ -514,21 +599,7 @@
         "Advanced Maths": ["Algebra", "Geometry", "Coordinate Geometry", "Mensuration 2D", "Mensuration 3D", "Trigonometry", "Heights & Distances", "Probability & Statistics"],
         "Reasoning": ["Analogy & Classification", "Number & Letter Series", "Coding-Decoding", "Blood Relations", "Direction & Distance", "Syllogism", "Order & Ranking", "Clock & Calendar", "Venn Diagrams", "Missing Number & Matrix", "Non-Verbal Reasoning", "Logical Reasoning"],
         "English": [
-            "Active & Passive Voice",
-            "Cloze Test",
-            "Direct & Indirect Speech",
-            "Figures of Speech",
-            "Grammar & Error Spotting",
-            "HOMONYMS",
-            "Idioms & Phrases",
-            "One Word Substitution",
-            "Para Jumbles",
-            "PREPOSITION",
-            "Phrasal Verbs",
-            "Reading Comprehension",
-            "Sentence Improvement",
-            "Spelling Errors",
-            "Synonyms & Antonyms"
+            "Active & Passive Voice", "Cloze Test", "Direct & Indirect Speech", "Figures of Speech", "Grammar & Error Spotting", "HOMONYMS", "Idioms & Phrases", "One Word Substitution", "Para Jumbles", "PREPOSITION", "Phrasal Verbs", "Reading Comprehension", "Sentence Improvement", "Spelling Errors", "Synonyms & Antonyms"
         ],
         "Ancient History": ["Prehistoric & Indus Valley", "Vedic Age", "Buddhism & Jainism", "Mahajanapadas & Magadha", "Mauryan Empire", "Post-Mauryan Period", "Gupta Empire", "Post-Gupta & Harsha"],
         "Medieval History": ["Early Medieval India", "Delhi Sultanate", "Provincial Kingdoms", "Mughal Empire", "Maratha Empire", "Bhakti & Sufi Movements"],
@@ -874,6 +945,8 @@
         localStorage.setItem('megaQuizDB_v4', JSON.stringify(db));
         localStorage.setItem('megaQuizHistory_v5', JSON.stringify(historyDb)); 
         localStorage.setItem('megaQuizMistakes_v5', JSON.stringify(mistakesDb));
+        // Save Notes DB to local storage
+        localStorage.setItem('megaQuizNotes_v1', JSON.stringify(notesDb));
     }
 
     function loadLocalFallback() {
@@ -885,6 +958,15 @@
         mistakesDb = localStorage.getItem('megaQuizMistakes_v5') ? JSON.parse(localStorage.getItem('megaQuizMistakes_v5')) : [];
         if(!Array.isArray(historyDb)) historyDb = [];
         if(!Array.isArray(mistakesDb)) mistakesDb = [];
+        
+        // Load Notes DB if exists, otherwise keep prototype
+        if (localStorage.getItem('megaQuizNotes_v1')) {
+            let loadedNotes = JSON.parse(localStorage.getItem('megaQuizNotes_v1'));
+            // Merge loaded notes with prototype so prototype isn't lost if loadedNotes is empty
+            if(Object.keys(loadedNotes).length > 0) {
+                notesDb = loadedNotes;
+            }
+        }
         
         initializeSRSData();
     }
@@ -907,7 +989,8 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.34", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        // Notes DB is saved locally to prevent Google Apps Script payload limit crashes.
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.35", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -1703,7 +1786,6 @@
                 candidateName: candName, attemptNumber: currentAttemptNum, totalCorrect: correct, totalWrong: wrong, totalSkipped: skipped, reviewData: historicalReviewData
             });
 
-            // V19.34: Safety Cap - Prevent infinite localStorage growth to avoid Google Cloud timeouts and browser crashes
             if (historyDb.length > 50) historyDb.length = 50;
         }
         
@@ -1926,17 +2008,18 @@
     window.closeSubjectAnalysis = () => document.getElementById('screen-subject-analysis').classList.add('hidden');
 
     function showScreen(s) { 
-        ['dashboard','lobby','quiz','results','db-manager','target-radar'].forEach(x => {
+        ['dashboard','lobby','quiz','results','db-manager','target-radar', 'library'].forEach(x => {
             const el = document.getElementById('screen-'+x);
             if(el) el.classList.add('hidden');
         }); 
         document.getElementById('screen-'+s).classList.remove('hidden'); 
-        if(s !== 'dashboard' && s !== 'db-manager' && s !== 'target-radar') {
+        if(s !== 'dashboard' && s !== 'db-manager' && s !== 'target-radar' && s !== 'library') {
             document.getElementById('omni-search').value = '';
             document.getElementById('search-results-container').classList.add('hidden');
             document.getElementById('dashboard-main-content').classList.remove('hidden');
         }
         document.getElementById('screen-subject-analysis').classList.add('hidden');
+        window.scrollTo(0,0);
     }
     
     function formatTime(s) { return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`; }
@@ -1948,7 +2031,7 @@
                 if(conf === "DELETE") {
                     SUBJECTS = ["Ancient History", "Medieval History", "Modern History", "Geography", "Economics", "Static GK", "Arithmetic", "Advanced Maths", "English", "Reasoning", "Current Affairs", "Polity", "Science", "Environment", "Miscellaneous", "GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS"];
                     SUBJECT_CATEGORIES = { "GS MOCK QUESTIONS": "GS", "QUANT MOCK QUESTIONS": "Maths" };
-                    db = {}; historyDb = []; mistakesDb = []; localStorage.clear(); await saveData(); location.reload();
+                    db = {}; historyDb = []; mistakesDb = []; notesDb = {}; localStorage.clear(); await saveData(); location.reload();
                 }
             }
         });
@@ -1992,6 +2075,7 @@
                     const data = JSON.parse(event.target.result);
                     if(data.db && data.subjects) {
                         db = data.db; SUBJECTS = data.subjects; historyDb = data.history || []; mistakesDb = data.mistakes || [];
+                        if (data.notes) notesDb = data.notes;
                         saveData(); location.reload();
                     } else {
                         alert("Invalid Backup File.");
@@ -2070,7 +2154,7 @@
     };
 
     window.exportBackup = () => {
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, categories: SUBJECT_CATEGORIES, notes: notesDb };
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
