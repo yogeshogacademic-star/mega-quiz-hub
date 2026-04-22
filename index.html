@@ -3,9 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.35 (Library Edition)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.36 (Ultimate Library Edition)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -32,6 +35,12 @@
 
         mark { background-color: rgba(251, 191, 36, 0.4); color: inherit; padding: 0 2px; border-radius: 4px; font-weight: 900; box-shadow: 0 0 8px rgba(251, 191, 36, 0.3); }
         .dark mark { background-color: rgba(245, 158, 11, 0.5); }
+
+        /* NATIVE CLOZE ACTIVE RECALL CSS */
+        .cloze { background-color: #1e293b; color: transparent; border-radius: 6px; padding: 0 8px; cursor: pointer; transition: all 0.2s ease; user-select: none; border: 1px solid #334155; }
+        .light .cloze { background-color: #cbd5e1; border-color: #94a3b8; }
+        .cloze:hover { background-color: #3b82f6; color: white; opacity: 0.9; border-color: #2563eb; }
+        .cloze.revealed { background-color: transparent; color: #10b981; font-weight: 900; border-color: transparent; padding: 0 2px; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-[#0a0f1c] dark:text-slate-200 min-h-screen flex flex-col pb-20">
@@ -54,16 +63,15 @@
             <div class="relative z-10 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mt-4 md:mt-0">
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
-                        Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.35</span>
+                        Yogesh's Mega Hub
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.36</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Ultimate Master Build + Master Library</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Active Recall Library & Instant Strike Integration</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
                     <button onclick="toggleDarkMode()" class="bg-white/10 hover:bg-white/20 p-4 rounded-2xl backdrop-blur-md transition-all border border-white/10 shadow-inner hover:scale-105" title="Toggle Dark Mode">🌙</button>
                     <button onclick="openLibrary()" class="bg-gradient-to-br from-purple-500 to-fuchsia-600 hover:from-purple-400 hover:to-fuchsia-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(168,85,247,0.4)] transition-transform hover:-translate-y-1 border border-purple-400 flex items-center gap-2">📚 Master Library</button>
-                    
                     <button onclick="openDBManager()" class="bg-gradient-to-br from-blue-500 to-cyan-600 hover:from-blue-400 hover:to-cyan-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-transform hover:-translate-y-1 border border-cyan-400 flex items-center gap-2">🗄️ Master DB</button>
                     <button onclick="openTargetRadar()" class="bg-gradient-to-br from-rose-500 to-orange-600 hover:from-rose-400 hover:to-orange-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(244,63,94,0.4)] transition-transform hover:-translate-y-1 border border-rose-400 flex items-center gap-2">🎯 Target Radar</button>
                     <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400 flex items-center gap-2">📊 Analytics</button>
@@ -114,7 +122,7 @@
         <div class="bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden flex flex-col md:flex-row min-h-[85vh]">
             <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-500 to-fuchsia-600 z-20"></div>
             
-            <div class="w-full md:w-1/3 lg:w-1/4 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 p-6 flex flex-col z-10">
+            <div class="w-full md:w-1/3 lg:w-1/4 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 p-6 flex flex-col z-10" data-html2canvas-ignore="true">
                 <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-6 flex items-center gap-2 transition-colors w-fit">← Back to Hub</button>
                 <h2 class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight mb-2">Library Index</h2>
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">Native Theory Vault</p>
@@ -123,7 +131,7 @@
                     </div>
             </div>
 
-            <div class="w-full md:w-2/3 lg:w-3/4 bg-white dark:bg-slate-900 p-6 md:p-10 flex-1 overflow-y-auto" id="library-content-viewer">
+            <div class="w-full md:w-2/3 lg:w-3/4 bg-white dark:bg-slate-900 p-6 md:p-10 flex-1 overflow-y-auto relative" id="library-content-viewer">
                 <div class="h-full flex flex-col items-center justify-center text-slate-400 opacity-50">
                     <div class="text-6xl mb-4">📚</div>
                     <div class="font-black uppercase tracking-widest text-sm">Select a topic from the index</div>
@@ -135,7 +143,6 @@
     <div id="screen-target-radar" class="hidden max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
         <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
             <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-rose-400 to-orange-500"></div>
-            
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 border-b border-slate-100 dark:border-slate-800 pb-6">
                 <div>
                     <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
@@ -143,21 +150,17 @@
                     <p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Powered directly by Master DB Tags</p>
                 </div>
             </div>
-
             <div id="critical-bleed-container" class="mb-10 hidden">
                 <h3 class="text-lg md:text-xl font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-rose-100 dark:border-rose-900/30 pb-2">⚠️ Critical Weaknesses (Triage Zone)</h3>
                 <div id="critical-bleed-grid" class="grid grid-cols-2 md:grid-cols-5 gap-4"></div>
             </div>
-
-            <div id="target-radar-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            </div>
+            <div id="target-radar-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </div>
     </div>
 
     <div id="screen-db-manager" class="hidden max-w-6xl mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
         <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
             <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 to-cyan-500"></div>
-            
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
                 <div>
                     <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
@@ -169,16 +172,13 @@
                     <button id="dirty-filter-btn" onclick="toggleDirtyFilter()" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50 font-black px-4 py-3 rounded-xl border border-amber-200 dark:border-amber-800/50 transition-colors uppercase tracking-widest text-[10px] shadow-sm flex-shrink-0">⚠️ Find Dirty Tags</button>
                 </div>
             </div>
-
             <div class="bg-slate-100 dark:bg-slate-800 rounded-t-xl p-4 grid grid-cols-12 gap-4 border-b border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                 <div class="col-span-2">Source / Subject</div>
                 <div class="col-span-2">Tags</div>
                 <div class="col-span-7">Question Preview</div>
                 <div class="col-span-1 text-center">Action</div>
             </div>
-            
-            <div id="db-manager-list" class="flex-1 overflow-y-auto max-h-[60vh] space-y-2 py-2">
-                </div>
+            <div id="db-manager-list" class="flex-1 overflow-y-auto max-h-[60vh] space-y-2 py-2"></div>
         </div>
     </div>
 
@@ -192,20 +192,17 @@
                 </div>
                 <button onclick="closeSRSModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
             </div>
-            
             <div class="space-y-6">
                 <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 text-center shadow-inner">
                     <div class="text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2">Master Global Quiz</div>
                     <div class="text-xs text-slate-500 dark:text-slate-400 mb-4 font-bold">10 Random Questions from ALL due subjects.</div>
                     <button onclick="launchSRSSprint('global')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all">Launch Master 10-Q (<span id="srs-global-count-modal">0</span> Due)</button>
                 </div>
-
                 <div class="flex items-center justify-center gap-4">
                     <span class="h-px w-full bg-slate-200 dark:bg-slate-700"></span>
                     <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">OR</span>
                     <span class="h-px w-full bg-slate-200 dark:bg-slate-700"></span>
                 </div>
-
                 <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 text-center shadow-inner">
                     <div class="text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2">Subject Mode</div>
                     <div class="text-xs text-slate-500 dark:text-slate-400 mb-4 font-bold">Targeted firepower. Select a Tag 1 Subject.</div>
@@ -222,7 +219,6 @@
             <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-8 flex items-center gap-2 transition-colors">← Back to Hub</button>
             <h2 id="lobby-title" class="text-4xl font-black text-slate-800 dark:text-slate-100 mb-2 tracking-tight">Quiz Title</h2>
             <p id="lobby-meta" class="text-sm font-bold text-emerald-600 dark:text-emerald-400 mb-8 uppercase tracking-widest">0 Questions</p>
-            
             <div class="mb-8 p-6 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
                 <div class="flex flex-col md:flex-row gap-6 items-center justify-between">
                     <div class="w-full md:w-1/2">
@@ -234,7 +230,6 @@
                     </div>
                 </div>
             </div>
-
             <div id="lobby-mode-selection" class="hidden mb-6 p-6 bg-rose-50 dark:bg-rose-900/10 rounded-2xl border border-rose-100 dark:border-rose-800/30">
                 <label class="block text-[10px] font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-3 flex items-center gap-2">🧠 Smart Revision Mode</label>
                 <div class="flex gap-4 flex-wrap">
@@ -242,7 +237,6 @@
                     <button id="btn-mode-wrong" onclick="setQuizMode('wrong')" class="time-btn flex-1 bg-rose-100 text-rose-800 border-rose-500 dark:bg-rose-900/40 dark:text-rose-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Wrong/Skipped Only (<span id="wrong-count-badge">0</span>)</button>
                 </div>
             </div>
-
             <div class="space-y-6">
                 <div class="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-700/50">
                     <label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4">⏱️ Overall Time Limit</label>
@@ -254,7 +248,6 @@
                     </div>
                     <input type="number" id="custom-time-input" class="hidden w-full mt-4 p-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-950 font-bold text-lg shadow-inner" placeholder="Enter minutes...">
                 </div>
-                
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="toggleLobbyMode('shuffle')">
                         <span class="font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-[10px]">🔀 Shuffle Q's</span>
@@ -416,16 +409,18 @@
             topic: "Supreme Court of India",
             tags: ["Article 124", "Judiciary", "High Yield"],
             htmlContent: `
-            <div class="note-container bg-slate-50 dark:bg-slate-900 p-6 md:p-10 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl">
+            <div class="note-container bg-slate-50 dark:bg-slate-900 p-6 md:p-10 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl relative">
                 
+                <button onclick="downloadNotePDF()" data-html2canvas-ignore="true" class="absolute top-6 right-6 bg-rose-500 hover:bg-rose-400 text-white font-black px-4 py-2 rounded-xl shadow-lg transition-transform hover:-translate-y-1 text-[10px] uppercase tracking-widest flex items-center gap-2 z-10 border border-rose-400">📄 Export PDF</button>
+
                 <div class="border-b border-slate-200 dark:border-slate-800 pb-6 mb-8 relative">
-                    <div class="absolute -top-10 -right-10 text-9xl opacity-5 pointer-events-none">⚖️</div>
+                    <div class="absolute -top-10 -right-10 text-9xl opacity-5 pointer-events-none" data-html2canvas-ignore="true">⚖️</div>
                     <div class="flex gap-2 mb-3">
-                        <span class="text-[10px] font-black uppercase tracking-widest bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 px-3 py-1 rounded">Part V</span>
-                        <span class="text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-3 py-1 rounded">Articles 124 - 147</span>
+                        <span class="text-[10px] font-black uppercase tracking-widest bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 px-3 py-1 rounded border border-indigo-200 dark:border-indigo-800/50">Part V</span>
+                        <span class="text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-3 py-1 rounded border border-emerald-200 dark:border-emerald-800/50">Articles 124 - 147</span>
                     </div>
                     <h1 class="text-3xl md:text-5xl font-black text-slate-800 dark:text-slate-100 tracking-tight">Supreme Court of India</h1>
-                    <p class="text-sm font-bold text-slate-500 mt-2">Inaugurated in 1950. Replaced the British Privy Council & Federal Court of India.</p>
+                    <p class="text-sm font-bold text-slate-500 mt-2">Inaugurated in <span class="cloze" onclick="this.classList.toggle('revealed')">1950</span>. Replaced the British Privy Council & Federal Court of India.</p>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -433,9 +428,9 @@
                     <div class="bg-slate-100 dark:bg-slate-800/50 p-6 rounded-2xl shadow-inner border border-slate-200 dark:border-slate-700/50">
                         <h3 class="text-lg font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-4 border-b border-emerald-200 dark:border-emerald-800/30 pb-2">1. Composition & Qualifications</h3>
                         <ul class="space-y-3 text-sm font-bold text-slate-700 dark:text-slate-300">
-                            <li class="flex items-start gap-2"><span class="text-emerald-500">▪</span> <div><b>Strength:</b> 34 Judges (1 CJI + 33 Others). Determined by Parliament by law.</div></li>
+                            <li class="flex items-start gap-2"><span class="text-emerald-500">▪</span> <div><b>Strength:</b> <span class="cloze" onclick="this.classList.toggle('revealed')">34 Judges</span> (1 CJI + 33 Others). Determined by Parliament by law.</div></li>
                             <li class="flex items-start gap-2"><span class="text-emerald-500">▪</span> <div><b>Qualification 1:</b> Citizen of India.</div></li>
-                            <li class="flex items-start gap-2"><span class="text-emerald-500">▪</span> <div><b>Qualification 2:</b> 5 years as HC Judge <span class="text-rose-500 underline">OR</span> 10 years as HC Advocate <span class="text-rose-500 underline">OR</span> Distinguished Jurist (in President's eyes).</div></li>
+                            <li class="flex items-start gap-2"><span class="text-emerald-500">▪</span> <div><b>Qualification 2:</b> <span class="cloze" onclick="this.classList.toggle('revealed')">5 years</span> as HC Judge <span class="text-rose-500 underline">OR</span> <span class="cloze" onclick="this.classList.toggle('revealed')">10 years</span> as HC Advocate <span class="text-rose-500 underline">OR</span> Distinguished Jurist.</div></li>
                         </ul>
                     </div>
 
@@ -443,8 +438,8 @@
                         <h3 class="text-lg font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-4 border-b border-blue-200 dark:border-blue-800/30 pb-2">2. Appointment & Collegium</h3>
                         <ul class="space-y-3 text-sm font-bold text-slate-700 dark:text-slate-300">
                             <li class="flex items-start gap-2"><span class="text-blue-500">▪</span> <div><b>Appointed By:</b> The President.</div></li>
-                            <li class="flex items-start gap-2"><span class="text-blue-500">▪</span> <div><b>The Collegium (3rd Judge Case 1998):</b> "Consultation" means concurrence. CJI + 4 Senior-most judges.</div></li>
-                            <li class="flex items-start gap-2"><span class="text-blue-500">▪</span> <div><b>99th Amendment (2014):</b> Created NJAC to replace Collegium. Struck down by SC in 2015 for violating judicial independence.</div></li>
+                            <li class="flex items-start gap-2"><span class="text-blue-500">▪</span> <div><b>The Collegium (3rd Judge Case 1998):</b> "Consultation" means <span class="cloze" onclick="this.classList.toggle('revealed')">concurrence</span>. CJI + <span class="cloze" onclick="this.classList.toggle('revealed')">4 Senior-most</span> judges.</div></li>
+                            <li class="flex items-start gap-2"><span class="text-blue-500">▪</span> <div><b>99th Amendment (2014):</b> Created NJAC to replace Collegium. Struck down by SC in 2015.</div></li>
                         </ul>
                     </div>
                 </div>
@@ -461,37 +456,37 @@
                         </thead>
                         <tbody class="text-sm font-bold text-slate-700 dark:text-slate-300">
                             <tr class="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black">Art 126</td>
+                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black"><span class="cloze" onclick="this.classList.toggle('revealed')">Art 126</span></td>
                                 <td class="p-4">Acting CJI</td>
                                 <td class="p-4 text-slate-500">Appointed from within SC.</td>
                             </tr>
                             <tr class="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black">Art 127</td>
+                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black"><span class="cloze" onclick="this.classList.toggle('revealed')">Art 127</span></td>
                                 <td class="p-4">Ad-hoc Judges</td>
                                 <td class="p-4 text-slate-500">Brought from <mark>High Courts</mark> (not subordinate courts) by CJI with President's prior consent.</td>
                             </tr>
                             <tr class="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black">Art 129</td>
+                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black"><span class="cloze" onclick="this.classList.toggle('revealed')">Art 129</span></td>
                                 <td class="p-4">Court of Record</td>
                                 <td class="p-4 text-slate-500">Judgements have evidentiary value. Power to punish for contempt (Civil/Criminal).</td>
                             </tr>
                             <tr class="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black">Art 131</td>
+                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black"><span class="cloze" onclick="this.classList.toggle('revealed')">Art 131</span></td>
                                 <td class="p-4">Original Jurisdiction</td>
                                 <td class="p-4 text-slate-500">Exclusive power over fed disputes (Centre vs State). <span class="text-rose-500">Excludes:</span> Pre-constitution treaties & Finance Comm.</td>
                             </tr>
                             <tr class="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black">Art 136</td>
+                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black"><span class="cloze" onclick="this.classList.toggle('revealed')">Art 136</span></td>
                                 <td class="p-4">Special Leave Petition</td>
                                 <td class="p-4 text-slate-500">Discretionary power of SC to hear appeals from any court/tribunal (except military).</td>
                             </tr>
                             <tr class="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black">Art 142</td>
+                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black"><span class="cloze" onclick="this.classList.toggle('revealed')">Art 142</span></td>
                                 <td class="p-4">Complete Justice</td>
                                 <td class="p-4 text-slate-500">Used in Bhopal Gas Tragedy & Ayodhya case.</td>
                             </tr>
                             <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black">Art 143</td>
+                                <td class="p-4 text-emerald-600 dark:text-emerald-400 font-black"><span class="cloze" onclick="this.classList.toggle('revealed')">Art 143</span></td>
                                 <td class="p-4">Advisory Jurisdiction</td>
                                 <td class="p-4 text-slate-500">President consults SC. SC <mark>may refuse</mark> normal queries, but <mark>must advise</mark> on pre-constitution treaties.</td>
                             </tr>
@@ -503,7 +498,7 @@
                 <div class="bg-amber-50 dark:bg-amber-900/10 p-6 rounded-2xl border-l-4 border-amber-500 shadow-sm mb-8">
                     <p class="text-sm font-bold text-amber-800 dark:text-amber-400 mb-4"><b>Grounds:</b> Proved Misbehaviour or Incapacity.</p>
                     <div class="flex flex-col md:flex-row gap-2 md:items-center text-sm font-black text-slate-700 dark:text-slate-300">
-                        <div class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-amber-200 dark:border-amber-800">1. LS (100) or RS (50) signs motion</div>
+                        <div class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-amber-200 dark:border-amber-800">1. LS (<span class="cloze" onclick="this.classList.toggle('revealed')">100</span>) or RS (<span class="cloze" onclick="this.classList.toggle('revealed')">50</span>) signs motion</div>
                         <span class="text-amber-500 hidden md:block">➔</span>
                         <div class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-amber-200 dark:border-amber-800">2. Speaker/Chairman accepts</div>
                         <span class="text-amber-500 hidden md:block">➔</span>
@@ -580,11 +575,93 @@
 
     window.viewNote = (id) => {
         const viewer = document.getElementById('library-content-viewer');
-        if(notesDb[id]) {
-            viewer.innerHTML = notesDb[id].htmlContent;
+        const note = notesDb[id];
+        if(note) {
+            let tricks = note.tricks || "";
+            
+            // The Mamba Bottom Bar (Editable Trick Vault + Instant Strike)
+            let mambaBottomBar = `
+                <div class="mt-10 border-t border-slate-200 dark:border-slate-800 pt-8" data-html2canvas-ignore="true">
+                    <h3 class="text-xl font-black text-purple-600 dark:text-purple-400 uppercase tracking-tight mb-4 flex items-center gap-2">🧠 Mamba Trick Vault</h3>
+                    <textarea id="trick-vault-input" rows="3" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-purple-50/50 dark:bg-purple-900/10 font-bold text-sm focus:ring-2 focus:ring-purple-500 outline-none text-slate-800 dark:text-slate-200 shadow-inner mb-4" placeholder="Type your mnemonics, chronological shortcuts, or memory hooks here...">${tricks}</textarea>
+                    
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <button onclick="saveTrick('${id}')" class="flex-1 bg-slate-200 dark:bg-slate-800 hover:bg-purple-500 hover:text-white text-slate-700 dark:text-slate-300 font-black py-4 rounded-xl shadow-sm transition-all uppercase tracking-widest text-[10px] border border-slate-300 dark:border-slate-700 hover:border-purple-500">💾 Save Trick</button>
+                        <button onclick="launchTargetedStrike('${id}')" class="flex-1 bg-slate-900 dark:bg-emerald-500 text-white dark:text-slate-900 font-black py-4 rounded-xl shadow-[0_5px_15px_rgba(0,0,0,0.2)] hover:-translate-y-0.5 transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2">⚡ Launch Instant Strike</button>
+                    </div>
+                </div>
+            `;
+            
+            viewer.innerHTML = note.htmlContent + mambaBottomBar;
             viewer.scrollTo(0,0);
         }
     };
+
+    window.saveTrick = (id) => {
+        const val = document.getElementById('trick-vault-input').value;
+        notesDb[id].tricks = val;
+        updateLocalCache(); // Save to local storage without pinging Google Cloud immediately
+        alert("✅ Mamba Trick Saved Permanently!");
+    };
+
+    window.launchTargetedStrike = (id) => {
+        const note = notesDb[id];
+        let pool = [];
+        
+        // Scan the entire database for questions matching this note's Subject and Topic
+        Object.keys(db).forEach(quizId => {
+            if(db[quizId] && Array.isArray(db[quizId].questions) && !db[quizId].title.includes("🎯") && !db[quizId].title.includes("SRS")) {
+                db[quizId].questions.forEach(q => {
+                    let qTags = Array.isArray(q.tags) ? q.tags : (q.tags ? [String(q.tags)] : []);
+                    let t1 = qTags.length > 0 ? qTags[0] : (q.subject || q.originalSubject || "Miscellaneous");
+                    let t2 = qTags.length > 1 ? qTags[1] : t1;
+                    
+                    if (t1 === note.subject && t2 === note.topic) {
+                        pool.push(q);
+                    }
+                });
+            }
+        });
+
+        if(pool.length === 0) {
+            return alert(`No questions found in your vault tagged with Subject: "${note.subject}" and Topic: "${note.topic}". Go add some questions first!`);
+        }
+
+        // De-duplicate and randomize
+        const uniqueQs = Array.from(new Map(pool.map(q => [q.question, q])).values());
+        const shuffled = uniqueQs.sort(() => 0.5 - Math.random()).slice(0, 15); // Max 15 questions for a quick strike
+
+        db['quiz_strike'] = { 
+            title: `⚡ Instant Strike - ${note.topic}`, 
+            subject: note.subject, 
+            timeInMinutes: Math.ceil(shuffled.length * 1.0), // Fast pace: 1 min per question
+            questions: shuffled 
+        };
+        
+        openLobby('quiz_strike');
+    };
+
+    window.downloadNotePDF = () => {
+        const element = document.getElementById('library-content-viewer');
+        
+        // Temporarily change background to light for printing if in dark mode
+        const wasDark = document.documentElement.classList.contains('dark');
+        if(wasDark) document.documentElement.classList.remove('dark');
+
+        const opt = {
+            margin:       [0.5, 0.5],
+            filename:     `Mamba_Notes_${new Date().getTime()}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
+            jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(element).save().then(() => {
+            // Restore dark mode if it was on
+            if(wasDark) document.documentElement.classList.add('dark');
+        });
+    };
+
 
     window.openGlobalEditModalBySafeId = (id) => {
         if(window.editRegistry[id]) {
@@ -945,7 +1022,6 @@
         localStorage.setItem('megaQuizDB_v4', JSON.stringify(db));
         localStorage.setItem('megaQuizHistory_v5', JSON.stringify(historyDb)); 
         localStorage.setItem('megaQuizMistakes_v5', JSON.stringify(mistakesDb));
-        // Save Notes DB to local storage
         localStorage.setItem('megaQuizNotes_v1', JSON.stringify(notesDb));
     }
 
@@ -959,10 +1035,8 @@
         if(!Array.isArray(historyDb)) historyDb = [];
         if(!Array.isArray(mistakesDb)) mistakesDb = [];
         
-        // Load Notes DB if exists, otherwise keep prototype
         if (localStorage.getItem('megaQuizNotes_v1')) {
             let loadedNotes = JSON.parse(localStorage.getItem('megaQuizNotes_v1'));
-            // Merge loaded notes with prototype so prototype isn't lost if loadedNotes is empty
             if(Object.keys(loadedNotes).length > 0) {
                 notesDb = loadedNotes;
             }
@@ -989,8 +1063,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        // Notes DB is saved locally to prevent Google Apps Script payload limit crashes.
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.35", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.36", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
