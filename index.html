@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.44 (System Restored)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.40 (Library Editor Patch)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -36,7 +36,7 @@
         mark { background-color: rgba(251, 191, 36, 0.4); color: inherit; padding: 0 2px; border-radius: 4px; font-weight: 900; box-shadow: 0 0 8px rgba(251, 191, 36, 0.3); }
         .dark mark { background-color: rgba(245, 158, 11, 0.5); }
 
-        /* BULLETPROOF NATIVE CLOZE CSS */
+        /* NATIVE CLOZE ACTIVE RECALL CSS */
         .mamba-cloze { 
             background-color: #0f172a; 
             color: transparent; 
@@ -53,12 +53,12 @@
         .mamba-cloze:hover { box-shadow: 0 0 8px rgba(59, 130, 246, 0.5); border-color: #3b82f6; }
         
         .mamba-cloze.revealed { 
-            background-color: rgba(16, 185, 129, 0.1) !important; 
-            color: #10b981 !important; 
-            border-color: #10b981 !important; 
+            background-color: rgba(16, 185, 129, 0.1); 
+            color: #10b981; 
+            border-color: #10b981; 
             text-shadow: 0 0 1px rgba(16, 185, 129, 0.3);
         }
-        .light .mamba-cloze.revealed { color: #059669 !important; border-color: #059669 !important; background-color: rgba(5, 150, 105, 0.1) !important; }
+        .light .mamba-cloze.revealed { color: #059669; border-color: #059669; background-color: rgba(5, 150, 105, 0.1); }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-[#0a0f1c] dark:text-slate-200 min-h-screen flex flex-col pb-20">
@@ -70,6 +70,7 @@
         <header class="bg-slate-900 dark:bg-slate-900 text-white rounded-[2rem] p-6 sm:p-10 mb-10 shadow-2xl relative overflow-hidden border border-slate-800 group">
             <div class="absolute inset-0 bg-cover bg-center opacity-60 dark:opacity-70 transition-transform duration-1000 group-hover:scale-105" style="background-image: url('wp2550249-kobe-bryant-wallpaper.jpg'); pointer-events: none;"></div>
             <div class="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-900/50 to-transparent dark:from-[#0a0f1c]/90 dark:via-[#0a0f1c]/60 pointer-events-none"></div>
+
             <div class="absolute -top-32 -right-32 w-96 h-96 bg-emerald-500 rounded-full mix-blend-multiply filter blur-[100px] opacity-40 animate-pulse pointer-events-none"></div>
             <div class="absolute -bottom-32 -left-32 w-96 h-96 bg-indigo-600 rounded-full mix-blend-multiply filter blur-[100px] opacity-40 animate-pulse pointer-events-none" style="animation-delay: 2s;"></div>
 
@@ -81,9 +82,9 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.44</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.40</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">System Fully Restored & Operational</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Note Editor Patch Active</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
@@ -94,6 +95,7 @@
                     <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400 flex items-center gap-2">📊 Analytics</button>
                 </div>
             </div>
+
             <div class="w-full mt-10 relative group z-10">
                 <div class="absolute inset-0 bg-gradient-to-r from-emerald-400 to-indigo-500 rounded-2xl blur-md opacity-30 group-hover:opacity-50 transition duration-500"></div>
                 <div class="relative">
@@ -118,6 +120,7 @@
                 </div>
                 <div class="text-white font-black text-3xl group-hover:translate-x-3 transition-transform drop-shadow-lg relative z-10">→</div>
             </div>
+
             <div id="dashboard-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-16"></div>
             
             <div class="mt-auto text-center pb-10 border-t border-slate-200 dark:border-slate-800/50 pt-10">
@@ -134,28 +137,30 @@
     </div>
 
     <div id="screen-library" class="hidden max-w-[1500px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
-        <div class="bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden flex flex-col md:flex-row h-[85vh]">
+        <div class="bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden flex flex-col md:flex-row min-h-[85vh]">
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-500 to-fuchsia-600 z-20"></div>
             
-            <div class="w-full md:w-1/4 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 p-6 flex flex-col z-10">
+            <div class="w-full md:w-1/3 lg:w-1/4 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 p-6 flex flex-col z-10" data-html2canvas-ignore="true">
                 <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-6 flex items-center gap-2 transition-colors w-fit">← Back to Hub</button>
                 <h2 class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight mb-2">Library Index</h2>
-                <div id="library-index" class="space-y-4 flex-1 overflow-y-auto pr-2 pb-10"></div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">Auto-Mapped Folders</p>
+                
+                <div id="library-index" class="space-y-4 flex-1 overflow-y-auto pr-2 pb-10">
+                    </div>
             </div>
 
-            <div class="w-full md:w-3/4 flex flex-col relative bg-white dark:bg-slate-900" id="library-right-panel">
-                <div id="library-content-viewer" class="flex-1 overflow-y-auto p-6 md:p-10 relative">
-                    <div class="h-full flex flex-col items-center justify-center text-slate-400 opacity-50">
-                        <div class="text-6xl mb-4">📚</div>
-                        <div class="font-black uppercase tracking-widest text-sm">Select a topic from the Ghost Index</div>
-                    </div>
+            <div class="w-full md:w-2/3 lg:w-3/4 bg-white dark:bg-slate-900 flex-1 overflow-y-auto relative" id="library-content-viewer">
+                <div class="h-full flex flex-col items-center justify-center text-slate-400 opacity-50">
+                    <div class="text-6xl mb-4">📚</div>
+                    <div class="font-black uppercase tracking-widest text-sm">Select a topic from the Ghost Index</div>
                 </div>
             </div>
         </div>
     </div>
 
     <div id="screen-add-note-modal" class="hidden fixed inset-0 z-[300] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-4xl flex flex-col max-h-[95vh]">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4 shrink-0">
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
                 <div>
                     <h2 class="text-2xl font-black uppercase text-emerald-600 dark:text-emerald-400 tracking-tight">✏️ Note Injector</h2>
                     <p id="add-note-target-label" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Targeting: Subject > Topic</p>
@@ -170,16 +175,35 @@
                 </div>
 
                 <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <p class="text-xs font-bold text-slate-500 mb-2">Paste your HTML code below. Any auto-generated or tags will be scrubbed automatically.</p>
-                    <textarea id="add-note-html-input" rows="18" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 font-mono text-[10px] sm:text-xs focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800 dark:text-slate-200 shadow-inner" placeholder="<div><h1>My Notes...</h1>..."></textarea>
+                    <p class="text-xs font-bold text-slate-500 mb-2">Paste your Mamba HTML code below. You can update existing code here.</p>
+                    <textarea id="add-note-html-input" rows="12" class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 font-mono text-xs focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800 dark:text-slate-200 shadow-inner" placeholder="<div><h1>My Notes...</h1>..."></textarea>
                 </div>
                 <input type="hidden" id="add-note-hidden-subject">
                 <input type="hidden" id="add-note-hidden-topic">
                 <input type="hidden" id="add-note-hidden-id">
             </div>
-            <div class="pt-4 mt-2 border-t border-slate-100 dark:border-slate-800 shrink-0">
+            <div class="pt-4 mt-2 border-t border-slate-100 dark:border-slate-800">
                 <button onclick="saveNewNote()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-black uppercase tracking-widest py-4 rounded-xl shadow-lg transition-all shadow-[0_5px_15px_rgba(16,185,129,0.3)] hover:-translate-y-1 text-sm">💾 Save & Inject Code</button>
             </div>
+        </div>
+    </div>
+
+
+    <div id="screen-target-radar" class="hidden max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
+        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-rose-400 to-orange-500"></div>
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 border-b border-slate-100 dark:border-slate-800 pb-6">
+                <div>
+                    <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
+                    <h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Global Target Radar</h2>
+                    <p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Powered directly by Master DB Tags</p>
+                </div>
+            </div>
+            <div id="critical-bleed-container" class="mb-10 hidden">
+                <h3 class="text-lg md:text-xl font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-rose-100 dark:border-rose-900/30 pb-2">⚠️ Critical Weaknesses (Triage Zone)</h3>
+                <div id="critical-bleed-grid" class="grid grid-cols-2 md:grid-cols-5 gap-4"></div>
+            </div>
+            <div id="target-radar-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </div>
     </div>
 
@@ -207,23 +231,6 @@
         </div>
     </div>
 
-    <div id="screen-target-radar" class="hidden max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
-        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-rose-400 to-orange-500"></div>
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 border-b border-slate-100 dark:border-slate-800 pb-6">
-                <div>
-                    <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
-                    <h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Global Target Radar</h2>
-                    <p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Powered directly by Master DB Tags</p>
-                </div>
-            </div>
-            <div id="critical-bleed-container" class="mb-10 hidden">
-                <h3 class="text-lg md:text-xl font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-rose-100 dark:border-rose-900/30 pb-2">⚠️ Critical Weaknesses (Triage Zone)</h3>
-                <div id="critical-bleed-grid" class="grid grid-cols-2 md:grid-cols-5 gap-4"></div>
-            </div>
-            <div id="target-radar-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
-        </div>
-    </div>
 
     <div id="screen-srs-modal" class="hidden fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg flex flex-col">
@@ -441,6 +448,8 @@
     let db = {}; 
     let historyDb = [];
     let mistakesDb = []; 
+    
+    // Notes Database
     let notesDb = {};
 
     let currentQuizId = null;
@@ -448,18 +457,19 @@
     let activeQuestions = []; 
     let quizState = { answers: {}, marked: {}, revealed: {}, locked: {}, qTimeLeft: 0, submitted: false, interval: null, isPaused: false, currentFocus: -1 };
     let lobbySettings = { timeMode: 'default', customMinutes: 0, shuffle: true, blind: false, perQTimer: false };
+    let targetImportSubject = ""; 
 
-    // ==========================================
-    // GLOBAL CLOZE EVENT LISTENER
-    // ==========================================
-    document.addEventListener('click', function(e) {
-        if(e.target && e.target.classList.contains('mamba-cloze')) {
-            e.target.classList.toggle('revealed');
-        }
-    });
+    let lobbyQuizMode = 'full';
+    window.currentQuizWrongQs = [];
+    window.currentReviewQuestions = []; 
+    let currentlyEditingGlobalText = null;
+    let isDirtyFilterActive = false;
 
+    window.editRegistry = {};
+    window.editCounter = 0;
+    
     // ==========================================
-    // MASTER LIBRARY LOGIC
+    // MASTER LIBRARY LOGIC (THE GHOST FOLDER INDEX)
     // ==========================================
     window.openLibrary = () => {
         showScreen('library');
@@ -491,19 +501,26 @@
             
             let topics = Array.from(masterTree[sub]).sort();
             topics.forEach(top => {
+                
                 html += `<div class="text-[11px] font-black text-slate-400 mt-4 mb-2 uppercase tracking-widest flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-700"></span> ${top}</div>`;
                 
+                // Render all notes inside this folder
                 for(let nid in notesDb) {
                     if(notesDb[nid].subject === sub && notesDb[nid].topic === top) {
                         let title = notesDb[nid].title || notesDb[nid].displayTitle || top;
                         html += `<button onclick="viewNote('${nid}')" class="w-full text-left p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 font-bold text-sm transition-all mb-2 border border-emerald-200 dark:border-emerald-800/50 shadow-sm hover:shadow-md truncate focus:ring-2 focus:ring-emerald-500 outline-none flex items-center gap-3"><span class="text-lg">📖</span> <span class="truncate">${title}</span></button>`;
                     }
                 }
+
+                // The continuous ADD button for this folder
                 html += `<button onclick="openAddNoteModal('${sub.replace(/'/g, "\\'")}', '${top.replace(/'/g, "\\'")}')" class="w-full text-left p-2.5 rounded-xl bg-white dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 font-black text-[10px] transition-all mb-4 border border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-400 hover:text-emerald-500 uppercase tracking-widest outline-none opacity-60 hover:opacity-100 flex items-center justify-center gap-2">➕ Add Note to ${top}</button>`;
             });
         });
         
-        if(html === '') html = `<div class="text-xs text-slate-500 font-bold italic">No questions in database yet to build the index.</div>`;
+        if(html === '') {
+            html = `<div class="text-xs text-slate-500 font-bold italic">No questions in database yet to build the index.</div>`;
+        }
+        
         indexContainer.innerHTML = html;
     };
 
@@ -511,24 +528,26 @@
         document.getElementById('add-note-target-label').textContent = `Targeting: ${sub} > ${top}`;
         document.getElementById('add-note-hidden-subject').value = sub;
         document.getElementById('add-note-hidden-topic').value = top;
-        document.getElementById('add-note-hidden-id').value = ""; 
+        document.getElementById('add-note-hidden-id').value = ""; // Clear ID for new note
         document.getElementById('add-note-title-input').value = "";
         document.getElementById('add-note-html-input').value = "";
         document.getElementById('screen-add-note-modal').classList.remove('hidden');
     };
     
+    // NEW: EDIT NOTE FUNCTION
     window.editNote = (id) => {
         const note = notesDb[id];
         if(!note) return;
         document.getElementById('add-note-target-label').textContent = `Editing Note: ${note.subject} > ${note.topic}`;
         document.getElementById('add-note-hidden-subject').value = note.subject;
         document.getElementById('add-note-hidden-topic').value = note.topic;
-        document.getElementById('add-note-hidden-id').value = id; 
+        document.getElementById('add-note-hidden-id').value = id; // Set ID to overwrite
         document.getElementById('add-note-title-input').value = note.displayTitle || note.title;
         document.getElementById('add-note-html-input').value = note.htmlContent;
         document.getElementById('screen-add-note-modal').classList.remove('hidden');
     };
 
+    // NEW: DELETE NOTE FUNCTION
     window.deleteNote = (id) => {
         if(confirm("Are you sure you want to permanently delete this note?")) {
             delete notesDb[id];
@@ -545,15 +564,13 @@
     window.saveNewNote = () => {
         let sub = document.getElementById('add-note-hidden-subject').value;
         let top = document.getElementById('add-note-hidden-topic').value;
-        let noteId = document.getElementById('add-note-hidden-id').value; 
+        let noteId = document.getElementById('add-note-hidden-id').value; // Check if editing
         let title = document.getElementById('add-note-title-input').value.trim() || top;
         let htmlCode = document.getElementById('add-note-html-input').value.trim();
 
         if(!htmlCode) return alert("Paste the HTML code first.");
 
-        // AUTO-SCRUBBER: Instantly deletes any or tags accidentally injected
-        let cleanHtml = htmlCode.replace(/\/g, '').replace(/\]+\]/g, '');
-
+        // If no ID, generate a new one. Otherwise, overwrite the existing one.
         if(!noteId) {
             noteId = `${sub}_${top}_${Date.now()}`.replace(/\s+/g, '_');
             notesDb[noteId] = { additionalDetails: [] }; 
@@ -567,7 +584,7 @@
             title: title, 
             displayTitle: title,
             additionalDetails: existingDetails,
-            htmlContent: cleanHtml
+            htmlContent: htmlCode
         };
 
         updateLocalCache();
@@ -583,6 +600,7 @@
 
         let displayTxt = note.displayTitle || note.title || note.topic;
 
+        // RENDER ADDITIONAL DETAILS LIST
         let detailsListHTML = '';
         if(note.additionalDetails && note.additionalDetails.length > 0) {
             detailsListHTML = `<div class="mb-4 space-y-2">`;
@@ -598,14 +616,18 @@
             detailsListHTML = `<div class="text-xs text-slate-400 font-bold italic mb-4">No additional points added yet.</div>`;
         }
         
+        // THE MAMBA BOTTOM BAR (Additional Details + Instant Strike)
         let mambaBottomBar = `
             <div class="mt-10 border-t border-slate-200 dark:border-slate-800 pt-8 max-w-4xl mx-auto" data-html2canvas-ignore="true">
                 <h3 class="text-lg font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tight mb-4 flex items-center gap-2">📝 Additional Details Ledger</h3>
+                
                 ${detailsListHTML}
+                
                 <div class="flex gap-2 mb-8">
                     <input type="text" id="new-detail-input-${id}" class="flex-1 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200 shadow-inner" placeholder="Type a new high-yield fact or detail here..." onkeypress="if(event.key === 'Enter') addDetail('${id}')">
                     <button onclick="addDetail('${id}')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-6 rounded-xl shadow-md transition-colors uppercase tracking-widest text-[10px]">Add Point</button>
                 </div>
+
                 <div class="border-t border-slate-200 dark:border-slate-800 pt-6">
                     <button onclick="launchTargetedStrike('${id}')" class="w-full bg-slate-900 dark:bg-emerald-500 text-white dark:text-slate-900 font-black py-4 rounded-xl shadow-[0_5px_15px_rgba(0,0,0,0.2)] hover:-translate-y-0.5 transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2">
                         ⚡ Launch Instant Strike: ${displayTxt}
@@ -615,14 +637,15 @@
             </div>
         `;
         
+        // UPDATED HEADER TOOLS (NOW WITH EDIT AND DELETE BUTTONS)
         let headerTools = `
             <div class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md pb-4 mb-6 border-b border-slate-200 dark:border-slate-800 max-w-4xl mx-auto" data-html2canvas-ignore="true">
                 <div class="flex justify-between items-center pt-2">
                     <span class="text-xs font-black text-slate-400 uppercase tracking-widest">${note.subject} > ${note.topic}</span>
                     <div class="flex gap-2">
-                        <button onclick="editNote('${id}')" class="bg-amber-400 text-amber-900 hover:bg-amber-300 font-black px-5 py-2 rounded-xl text-xs uppercase tracking-widest transition-transform hover:-translate-y-0.5 border border-amber-500 shadow-[0_5px_15px_rgba(251,191,36,0.3)] flex items-center gap-2">✏️ Edit Note</button>
-                        <button onclick="deleteNote('${id}')" class="bg-slate-100 dark:bg-slate-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 font-black px-4 py-2 rounded-xl text-[10px] uppercase tracking-widest transition-colors border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-1">🗑️ Del</button>
-                        <button onclick="downloadNotePDF()" class="bg-rose-500 hover:bg-rose-400 text-white font-black px-4 py-2 rounded-xl shadow-md transition-transform hover:-translate-y-0.5 text-[10px] uppercase tracking-widest flex items-center gap-2 border border-rose-400">📄 Export PDF</button>
+                        <button onclick="editNote('${id}')" class="bg-amber-100 text-amber-700 hover:bg-amber-200 font-black px-3 py-1.5 rounded-lg text-[10px] uppercase tracking-widest transition-colors border border-amber-200 shadow-sm flex items-center gap-1">✏️ Edit</button>
+                        <button onclick="deleteNote('${id}')" class="bg-red-100 text-red-700 hover:bg-red-200 font-black px-3 py-1.5 rounded-lg text-[10px] uppercase tracking-widest transition-colors border border-red-200 shadow-sm flex items-center gap-1">🗑️ Del</button>
+                        <button onclick="downloadNotePDF()" class="bg-rose-500 hover:bg-rose-400 text-white font-black px-3 py-1.5 rounded-lg shadow-md transition-transform hover:-translate-y-0.5 text-[10px] uppercase tracking-widest flex items-center gap-2 border border-rose-400">📄 Export PDF</button>
                     </div>
                 </div>
             </div>
@@ -636,6 +659,7 @@
         let input = document.getElementById(`new-detail-input-${noteId}`);
         if(!input) return;
         let val = input.value.trim();
+        
         if(val) {
             if(!notesDb[noteId].additionalDetails) notesDb[noteId].additionalDetails = [];
             notesDb[noteId].additionalDetails.push(val);
@@ -647,29 +671,42 @@
     window.launchTargetedStrike = (noteId) => {
         const note = notesDb[noteId];
         let pool = [];
+        
         Object.keys(db).forEach(quizId => {
             if(db[quizId] && Array.isArray(db[quizId].questions) && !db[quizId].title.includes("🎯") && !db[quizId].title.includes("SRS")) {
                 db[quizId].questions.forEach(q => {
                     let qTags = Array.isArray(q.tags) ? q.tags : (q.tags ? [String(q.tags)] : []);
                     let t1 = qTags.length > 0 ? qTags[0] : (q.subject || q.originalSubject || "Miscellaneous");
                     let t2 = qTags.length > 1 ? qTags[1] : t1;
-                    if (t1 === note.subject && t2 === note.topic) pool.push(q);
+                    
+                    if (t1 === note.subject && t2 === note.topic) {
+                        pool.push(q);
+                    }
                 });
             }
         });
 
-        if(pool.length === 0) return alert(`No questions found in your vault tagged exactly with Subject: "${note.subject}" and Topic: "${note.topic}".`);
+        if(pool.length === 0) {
+            return alert(`No questions found in your vault tagged exactly with Subject: "${note.subject}" and Topic: "${note.topic}".`);
+        }
 
         const uniqueQs = Array.from(new Map(pool.map(q => [q.question, q])).values());
         const shuffled = uniqueQs.sort(() => 0.5 - Math.random()).slice(0, 15); 
         let displayTxt = note.displayTitle || note.title || note.topic;
 
-        db['quiz_strike'] = { title: `⚡ Instant Strike - ${displayTxt}`, subject: note.subject, timeInMinutes: Math.ceil(shuffled.length * 1.0), questions: shuffled };
+        db['quiz_strike'] = { 
+            title: `⚡ Instant Strike - ${displayTxt}`, 
+            subject: note.subject, 
+            timeInMinutes: Math.ceil(shuffled.length * 1.0), 
+            questions: shuffled 
+        };
+        
         openLobby('quiz_strike');
     };
 
     window.downloadNotePDF = () => {
         const element = document.getElementById('pdf-content-wrapper');
+        
         const clozes = element.querySelectorAll('.mamba-cloze');
         clozes.forEach(c => c.classList.add('revealed'));
 
@@ -692,17 +729,458 @@
         });
     };
 
-    // ==========================================
-    // QUIZ & APP LOGIC
-    // ==========================================
-    function showScreen(s) { 
-        ['dashboard','lobby','quiz','results','db-manager','target-radar', 'library', 'analytics', 'quiz-history', 'subject-analysis', 'add-note-modal', 'srs-modal'].forEach(x => {
-            const el = document.getElementById('screen-'+x);
-            if(el) el.classList.add('hidden');
-        }); 
-        document.getElementById('screen-'+s).classList.remove('hidden'); 
-        window.scrollTo(0,0);
+
+    window.openGlobalEditModalBySafeId = (id) => {
+        if(window.editRegistry[id]) {
+            openGlobalEditModal(window.editRegistry[id]);
+        } else {
+            alert("Error: Question reference lost. Please refresh the page.");
+        }
+    };
+
+    const SYLLABUS_MAP = {
+        "Arithmetic": ["Number System", "LCM & HCF", "Percentages", "Profit, Loss & Discount", "Simple & Compound Interest", "Ratio & Proportion", "Partnership & Ages", "Mixture & Alligation", "Average", "Time & Work", "Time, Speed & Distance"],
+        "Advanced Maths": ["Algebra", "Geometry", "Coordinate Geometry", "Mensuration 2D", "Mensuration 3D", "Trigonometry", "Heights & Distances", "Probability & Statistics"],
+        "Reasoning": ["Analogy & Classification", "Number & Letter Series", "Coding-Decoding", "Blood Relations", "Direction & Distance", "Syllogism", "Order & Ranking", "Clock & Calendar", "Venn Diagrams", "Missing Number & Matrix", "Non-Verbal Reasoning", "Logical Reasoning"],
+        "English": [
+            "Active & Passive Voice", "Cloze Test", "Direct & Indirect Speech", "Figures of Speech", "Grammar & Error Spotting", "HOMONYMS", "Idioms & Phrases", "One Word Substitution", "Para Jumbles", "PREPOSITION", "Phrasal Verbs", "Reading Comprehension", "Sentence Improvement", "Spelling Errors", "Synonyms & Antonyms"
+        ],
+        "Ancient History": ["Prehistoric & Indus Valley", "Vedic Age", "Buddhism & Jainism", "Mahajanapadas & Magadha", "Mauryan Empire", "Post-Mauryan Period", "Gupta Empire", "Post-Gupta & Harsha"],
+        "Medieval History": ["Early Medieval India", "Delhi Sultanate", "Provincial Kingdoms", "Mughal Empire", "Maratha Empire", "Bhakti & Sufi Movements"],
+        "Modern History": ["Advent of Europeans", "British Expansion & Policies", "Revolt of 1857", "Socio-Religious Reform Movements", "Indian National Congress", "Gandhian Era", "Revolutionary Nationalism", "Partition & Independence", "Post-Independence Consolidation"],
+        "Art & Culture": ["Architecture & Sculpture", "Paintings", "Music & Dance", "Puppetry & Theatre", "Languages & Literature", "Fairs, Festivals & Handicrafts", "Indian Philosophy"],
+        "Geography": ["Geomorphology", "Climatology", "Oceanography", "Indian Physical Geography", "Indian Drainage System", "Indian Climate, Soil & Vegetation", "Economic Geography", "Human & Demographic Geography"],
+        "Polity": ["Historical Background & Making", "Salient Features & Preamble", "Union & Its Territory / Citizenship", "Fundamental Rights & Duties", "Directive Principles (DPSP)", "Union Executive", "Union Legislature", "State Executive & Legislature", "Judiciary (SC, HC, Subordinate Courts)", "Local Self-Government", "Constitutional Bodies", "Statutory Bodies", "Centre-State Relations & Emergency", "Elections & Political Dynamics"],
+        "Economics": ["National Income & Growth", "Inflation & Business Cycle", "Money & Banking", "Budget, Taxation & Fiscal Policy", "Financial Markets", "Agriculture & Land Reforms", "Industry & Infrastructure", "External Sector", "International Organizations", "Poverty, Inequality & Employment"],
+        "Physics": ["Units & Measurements", "Mechanics", "Gravitation", "Properties of Matter", "Heat & Thermodynamics", "Waves & Sound", "Optics", "Electricity & Magnetism", "Modern Physics"],
+        "Chemistry": ["Matter & Its States", "Atomic Structure & Periodic Table", "Chemical Bonding & Reactions", "Acids, Bases & Salts", "Metals, Non-Metals & Metallurgy", "Carbon & Organic Compounds", "Chemistry in Everyday Life"],
+        "Biology": ["Cell Biology", "Classification of Organisms", "Human Anatomy & Physiology", "Plant Morphology & Physiology", "Genetics & Evolution", "Human Diseases & Defense Mechanisms", "Nutrition & Vitamins"],
+        "Environment & Ecology": ["Ecology Concepts & Ecosystems", "Biodiversity & Conservation", "Environmental Pollution & Degradation", "Climate Change", "Environmental Acts & Policies", "International Treaties & Conventions"],
+        "Science & Technology": ["Space Technology", "Defense Technology", "Biotechnology", "IT, Telecom & Emerging Tech", "Nuclear Technology"],
+        "Static GK": ["Firsts in India & World", "Superlatives", "Important Dates & Days", "National Parks & Wildlife Sanctuaries", "UNESCO World Heritage Sites", "Capitals & Currencies", "International Headquarters", "Books & Authors", "Sports Terminologies & Trophies"],
+        "Current Affairs": ["National News & Governance", "International News", "Economy & Banking Updates", "Sports News", "Awards & Honors", "Appointments & Resignations", "Defense Exercises", "Government Schemes & Yojanas"],
+        "Computer Knowledge": ["Computer Fundamentals & History", "Hardware & Software", "Operating Systems", "MS Office", "Internet & Networking", "Cyber Security & Threats", "Keyboard Shortcuts & Abbreviations"]
+    };
+
+    window.requireAuth = (callback) => {
+        const pwd = prompt("🔒 SYSTEM SECURED\n\nEnter the master password to authorize changes:");
+        if (pwd === "KOBE") { callback(); } else if (pwd !== null) { alert("❌ ACCESS DENIED."); }
+    };
+
+    function getMasterMap() {
+        let map = {};
+        Object.keys(db).forEach(qid => {
+            if (!db[qid] || !Array.isArray(db[qid].questions)) return; 
+            db[qid].questions.forEach(q => {
+                map[q.question] = { tags: q.tags || [], subject: q.subject || q.originalSubject || "Miscellaneous" };
+            });
+        });
+        return map;
     }
+
+    window.toggleDirtyFilter = () => {
+        isDirtyFilterActive = !isDirtyFilterActive;
+        const btn = document.getElementById('dirty-filter-btn');
+        if(isDirtyFilterActive) {
+            btn.className = "bg-rose-500 text-white font-black px-4 py-3 rounded-xl border border-rose-600 transition-colors uppercase tracking-widest text-[10px] shadow-lg flex-shrink-0 animate-pulse";
+            btn.innerHTML = "🔴 Filtering Dirty Tags";
+        } else {
+            btn.className = "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50 font-black px-4 py-3 rounded-xl border border-amber-200 dark:border-amber-800/50 transition-colors uppercase tracking-widest text-[10px] shadow-sm flex-shrink-0";
+            btn.innerHTML = "⚠️ Find Dirty Tags";
+        }
+        let st = document.getElementById('db-manager-search').value;
+        renderDBList(st);
+    };
+
+    window.openDBManager = () => {
+        showScreen('db-manager');
+        isDirtyFilterActive = false;
+        document.getElementById('dirty-filter-btn').className = "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50 font-black px-4 py-3 rounded-xl border border-amber-200 dark:border-amber-800/50 transition-colors uppercase tracking-widest text-[10px] shadow-sm flex-shrink-0";
+        document.getElementById('dirty-filter-btn').innerHTML = "⚠️ Find Dirty Tags";
+        document.getElementById('db-manager-search').value = "";
+        renderDBList("");
+    };
+
+    window.renderDBList = (searchTerm) => {
+        if(searchTerm === undefined) searchTerm = document.getElementById('db-manager-search').value;
+        const term = (searchTerm || "").toLowerCase().trim();
+        const listContainer = document.getElementById('db-manager-list');
+        let html = '';
+        let uniqueTracker = new Set();
+        let matchCount = 0;
+
+        const processList = (questionsArray, sourceTitle) => {
+            if(!Array.isArray(questionsArray)) return; 
+            questionsArray.forEach((q) => {
+                if(!q || !q.question) return; 
+                if(uniqueTracker.has(q.question)) return; 
+                
+                let isDirty = false;
+                if (!q.tags || q.tags.length === 0) {
+                    isDirty = true;
+                } else if (!CORE_SUBJECTS.includes(q.tags[0])) {
+                    isDirty = true;
+                }
+
+                if (isDirtyFilterActive && !isDirty) return; 
+
+                const searchStr = ((q.question || "") + " " + (q.solution || "") + " " + (q.tags ? (Array.isArray(q.tags) ? q.tags.join(" ") : String(q.tags)) : "")).toLowerCase();
+                
+                if (!term || searchStr.includes(term)) {
+                    matchCount++;
+                    uniqueTracker.add(q.question);
+                    
+                    let tagsToMap = Array.isArray(q.tags) ? q.tags : (q.tags ? [String(q.tags)] : ["Miscellaneous"]);
+                    let tagsHTML = tagsToMap.map(t => `<span class="inline-block px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-[9px] mb-1 mr-1">${t}</span>`).join('');
+                    
+                    let safeId = 'edit_db_' + window.editCounter++;
+                    window.editRegistry[safeId] = q.question;
+
+                    html += `
+                    <div class="bg-white dark:bg-slate-900 rounded-xl p-4 grid grid-cols-12 gap-4 items-center border border-slate-200 dark:border-slate-800 shadow-sm hover:border-blue-400 transition-colors">
+                        <div class="col-span-2 text-xs font-bold text-slate-500 truncate" title="${sourceTitle}">${sourceTitle}</div>
+                        <div class="col-span-2 flex flex-wrap max-h-12 overflow-hidden">${tagsHTML}</div>
+                        <div class="col-span-7 text-sm font-bold text-slate-800 dark:text-slate-200 truncate" title="${q.question.replace(/"/g, '&quot;')}">${q.question}</div>
+                        <div class="col-span-1 text-center">
+                            <button onclick="openGlobalEditModalBySafeId('${safeId}')" class="bg-amber-100 hover:bg-amber-200 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 p-2 rounded-lg font-black text-xs transition-colors shadow-sm w-full">✏️</button>
+                        </div>
+                    </div>`;
+                }
+            });
+        };
+
+        Object.keys(db).forEach(qid => {
+            if (db[qid] && Array.isArray(db[qid].questions)) {
+                processList(db[qid].questions, db[qid].title);
+            }
+        });
+        
+        if (Array.isArray(mistakesDb)) processList(mistakesDb, "🔥 SRS Queue"); 
+
+        if(matchCount === 0) {
+            let emptyMsg = isDirtyFilterActive ? "✅ Zero Dirty Tags Found! Your Database is 100% Pure." : "No questions found matching your search.";
+            html = `<div class="text-center text-slate-400 font-bold py-16 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl mt-4">${emptyMsg}</div>`;
+        }
+        
+        listContainer.innerHTML = html;
+    };
+
+    window.updateTag2Dropdown = (preselectedTopic = "") => {
+        const subSelect = document.getElementById('edit-tag-1');
+        const topicSelect = document.getElementById('edit-tag-2');
+        const selectedSub = subSelect.value;
+        
+        topicSelect.innerHTML = '<option value="">-- Select Topic --</option>';
+        let availableTopics = new Set();
+
+        if(selectedSub && SYLLABUS_MAP[selectedSub]) {
+            SYLLABUS_MAP[selectedSub].forEach(t => availableTopics.add(t));
+        }
+
+        Object.keys(db).forEach(qid => {
+            if(db[qid] && Array.isArray(db[qid].questions)) {
+                db[qid].questions.forEach(q => {
+                    let t1 = (q.tags && q.tags.length > 0) ? q.tags[0] : (q.subject || "Miscellaneous");
+                    if (t1 === selectedSub && q.tags && q.tags.length > 1) {
+                        availableTopics.add(q.tags[1]);
+                    }
+                });
+            }
+        });
+        
+        mistakesDb.forEach(q => {
+             let t1 = (q.tags && q.tags.length > 0) ? q.tags[0] : (q.subject || "Miscellaneous");
+             if (t1 === selectedSub && q.tags && q.tags.length > 1) {
+                 availableTopics.add(q.tags[1]);
+             }
+        });
+
+        if (preselectedTopic) availableTopics.add(preselectedTopic);
+
+        let sortedTopics = Array.from(availableTopics).sort(function (a, b) {
+            return a.toLowerCase().localeCompare(b.toLowerCase());
+        });
+        
+        sortedTopics.forEach(topic => {
+            let isSelected = (topic === preselectedTopic) ? "selected" : "";
+            topicSelect.innerHTML += `<option value="${topic}" ${isSelected}>${topic}</option>`;
+        });
+
+        topicSelect.innerHTML += `<option value="__CUSTOM__" class="font-black text-amber-600 dark:text-amber-400">➕ Add Custom Topic...</option>`;
+    };
+
+    window.handleTag2Change = () => {
+        const topicSelect = document.getElementById('edit-tag-2');
+        if (topicSelect.value === "__CUSTOM__") {
+            let customTopic = prompt("Enter new Custom Topic (Tag 2):");
+            if (customTopic && customTopic.trim() !== "") {
+                customTopic = customTopic.trim();
+                const newOption = document.createElement("option");
+                newOption.value = customTopic;
+                newOption.text = customTopic + " (Custom)";
+                topicSelect.insertBefore(newOption, topicSelect.lastElementChild);
+                topicSelect.value = customTopic;
+            } else {
+                topicSelect.value = ""; 
+            }
+        }
+    };
+
+    window.openGlobalEditModal = (qText) => {
+        let foundRef = null;
+        for(let qid in db) {
+            if (!db[qid] || !Array.isArray(db[qid].questions)) continue; 
+            let qItem = db[qid].questions.find(qx => qx.question === qText);
+            if(qItem) { foundRef = qItem; break; }
+        }
+        
+        if(!foundRef && Array.isArray(mistakesDb)) { 
+            foundRef = mistakesDb.find(m => m.question === qText);
+        }
+
+        if(!foundRef) return alert("Error: Question not found in active database.");
+
+        currentlyEditingGlobalText = qText;
+        document.getElementById('edit-q-text').value = foundRef.question;
+        foundRef.options.forEach((opt, i) => {
+            if(document.getElementById('edit-opt-'+i)) {
+                document.getElementById('edit-opt-'+i).value = opt.text;
+                document.getElementById('edit-corr-'+i).checked = opt.correct;
+            }
+        });
+        document.getElementById('edit-solution').value = foundRef.solution || "";
+        
+        let t1 = "", t2 = "", t3 = "", t4 = "";
+        if(foundRef.tags && Array.isArray(foundRef.tags) && foundRef.tags.length > 0) { 
+            t1 = foundRef.tags[0] || "";
+            if(foundRef.tags.length > 1) t2 = foundRef.tags[1];
+            
+            let trapIdx = foundRef.tags.findIndex(t => t.startsWith('#'));
+            if(trapIdx !== -1) {
+                t4 = foundRef.tags[trapIdx];
+                if(trapIdx > 2) t3 = foundRef.tags.slice(2, trapIdx).join(", ");
+            } else {
+                if(foundRef.tags.length > 2) t3 = foundRef.tags.slice(2).join(", ");
+            }
+        } else if (typeof foundRef.tags === 'string') {
+            t1 = foundRef.tags; 
+        }
+
+        let tag1Select = document.getElementById('edit-tag-1');
+        let matchedT1 = Array.from(tag1Select.options).find(opt => opt.value === t1);
+        if(matchedT1) tag1Select.value = t1; 
+        else if (t1) { tag1Select.innerHTML += `<option value="${t1}">${t1}</option>`; tag1Select.value = t1; }
+        else tag1Select.value = "";
+
+        updateTag2Dropdown(t2);
+
+        document.getElementById('edit-tag-3').value = t3;
+        
+        let tag4Select = document.getElementById('edit-tag-4');
+        let matchedT4 = Array.from(tag4Select.options).find(opt => opt.value === t4);
+        if(matchedT4) tag4Select.value = t4;
+        else if (t4) { tag4Select.innerHTML += `<option value="${t4}">${t4}</option>`; tag4Select.value = t4; }
+        else tag4Select.value = "";
+        
+        document.getElementById('screen-edit-modal').classList.remove('hidden');
+    };
+
+    window.closeEditModal = () => {
+        document.getElementById('screen-edit-modal').classList.add('hidden');
+        currentlyEditingGlobalText = null;
+    };
+
+    window.saveEdit = () => {
+        if(!currentlyEditingGlobalText) return;
+        let oldText = currentlyEditingGlobalText;
+        
+        let t1 = document.getElementById('edit-tag-1').value.trim();
+        let t2 = document.getElementById('edit-tag-2').value.trim();
+        let t3 = document.getElementById('edit-tag-3').value.trim();
+        let t4 = document.getElementById('edit-tag-4').value.trim();
+        
+        let compiledTags = [];
+        if(t1) compiledTags.push(t1);
+        if(t2) compiledTags.push(t2);
+        if(t3) compiledTags.push(t3);
+        if(t4) compiledTags.push(t4);
+
+        let target = {
+            question: document.getElementById('edit-q-text').value,
+            options: [
+                { text: document.getElementById('edit-opt-0').value, correct: document.getElementById('edit-corr-0').checked },
+                { text: document.getElementById('edit-opt-1').value, correct: document.getElementById('edit-corr-1').checked },
+                { text: document.getElementById('edit-opt-2').value, correct: document.getElementById('edit-corr-2').checked },
+                { text: document.getElementById('edit-opt-3').value, correct: document.getElementById('edit-corr-3').checked }
+            ],
+            solution: document.getElementById('edit-solution').value,
+            tags: compiledTags
+        };
+
+        if(target.tags.length > 0) {
+            target.subject = target.tags[0];
+            target.originalSubject = target.tags[0];
+        }
+
+        let updatedDb = false;
+
+        for(let qid in db) {
+            if (!db[qid] || !Array.isArray(db[qid].questions)) continue; 
+            let idx = db[qid].questions.findIndex(qx => qx.question === oldText);
+            if(idx !== -1) {
+                db[qid].questions[idx] = {...db[qid].questions[idx], ...target};
+                updatedDb = true;
+            }
+        }
+
+        if (Array.isArray(mistakesDb)) { 
+            let mistIdx = mistakesDb.findIndex(m => m.question === oldText);
+            if(mistIdx !== -1) {
+                let existingSRS = mistakesDb[mistIdx].srs;
+                mistakesDb[mistIdx] = {...mistakesDb[mistIdx], ...target, srs: existingSRS};
+                updatedDb = true;
+            }
+        }
+
+        if(updatedDb) {
+            saveData(); 
+            closeEditModal();
+            
+            if(!document.getElementById('screen-db-manager').classList.contains('hidden')) {
+                let st = document.getElementById('db-manager-search').value;
+                renderDBList(st);
+            }
+            if(!document.getElementById('screen-target-radar').classList.contains('hidden')) {
+                renderTargetRadar();
+            }
+            if(!document.getElementById('search-results-container').classList.contains('hidden')) {
+                performSearch(document.getElementById('omni-search').value);
+            }
+            if(!document.getElementById('screen-results').classList.contains('hidden')) {
+                if(window.currentReviewQuestions && window.currentReviewQuestions.length > 0) {
+                    let fullHTML = '';
+                    window.currentReviewQuestions.forEach((qObj, idx) => {
+                        if(qObj.question === oldText) { qObj = {...qObj, ...target}; window.currentReviewQuestions[idx] = qObj; }
+                        let histMatch = (historyDb && historyDb[0]) ? historyDb[0].reviewData.find(r => r.question === qObj.question) : null;
+                        let stat = histMatch ? histMatch.status : 'skipped';
+                        let cText = histMatch ? histMatch.cText : 'N/A';
+                        let uText = histMatch ? histMatch.uText : 'N/A';
+                        fullHTML += genDeepReviewCard(qObj, stat, uText, cText, "", idx);
+                    });
+                    document.getElementById('revision-container').innerHTML = fullHTML;
+                }
+            }
+        } else {
+            alert("Save failed: Could not locate original question.");
+        }
+    };
+
+    function initializeSRSData() {
+        if(!Array.isArray(mistakesDb)) mistakesDb = []; 
+        mistakesDb.forEach(m => {
+            if (!m.srs) m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() - 10000 };
+        });
+    }
+
+    function updateLocalCache() {
+        initializeSRSData();
+        localStorage.setItem('megaQuizSubjects_v5', JSON.stringify(SUBJECTS));
+        localStorage.setItem('megaQuizSubCats_v1', JSON.stringify(SUBJECT_CATEGORIES));
+        localStorage.setItem('megaQuizDB_v4', JSON.stringify(db));
+        localStorage.setItem('megaQuizHistory_v5', JSON.stringify(historyDb)); 
+        localStorage.setItem('megaQuizMistakes_v5', JSON.stringify(mistakesDb));
+        localStorage.setItem('megaQuizNotes_v1', JSON.stringify(notesDb));
+    }
+
+    function loadLocalFallback() {
+        if (localStorage.getItem('megaQuizSubjects_v5')) SUBJECTS = JSON.parse(localStorage.getItem('megaQuizSubjects_v5'));
+        if (localStorage.getItem('megaQuizSubCats_v1')) SUBJECT_CATEGORIES = JSON.parse(localStorage.getItem('megaQuizSubCats_v1'));
+        if (localStorage.getItem('megaQuizDB_v4')) db = JSON.parse(localStorage.getItem('megaQuizDB_v4'));
+        
+        historyDb = localStorage.getItem('megaQuizHistory_v5') ? JSON.parse(localStorage.getItem('megaQuizHistory_v5')) : [];
+        mistakesDb = localStorage.getItem('megaQuizMistakes_v5') ? JSON.parse(localStorage.getItem('megaQuizMistakes_v5')) : [];
+        if(!Array.isArray(historyDb)) historyDb = [];
+        if(!Array.isArray(mistakesDb)) mistakesDb = [];
+        
+        if (localStorage.getItem('megaQuizNotes_v1')) {
+            let loadedNotes = JSON.parse(localStorage.getItem('megaQuizNotes_v1'));
+            if(Object.keys(loadedNotes).length > 0) {
+                notesDb = loadedNotes;
+            }
+        }
+        
+        initializeSRSData();
+    }
+
+    function showSyncStatus(state) {
+        const el = document.getElementById('sync-status');
+        if(!el) return;
+        if(state === 'syncing') {
+            el.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> Syncing...`;
+            el.className = "absolute top-6 right-6 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full bg-slate-800/80 text-amber-400 border border-slate-700 flex items-center gap-2 z-20 backdrop-blur-md shadow-lg";
+        } else if(state === 'synced') {
+            el.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Cloud Synced`;
+            el.className = "absolute top-6 right-6 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full bg-emerald-900/60 text-emerald-400 border border-emerald-800/50 flex items-center gap-2 z-20 shadow-[0_0_15px_rgba(16,185,129,0.3)] backdrop-blur-md";
+        } else if(state === 'error') {
+            el.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> Offline Mode`;
+            el.className = "absolute top-6 right-6 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full bg-red-900/60 text-red-400 border border-red-800/50 flex items-center gap-2 z-20 shadow-lg backdrop-blur-md";
+        }
+    }
+
+    function saveData() {
+        updateLocalCache();
+        showSyncStatus('syncing');
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.40", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        
+        fetch(CLOUD_URL, {
+            method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
+        }).then(() => showSyncStatus('synced')).catch(() => showSyncStatus('error'));
+    }
+
+    async function initializeSystem() {
+        if(localStorage.getItem('megaTheme') === 'dark') document.documentElement.classList.add('dark');
+        loadLocalFallback();
+        
+        renderDashboard();
+        showSyncStatus('syncing');
+
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000); 
+            const response = await fetch(CLOUD_URL, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            const data = await response.json();
+            
+            if (data && Object.keys(data).length > 0 && data.db) {
+                if (data.subjects) SUBJECTS = data.subjects;
+                if (data.categories) SUBJECT_CATEGORIES = data.categories;
+                if (data.db) db = data.db;
+                if (data.history) historyDb = data.history || [];
+                if (data.mistakes) mistakesDb = data.mistakes || [];
+                
+                updateLocalCache();
+                renderDashboard();
+                showSyncStatus('synced');
+            } else { showSyncStatus('error'); }
+        } catch (error) { showSyncStatus('error'); }
+    }
+
+    function toggleDarkMode() {
+        document.documentElement.classList.toggle('dark');
+        localStorage.setItem('megaTheme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+    }
+
+    function highlightText(text, term) {
+        if(!text) return "";
+        if(!term || term.trim() === "") return text; 
+        try {
+            const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`(${escapeRegExp(term)})`, "gi");
+            return text.replace(regex, `<mark>$1</mark>`);
+        } catch(e) { return text; }
+    }
+
+    window.clearSearch = () => { document.getElementById('omni-search').value = ''; performSearch(''); };
 
     window.performSearch = (query) => {
         const term = query.toLowerCase().trim();
@@ -727,6 +1205,7 @@
                 if (searchStr.includes(term)) {
                     matchCount++;
                     const cText = (q.options && q.options.find(o=>o.correct)?.text) || "N/A";
+                    
                     let safeId = 'edit_srch_' + window.editCounter++;
                     window.editRegistry[safeId] = q.question;
 
@@ -744,21 +1223,10 @@
                 }
             });
         });
+        
         if(matchCount === 0) resultsHTML += `<div class="text-center text-slate-400 font-bold py-16 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl mt-4">No questions found matching "${query}" in the vault.</div>`;
         resContainer.innerHTML = resultsHTML;
     };
-
-    window.clearSearch = () => { document.getElementById('omni-search').value = ''; performSearch(''); };
-
-    function highlightText(text, term) {
-        if(!text) return "";
-        if(!term || term.trim() === "") return text; 
-        try {
-            const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const regex = new RegExp(`(${escapeRegExp(term)})`, "gi");
-            return text.replace(regex, `<mark>$1</mark>`);
-        } catch(e) { return text; }
-    }
 
     const getCategoryClass = (s) => {
         s = s.toLowerCase();
@@ -771,6 +1239,159 @@
         if(cat.includes('math') || cat.includes('quant') || s.includes('math') || s.includes('quant')) return 'border-red-500';
         if(cat.includes('english') || s.includes('english')) return 'border-pink-500';
         return 'border-orange-500'; 
+    };
+
+    window.generateTopicMock = (parentSubject, targetTopic) => {
+        let pool = [];
+        
+        Object.keys(db).forEach(quizId => {
+            const quiz = db[quizId];
+            if (quiz && Array.isArray(quiz.questions) && !quiz.title.includes("🎯") && !quiz.title.includes("Master Mock") && !quiz.title.includes("SRS")) { 
+                quiz.questions.forEach(q => {
+                    let qTags = Array.isArray(q.tags) ? q.tags : (q.tags ? [String(q.tags)] : []);
+                    let t1 = qTags.length > 0 ? qTags[0] : (q.subject || q.originalSubject || "Miscellaneous");
+                    let t2 = qTags.length > 1 ? qTags[1] : t1;
+                    
+                    let mappedT1 = (!CORE_SUBJECTS.includes(t1) && t1 !== "Miscellaneous") ? "Legacy / Uncategorized Data" : t1;
+
+                    if (mappedT1 === parentSubject && t2 === targetTopic) {
+                        pool.push(q);
+                    }
+                });
+            }
+        });
+
+        if(pool.length === 0) return alert(`No questions found for topic: ${targetTopic}`);
+        
+        const uniqueQs = Array.from(new Map(pool.map(q => [q.question, q])).values());
+        const shuffled = uniqueQs.sort(() => 0.5 - Math.random()).slice(0, 30);
+        
+        db['quiz_topic_practice'] = { 
+            title: `🎯 ${targetTopic} Practice`, 
+            subject: parentSubject === "Legacy / Uncategorized Data" ? "Legacy" : parentSubject, 
+            timeInMinutes: Math.ceil(shuffled.length * 1.5), 
+            questions: shuffled 
+        };
+        openLobby('quiz_topic_practice');
+    };
+
+    window.openTargetRadar = () => {
+        showScreen('target-radar');
+        renderTargetRadar();
+    };
+
+    window.renderTargetRadar = () => {
+        const grid = document.getElementById('target-radar-grid');
+        const bleedCont = document.getElementById('critical-bleed-container');
+        const bleedGrid = document.getElementById('critical-bleed-grid');
+        
+        grid.innerHTML = '';
+        bleedGrid.innerHTML = '';
+        
+        let globalTopicsStats = {}; 
+        let allTopicsFlat = [];
+        let masterMap = getMasterMap(); 
+        
+        if (!Array.isArray(historyDb)) return; 
+
+        historyDb.forEach(h => {
+            if(h && Array.isArray(h.reviewData)) {
+                h.reviewData.forEach(rd => {
+                    let clean = masterMap[rd.question];
+                    let activeTags = clean ? clean.tags : (Array.isArray(rd.tags) ? rd.tags : (rd.tags ? [String(rd.tags)] : []));
+                    
+                    let t1 = activeTags.length > 0 ? activeTags[0] : "Miscellaneous";
+                    let t2 = activeTags.length > 1 ? activeTags[1] : t1; 
+                    
+                    if(!CORE_SUBJECTS.includes(t1) && t1 !== "Miscellaneous") {
+                        t1 = "Legacy / Uncategorized Data";
+                    }
+
+                    if(!globalTopicsStats[t1]) globalTopicsStats[t1] = {};
+                    if(!globalTopicsStats[t1][t2]) globalTopicsStats[t1][t2] = { c: 0, t: 0, t1: t1, t2: t2 };
+                    
+                    globalTopicsStats[t1][t2].t++;
+                    if(rd.status === 'correct') globalTopicsStats[t1][t2].c++;
+                });
+            }
+        });
+
+        Object.keys(globalTopicsStats).forEach(t1 => {
+            Object.keys(globalTopicsStats[t1]).forEach(t2 => {
+                allTopicsFlat.push(globalTopicsStats[t1][t2]);
+            });
+        });
+
+        let criticalTopics = allTopicsFlat.filter(x => x.t >= 3 && x.t1 !== "Legacy / Uncategorized Data").sort((a,b) => {
+            let accA = a.c / a.t;
+            let accB = b.c / b.t;
+            if(accA !== accB) return accA - accB; 
+            return b.t - a.t; 
+        }).slice(0, 5);
+
+        if(criticalTopics.length > 0) {
+            bleedCont.classList.remove('hidden');
+            criticalTopics.forEach(stat => {
+                let acc = Math.round((stat.c / stat.t) * 100);
+                bleedGrid.innerHTML += `
+                    <button onclick="generateTopicMock('${stat.t1.replace(/'/g, "\\'")}', '${stat.t2.replace(/'/g, "\\'")}')" class="bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 border-2 border-rose-400 p-4 rounded-2xl flex flex-col items-center justify-center text-center shadow-lg transition-transform hover:-translate-y-1">
+                        <span class="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">${stat.t1}</span>
+                        <span class="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight mb-2">${stat.t2}</span>
+                        <span class="text-xl font-black text-rose-600 dark:text-rose-400">${acc}%</span>
+                        <span class="text-[9px] font-black text-rose-400 tracking-widest mt-1">[ ${stat.c} / ${stat.t} ]</span>
+                    </button>
+                `;
+            });
+        } else {
+            bleedCont.classList.add('hidden');
+        }
+
+        Object.keys(globalTopicsStats).sort().forEach(subject => {
+            let subTopics = globalTopicsStats[subject];
+            if (subTopics && Object.keys(subTopics).length > 0) {
+                
+                let sortedTopicKeys = Object.keys(subTopics).sort((a,b) => {
+                    let accA = subTopics[a].c / subTopics[a].t;
+                    let accB = subTopics[b].c / subTopics[b].t;
+                    if(accA !== accB) return accA - accB;
+                    return subTopics[b].t - subTopics[a].t;
+                });
+
+                let pillsHTML = sortedTopicKeys.map(t => {
+                    let stat = subTopics[t];
+                    let acc = Math.round((stat.c / stat.t) * 100);
+                    let barColor = acc >= 80 ? 'bg-emerald-500' : acc >= 50 ? 'bg-amber-500' : 'bg-red-500';
+                    let textClass = acc >= 80 ? 'text-emerald-700 dark:text-emerald-400' : acc >= 50 ? 'text-amber-700 dark:text-amber-400' : 'text-rose-700 dark:text-rose-400';
+                    let bgClass = acc >= 80 ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/50' : acc >= 50 ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50' : 'bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800/50';
+
+                    return `
+                    <div class="mb-3 p-3 rounded-xl border ${bgClass} shadow-sm hover:shadow-md transition-shadow cursor-pointer" onclick="generateTopicMock('${subject.replace(/'/g, "\\'")}', '${t.replace(/'/g, "\\'")}')" title="Practice ${t}">
+                        <div class="flex justify-between items-end mb-2">
+                            <div class="font-black ${textClass} text-[10px] sm:text-xs uppercase tracking-widest truncate pr-2">${t}</div>
+                            <div class="text-[10px] font-black ${textClass} bg-white dark:bg-slate-900 px-2 py-0.5 rounded shadow-sm whitespace-nowrap">${stat.c} / ${stat.t} (${acc}%)</div>
+                        </div>
+                        <div class="w-full bg-white dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                            <div class="${barColor} h-1.5 rounded-full" style="width: ${acc}%"></div>
+                        </div>
+                    </div>`;
+                }).join('');
+
+                const card = document.createElement('div');
+                card.className = `bg-white dark:bg-slate-900/80 rounded-3xl p-6 shadow-lg border border-slate-200 dark:border-slate-800 relative overflow-hidden flex flex-col h-full`;
+                card.innerHTML = `
+                    <div class="absolute top-0 left-0 w-full h-1.5 ${getCategoryClass(subject)}"></div>
+                    <div class="flex justify-between items-center pb-3 mb-4 border-b border-slate-100 dark:border-slate-800/50">
+                        <h2 class="text-xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">${subject}</h2>
+                    </div>
+                    <div class="flex flex-col flex-1 overflow-y-auto max-h-[350px] pr-1">${pillsHTML}</div>
+                `;
+                grid.appendChild(card);
+            }
+        });
+
+        if(grid.innerHTML === '') {
+            grid.innerHTML = `<div class="col-span-full text-center text-slate-400 font-bold py-16 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl mt-4">No global data found. Take some quizzes to populate the radar.</div>`;
+        }
     };
 
     function renderDashboard() {
@@ -800,7 +1421,9 @@
         grid.appendChild(mambaCard);
         
         SUBJECTS.forEach(subject => {
+
             const subjectQuizzes = Object.keys(db).filter(id => db[id].subject === subject && !db[id].title.includes("Master Mock") && !db[id].title.includes("🎯") && !db[id].title.includes("SRS"));
+
             let listHTML = subjectQuizzes.length === 0 ? `<div class="text-xs text-slate-400 font-bold py-4 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg mb-2">No quizzes imported yet.</div>` : '';
             
             subjectQuizzes.forEach(id => {
@@ -850,8 +1473,99 @@
         grid.appendChild(addCard);
     }
 
-    // QUIZ ENGINE FUNCTIONS
-    window.openLobby = (id) => {
+    window.openSRSModal = () => {
+        let globalDue = 0;
+        let subSelect = document.getElementById('srs-subject-select');
+        let launchBtn = document.getElementById('srs-subject-launch-btn');
+        subSelect.innerHTML = '';
+        
+        let subjectsWithDue = {};
+        let masterMap = getMasterMap(); 
+
+        mistakesDb.forEach(m => {
+            if(m.srs && m.srs.nextReview <= Date.now()) {
+                globalDue++;
+                let clean = masterMap[m.question];
+                let activeTags = clean ? clean.tags : (Array.isArray(m.tags) ? m.tags : []);
+                let subName = activeTags.length > 0 ? activeTags[0] : (m.subject || m.originalSubject || "Miscellaneous");
+                
+                if (CORE_SUBJECTS.includes(subName)) {
+                    subjectsWithDue[subName] = (subjectsWithDue[subName] || 0) + 1;
+                }
+            }
+        });
+
+        document.getElementById('srs-global-count-modal').textContent = globalDue;
+
+        let hasAnyDue = false;
+        CORE_SUBJECTS.forEach(sub => {
+            if(subjectsWithDue[sub] && subjectsWithDue[sub] > 0) {
+                hasAnyDue = true;
+                subSelect.innerHTML += `<option value="${sub}">${sub} (${subjectsWithDue[sub]} Due)</option>`;
+            }
+        });
+
+        if(!hasAnyDue) {
+            subSelect.innerHTML = `<option value="">✅ All Caught Up! No Core Subjects Due.</option>`;
+            subSelect.disabled = true;
+            launchBtn.disabled = true;
+            launchBtn.className = "w-full bg-slate-300 dark:bg-slate-700 text-slate-500 font-black uppercase tracking-widest py-3 rounded-xl shadow-none cursor-not-allowed";
+        } else {
+            subSelect.disabled = false;
+            launchBtn.disabled = false;
+            launchBtn.className = "w-full bg-emerald-50 hover:bg-emerald-400 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all";
+        }
+        
+        document.getElementById('screen-srs-modal').classList.remove('hidden');
+    };
+
+    window.closeSRSModal = () => {
+        document.getElementById('screen-srs-modal').classList.add('hidden');
+    };
+
+    window.launchSRSSprint = (type) => {
+        let dueQs = [];
+        let titleStr = "";
+        
+        if(type === 'global') {
+            dueQs = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now());
+            titleStr = "🔥 Master Global 10-Q Sprint";
+        } else {
+            let sub = document.getElementById('srs-subject-select').value;
+            if(!sub) return alert("No subjects have due questions.");
+            
+            let masterMap = getMasterMap(); 
+            dueQs = mistakesDb.filter(m => {
+                if (!m.srs || m.srs.nextReview > Date.now()) return false;
+                let clean = masterMap[m.question];
+                let activeTags = clean ? clean.tags : (Array.isArray(m.tags) ? m.tags : []);
+                let subName = activeTags.length > 0 ? activeTags[0] : (m.subject || m.originalSubject || "Miscellaneous");
+                return subName === sub;
+            });
+            
+            titleStr = `🔥 ${sub} Targeted Sprint`;
+        }
+
+        if(dueQs.length === 0) {
+            alert("No questions due for this selection!");
+            closeSRSModal();
+            return;
+        }
+
+        const sprintQs = dueQs.sort(() => 0.5 - Math.random()).slice(0, 10);
+        db['quiz_srs'] = { title: titleStr, subject: "Spaced Repetition", timeInMinutes: 10, questions: sprintQs };
+        
+        closeSRSModal();
+        openLobby('quiz_srs');
+    };
+
+    window.setQuizMode = (mode) => {
+        lobbyQuizMode = mode;
+        document.getElementById('btn-mode-full').className = `time-btn flex-1 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm ${mode === 'full' ? 'bg-emerald-100 text-emerald-800 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent hover:border-slate-300 dark:hover:border-slate-600'}`;
+        document.getElementById('btn-mode-wrong').className = `time-btn flex-1 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm ${mode === 'wrong' ? 'bg-rose-100 text-rose-800 border-rose-500 dark:bg-rose-900/40 dark:text-rose-300' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent hover:border-slate-300 dark:hover:border-slate-600'}`;
+    };
+
+    function openLobby(id) {
         currentQuizId = id; const q = db[id];
         document.getElementById('lobby-title').textContent = q.title;
         document.getElementById('lobby-meta').textContent = `${q.questions.length} Questions | Default Time: ${q.timeInMinutes} Mins`;
@@ -880,9 +1594,24 @@
         }
 
         setLobbyTime('default'); showScreen('lobby');
+    }
+
+    function setLobbyTime(mode) {
+        lobbySettings.timeMode = mode;
+        document.querySelectorAll('.time-btn-main').forEach(btn => btn.className = 'time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600');
+        document.getElementById('btn-time-' + mode).className = 'time-btn-main flex-1 bg-emerald-100 text-emerald-800 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-md';
+        document.getElementById('custom-time-input').style.display = mode === 'custom' ? 'block' : 'none';
+    }
+
+    window.toggleLobbyMode = (setting) => {
+        lobbySettings[setting] = !lobbySettings[setting];
+        const t = document.getElementById('toggle-' + setting);
+        if (lobbySettings[setting]) { t.classList.replace('bg-slate-300', 'bg-emerald-500'); t.classList.replace('dark:bg-slate-700', 'bg-emerald-500'); t.children[0].style.left = 'auto'; t.children[0].style.right = '2px'; } 
+        else { t.classList.replace('bg-emerald-500', 'bg-slate-300'); t.classList.replace('dark:bg-emerald-500', 'dark:bg-slate-700'); t.children[0].style.right = 'auto'; t.children[0].style.left = '2px'; }
+        if (setting === 'perQTimer') { const input = document.getElementById('per-q-time-input'); if(lobbySettings[setting]) input.classList.remove('hidden'); else input.classList.add('hidden'); }
     };
 
-    window.startQuizFromLobby = () => {
+    function startQuizFromLobby() {
         const quiz = db[currentQuizId];
         quizState = { answers: {}, marked: {}, revealed: {}, locked: {}, qTimeLeft: 0, submitted: false, interval: null, isPaused: false, currentFocus: -1 };
         
@@ -916,9 +1645,87 @@
         let totalSecs = mins * 60;
         startTimer(totalSecs);
         showScreen('quiz'); window.scrollTo(0,0);
+    }
+
+    window.speakText = (text) => { window.speechSynthesis.cancel(); window.speechSynthesis.speak(new SpeechSynthesisUtterance(text.replace(/<[^>]*>?/gm, ' '))); };
+
+    window.togglePause = () => {
+        if(quizState.submitted) return;
+        quizState.isPaused = !quizState.isPaused;
+        if(quizState.isPaused) {
+            clearInterval(quizState.interval); document.getElementById('pause-overlay').classList.remove('hidden'); document.getElementById('pause-btn').textContent = "▶ Resume";
+        } else {
+            const timeParts = document.getElementById('quiz-timer').textContent.split(':');
+            let timeRemaining = (parseInt(timeParts[0], 10) * 60) + parseInt(timeParts[1], 10);
+            startTimer(timeRemaining);
+            document.getElementById('pause-overlay').classList.add('hidden'); document.getElementById('pause-btn').textContent = "⏸ Pause (P)";
+        }
     };
 
-    window.renderQuizView = () => {
+    function startTimer(totalSecs) {
+        clearInterval(quizState.interval);
+        let globalSecs = totalSecs;
+        quizState.interval = setInterval(() => {
+            if (lobbySettings.perQTimer) {
+                quizState.qTimeLeft--;
+                document.getElementById('quiz-timer').textContent = formatTime(quizState.qTimeLeft);
+                if (quizState.qTimeLeft <= 0) {
+                    if (quizState.currentFocus >= activeQuestions.length - 1) submitQuiz(); 
+                    else setFocus(quizState.currentFocus + 1);
+                }
+            } else {
+                globalSecs--;
+                document.getElementById('quiz-timer').textContent = formatTime(globalSecs);
+                if (globalSecs <= 0) submitQuiz();
+            }
+        }, 1000);
+    }
+
+    function setFocus(idx) {
+        if (lobbySettings.perQTimer) {
+            if (idx < quizState.currentFocus) return; 
+            if (quizState.currentFocus >= 0 && quizState.currentFocus !== idx) {
+                const oldCard = document.getElementById(`qcard-${quizState.currentFocus}`);
+                if (oldCard) oldCard.classList.add('hidden');
+                quizState.locked[quizState.currentFocus] = true;
+            }
+            quizState.qTimeLeft = parseInt(document.getElementById('per-q-time-input').value) || 60; 
+        }
+
+        quizState.currentFocus = idx;
+        document.querySelectorAll('.palette-btn').forEach(btn => btn.classList.remove('palette-active'));
+        document.getElementById(`pal-${idx}`).classList.add('palette-active');
+        
+        if (lobbySettings.perQTimer) {
+            const newCard = document.getElementById(`qcard-${idx}`);
+            if (newCard) newCard.classList.remove('hidden');
+        } else {
+            document.getElementById(`qcard-${idx}`).scrollIntoView({behavior: 'smooth', block: 'center'});
+        }
+    }
+
+    window.revealOptions = (idx) => {
+        if(quizState.submitted || quizState.isPaused) return;
+        quizState.revealed[idx] = true;
+        const cont = document.getElementById(`opts-cont-${idx}`); const over = document.getElementById(`blind-over-${idx}`);
+        if(cont) cont.classList.remove('blur-md', 'pointer-events-none', 'select-none', 'opacity-30');
+        if(over) over.remove();
+    };
+
+    document.addEventListener('keydown', (e) => {
+        if(!document.getElementById('screen-quiz').classList.contains('hidden')) {
+            const k = e.key.toLowerCase();
+            if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (k === 'p') togglePause();
+            if (quizState.isPaused || quizState.submitted) return;
+            if (k === 'arrowright' || k === 'arrowdown') { e.preventDefault(); setFocus(Math.min(quizState.currentFocus + 1, activeQuestions.length - 1)); }
+            if (k === 'arrowleft' || k === 'arrowup') { e.preventDefault(); setFocus(Math.max(quizState.currentFocus - 1, 0)); }
+            if (k === 'm') toggleMark(quizState.currentFocus);
+            if (k === ' ') { e.preventDefault(); if (lobbySettings.blind && !quizState.revealed[quizState.currentFocus]) revealOptions(quizState.currentFocus); }
+        }
+    });
+
+    function renderQuizView() {
         const container = document.getElementById('quiz-container'); const palette = document.getElementById('palette-grid');
         container.innerHTML = ''; palette.innerHTML = '';
 
@@ -950,7 +1757,7 @@
             container.appendChild(card);
         });
         updatePaletteAndCounts();
-    };
+    }
 
     window.selectOption = (qIdx, oIdx) => {
         if (quizState.submitted || quizState.isPaused || quizState.locked[qIdx] || (lobbySettings.blind && !quizState.revealed[qIdx])) return;
@@ -976,7 +1783,51 @@
         updatePaletteAndCounts();
     };
 
-    window.submitQuiz = () => {
+    window.toggleMark = (qIdx) => {
+        if (quizState.submitted || quizState.isPaused || quizState.locked[qIdx]) return;
+        quizState.marked[qIdx] = !quizState.marked[qIdx]; setFocus(qIdx);
+        
+        const btn = document.getElementById(`markBtn-${qIdx}`);
+        if(quizState.marked[qIdx]) {
+            btn.className = "text-xs font-black text-purple-600 dark:text-purple-400 flex items-center gap-2 transition-colors uppercase bg-purple-100 dark:bg-purple-900/30 px-4 py-1.5 rounded-lg border border-purple-200 dark:border-purple-800/50";
+        } else {
+            btn.className = "text-xs font-black text-slate-400 hover:text-purple-500 flex items-center gap-2 transition-colors uppercase px-4 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg";
+        }
+        updatePaletteAndCounts();
+    };
+
+    function updatePaletteAndCounts() {
+        let ansCount = 0;
+        activeQuestions.forEach((_, i) => {
+            const answered = quizState.answers[i] !== undefined; const marked = quizState.marked[i];
+            document.getElementById(`pal-${i}`).className = 'palette-btn ' + (i===quizState.currentFocus?'palette-active ':'') + (answered && marked ? 'palette-answered-marked' : marked ? 'palette-marked' : answered ? 'palette-answered' : 'palette-unanswered');
+            if(answered) ansCount++;
+        });
+        document.getElementById('answered-count').textContent = `${ansCount} / ${activeQuestions.length}`;
+    }
+
+    window.filterReview = (type) => {
+        const colors = {
+            'all': 'bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-white',
+            'correct': 'bg-white dark:bg-slate-700 shadow-sm text-emerald-600 dark:text-emerald-400',
+            'wrong': 'bg-white dark:bg-slate-700 shadow-sm text-red-600 dark:text-red-400',
+            'skipped': 'bg-white dark:bg-slate-700 shadow-sm text-slate-600 dark:text-slate-300'
+        };
+
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.className = `filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700`;
+        });
+        
+        const activeBtn = document.getElementById('btn-filt-' + type);
+        activeBtn.className = `filter-btn active-filt flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${colors[type]}`;
+
+        document.querySelectorAll('.review-card').forEach(card => {
+            if (type === 'all' || card.classList.contains('filter-' + type)) card.style.display = 'block';
+            else card.style.display = 'none';
+        });
+    };
+
+    function submitQuiz() {
         if (quizState.submitted) return;
         quizState.submitted = true; clearInterval(quizState.interval); window.speechSynthesis.cancel();
 
@@ -998,33 +1849,47 @@
                 if (mistIdx !== -1) {
                     let m = mistakesDb[mistIdx];
                     if (!m.srs) m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() };
+
                     if (isMistake) {
-                        m.srs.reps = 0; m.srs.ease = Math.max(1.3, m.srs.ease - 0.2); m.srs.interval = 1;
+                        m.srs.reps = 0;
+                        m.srs.ease = Math.max(1.3, m.srs.ease - 0.2); 
+                        m.srs.interval = 1;
                     } else {
                         m.srs.reps += 1;
                         if (m.srs.reps === 1) m.srs.interval = 3;
                         else if (m.srs.reps === 2) m.srs.interval = 7;
                         else m.srs.interval = Math.ceil(m.srs.interval * m.srs.ease); 
                     }
+
                     m.srs.nextReview = Date.now() + (m.srs.interval * 24 * 60 * 60 * 1000);
+
                     if (m.srs.interval >= 30 || m.srs.reps >= 4) {
                         mistakesDb.splice(mistIdx, 1);
                         let mCount = parseInt(localStorage.getItem('megaQuizMasteredCount') || "0");
                         localStorage.setItem('megaQuizMasteredCount', mCount + 1);
-                    } else { mistakesDb[mistIdx] = m; }
+                    } else {
+                        mistakesDb[mistIdx] = m;
+                    }
                 }
             } else {
                 if (isMistake) {
                     if (mistIdx === -1) {
                         let newMistake = JSON.parse(JSON.stringify(q));
+                        
                         let assignedSubject = "Miscellaneous";
                         let safeTags = Array.isArray(newMistake.tags) ? newMistake.tags : []; 
-                        if (safeTags.length > 0 && CORE_SUBJECTS.includes(safeTags[0])) assignedSubject = safeTags[0];
+                        if (safeTags.length > 0) {
+                            if (CORE_SUBJECTS.includes(safeTags[0])) {
+                                assignedSubject = safeTags[0];
+                            }
+                        }
+                        
                         newMistake.subject = assignedSubject; 
                         newMistake.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() }; 
                         mistakesDb.push(newMistake);
                     } else {
-                        mistakesDb[mistIdx].srs.reps = 0; mistakesDb[mistIdx].srs.interval = 1;
+                        mistakesDb[mistIdx].srs.reps = 0;
+                        mistakesDb[mistIdx].srs.interval = 1;
                         mistakesDb[mistIdx].srs.ease = Math.max(1.3, mistakesDb[mistIdx].srs.ease - 0.2);
                         mistakesDb[mistIdx].srs.nextReview = Date.now();
                     }
@@ -1032,7 +1897,9 @@
             }
 
             let tags = Array.isArray(q.tags) ? q.tags : ["Miscellaneous"];
+            
             window.currentReviewQuestions.push(q);
+            
             let safeId = 'edit_rev_' + window.editCounter++;
             window.editRegistry[safeId] = q.question;
 
@@ -1047,19 +1914,24 @@
 
         const candName = localStorage.getItem('megaQuizCandidateName') || "Anonymous";
         let displayTitle = db[currentQuizId] ? db[currentQuizId].title : "Custom Test";
-        if(lobbyQuizMode === 'wrong') displayTitle += " (Revision Run)"; 
+        
+        if(lobbyQuizMode === 'wrong') { displayTitle += " (Revision Run)"; }
+
         document.getElementById('results-title').textContent = `${candName}'s Report - Attempt #${currentAttemptNum}`;
 
-        historyDb.unshift({ 
-            date: new Date().toLocaleDateString(), title: displayTitle, subject: db[currentQuizId] ? db[currentQuizId].subject : "Mixed", 
-            score: parseFloat(score.toFixed(2)), accuracy: Math.round((correct / activeQuestions.length) * 100) || 0,
-            candidateName: candName, attemptNumber: currentAttemptNum, totalCorrect: correct, totalWrong: wrong, totalSkipped: skipped, reviewData: historicalReviewData
-        });
+        if(true) {
+            historyDb.unshift({ 
+                date: new Date().toLocaleDateString(), title: displayTitle, subject: db[currentQuizId] ? db[currentQuizId].subject : "Mixed", 
+                score: parseFloat(score.toFixed(2)), accuracy: Math.round((correct / activeQuestions.length) * 100) || 0,
+                candidateName: candName, attemptNumber: currentAttemptNum, totalCorrect: correct, totalWrong: wrong, totalSkipped: skipped, reviewData: historicalReviewData
+            });
 
-        if (historyDb.length > 50) historyDb.length = 50;
+            if (historyDb.length > 50) historyDb.length = 50;
+        }
         
-        saveData(); showScreen('results'); window.scrollTo(0,0); filterReview('all'); 
-    };
+        saveData(); showScreen('results'); window.scrollTo(0,0);
+        filterReview('all'); 
+    }
 
     function genDeepReviewCard(q, status, uText, cText, term = "", index = 0, safeId = null) { 
         const styles = {
@@ -1098,79 +1970,344 @@
         </div>`; 
     }
 
-    // OTHER HELPER FUNCTIONS
-    function updateLocalCache() {
-        localStorage.setItem('megaQuizSubjects_v5', JSON.stringify(SUBJECTS));
-        localStorage.setItem('megaQuizSubCats_v1', JSON.stringify(SUBJECT_CATEGORIES));
-        localStorage.setItem('megaQuizDB_v4', JSON.stringify(db));
-        localStorage.setItem('megaQuizHistory_v5', JSON.stringify(historyDb)); 
-        localStorage.setItem('megaQuizMistakes_v5', JSON.stringify(mistakesDb));
-        localStorage.setItem('megaQuizNotes_v1', JSON.stringify(notesDb));
-    }
+    window.openHistoryReview = (index) => {
+        closeQuizHistory(); closeAnalytics();   
+        const attempt = historyDb[index];
+        if (!attempt.reviewData) return alert("This test is from an older version of the Hub and does not have Deep Review data saved.");
+        
+        document.getElementById('results-title').textContent = `${attempt.candidateName || 'Yogesh'}'s Report - Attempt #${attempt.attemptNumber || 1}`;
+        document.getElementById('res-score').textContent = attempt.score;
+        document.getElementById('res-correct').textContent = attempt.totalCorrect || 0;
+        document.getElementById('res-wrong').textContent = attempt.totalWrong || 0;
+        document.getElementById('res-skipped').textContent = attempt.totalSkipped || 0;
 
-    function loadLocalFallback() {
-        if (localStorage.getItem('megaQuizSubjects_v5')) SUBJECTS = JSON.parse(localStorage.getItem('megaQuizSubjects_v5'));
-        if (localStorage.getItem('megaQuizSubCats_v1')) SUBJECT_CATEGORIES = JSON.parse(localStorage.getItem('megaQuizSubCats_v1'));
-        if (localStorage.getItem('megaQuizDB_v4')) db = JSON.parse(localStorage.getItem('megaQuizDB_v4'));
-        historyDb = localStorage.getItem('megaQuizHistory_v5') ? JSON.parse(localStorage.getItem('megaQuizHistory_v5')) : [];
-        mistakesDb = localStorage.getItem('megaQuizMistakes_v5') ? JSON.parse(localStorage.getItem('megaQuizMistakes_v5')) : [];
-        if (localStorage.getItem('megaQuizNotes_v1')) {
-            let loadedNotes = JSON.parse(localStorage.getItem('megaQuizNotes_v1'));
-            if(Object.keys(loadedNotes).length > 0) notesDb = loadedNotes;
+        window.currentReviewQuestions = [];
+        let fullReviewHTML = '';
+        
+        attempt.reviewData.forEach((data, i) => { 
+            let qObj = { question: data.question, solution: data.solution, tags: data.tags, formulaUsed: data.formulaUsed };
+            let foundInDb = false;
+            for(let qid in db) {
+                if (!db[qid] || !Array.isArray(db[qid].questions)) continue; 
+                let actualQ = db[qid].questions.find(qx => qx.question === data.question);
+                if(actualQ) { qObj = JSON.parse(JSON.stringify(actualQ)); foundInDb = true; break; }
+            }
+            if(!foundInDb) {
+                qObj.options = [{text: data.cText, correct: true}, {text: "Option B", correct: false}, {text: "Option C", correct: false}, {text: "Option D", correct: false}];
+            }
+            window.currentReviewQuestions.push(qObj);
+            
+            let safeId = 'edit_hist_' + window.editCounter++;
+            window.editRegistry[safeId] = qObj.question;
+
+            fullReviewHTML += genDeepReviewCard(qObj, data.status, data.uText, data.cText, "", i, safeId); 
+        });
+
+        document.getElementById('revision-container').innerHTML = fullReviewHTML;
+        showScreen('results'); window.scrollTo(0,0);
+        filterReview('all'); 
+    };
+
+    window.openTargetedHistory = (quizId) => {
+        const quizTitle = db[quizId].title;
+        document.getElementById('quiz-history-title').textContent = `${quizTitle} - History`;
+        const list = document.getElementById('quiz-history-list'); list.innerHTML = '';
+        
+        let found = false;
+        historyDb.forEach((h, index) => {
+            if (h.title === quizTitle || h.title.includes(quizTitle)) {
+                found = true;
+                const attText = h.attemptNumber ? `ATTEMPT #${h.attemptNumber}` : `ATTEMPT #1`;
+                const nameText = h.candidateName ? h.candidateName : "Yogesh";
+                const reviewBtn = h.reviewData ? `<button onclick="openHistoryReview(${index})" class="mt-4 w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50 font-black text-[10px] uppercase tracking-widest py-3 rounded-xl transition-colors border border-indigo-100 dark:border-indigo-800/30">🔍 View Full Report</button>` : `<div class="mt-4 w-full bg-slate-100 dark:bg-slate-800 text-slate-400 font-bold text-[10px] uppercase tracking-widest py-3 rounded-xl text-center">No Deep Data</div>`;
+
+                list.innerHTML += `<div class="bg-white dark:bg-slate-900 p-6 rounded-2xl flex flex-col border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30 uppercase tracking-widest inline-block px-3 py-1 rounded-md">${nameText} • ${attText}</div>
+                            <div class="text-sm font-bold text-slate-500 mt-3">${h.date}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-4xl font-black text-emerald-500 leading-none tracking-tighter">${h.score}</div>
+                            <div class="text-[10px] uppercase font-black text-slate-400 mt-2 tracking-widest">${h.accuracy}% ACC</div>
+                        </div>
+                    </div>
+                    ${reviewBtn}
+                </div>`;
+            }
+        });
+
+        if (!found) list.innerHTML = `<div class="text-center text-slate-400 font-bold py-10 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl uppercase tracking-widest text-[10px]">No History Found</div>`;
+        document.getElementById('screen-quiz-history').classList.remove('hidden');
+    };
+
+    window.closeQuizHistory = () => document.getElementById('screen-quiz-history').classList.add('hidden');
+
+    window.showAnalytics = () => {
+        document.getElementById('screen-analytics').classList.remove('hidden');
+        document.getElementById('screen-subject-analysis').classList.add('hidden');
+        
+        let historyHTML = `
+            <div class="space-y-3 mt-4">
+                ${historyDb.map((h, index) => {
+                    const attText = h.attemptNumber ? `ATTEMPT #${h.attemptNumber}` : `ATTEMPT #1`;
+                    const nameText = h.candidateName ? h.candidateName : "Yogesh";
+                    const reviewBtn = h.reviewData ? `<button onclick="openHistoryReview(${index})" class="mt-3 w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400 dark:hover:bg-indigo-900/40 font-black text-[10px] uppercase tracking-widest py-2 rounded-xl transition-colors border border-indigo-100 dark:border-indigo-800/30">🔍 View Full Report</button>` : '';
+
+                    return `<div class="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl flex flex-col border border-slate-200 dark:border-slate-800 shadow-sm">
+                        <div class="flex justify-between items-start w-full">
+                            <div>
+                                <div class="font-black text-slate-800 dark:text-slate-200 text-lg tracking-tight">${h.title}</div>
+                                <div class="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mt-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/30 inline-block px-3 py-1 rounded-md">${nameText} • ${attText}</div>
+                                <div class="text-xs font-bold text-slate-400 mt-3 tracking-wide">${h.subject} • ${h.date}</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-4xl font-black text-emerald-500 tracking-tighter leading-none">${h.score}</div>
+                                <div class="text-[10px] uppercase font-black text-slate-400 tracking-widest mt-2">${h.accuracy}% ACC</div>
+                            </div>
+                        </div>
+                        ${reviewBtn}
+                    </div>`;
+                }).join('') || '<div class="text-slate-400 text-center text-sm py-4 italic">No test history found. Go dominate a mock!</div>'}
+            </div>
+        `;
+
+        document.getElementById('mastery-grid').innerHTML = historyHTML;
+    };
+    
+    window.closeAnalytics = () => document.getElementById('screen-analytics').classList.add('hidden');
+
+    window.showSubjectAnalysis = (subject) => {
+        document.getElementById('screen-analytics').classList.add('hidden');
+        document.getElementById('screen-quiz-history').classList.add('hidden');
+        document.getElementById('screen-subject-analysis').classList.remove('hidden');
+
+        document.getElementById('subject-analysis-title').textContent = `${subject} - Topic Analysis`;
+
+        let isMixedSubject = subject.includes("MOCK") || subject === "Mixed" || subject === "Miscellaneous";
+        let topicsStats = {}; 
+        historyDb.filter(h => h.subject === subject).forEach(h => {
+            if(h.reviewData) {
+                h.reviewData.forEach(rd => {
+                    let primaryTag = rd.tags && rd.tags.length > 0 ? rd.tags[0] : "General";
+                    let secondaryTag = rd.tags && rd.tags.length > 1 ? rd.tags[1] : primaryTag;
+                    if (!rd.tags || rd.tags.length === 0) { primaryTag = "Miscellaneous"; secondaryTag = "Miscellaneous"; }
+                    
+                    let topicName;
+                    if(isMixedSubject) {
+                        topicName = `${primaryTag} : ${secondaryTag}`;
+                    } else {
+                        if (primaryTag.toUpperCase() === subject.toUpperCase() && rd.tags.length > 1) {
+                            topicName = secondaryTag;
+                        } else {
+                            topicName = primaryTag;
+                        }
+                    }
+                    
+                    if(!topicsStats[topicName]) topicsStats[topicName] = { correct: 0, wrong: 0, skipped: 0, total: 0 };
+                    
+                    topicsStats[topicName].total++;
+                    if(rd.status === 'correct') topicsStats[topicName].correct++;
+                    else if(rd.status === 'wrong') topicsStats[topicName].wrong++;
+                    else if(rd.status === 'skipped') topicsStats[topicName].skipped++;
+                });
+            }
+        });
+
+        let html = '';
+        let sortedTopics = Object.keys(topicsStats).sort((a,b) => topicsStats[b].total - topicsStats[a].total);
+
+        if(sortedTopics.length === 0) {
+            html = `<div class="text-center text-slate-400 font-bold py-10 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl uppercase tracking-widest text-[10px]">No data available. Take some quizzes first!</div>`;
+        } else {
+            sortedTopics.forEach(t => {
+                let stat = topicsStats[t];
+                let acc = Math.round((stat.correct / stat.total) * 100);
+                let barColor = acc >= 80 ? 'bg-emerald-500' : acc >= 50 ? 'bg-amber-500' : 'bg-red-500';
+                
+                html += `
+                <div class="mb-4 p-5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div class="flex justify-between items-end mb-3">
+                        <div class="font-black text-slate-700 dark:text-slate-200 text-sm uppercase tracking-wide">${t}</div>
+                        <div class="text-[10px] font-black text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 px-3 py-1 rounded shadow-sm border border-slate-100 dark:border-slate-700">${stat.correct} / ${stat.total} Correct (${acc}%)</div>
+                    </div>
+                    <div class="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2 mb-4 overflow-hidden">
+                        <div class="${barColor} h-2 rounded-full" style="width: ${acc}%"></div>
+                    </div>
+                    <div class="flex gap-6 text-[10px] font-black uppercase tracking-widest bg-white dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700/50 justify-center">
+                        <span class="text-emerald-600 dark:text-emerald-400">✅ Correct: ${stat.correct}</span>
+                        <span class="text-red-600 dark:text-red-400">❌ Wrong: ${stat.wrong}</span>
+                        <span class="text-slate-500 dark:text-slate-400">⏭️ Skipped: ${stat.skipped}</span>
+                    </div>
+                </div>`;
+            });
         }
-    }
+        document.getElementById('subject-analysis-grid').innerHTML = html;
+    };
 
-    function saveData() {
-        updateLocalCache();
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.44", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
-        fetch(CLOUD_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
-    }
+    window.closeSubjectAnalysis = () => document.getElementById('screen-subject-analysis').classList.add('hidden');
 
-    async function initializeSystem() {
-        if(localStorage.getItem('megaTheme') === 'dark') document.documentElement.classList.add('dark');
-        loadLocalFallback();
-        renderDashboard();
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000); 
-            const response = await fetch(CLOUD_URL, { signal: controller.signal });
-            clearTimeout(timeoutId);
-            const data = await response.json();
-            if (data && Object.keys(data).length > 0 && data.db) {
-                if (data.subjects) SUBJECTS = data.subjects;
-                if (data.categories) SUBJECT_CATEGORIES = data.categories;
-                if (data.db) db = data.db;
-                if (data.history) historyDb = data.history || [];
-                if (data.mistakes) mistakesDb = data.mistakes || [];
-                updateLocalCache();
+    function showScreen(s) { 
+        ['dashboard','lobby','quiz','results','db-manager','target-radar', 'library'].forEach(x => {
+            const el = document.getElementById('screen-'+x);
+            if(el) el.classList.add('hidden');
+        }); 
+        document.getElementById('screen-'+s).classList.remove('hidden'); 
+        if(s !== 'dashboard' && s !== 'db-manager' && s !== 'target-radar' && s !== 'library') {
+            document.getElementById('omni-search').value = '';
+            document.getElementById('search-results-container').classList.add('hidden');
+            document.getElementById('dashboard-main-content').classList.remove('hidden');
+        }
+        document.getElementById('screen-subject-analysis').classList.add('hidden');
+        window.scrollTo(0,0);
+    }
+    
+    function formatTime(s) { return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`; }
+    
+    window.factoryReset = async () => {
+        requireAuth(async () => {
+            if(confirm("MAMBA CRITICAL WARNING: This will permanently delete all quizzes, history, and custom subjects locally AND in the Cloud.\n\nType 'DELETE' to confirm:")) {
+                const conf = prompt("Last warning. Type 'DELETE' exactly:");
+                if(conf === "DELETE") {
+                    SUBJECTS = ["Ancient History", "Medieval History", "Modern History", "Geography", "Economics", "Static GK", "Arithmetic", "Advanced Maths", "English", "Reasoning", "Current Affairs", "Polity", "Science", "Environment", "Miscellaneous", "GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS"];
+                    SUBJECT_CATEGORIES = { "GS MOCK QUESTIONS": "GS", "QUANT MOCK QUESTIONS": "Maths" };
+                    db = {}; historyDb = []; mistakesDb = []; notesDb = {}; localStorage.clear(); await saveData(); location.reload();
+                }
+            }
+        });
+    };
+
+    window.triggerImport = (subject) => {
+        requireAuth(() => {
+            targetImportSubject = subject; 
+            document.getElementById('global-file-input').click();
+        });
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('global-file-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const importedData = JSON.parse(event.target.result);
+                    const newId = 'quiz_' + Date.now(); 
+                    importedData.subject = targetImportSubject; 
+                    db[newId] = importedData;
+                    saveData();
+                    renderDashboard();
+                    alert(`✅ Quiz successfully imported into ${targetImportSubject}!`);
+                } catch(err) {
+                    alert("❌ Error: Invalid JSON file. Make sure your formatting is perfect.");
+                }
+                e.target.value = ''; 
+            };
+            reader.readAsText(file);
+        });
+
+        document.getElementById('backup-file-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    if(data.db && data.subjects) {
+                        db = data.db; SUBJECTS = data.subjects; historyDb = data.history || []; mistakesDb = data.mistakes || [];
+                        if (data.notes) notesDb = data.notes;
+                        saveData(); location.reload();
+                    } else {
+                        alert("Invalid Backup File.");
+                    }
+                } catch(err) {
+                    alert("❌ Error reading backup file.");
+                }
+                e.target.value = ''; 
+            };
+            reader.readAsText(file);
+        });
+    });
+
+    window.generateSubjectMock = (subject) => {
+        let pool = [];
+        Object.keys(db).forEach(quizId => {
+            const quiz = db[quizId];
+            if (quiz && quiz.subject === subject && Array.isArray(quiz.questions) && !quiz.title.includes("🎯") && !quiz.title.includes("Master Mock") && !quiz.title.includes("SRS")) {
+                pool.push(...quiz.questions);
+            }
+        });
+        if(pool.length === 0) return alert(`No questions found in ${subject} to create a Master Mock.`);
+        
+        const uniqueQs = Array.from(new Map(pool.map(q => [q.question, q])).values());
+        const shuffled = uniqueQs.sort(() => 0.5 - Math.random());
+        const finalQs = shuffled.slice(0, 100);
+
+        db['quiz_master_mock'] = {
+            title: `🧠 Master Mock - ${subject}`,
+            subject: subject,
+            timeInMinutes: Math.ceil(finalQs.length * 1.5), 
+            questions: finalQs
+        };
+        openLobby('quiz_master_mock');
+    };
+
+    window.renameQuiz = (id) => {
+        requireAuth(() => {
+            const oldTitle = db[id].title;
+            const newTitle = prompt("Enter new name for this quiz:", oldTitle);
+            
+            if (newTitle && newTitle.trim() !== "" && newTitle.trim() !== oldTitle) {
+                const cleanTitle = newTitle.trim();
+                db[id].title = cleanTitle;
+                
+                if(Array.isArray(historyDb)) {
+                    historyDb.forEach(h => {
+                        if(h.title === oldTitle) h.title = cleanTitle;
+                    });
+                }
+                saveData();
                 renderDashboard();
             }
-        } catch (error) { console.log("Offline mode"); }
-    }
-
-    function toggleDarkMode() {
-        document.documentElement.classList.toggle('dark');
-        localStorage.setItem('megaTheme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
-    }
-
-    window.setLobbyTime = (mode) => {
-        lobbySettings.timeMode = mode;
-        document.querySelectorAll('.time-btn-main').forEach(btn => btn.className = 'time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600');
-        document.getElementById('btn-time-' + mode).className = 'time-btn-main flex-1 bg-emerald-100 text-emerald-800 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-md';
-        document.getElementById('custom-time-input').style.display = mode === 'custom' ? 'block' : 'none';
+        });
     };
 
-    window.toggleLobbyMode = (setting) => {
-        lobbySettings[setting] = !lobbySettings[setting];
-        const t = document.getElementById('toggle-' + setting);
-        if (lobbySettings[setting]) { t.classList.replace('bg-slate-300', 'bg-emerald-500'); t.classList.replace('dark:bg-slate-700', 'bg-emerald-500'); t.children[0].style.left = 'auto'; t.children[0].style.right = '2px'; } 
-        else { t.classList.replace('bg-emerald-500', 'bg-slate-300'); t.classList.replace('dark:bg-emerald-500', 'dark:bg-slate-700'); t.children[0].style.right = 'auto'; t.children[0].style.left = '2px'; }
-        if (setting === 'perQTimer') { const input = document.getElementById('per-q-time-input'); if(lobbySettings[setting]) input.classList.remove('hidden'); else input.classList.add('hidden'); }
+    window.deleteQuiz = (id) => {
+        requireAuth(() => {
+            if(confirm(`Are you sure you want to delete ${db[id].title}? This cannot be undone.`)) {
+                delete db[id];
+                saveData(); 
+                renderDashboard();
+            }
+        });
     };
 
-    function formatTime(s) { return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`; }
+    window.deleteSubject = (subject) => {
+        requireAuth(() => {
+            if(confirm(`CRITICAL WARNING: Delete the entire subject "${subject}" and ALL its quizzes?`)) {
+                SUBJECTS = SUBJECTS.filter(s => s !== subject);
+                Object.keys(db).forEach(id => { if(db[id].subject === subject) delete db[id]; });
+                saveData(); 
+                renderDashboard();
+            }
+        });
+    };
 
-    // Load System
+    window.exportBackup = () => {
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, categories: SUBJECT_CATEGORIES, notes: notesDb };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `MegaQuiz_Backup_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+    };
+
+    window.triggerRestore = () => {
+        requireAuth(() => {
+            document.getElementById('backup-file-input').click();
+        });
+    };
+
     initializeSystem();
 </script>
 </body>
