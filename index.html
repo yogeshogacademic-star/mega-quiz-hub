@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.34.2 (Auto-Laxmikanth Build)</title>
+    <title>Yogesh's Mega Quiz Hub - V19.35 (Speed Calculation Build)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -55,7 +55,7 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.34.2</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.35</span>
                     </h1>
                     <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Ultimate Master Build & Auto-Optimization</p>
                 </div>
@@ -422,6 +422,7 @@
                                 <option value="Static GK">Static GK</option>
                                 <option value="Current Affairs">Current Affairs</option>
                                 <option value="Computer Knowledge">Computer Knowledge</option>
+                                <option value="Calculation">Calculation</option>
                             </select>
                         </div>
                         <div>
@@ -477,10 +478,10 @@
 <script>
     const CLOUD_URL = "https://script.google.com/macros/s/AKfycbyuAFvjWZHAlkDx00DsDoHiPgFMq-CmGgHKyQXq_6cfi1QwmnwUVp3ZNLrtpnLPhOXB/exec";
     
-    const CORE_SUBJECTS = ["Arithmetic", "Advanced Maths", "Reasoning", "English", "Ancient History", "Medieval History", "Modern History", "Art & Culture", "Geography", "Polity", "Economics", "Physics", "Chemistry", "Biology", "Environment & Ecology", "Science & Technology", "Static GK", "Current Affairs", "Computer Knowledge"];
+    const CORE_SUBJECTS = ["Arithmetic", "Advanced Maths", "Reasoning", "English", "Ancient History", "Medieval History", "Modern History", "Art & Culture", "Geography", "Polity", "Economics", "Physics", "Chemistry", "Biology", "Environment & Ecology", "Science & Technology", "Static GK", "Current Affairs", "Computer Knowledge", "Calculation"];
     
-    let SUBJECTS = ["Ancient History", "Medieval History", "Modern History", "Geography", "Economics", "Static GK", "Arithmetic", "Advanced Maths", "English", "Reasoning", "Current Affairs", "Polity", "Science", "Environment", "Miscellaneous", "GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS"];
-    let SUBJECT_CATEGORIES = { "GS MOCK QUESTIONS": "GS", "QUANT MOCK QUESTIONS": "Maths" };
+    let SUBJECTS = ["Ancient History", "Medieval History", "Modern History", "Geography", "Economics", "Static GK", "Arithmetic", "Advanced Maths", "English", "Reasoning", "Current Affairs", "Polity", "Science", "Environment", "Calculation", "Miscellaneous", "GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS"];
+    let SUBJECT_CATEGORIES = { "GS MOCK QUESTIONS": "GS", "QUANT MOCK QUESTIONS": "Maths", "Calculation": "Maths" };
 
     let db = {}; 
     let historyDb = [];
@@ -509,9 +510,27 @@
         }
     };
 
+    const POLITY_LAXMIKANTH_TAGS = [
+        "Making, Preamble & Sources",
+        "Union, Territory & Citizenship",
+        "Fundamental Rights",
+        "DPSP & Fundamental Duties",
+        "Union Executive",
+        "Parliament",
+        "State Govt & Legislature",
+        "Judiciary",
+        "Local Govt (Panchayats & Municipalities)",
+        "Emergency Provisions",
+        "Constitutional & Non-Constitutional Bodies",
+        "Elections, Amendments & Schedules",
+        "Special Provisions & Anti-Defection",
+        "Bharatiya Nyaya Sanhita (BNS)"
+    ];
+
     const SYLLABUS_MAP = {
         "Arithmetic": ["Number System", "LCM & HCF", "Percentages", "Profit, Loss & Discount", "Simple & Compound Interest", "Ratio & Proportion", "Partnership & Ages", "Mixture & Alligation", "Average", "Time & Work", "Time, Speed & Distance"],
         "Advanced Maths": ["Algebra", "Geometry", "Coordinate Geometry", "Mensuration 2D", "Mensuration 3D", "Trigonometry", "Heights & Distances", "Probability & Statistics"],
+        "Calculation": ["Tables", "Squares & Square Roots", "Cubes & Cube Roots", "Fraction-to-Percentage", "Pythagorean Triplets", "Digital Sum & Unit Digit", "Approximation & Simplification", "Multiplication & Division Rules", "Surds & Indices"],
         "Reasoning": ["Analogy & Classification", "Number & Letter Series", "Coding-Decoding", "Blood Relations", "Direction & Distance", "Syllogism", "Order & Ranking", "Clock & Calendar", "Venn Diagrams", "Missing Number & Matrix", "Non-Verbal Reasoning", "Logical Reasoning"],
         "English": [
             "Active & Passive Voice",
@@ -548,7 +567,8 @@
             "Emergency Provisions",
             "Constitutional & Non-Constitutional Bodies",
             "Elections, Amendments & Schedules",
-            "Special Provisions & Anti-Defection"
+            "Special Provisions & Anti-Defection",
+            "Bharatiya Nyaya Sanhita (BNS)"
         ],
         "Economics": ["National Income & Growth", "Inflation & Business Cycle", "Money & Banking", "Budget, Taxation & Fiscal Policy", "Financial Markets", "Agriculture & Land Reforms", "Industry & Infrastructure", "External Sector", "International Organizations", "Poverty, Inequality & Employment"],
         "Physics": ["Units & Measurements", "Mechanics", "Gravitation", "Properties of Matter", "Heat & Thermodynamics", "Waves & Sound", "Optics", "Electricity & Magnetism", "Modern Physics"],
@@ -703,7 +723,9 @@
         topicSelect.innerHTML = '<option value="">-- Select Topic --</option>';
         let availableTopics = new Set();
 
-        if(selectedSub && SYLLABUS_MAP[selectedSub]) {
+        if (selectedSub === "Polity") {
+            POLITY_LAXMIKANTH_TAGS.forEach(t => availableTopics.add(t));
+        } else if (selectedSub && SYLLABUS_MAP[selectedSub]) {
             SYLLABUS_MAP[selectedSub].forEach(t => availableTopics.add(t));
         }
 
@@ -772,12 +794,16 @@
 
         currentlyEditingGlobalText = qText;
         document.getElementById('edit-q-text').value = foundRef.question;
-        foundRef.options.forEach((opt, i) => {
-            if(document.getElementById('edit-opt-'+i)) {
-                document.getElementById('edit-opt-'+i).value = opt.text;
-                document.getElementById('edit-corr-'+i).checked = opt.correct;
-            }
-        });
+        
+        if(foundRef.options && Array.isArray(foundRef.options)) {
+            foundRef.options.forEach((opt, i) => {
+                if(document.getElementById('edit-opt-'+i)) {
+                    document.getElementById('edit-opt-'+i).value = opt.text;
+                    document.getElementById('edit-corr-'+i).checked = opt.correct;
+                }
+            });
+        }
+        
         document.getElementById('edit-solution').value = foundRef.solution || "";
         
         let t1 = "", t2 = "", t3 = "", t4 = "";
@@ -858,6 +884,11 @@
             if (!db[qid] || !Array.isArray(db[qid].questions)) continue; 
             let idx = db[qid].questions.findIndex(qx => qx.question === oldText);
             if(idx !== -1) {
+                // If it was a typing question, we preserve those unique attributes
+                if (db[qid].questions[idx].type === 'typing') {
+                    target.type = 'typing';
+                    target.exactAnswer = db[qid].questions[idx].exactAnswer;
+                }
                 db[qid].questions[idx] = {...db[qid].questions[idx], ...target};
                 updatedDb = true;
             }
@@ -867,6 +898,10 @@
             let mistIdx = mistakesDb.findIndex(m => m.question === oldText);
             if(mistIdx !== -1) {
                 let existingSRS = mistakesDb[mistIdx].srs;
+                if (mistakesDb[mistIdx].type === 'typing') {
+                    target.type = 'typing';
+                    target.exactAnswer = mistakesDb[mistIdx].exactAnswer;
+                }
                 mistakesDb[mistIdx] = {...mistakesDb[mistIdx], ...target, srs: existingSRS};
                 updatedDb = true;
             }
@@ -952,7 +987,7 @@
     function saveData() {
         updateLocalCache();
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.34", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.35", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         fetch(CLOUD_URL, {
             method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
@@ -963,7 +998,7 @@
         if(localStorage.getItem('megaTheme') === 'dark') document.documentElement.classList.add('dark');
         loadLocalFallback();
         
-        autoMigrateTags(); // INSTANTLY FIXES ALL OLD DATA ON LOAD
+        autoMigrateTags(); 
 
         renderDashboard();
         showSyncStatus('syncing');
@@ -982,7 +1017,7 @@
                 if (data.history) historyDb = data.history || [];
                 if (data.mistakes) mistakesDb = data.mistakes || [];
                 
-                autoMigrateTags(); // INSTANTLY FIXES CLOUD DATA TOO
+                autoMigrateTags(); 
                 updateLocalCache();
                 renderDashboard();
                 showSyncStatus('synced');
@@ -1029,7 +1064,12 @@
                 const searchStr = ((q.question || "") + " " + (q.solution || "") + " " + (q.tags ? (Array.isArray(q.tags) ? q.tags.join(" ") : String(q.tags)) : "")).toLowerCase();
                 if (searchStr.includes(term)) {
                     matchCount++;
-                    const cText = (q.options && q.options.find(o=>o.correct)?.text) || "N/A";
+                    let cText = "N/A";
+                    if (q.type === 'typing') {
+                        cText = q.exactAnswer || "N/A";
+                    } else {
+                        cText = (q.options && q.options.find(o=>o.correct)?.text) || "N/A";
+                    }
                     
                     let safeId = 'edit_srch_' + window.editCounter++;
                     window.editRegistry[safeId] = q.question;
@@ -1061,7 +1101,7 @@
         if(cat.includes('polity') || s.includes('polity')) return 'border-purple-500';
         if(cat.includes('economics') || s.includes('economics')) return 'border-emerald-500';
         if(cat.includes('science') || s.includes('science')) return 'border-cyan-500';
-        if(cat.includes('math') || cat.includes('quant') || s.includes('math') || s.includes('quant')) return 'border-red-500';
+        if(cat.includes('math') || cat.includes('quant') || s.includes('math') || s.includes('quant') || cat.includes('calculation')) return 'border-red-500';
         if(cat.includes('english') || s.includes('english')) return 'border-pink-500';
         return 'border-orange-500'; 
     };
@@ -1560,15 +1600,23 @@
             pBtn.onclick = () => { if (!lobbySettings.perQTimer) setFocus(qIndex); }; 
             palette.appendChild(pBtn);
 
-            let optsHTML = q.options.map((opt, oIndex) => `
-                <div id="opt-${qIndex}-${oIndex}" onclick="selectOption(${qIndex}, ${oIndex})" class="option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-slate-100 dark:border-slate-800 hover:border-emerald-400 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm hover:shadow-md">
-                    <span class="min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-slate-100 dark:bg-slate-700 text-slate-500 transition-colors">${String.fromCharCode(65+oIndex)}</span><span class="mt-0.5">${opt.text}</span>
-                </div>`).join('');
-                
+            let optsHTML = '';
             let isBlind = lobbySettings.blind && !quizState.revealed[qIndex];
-            let blindOverlay = isBlind ? `<div id="blind-over-${qIndex}" class="absolute inset-0 flex items-center justify-center cursor-pointer z-10" onclick="revealOptions(${qIndex})"><div class="bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 font-black px-8 py-5 rounded-2xl shadow-2xl flex items-center gap-2 hover:scale-105 transition-transform uppercase tracking-widest border border-slate-700 dark:border-white">👁️ Reveal Options (Space)</div></div>` : '';
-            let speechTxt = q.question + ". " + q.options.map((o,i) => `Option ${String.fromCharCode(65+i)}: ${o.text}. `).join('');
+            let speechTxt = q.question;
 
+            if (q.type === 'typing') {
+                let typedVal = quizState.answers[qIndex] || '';
+                optsHTML = `<input type="text" id="type-ans-${qIndex}" oninput="handleTypingAnswer(${qIndex}, this.value)" value="${typedVal.replace(/"/g, '&quot;')}" autocomplete="off" class="w-full p-6 mt-2 text-2xl md:text-3xl font-black text-center text-emerald-600 dark:text-emerald-400 bg-slate-50 dark:bg-slate-950 border-4 border-slate-200 dark:border-slate-700 rounded-2xl focus:border-emerald-500 outline-none shadow-inner transition-colors placeholder-slate-300 dark:placeholder-slate-700" placeholder="Type exact answer here...">`;
+            } else {
+                optsHTML = q.options.map((opt, oIndex) => `
+                    <div id="opt-${qIndex}-${oIndex}" onclick="selectOption(${qIndex}, ${oIndex})" class="option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-slate-100 dark:border-slate-800 hover:border-emerald-400 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm hover:shadow-md">
+                        <span class="min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-slate-100 dark:bg-slate-700 text-slate-500 transition-colors">${String.fromCharCode(65+oIndex)}</span><span class="mt-0.5">${opt.text}</span>
+                    </div>`).join('');
+                speechTxt += ". " + q.options.map((o,i) => `Option ${String.fromCharCode(65+i)}: ${o.text}. `).join('');
+            }
+                
+            let blindOverlay = isBlind ? `<div id="blind-over-${qIndex}" class="absolute inset-0 flex items-center justify-center cursor-pointer z-10" onclick="revealOptions(${qIndex})"><div class="bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 font-black px-8 py-5 rounded-2xl shadow-2xl flex items-center gap-2 hover:scale-105 transition-transform uppercase tracking-widest border border-slate-700 dark:border-white">👁️ Reveal Options (Space)</div></div>` : '';
+            
             const card = document.createElement('div'); card.id = `qcard-${qIndex}`;
             card.className = `bg-white dark:bg-slate-900 p-6 sm:p-10 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-lg ${lobbySettings.perQTimer ? 'hidden' : ''}`;
             card.innerHTML = `
@@ -1583,6 +1631,16 @@
         });
         updatePaletteAndCounts();
     }
+
+    window.handleTypingAnswer = (qIdx, value) => {
+        if (quizState.submitted || quizState.isPaused || quizState.locked[qIdx]) return;
+        if (value.trim() === "") {
+            delete quizState.answers[qIdx];
+        } else {
+            quizState.answers[qIdx] = value.trim(); 
+        }
+        updatePaletteAndCounts();
+    };
 
     window.selectOption = (qIdx, oIdx) => {
         if (quizState.submitted || quizState.isPaused || quizState.locked[qIdx] || (lobbySettings.blind && !quizState.revealed[qIdx])) return;
@@ -1662,11 +1720,30 @@
 
         activeQuestions.forEach((q, i) => {
             const sel = quizState.answers[i]; 
-            let isMistake = false; let status = ''; let uText = 'Skipped'; let cText = q.options.find(o=>o.correct)?.text || "N/A";
-            
-            if (sel === undefined) { skipped++; isMistake = true; status = 'skipped'; } 
-            else if (q.options[sel].correct) { correct++; status = 'correct'; uText = q.options[sel].text; } 
-            else { wrong++; isMistake = true; status = 'wrong'; uText = q.options[sel].text; }
+            let isMistake = false; let status = ''; let uText = 'Skipped'; let cText = 'N/A';
+
+            if (q.type === 'typing') {
+                cText = q.exactAnswer || "N/A";
+                if (sel === undefined) { 
+                    skipped++; isMistake = true; status = 'skipped'; 
+                } else {
+                    uText = String(sel);
+                    if (uText.toLowerCase() === String(q.exactAnswer).toLowerCase().trim()) {
+                        correct++; status = 'correct';
+                    } else {
+                        wrong++; isMistake = true; status = 'wrong';
+                    }
+                }
+            } else {
+                cText = q.options?.find(o=>o.correct)?.text || "N/A";
+                if (sel === undefined) { 
+                    skipped++; isMistake = true; status = 'skipped'; 
+                } else if (q.options && q.options[sel] && q.options[sel].correct) { 
+                    correct++; status = 'correct'; uText = q.options[sel].text; 
+                } else { 
+                    wrong++; isMistake = true; status = 'wrong'; uText = q.options ? q.options[sel].text : "N/A"; 
+                }
+            }
 
             let mistIdx = mistakesDb.findIndex(m => m.question === q.question);
 
@@ -1780,7 +1857,7 @@
             <div class="font-bold text-slate-800 dark:text-slate-200 mb-6 text-lg md:text-xl leading-relaxed">${highlightText(q.question, term)}</div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div class="bg-slate-50 dark:bg-slate-950/50 p-5 rounded-xl border ${s.box} shadow-inner">
-                    <div class="text-[10px] font-black uppercase tracking-widest mb-1 ${s.badge.split(' ')[0]}">You Selected</div>
+                    <div class="text-[10px] font-black uppercase tracking-widest mb-1 ${s.badge.split(' ')[0]}">${q.type === 'typing' ? 'You Typed' : 'You Selected'}</div>
                     <div class="text-sm font-bold text-slate-700 dark:text-slate-300">${highlightText(uText, term)}</div>
                 </div>
                 <div class="bg-emerald-50/50 dark:bg-emerald-900/10 p-5 rounded-xl border border-emerald-200 dark:border-emerald-800/50 shadow-inner">
