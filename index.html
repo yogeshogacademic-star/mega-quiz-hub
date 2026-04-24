@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V19.35 (Speed Calculation Build)</title>
+    <title>Yogesh's Mega Quiz Hub - V20.0 (Enterprise Build)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -55,9 +56,9 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V19.35</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V20.0</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Ultimate Master Build & Auto-Optimization</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Enterprise Data Build & Auto-Optimization</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
@@ -389,12 +390,8 @@
                 
                 <div>
                     <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Options (Select the correct one)</label>
-                    <div class="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-0" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-0" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-1" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-1" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-2" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-2" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
-                        <label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-3" class="w-4 h-4 text-amber-500"> <input type="text" id="edit-opt-3" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>
-                    </div>
+                    <div id="edit-options-container" class="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                        </div>
                 </div>
 
                 <div class="bg-indigo-50/50 dark:bg-indigo-900/10 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
@@ -499,6 +496,7 @@
     window.currentReviewQuestions = []; 
     let currentlyEditingGlobalText = null;
     let isDirtyFilterActive = false;
+    let searchTimeout = null;
 
     window.editRegistry = {};
     window.editCounter = 0;
@@ -795,13 +793,14 @@
         currentlyEditingGlobalText = qText;
         document.getElementById('edit-q-text').value = foundRef.question;
         
+        let optionsHTML = '';
         if(foundRef.options && Array.isArray(foundRef.options)) {
             foundRef.options.forEach((opt, i) => {
-                if(document.getElementById('edit-opt-'+i)) {
-                    document.getElementById('edit-opt-'+i).value = opt.text;
-                    document.getElementById('edit-corr-'+i).checked = opt.correct;
-                }
+                optionsHTML += `<label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-${i}" class="w-4 h-4 text-amber-500" ${opt.correct ? 'checked' : ''}> <input type="text" id="edit-opt-${i}" value="${opt.text.replace(/"/g, '&quot;')}" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>`;
             });
+            document.getElementById('edit-options-container').innerHTML = optionsHTML;
+        } else {
+            document.getElementById('edit-options-container').innerHTML = `<div class="text-xs text-slate-500 font-bold">Typing or No Options Found</div>`;
         }
         
         document.getElementById('edit-solution').value = foundRef.solution || "";
@@ -861,14 +860,16 @@
         if(t3) compiledTags.push(t3);
         if(t4) compiledTags.push(t4);
 
+        let dynamicOptions = [];
+        let optInputs = document.querySelectorAll('input[id^="edit-opt-"]');
+        optInputs.forEach((input, i) => {
+            let isCorrect = document.getElementById(`edit-corr-${i}`) ? document.getElementById(`edit-corr-${i}`).checked : false;
+            dynamicOptions.push({ text: input.value, correct: isCorrect });
+        });
+
         let target = {
             question: document.getElementById('edit-q-text').value,
-            options: [
-                { text: document.getElementById('edit-opt-0').value, correct: document.getElementById('edit-corr-0').checked },
-                { text: document.getElementById('edit-opt-1').value, correct: document.getElementById('edit-corr-1').checked },
-                { text: document.getElementById('edit-opt-2').value, correct: document.getElementById('edit-corr-2').checked },
-                { text: document.getElementById('edit-opt-3').value, correct: document.getElementById('edit-corr-3').checked }
-            ],
+            options: dynamicOptions,
             solution: document.getElementById('edit-solution').value,
             tags: compiledTags
         };
@@ -884,7 +885,6 @@
             if (!db[qid] || !Array.isArray(db[qid].questions)) continue; 
             let idx = db[qid].questions.findIndex(qx => qx.question === oldText);
             if(idx !== -1) {
-                // If it was a typing question, we preserve those unique attributes
                 if (db[qid].questions[idx].type === 'typing') {
                     target.type = 'typing';
                     target.exactAnswer = db[qid].questions[idx].exactAnswer;
@@ -898,11 +898,12 @@
             let mistIdx = mistakesDb.findIndex(m => m.question === oldText);
             if(mistIdx !== -1) {
                 let existingSRS = mistakesDb[mistIdx].srs;
+                let existingMastered = mistakesDb[mistIdx].isMastered;
                 if (mistakesDb[mistIdx].type === 'typing') {
                     target.type = 'typing';
                     target.exactAnswer = mistakesDb[mistIdx].exactAnswer;
                 }
-                mistakesDb[mistIdx] = {...mistakesDb[mistIdx], ...target, srs: existingSRS};
+                mistakesDb[mistIdx] = {...mistakesDb[mistIdx], ...target, srs: existingSRS, isMastered: existingMastered};
                 updatedDb = true;
             }
         }
@@ -944,25 +945,31 @@
         if(!Array.isArray(mistakesDb)) mistakesDb = []; 
         mistakesDb.forEach(m => {
             if (!m.srs) m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() - 10000 };
+            if (m.isMastered === undefined) m.isMastered = false;
         });
     }
 
-    function updateLocalCache() {
+    async function updateLocalCache() {
         initializeSRSData();
+        await idbKeyval.set('megaQuizDB_v5', db);
+        await idbKeyval.set('megaQuizHistory_v5', historyDb);
+        await idbKeyval.set('megaQuizMistakes_v5', mistakesDb);
         localStorage.setItem('megaQuizSubjects_v5', JSON.stringify(SUBJECTS));
         localStorage.setItem('megaQuizSubCats_v1', JSON.stringify(SUBJECT_CATEGORIES));
-        localStorage.setItem('megaQuizDB_v4', JSON.stringify(db));
-        localStorage.setItem('megaQuizHistory_v5', JSON.stringify(historyDb)); 
-        localStorage.setItem('megaQuizMistakes_v5', JSON.stringify(mistakesDb));
     }
 
-    function loadLocalFallback() {
+    async function loadLocalFallback() {
         if (localStorage.getItem('megaQuizSubjects_v5')) SUBJECTS = JSON.parse(localStorage.getItem('megaQuizSubjects_v5'));
         if (localStorage.getItem('megaQuizSubCats_v1')) SUBJECT_CATEGORIES = JSON.parse(localStorage.getItem('megaQuizSubCats_v1'));
-        if (localStorage.getItem('megaQuizDB_v4')) db = JSON.parse(localStorage.getItem('megaQuizDB_v4'));
         
-        historyDb = localStorage.getItem('megaQuizHistory_v5') ? JSON.parse(localStorage.getItem('megaQuizHistory_v5')) : [];
-        mistakesDb = localStorage.getItem('megaQuizMistakes_v5') ? JSON.parse(localStorage.getItem('megaQuizMistakes_v5')) : [];
+        const localDb = await idbKeyval.get('megaQuizDB_v5');
+        const localHist = await idbKeyval.get('megaQuizHistory_v5');
+        const localMistakes = await idbKeyval.get('megaQuizMistakes_v5');
+        
+        if (localDb) db = localDb;
+        if (localHist) historyDb = localHist;
+        if (localMistakes) mistakesDb = localMistakes;
+        
         if(!Array.isArray(historyDb)) historyDb = [];
         if(!Array.isArray(mistakesDb)) mistakesDb = [];
         
@@ -984,19 +991,43 @@
         }
     }
 
-    function saveData() {
-        updateLocalCache();
+    async function saveData() {
         showSyncStatus('syncing');
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, version: "v19.35", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        let cleanDb = {};
+        Object.keys(db).forEach(key => {
+            if (!key.startsWith('quiz_srs') && 
+                !key.startsWith('quiz_master_mock') && 
+                !key.startsWith('quiz_topic_practice')) {
+                cleanDb[key] = db[key];
+            }
+        });
         
-        fetch(CLOUD_URL, {
-            method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload)
-        }).then(() => showSyncStatus('synced')).catch(() => showSyncStatus('error'));
+        let tempDb = db; 
+        db = cleanDb; 
+        await updateLocalCache(); 
+        db = tempDb;
+
+        const payload = { subjects: SUBJECTS, db: cleanDb, history: historyDb, mistakes: mistakesDb, version: "v20.0", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        
+        try {
+            const response = await fetch(CLOUD_URL, {
+                method: 'POST', 
+                headers: { 'Content-Type': 'text/plain' }, 
+                body: JSON.stringify(payload)
+            });
+            if(response.ok) {
+                showSyncStatus('synced');
+            } else {
+                showSyncStatus('error');
+            }
+        } catch (error) { 
+            showSyncStatus('error'); 
+        }
     }
 
     async function initializeSystem() {
         if(localStorage.getItem('megaTheme') === 'dark') document.documentElement.classList.add('dark');
-        loadLocalFallback();
+        await loadLocalFallback();
         
         autoMigrateTags(); 
 
@@ -1018,7 +1049,7 @@
                 if (data.mistakes) mistakesDb = data.mistakes || [];
                 
                 autoMigrateTags(); 
-                updateLocalCache();
+                await updateLocalCache();
                 renderDashboard();
                 showSyncStatus('synced');
             } else { showSyncStatus('error'); }
@@ -1043,54 +1074,57 @@
     window.clearSearch = () => { document.getElementById('omni-search').value = ''; performSearch(''); };
 
     window.performSearch = (query) => {
-        const term = query.toLowerCase().trim();
-        const resContainer = document.getElementById('search-results-container');
-        const dashGrid = document.getElementById('dashboard-main-content');
-        const clearBtn = document.getElementById('clear-search-btn');
-        
-        if (!term) {
-            resContainer.classList.add('hidden'); dashGrid.classList.remove('hidden'); if(clearBtn) clearBtn.classList.add('hidden'); return;
-        }
-        if(clearBtn) clearBtn.classList.remove('hidden'); dashGrid.classList.add('hidden'); resContainer.classList.remove('hidden');
-        
-        let resultsHTML = `<div class="flex justify-between items-end border-b border-slate-200 dark:border-slate-800 pb-3 mt-4"><h2 class="text-2xl md:text-3xl font-black text-slate-800 dark:text-slate-100 tracking-tight">🔍 Mamba Vault Search</h2><span class="text-[10px] font-black text-emerald-500 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1 rounded shadow-sm border border-emerald-100 dark:border-emerald-800/30">Searching: "${query}"</span></div>`;
-        let matchCount = 0;
-        
-        Object.keys(db).forEach(quizId => {
-            const quiz = db[quizId];
-            if(!quiz || !quiz.title || quiz.title.includes("Master Mock") || quiz.title.includes("SRS") || quiz.title.includes("🎯") || !Array.isArray(quiz.questions)) return;
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            const term = query.toLowerCase().trim();
+            const resContainer = document.getElementById('search-results-container');
+            const dashGrid = document.getElementById('dashboard-main-content');
+            const clearBtn = document.getElementById('clear-search-btn');
+            
+            if (!term) {
+                resContainer.classList.add('hidden'); dashGrid.classList.remove('hidden'); if(clearBtn) clearBtn.classList.add('hidden'); return;
+            }
+            if(clearBtn) clearBtn.classList.remove('hidden'); dashGrid.classList.add('hidden'); resContainer.classList.remove('hidden');
+            
+            let resultsHTML = `<div class="flex justify-between items-end border-b border-slate-200 dark:border-slate-800 pb-3 mt-4"><h2 class="text-2xl md:text-3xl font-black text-slate-800 dark:text-slate-100 tracking-tight">🔍 Mamba Vault Search</h2><span class="text-[10px] font-black text-emerald-500 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1 rounded shadow-sm border border-emerald-100 dark:border-emerald-800/30">Searching: "${query}"</span></div>`;
+            let matchCount = 0;
+            
+            Object.keys(db).forEach(quizId => {
+                const quiz = db[quizId];
+                if(!quiz || !quiz.title || quiz.title.includes("Master Mock") || quiz.title.includes("SRS") || quiz.title.includes("🎯") || !Array.isArray(quiz.questions)) return;
 
-            quiz.questions.forEach((q) => {
-                const searchStr = ((q.question || "") + " " + (q.solution || "") + " " + (q.tags ? (Array.isArray(q.tags) ? q.tags.join(" ") : String(q.tags)) : "")).toLowerCase();
-                if (searchStr.includes(term)) {
-                    matchCount++;
-                    let cText = "N/A";
-                    if (q.type === 'typing') {
-                        cText = q.exactAnswer || "N/A";
-                    } else {
-                        cText = (q.options && q.options.find(o=>o.correct)?.text) || "N/A";
+                quiz.questions.forEach((q) => {
+                    const searchStr = ((q.question || "") + " " + (q.solution || "") + " " + (q.tags ? (Array.isArray(q.tags) ? q.tags.join(" ") : String(q.tags)) : "")).toLowerCase();
+                    if (searchStr.includes(term)) {
+                        matchCount++;
+                        let cText = "N/A";
+                        if (q.type === 'typing') {
+                            cText = q.exactAnswer || "N/A";
+                        } else {
+                            cText = (q.options && q.options.find(o=>o.correct)?.text) || "N/A";
+                        }
+                        
+                        let safeId = 'edit_srch_' + window.editCounter++;
+                        window.editRegistry[safeId] = q.question;
+
+                        resultsHTML += `
+                            <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-700 shadow-lg hover:border-emerald-400 dark:hover:border-emerald-500 transition-colors relative overflow-hidden mt-4">
+                                <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-400"></div>
+                                <div class="flex justify-between items-start mb-4">
+                                    <span class="text-[10px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 px-3 py-1 rounded border border-indigo-100 dark:border-indigo-800/50">${quiz.subject} • ${quiz.title}</span>
+                                    <button onclick="openGlobalEditModalBySafeId('${safeId}')" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1 rounded-md font-black text-[10px] uppercase tracking-widest border border-amber-200 hover:bg-amber-200 transition-colors">✏️ Edit</button>
+                                </div>
+                                <div class="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 mb-6 leading-relaxed">${highlightText(q.question, term)}</div>
+                                <div class="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800/50 mb-6 inline-block shadow-inner"><span class="block text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Correct Answer</span><span class="text-sm font-bold text-slate-800 dark:text-slate-200">${highlightText(cText, term)}</span></div>
+                                <div class="text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 p-5 rounded-xl border border-slate-100 dark:border-slate-800 shadow-inner"><span class="font-black text-slate-800 dark:text-slate-200 block mb-2 uppercase tracking-wide text-xs">📖 Detailed Solution:</span><div class="leading-relaxed font-medium">${highlightText(q.solution || 'No detailed solution provided.', term)}</div></div>
+                            </div>`;
                     }
-                    
-                    let safeId = 'edit_srch_' + window.editCounter++;
-                    window.editRegistry[safeId] = q.question;
-
-                    resultsHTML += `
-                        <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-700 shadow-lg hover:border-emerald-400 dark:hover:border-emerald-500 transition-colors relative overflow-hidden mt-4">
-                            <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-400"></div>
-                            <div class="flex justify-between items-start mb-4">
-                                <span class="text-[10px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 px-3 py-1 rounded border border-indigo-100 dark:border-indigo-800/50">${quiz.subject} • ${quiz.title}</span>
-                                <button onclick="openGlobalEditModalBySafeId('${safeId}')" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1 rounded-md font-black text-[10px] uppercase tracking-widest border border-amber-200 hover:bg-amber-200 transition-colors">✏️ Edit</button>
-                            </div>
-                            <div class="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 mb-6 leading-relaxed">${highlightText(q.question, term)}</div>
-                            <div class="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800/50 mb-6 inline-block shadow-inner"><span class="block text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Correct Answer</span><span class="text-sm font-bold text-slate-800 dark:text-slate-200">${highlightText(cText, term)}</span></div>
-                            <div class="text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 p-5 rounded-xl border border-slate-100 dark:border-slate-800 shadow-inner"><span class="font-black text-slate-800 dark:text-slate-200 block mb-2 uppercase tracking-wide text-xs">📖 Detailed Solution:</span><div class="leading-relaxed font-medium">${highlightText(q.solution || 'No detailed solution provided.', term)}</div></div>
-                        </div>`;
-                }
+                });
             });
-        });
-        
-        if(matchCount === 0) resultsHTML += `<div class="text-center text-slate-400 font-bold py-16 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl mt-4">No questions found matching "${query}" in the vault.</div>`;
-        resContainer.innerHTML = resultsHTML;
+            
+            if(matchCount === 0) resultsHTML += `<div class="text-center text-slate-400 font-bold py-16 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl mt-4">No questions found matching "${query}" in the vault.</div>`;
+            resContainer.innerHTML = resultsHTML;
+        }, 300);
     };
 
     const getCategoryClass = (s) => {
@@ -1262,8 +1296,8 @@
     function renderDashboard() {
         const grid = document.getElementById('dashboard-grid'); grid.innerHTML = '';
         
-        let globalDue = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now()).length;
-        let masteredCount = localStorage.getItem('megaQuizMasteredCount') || 0;
+        let globalDue = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now() && !m.isMastered).length;
+        let masteredCount = mistakesDb.filter(m => m.isMastered).length;
 
         document.getElementById('global-srs-badge').textContent = `${globalDue} Due`;
         document.getElementById('global-srs-badge').classList.toggle('hidden', globalDue === 0);
@@ -1348,7 +1382,7 @@
         let masterMap = getMasterMap(); 
 
         mistakesDb.forEach(m => {
-            if(m.srs && m.srs.nextReview <= Date.now()) {
+            if(m.srs && m.srs.nextReview <= Date.now() && !m.isMastered) {
                 globalDue++;
                 let clean = masterMap[m.question];
                 let activeTags = clean ? clean.tags : (Array.isArray(m.tags) ? m.tags : []);
@@ -1393,7 +1427,7 @@
         let titleStr = "";
         
         if(type === 'global') {
-            dueQs = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now());
+            dueQs = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now() && !m.isMastered);
             titleStr = "🔥 Master Global 10-Q Sprint";
         } else {
             let sub = document.getElementById('srs-subject-select').value;
@@ -1401,7 +1435,7 @@
             
             let masterMap = getMasterMap(); 
             dueQs = mistakesDb.filter(m => {
-                if (!m.srs || m.srs.nextReview > Date.now()) return false;
+                if (!m.srs || m.srs.nextReview > Date.now() || m.isMastered) return false;
                 let clean = masterMap[m.question];
                 let activeTags = clean ? clean.tags : (Array.isArray(m.tags) ? m.tags : []);
                 let subName = activeTags.length > 0 ? activeTags[0] : (m.subject || m.originalSubject || "Miscellaneous");
@@ -1488,7 +1522,12 @@
         }
 
         activeQuestions = baseQuestions.map((q, i) => ({...q, originalIndex: i}));
-        if (lobbySettings.shuffle) activeQuestions.sort(() => Math.random() - 0.5);
+        if (lobbySettings.shuffle) {
+            for (let i = activeQuestions.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [activeQuestions[i], activeQuestions[j]] = [activeQuestions[j], activeQuestions[i]];
+            }
+        }
 
         renderQuizView();
         
@@ -1529,7 +1568,7 @@
 
     function startTimer(totalSecs) {
         clearInterval(quizState.interval);
-        let globalSecs = totalSecs;
+        const startTime = Date.now();
         quizState.interval = setInterval(() => {
             if (lobbySettings.perQTimer) {
                 quizState.qTimeLeft--;
@@ -1539,9 +1578,13 @@
                     else setFocus(quizState.currentFocus + 1);
                 }
             } else {
-                globalSecs--;
-                document.getElementById('quiz-timer').textContent = formatTime(globalSecs);
-                if (globalSecs <= 0) submitQuiz();
+                const elapsedSecs = Math.floor((Date.now() - startTime) / 1000);
+                let remaining = totalSecs - elapsedSecs;
+                if (remaining <= 0) {
+                    remaining = 0;
+                    submitQuiz();
+                }
+                document.getElementById('quiz-timer').textContent = formatTime(remaining);
             }
         }, 1000);
     }
@@ -1593,12 +1636,15 @@
     function renderQuizView() {
         const container = document.getElementById('quiz-container'); const palette = document.getElementById('palette-grid');
         container.innerHTML = ''; palette.innerHTML = '';
+        
+        const fragment = document.createDocumentFragment();
+        const paletteFragment = document.createDocumentFragment();
 
         activeQuestions.forEach((q, qIndex) => {
             const pBtn = document.createElement('button');
             pBtn.id = `pal-${qIndex}`; pBtn.className = `palette-btn palette-unanswered shadow-sm`; pBtn.textContent = qIndex + 1;
             pBtn.onclick = () => { if (!lobbySettings.perQTimer) setFocus(qIndex); }; 
-            palette.appendChild(pBtn);
+            paletteFragment.appendChild(pBtn);
 
             let optsHTML = '';
             let isBlind = lobbySettings.blind && !quizState.revealed[qIndex];
@@ -1627,8 +1673,11 @@
                 <div class="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100 mb-8 leading-relaxed">${q.question}</div>
                 <div class="relative"><div id="opts-cont-${qIndex}" class="space-y-2 transition-all duration-300 ${isBlind ? 'blur-xl opacity-20 pointer-events-none select-none' : ''}">${optsHTML}</div>${blindOverlay}</div>
             `;
-            container.appendChild(card);
+            fragment.appendChild(card);
         });
+        
+        palette.appendChild(paletteFragment);
+        container.appendChild(fragment);
         updatePaletteAndCounts();
     }
 
@@ -1751,11 +1800,13 @@
                 if (mistIdx !== -1) {
                     let m = mistakesDb[mistIdx];
                     if (!m.srs) m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() };
+                    if (m.isMastered === undefined) m.isMastered = false;
 
                     if (isMistake) {
                         m.srs.reps = 0;
                         m.srs.ease = Math.max(1.3, m.srs.ease - 0.2); 
                         m.srs.interval = 1;
+                        m.isMastered = false;
                     } else {
                         m.srs.reps += 1;
                         if (m.srs.reps === 1) m.srs.interval = 3;
@@ -1766,12 +1817,9 @@
                     m.srs.nextReview = Date.now() + (m.srs.interval * 24 * 60 * 60 * 1000);
 
                     if (m.srs.interval >= 30 || m.srs.reps >= 4) {
-                        mistakesDb.splice(mistIdx, 1);
-                        let mCount = parseInt(localStorage.getItem('megaQuizMasteredCount') || "0");
-                        localStorage.setItem('megaQuizMasteredCount', mCount + 1);
-                    } else {
-                        mistakesDb[mistIdx] = m;
+                        m.isMastered = true; 
                     }
+                    mistakesDb[mistIdx] = m;
                 }
             } else {
                 if (isMistake) {
@@ -1787,13 +1835,15 @@
                         }
                         
                         newMistake.subject = assignedSubject; 
-                        newMistake.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() }; 
+                        newMistake.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() };
+                        newMistake.isMastered = false;
                         mistakesDb.push(newMistake);
                     } else {
                         mistakesDb[mistIdx].srs.reps = 0;
                         mistakesDb[mistIdx].srs.interval = 1;
                         mistakesDb[mistIdx].srs.ease = Math.max(1.3, mistakesDb[mistIdx].srs.ease - 0.2);
                         mistakesDb[mistIdx].srs.nextReview = Date.now();
+                        mistakesDb[mistIdx].isMastered = false;
                     }
                 }
             }
@@ -1828,7 +1878,7 @@
                 candidateName: candName, attemptNumber: currentAttemptNum, totalCorrect: correct, totalWrong: wrong, totalSkipped: skipped, reviewData: historicalReviewData
             });
 
-            if (historyDb.length > 50) historyDb.length = 50;
+            if (historyDb.length > 500) historyDb.length = 500;
         }
         
         saveData(); showScreen('results'); window.scrollTo(0,0);
@@ -2072,7 +2122,7 @@
                 if(conf === "DELETE") {
                     SUBJECTS = ["Ancient History", "Medieval History", "Modern History", "Geography", "Economics", "Static GK", "Arithmetic", "Advanced Maths", "English", "Reasoning", "Current Affairs", "Polity", "Science", "Environment", "Miscellaneous", "GS MOCK QUESTIONS", "QUANT MOCK QUESTIONS"];
                     SUBJECT_CATEGORIES = { "GS MOCK QUESTIONS": "GS", "QUANT MOCK QUESTIONS": "Maths" };
-                    db = {}; historyDb = []; mistakesDb = []; localStorage.clear(); await saveData(); location.reload();
+                    db = {}; historyDb = []; mistakesDb = []; await idbKeyval.clear(); localStorage.clear(); await saveData(); location.reload();
                 }
             }
         });
@@ -2111,12 +2161,12 @@
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = function(event) {
+            reader.onload = async function(event) {
                 try {
                     const data = JSON.parse(event.target.result);
                     if(data.db && data.subjects) {
                         db = data.db; SUBJECTS = data.subjects; historyDb = data.history || []; mistakesDb = data.mistakes || [];
-                        saveData(); location.reload();
+                        await saveData(); location.reload();
                     } else {
                         alert("Invalid Backup File.");
                     }
