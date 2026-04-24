@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V21.0 (Living Notes Ecosystem)</title>
+    <title>Yogesh's Mega Quiz Hub - V21.1 (Living Notes Ecosystem)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
@@ -57,7 +57,7 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V21.0</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V21.1</span>
                     </h1>
                     <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Living Notes & Enterprise Testing Matrix</p>
                 </div>
@@ -834,15 +834,21 @@
             
             if(b.type === 'header') html += `<h2 class="text-2xl font-black text-slate-800 dark:text-slate-200 mt-10 mb-4 border-l-4 border-fuchsia-500 pl-3 leading-tight">${content}</h2>`;
             else if(b.type === 'theory') html += `<div class="text-base font-medium leading-relaxed text-slate-700 dark:text-slate-300">${content}</div>`;
-            else if(b.type === 'trap') html += `<div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 p-5 rounded-2xl relative shadow-inner overflow-hidden my-6"><div class="absolute top-0 left-0 w-1.5 h-full bg-red-500"></div><div class="flex gap-4 items-start"><span class="text-2xl drop-shadow-sm">⚠️</span><div><div class="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-400 mb-1">SSC Trap Zone</div><div class="text-sm font-bold text-red-900 dark:text-red-100 leading-relaxed">${content}</div></div></div></div>`;
+            else if(b.type === 'trap') html += `<div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 p-5 rounded-2xl relative shadow-inner overflow-hidden my-6"><div class="absolute top-0 left-0 w-1.5 h-full bg-red-500"></div><div class="flex gap-4 items-start"><span class="text-2xl drop-shadow-sm">⚠️</span><div><div class="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-400 mb-1">CRITICAL EXAM TRAP</div><div class="text-sm font-bold text-red-900 dark:text-red-100 leading-relaxed">${content}</div></div></div></div>`;
             else if(b.type === 'shortcut') html += `<div class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 p-5 rounded-2xl relative shadow-inner overflow-hidden shadow-[0_0_15px_rgba(16,185,129,0.1)] my-6"><div class="absolute top-0 left-0 w-1.5 h-full bg-emerald-500"></div><div class="flex gap-4 items-start"><span class="text-2xl drop-shadow-sm">⚡</span><div><div class="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-500 mb-1">Golden Shortcut / Mnemonic</div><div class="text-sm font-bold text-emerald-900 dark:text-emerald-100 leading-relaxed">${content}</div></div></div></div>`;
             else if(b.type === 'image') html += `<div class="my-8"><img src="${content}" class="max-h-96 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 object-contain mx-auto"></div>`;
         });
 
         html += `</div>`;
 
-        // The Expansion Slot (User Manual Inputs)
-        let addsHtml = (note.userAdditions || []).map((u, i) => `<li class="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-start gap-3 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm"><span class="text-fuchsia-500 mt-0.5 font-black text-lg leading-none">→</span> ${u}</li>`).join('');
+        // The Expansion Slot (User Manual Inputs) with V21.1 Hover Delete
+        let addsHtml = (note.userAdditions || []).map((u, i) => `
+            <li class="group text-sm font-bold text-slate-700 dark:text-slate-300 flex items-start gap-3 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm relative pr-12 transition-all hover:border-fuchsia-300">
+                <span class="text-fuchsia-500 mt-0.5 font-black text-lg leading-none">→</span>
+                <span class="flex-1">${u}</span>
+                <button onclick="deleteCustomNote('${sub.replace(/'/g,"\\'")}','${top.replace(/'/g,"\\'")}', ${i})" class="opacity-0 group-hover:opacity-100 absolute right-2 top-1/2 -translate-y-1/2 bg-red-50 hover:bg-red-500 text-red-500 hover:text-white p-2 rounded-lg transition-all shadow-sm" title="Delete Note">🗑️</button>
+            </li>
+        `).join('');
         
         html += `<div class="mt-14 bg-slate-50 dark:bg-slate-800/50 rounded-3xl p-6 md:p-8 border border-slate-200 dark:border-slate-700 shadow-inner">
             <h3 class="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-slate-200 mb-6 flex items-center gap-2">🧠 Your Custom Connections</h3>
@@ -893,6 +899,16 @@
         saveData();
         rebuildSearchCache(); // Keep search indexed
         renderNoteCanvas(sub, top); // Re-render to show new bullet
+    };
+
+    // V21.1 Note Deletion Feature
+    window.deleteCustomNote = (sub, top, index) => {
+        if(confirm("Delete this custom note?")) {
+            notesDb[sub][top].userAdditions.splice(index, 1);
+            saveData();
+            rebuildSearchCache();
+            renderNoteCanvas(sub, top);
+        }
     };
 
     // IMAGE COMPRESSION ENGINE
@@ -1211,7 +1227,7 @@
         db = tempDb;
 
         // V21.0 - Pushing notesDb to the cloud sync
-        const payload = { subjects: SUBJECTS, db: cleanDb, history: historyDb, mistakes: mistakesDb, notesDb: notesDb, version: "v21.0", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: cleanDb, history: historyDb, mistakes: mistakesDb, notesDb: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         try {
             const response = await fetch(CLOUD_URL, {
@@ -1845,6 +1861,7 @@
         }
     });
 
+    // EVENT DELEGATION INJECTED IN DOMContentLoaded BELOW
     function renderQuizView() {
         const container = document.getElementById('quiz-container'); const palette = document.getElementById('palette-grid');
         container.innerHTML = ''; palette.innerHTML = '';
@@ -2397,7 +2414,6 @@
     window.closeSubjectAnalysis = () => document.getElementById('screen-subject-analysis').classList.add('hidden');
 
     function showScreen(s) { 
-        // MEMORY LEAK FIX
         window.editRegistry = {}; 
         window.editCounter = 0;
         
@@ -2409,7 +2425,6 @@
         const targetScreen = document.getElementById('screen-'+s);
         if(targetScreen) {
             targetScreen.classList.remove('hidden');
-            // Special layout rule for notes
             if (s === 'notes') { targetScreen.classList.add('flex'); }
         }
          
@@ -2456,14 +2471,12 @@
                 try {
                     const importedData = JSON.parse(event.target.result);
                     
-                    // V21.0 - SMART IMPORT ROUTER
                     if (importedData.blocks && Array.isArray(importedData.blocks)) {
                          let sub = importedData.subject || "Miscellaneous";
                          let top = importedData.topic || "General";
                          if(!notesDb[sub]) notesDb[sub] = {};
                          if(!notesDb[sub][top]) notesDb[sub][top] = { coreBlocks: [], userAdditions: [] };
                          
-                         // Overwrite existing blocks to allow easy updates
                          notesDb[sub][top].coreBlocks = importedData.blocks; 
                          
                          if (!SUBJECTS.includes(sub)) { SUBJECTS.push(sub); }
@@ -2477,7 +2490,6 @@
                          }
                          alert(`✅ Note Payload successfully imported to ${sub} -> ${top}!`);
                     } else {
-                         // STANDARD QUIZ IMPORT
                          const newId = 'quiz_' + Date.now(); 
                          if(targetImportSubject) importedData.subject = targetImportSubject; 
                          db[newId] = importedData;
@@ -2504,7 +2516,7 @@
                     const data = JSON.parse(event.target.result);
                     if(data.db && data.subjects) {
                         db = data.db; SUBJECTS = data.subjects; historyDb = data.history || []; mistakesDb = data.mistakes || [];
-                        if (data.notesDb) notesDb = data.notesDb; // V21.0
+                        if (data.notesDb) notesDb = data.notesDb;
                         await saveData(); location.reload();
                     } else {
                         alert("Invalid Backup File.");
