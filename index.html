@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V20.5 (Ultimate Beast Build)</title>
+    <title>Yogesh's Mega Quiz Hub - V20.6 (Enterprise Speed Build)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
@@ -57,7 +57,7 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V20.5</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V20.6</span>
                     </h1>
                     <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Enterprise Data Build & Auto-Optimization</p>
                 </div>
@@ -532,23 +532,6 @@
         return arr;
     };
 
-    const POLITY_LAXMIKANTH_TAGS = [
-        "Making, Preamble & Sources",
-        "Union, Territory & Citizenship",
-        "Fundamental Rights",
-        "DPSP & Fundamental Duties",
-        "Union Executive",
-        "Parliament",
-        "State Govt & Legislature",
-        "Judiciary",
-        "Local Govt (Panchayats & Municipalities)",
-        "Emergency Provisions",
-        "Constitutional & Non-Constitutional Bodies",
-        "Elections, Amendments & Schedules",
-        "Special Provisions & Anti-Defection",
-        "Bharatiya Nyaya Sanhita (BNS)"
-    ];
-
     const SYLLABUS_MAP = {
         "Arithmetic": ["Number System", "LCM & HCF", "Percentages", "Profit, Loss & Discount", "Simple & Compound Interest", "Ratio & Proportion", "Partnership & Ages", "Mixture & Alligation", "Average", "Time & Work", "Time, Speed & Distance"],
         "Advanced Maths": ["Algebra", "Geometry", "Coordinate Geometry", "Mensuration 2D", "Mensuration 3D", "Trigonometry", "Heights & Distances", "Probability & Statistics"],
@@ -634,37 +617,6 @@
             });
         });
     };
-
-    function autoMigrateTags() {
-        let changed = false;
-        const map = {
-            "Historical Background & Making": "Making, Preamble & Sources",
-            "Salient Features & Preamble": "Making, Preamble & Sources",
-            "Union & Its Territory / Citizenship": "Union, Territory & Citizenship",
-            "Fundamental Rights & Duties": "Fundamental Rights",
-            "Directive Principles (DPSP)": "DPSP & Fundamental Duties",
-            "Union Legislature": "Parliament",
-            "State Executive & Legislature": "State Govt & Legislature",
-            "Judiciary (SC, HC, Subordinate Courts)": "Judiciary",
-            "Local Self-Government": "Local Govt (Panchayats & Municipalities)",
-            "Constitutional Bodies": "Constitutional & Non-Constitutional Bodies",
-            "Statutory Bodies": "Constitutional & Non-Constitutional Bodies",
-            "Centre-State Relations & Emergency": "Emergency Provisions",
-            "Elections & Political Dynamics": "Elections, Amendments & Schedules"
-        };
-        const fix = (arr) => {
-            if(!arr) return;
-            arr.forEach(q => {
-                if(q.tags && q.tags[0] === "Polity" && map[q.tags[1]]) {
-                    q.tags[1] = map[q.tags[1]]; changed = true;
-                }
-            });
-        };
-        Object.keys(db).forEach(k => fix(db[k].questions));
-        fix(mistakesDb);
-        if(Array.isArray(historyDb)) historyDb.forEach(h => fix(h.reviewData));
-        if(changed) saveData();
-    }
 
     window.toggleDirtyFilter = () => {
         isDirtyFilterActive = !isDirtyFilterActive;
@@ -762,35 +714,26 @@
         topicSelect.innerHTML = '<option value="">-- Select Topic --</option>';
         let availableTopics = new Set();
 
-        if (selectedSub === "Polity") {
-            POLITY_LAXMIKANTH_TAGS.forEach(t => availableTopics.add(t));
-        } else if (selectedSub && SYLLABUS_MAP[selectedSub]) {
+        // 1. Pull core syllabus directly from the Master Map
+        if (selectedSub && SYLLABUS_MAP[selectedSub]) {
             SYLLABUS_MAP[selectedSub].forEach(t => availableTopics.add(t));
         }
 
-        Object.keys(db).forEach(qid => {
-            if(db[qid] && Array.isArray(db[qid].questions)) {
-                db[qid].questions.forEach(q => {
-                    let t1 = (q.tags && q.tags.length > 0) ? q.tags[0] : (q.subject || "Miscellaneous");
-                    if (t1 === selectedSub && q.tags && q.tags.length > 1) {
-                        availableTopics.add(q.tags[1]);
-                    }
-                });
-            }
-        });
+        // 2. Ultra-fast scan of the globalSearchCache instead of nested DB parsing
+        if (globalSearchCache && globalSearchCache.length > 0) {
+            globalSearchCache.forEach(item => {
+                const qTags = item.q.tags;
+                let t1 = (qTags && qTags.length > 0) ? qTags[0] : (item.q.subject || "Miscellaneous");
+                if (t1 === selectedSub && qTags && qTags.length > 1) {
+                    availableTopics.add(qTags[1]);
+                }
+            });
+        }
         
-        mistakesDb.forEach(q => {
-             let t1 = (q.tags && q.tags.length > 0) ? q.tags[0] : (q.subject || "Miscellaneous");
-             if (t1 === selectedSub && q.tags && q.tags.length > 1) {
-                 availableTopics.add(q.tags[1]);
-             }
-        });
-
+        // Add preselected topic to ensure it displays correctly during edits
         if (preselectedTopic) availableTopics.add(preselectedTopic);
 
-        let sortedTopics = Array.from(availableTopics).sort(function (a, b) {
-            return a.toLowerCase().localeCompare(b.toLowerCase());
-        });
+        let sortedTopics = Array.from(availableTopics).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
         
         sortedTopics.forEach(topic => {
             let isSelected = (topic === preselectedTopic) ? "selected" : "";
@@ -1113,7 +1056,7 @@
         await updateLocalCache(); 
         db = tempDb;
 
-        const payload = { subjects: SUBJECTS, db: cleanDb, history: historyDb, mistakes: mistakesDb, version: "v20.5", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: cleanDb, history: historyDb, mistakes: mistakesDb, version: "v20.6", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         try {
             const response = await fetch(CLOUD_URL, {
@@ -1134,8 +1077,6 @@
     async function initializeSystem() {
         if(localStorage.getItem('megaTheme') === 'dark') document.documentElement.classList.add('dark');
         await loadLocalFallback();
-        
-        autoMigrateTags(); 
 
         renderDashboard();
         showSyncStatus('syncing');
@@ -1154,7 +1095,6 @@
                 if (data.history) historyDb = data.history || [];
                 if (data.mistakes) mistakesDb = data.mistakes || [];
                 
-                autoMigrateTags(); 
                 await updateLocalCache();
                 rebuildSearchCache(); // Rebuild search index after network payload
                 renderDashboard();
