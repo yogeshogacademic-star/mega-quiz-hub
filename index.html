@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V20.4 (Enterprise Optimization Build)</title>
+    <title>Yogesh's Mega Quiz Hub - V20.5 (Ultimate Beast Build)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
@@ -57,7 +57,7 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V20.4</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V20.5</span>
                     </h1>
                     <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Enterprise Data Build & Auto-Optimization</p>
                 </div>
@@ -522,6 +522,16 @@
         }
     };
 
+    // GLOBAL SHUFFLE TOOL (Fisher-Yates)
+    window.shuffleArray = (array) => {
+        let arr = [...array];
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    };
+
     const POLITY_LAXMIKANTH_TAGS = [
         "Making, Preamble & Sources",
         "Union, Territory & Citizenship",
@@ -807,7 +817,7 @@
         }
     };
 
-    // IMAGE COMPRESSION ENGINE (V20.4 Performance)
+    // IMAGE COMPRESSION ENGINE (V20.5 Performance + Transparency Fix)
     window.handleImageUpload = (event) => {
         const file = event.target.files[0];
         if (!file) return;
@@ -828,6 +838,11 @@
                 canvas.width = width;
                 canvas.height = height;
                 const ctx = canvas.getContext('2d');
+                
+                // PREVENT BLACK BACKGROUND BUG: Fill with white first!
+                ctx.fillStyle = "#FFFFFF";
+                ctx.fillRect(0, 0, width, height);
+                
                 ctx.drawImage(img, 0, 0, width, height);
                 
                 // Compress to JPEG format at 70% quality (Drops a 5MB image down to ~50KB)
@@ -1098,7 +1113,7 @@
         await updateLocalCache(); 
         db = tempDb;
 
-        const payload = { subjects: SUBJECTS, db: cleanDb, history: historyDb, mistakes: mistakesDb, version: "v20.4", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: cleanDb, history: historyDb, mistakes: mistakesDb, version: "v20.5", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         try {
             const response = await fetch(CLOUD_URL, {
@@ -1246,7 +1261,7 @@
         if(pool.length === 0) return alert(`No questions found for topic: ${targetTopic}`);
         
         const uniqueQs = Array.from(new Map(pool.map(q => [q.question, q])).values());
-        const shuffled = uniqueQs.sort(() => 0.5 - Math.random()).slice(0, 30);
+        const shuffled = window.shuffleArray(uniqueQs).slice(0, 30);
         
         db['quiz_topic_practice'] = { 
             title: `🎯 ${targetTopic} Practice`, 
@@ -1534,7 +1549,7 @@
             return;
         }
 
-        const sprintQs = dueQs.sort(() => 0.5 - Math.random()).slice(0, 10);
+        const sprintQs = window.shuffleArray(dueQs).slice(0, 10);
         db['quiz_srs'] = { title: titleStr, subject: "Spaced Repetition", timeInMinutes: 10, questions: sprintQs };
         
         closeSRSModal();
@@ -1606,10 +1621,7 @@
 
         activeQuestions = baseQuestions.map((q, i) => ({...q, originalIndex: i}));
         if (lobbySettings.shuffle) {
-            for (let i = activeQuestions.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [activeQuestions[i], activeQuestions[j]] = [activeQuestions[j], activeQuestions[i]];
-            }
+            window.shuffleArray(activeQuestions);
         }
 
         renderQuizView();
@@ -1935,15 +1947,13 @@
 
         document.getElementById('results-title').textContent = `${candName}'s Report - Attempt #${currentAttemptNum}`;
 
-        if(true) {
-            historyDb.unshift({ 
-                date: new Date().toLocaleDateString(), title: displayTitle, subject: db[currentQuizId] ? db[currentQuizId].subject : "Mixed", 
-                score: parseFloat(score.toFixed(2)), accuracy: Math.round((correct / activeQuestions.length) * 100) || 0,
-                candidateName: candName, attemptNumber: currentAttemptNum, totalCorrect: correct, totalWrong: wrong, totalSkipped: skipped, reviewData: historicalReviewData
-            });
+        historyDb.unshift({ 
+            date: new Date().toLocaleDateString(), title: displayTitle, subject: db[currentQuizId] ? db[currentQuizId].subject : "Mixed", 
+            score: parseFloat(score.toFixed(2)), accuracy: Math.round((correct / activeQuestions.length) * 100) || 0,
+            candidateName: candName, attemptNumber: currentAttemptNum, totalCorrect: correct, totalWrong: wrong, totalSkipped: skipped, reviewData: historicalReviewData
+        });
 
-            if (historyDb.length > 500) historyDb.length = 500;
-        }
+        if (historyDb.length > 500) historyDb.length = 500;
         
         saveData(); showScreen('results'); window.scrollTo(0,0);
         filterReview('all'); 
@@ -2377,7 +2387,7 @@
         if(pool.length === 0) return alert(`No questions found in ${subject} to create a Master Mock.`);
         
         const uniqueQs = Array.from(new Map(pool.map(q => [q.question, q])).values());
-        const shuffled = uniqueQs.sort(() => 0.5 - Math.random());
+        const shuffled = window.shuffleArray(uniqueQs);
         const finalQs = shuffled.slice(0, 100);
 
         db['quiz_master_mock'] = {
