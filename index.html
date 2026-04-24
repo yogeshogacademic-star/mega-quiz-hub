@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V20.1 (Anki Brain Build)</title>
+    <title>Yogesh's Mega Quiz Hub - V20.2 (Visual Analytics Build)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -56,7 +57,7 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V20.1</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V20.2</span>
                     </h1>
                     <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Enterprise Data Build & Auto-Optimization</p>
                 </div>
@@ -490,6 +491,8 @@
     let quizState = { answers: {}, marked: {}, revealed: {}, locked: {}, qTimeLeft: 0, submitted: false, interval: null, isPaused: false, currentFocus: -1 };
     let lobbySettings = { timeMode: 'default', customMinutes: 0, shuffle: true, blind: false, perQTimer: false };
     let targetImportSubject = ""; 
+    
+    let trendChartInstance = null; // Stores Chart.js instance
 
     let lobbyQuizMode = 'full';
     window.currentQuizWrongQs = [];
@@ -1007,7 +1010,7 @@
         await updateLocalCache(); 
         db = tempDb;
 
-        const payload = { subjects: SUBJECTS, db: cleanDb, history: historyDb, mistakes: mistakesDb, version: "v20.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: cleanDb, history: historyDb, mistakes: mistakesDb, version: "v20.2", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         try {
             const response = await fetch(CLOUD_URL, {
@@ -1059,6 +1062,7 @@
     function toggleDarkMode() {
         document.documentElement.classList.toggle('dark');
         localStorage.setItem('megaTheme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+        if (trendChartInstance) showAnalytics(); // Re-render chart for dark/light mode text
     }
 
     function highlightText(text, term) {
@@ -2041,7 +2045,7 @@
         document.getElementById('screen-subject-analysis').classList.add('hidden');
         
         let historyHTML = `
-            <div class="space-y-3 mt-4">
+            <div class="space-y-3">
                 ${historyDb.map((h, index) => {
                     const attText = h.attemptNumber ? `ATTEMPT #${h.attemptNumber}` : `ATTEMPT #1`;
                     const nameText = h.candidateName ? h.candidateName : "Yogesh";
@@ -2065,7 +2069,52 @@
             </div>
         `;
 
-        document.getElementById('mastery-grid').innerHTML = historyHTML;
+        document.getElementById('mastery-grid').innerHTML = `
+            <div class="bg-slate-900 p-4 rounded-2xl mb-6 shadow-inner border border-slate-800 hidden md:block">
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 text-center">Global Accuracy Trend (Last 20 Tests)</h3>
+                <canvas id="trendChart" height="80"></canvas>
+            </div>
+            ${historyHTML}
+        `;
+
+        if (trendChartInstance) trendChartInstance.destroy();
+        
+        if (historyDb.length > 0) {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            const recentHistory = [...historyDb].slice(0, 20).reverse(); 
+            
+            const labels = recentHistory.map(h => h.date + (h.subject !== 'Mixed' ? ` (${h.subject.substring(0,3)})` : ''));
+            const dataPoints = recentHistory.map(h => h.accuracy);
+            
+            trendChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Accuracy (%)',
+                        data: dataPoints,
+                        borderColor: '#10b981', 
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#10b981',
+                        pointBorderColor: '#fff',
+                        pointRadius: 4,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, max: 100, grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8' } },
+                        x: { grid: { display: false }, ticks: { display: false } }
+                    }
+                }
+            });
+        } else {
+            document.getElementById('trendChart').parentElement.classList.add('hidden');
+        }
     };
     
     window.closeAnalytics = () => document.getElementById('screen-analytics').classList.add('hidden');
