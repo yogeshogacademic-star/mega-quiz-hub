@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V20.0 (Enterprise Build)</title>
+    <title>Yogesh's Mega Quiz Hub - V20.1 (Anki Brain Build)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
@@ -56,7 +56,7 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V20.0</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-widest border border-amber-200">V20.1</span>
                     </h1>
                     <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Enterprise Data Build & Auto-Optimization</p>
                 </div>
@@ -1007,7 +1007,7 @@
         await updateLocalCache(); 
         db = tempDb;
 
-        const payload = { subjects: SUBJECTS, db: cleanDb, history: historyDb, mistakes: mistakesDb, version: "v20.0", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+        const payload = { subjects: SUBJECTS, db: cleanDb, history: historyDb, mistakes: mistakesDb, version: "v20.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
         
         try {
             const response = await fetch(CLOUD_URL, {
@@ -1797,30 +1797,8 @@
             let mistIdx = mistakesDb.findIndex(m => m.question === q.question);
 
             if (currentQuizId === 'quiz_srs') {
-                if (mistIdx !== -1) {
-                    let m = mistakesDb[mistIdx];
-                    if (!m.srs) m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() };
-                    if (m.isMastered === undefined) m.isMastered = false;
-
-                    if (isMistake) {
-                        m.srs.reps = 0;
-                        m.srs.ease = Math.max(1.3, m.srs.ease - 0.2); 
-                        m.srs.interval = 1;
-                        m.isMastered = false;
-                    } else {
-                        m.srs.reps += 1;
-                        if (m.srs.reps === 1) m.srs.interval = 3;
-                        else if (m.srs.reps === 2) m.srs.interval = 7;
-                        else m.srs.interval = Math.ceil(m.srs.interval * m.srs.ease); 
-                    }
-
-                    m.srs.nextReview = Date.now() + (m.srs.interval * 24 * 60 * 60 * 1000);
-
-                    if (m.srs.interval >= 30 || m.srs.reps >= 4) {
-                        m.isMastered = true; 
-                    }
-                    mistakesDb[mistIdx] = m;
-                }
+                // SM-2 UPGRADE: Do nothing automatically here!
+                // The user will rate their memory on the Results screen.
             } else {
                 if (isMistake) {
                     if (mistIdx === -1) {
@@ -1898,6 +1876,20 @@
             window.editRegistry[safeId] = q.question;
         }
 
+        let sm2Widget = '';
+        if (currentQuizId === 'quiz_srs') {
+            sm2Widget = `
+            <div id="sm2-widget-${safeId}" class="mt-6 p-4 sm:p-5 bg-indigo-50/80 dark:bg-indigo-900/20 rounded-xl border border-indigo-200 dark:border-indigo-800/50 flex flex-col xl:flex-row items-center justify-between gap-4 shadow-inner">
+                <div class="text-[10px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-400 flex items-center gap-2"><span class="text-base">🧠</span> Rate your recall:</div>
+                <div class="flex gap-2 w-full xl:w-auto">
+                    <button onclick="processSM2('${safeId}', 0)" class="flex-1 px-3 py-2.5 bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/40 dark:text-red-400 rounded-lg text-[10px] font-black uppercase tracking-widest transition-transform hover:scale-105 shadow-sm">Again</button>
+                    <button onclick="processSM2('${safeId}', 1)" class="flex-1 px-3 py-2.5 bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/40 dark:text-orange-400 rounded-lg text-[10px] font-black uppercase tracking-widest transition-transform hover:scale-105 shadow-sm">Hard</button>
+                    <button onclick="processSM2('${safeId}', 2)" class="flex-1 px-3 py-2.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400 rounded-lg text-[10px] font-black uppercase tracking-widest transition-transform hover:scale-105 shadow-sm border border-emerald-300 dark:border-emerald-700">Good</button>
+                    <button onclick="processSM2('${safeId}', 3)" class="flex-1 px-3 py-2.5 bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/40 dark:text-blue-400 rounded-lg text-[10px] font-black uppercase tracking-widest transition-transform hover:scale-105 shadow-sm">Easy</button>
+                </div>
+            </div>`;
+        }
+
         return `<div class="review-card filter-${status} bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-800 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow">
             <div class="absolute top-0 left-0 w-1.5 h-full ${s.border}"></div>
             <div class="flex justify-between items-center mb-4">
@@ -1919,8 +1911,57 @@
                 <span class="font-black text-slate-800 dark:text-slate-200 block mb-2 uppercase tracking-widest text-[10px]">📖 Detailed Solution:</span>
                 <div class="leading-relaxed font-medium">${highlightText(q.solution || 'No detailed solution provided.', term)}</div>
             </div>
+            ${sm2Widget}
         </div>`; 
     }
+
+    window.processSM2 = (safeId, rating) => {
+        let qText = window.editRegistry[safeId];
+        if(!qText) return;
+
+        let mistIdx = mistakesDb.findIndex(m => m.question === qText);
+        if(mistIdx === -1) return;
+
+        let m = mistakesDb[mistIdx];
+        if(!m.srs) m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() };
+
+        if (rating === 0) { // AGAIN (Total blank)
+            m.srs.reps = 0;
+            m.srs.interval = 1;
+            m.srs.ease = Math.max(1.3, m.srs.ease - 0.2);
+            m.isMastered = false;
+        } else if (rating === 1) { // HARD (Hesitated)
+            m.srs.reps = Math.max(1, m.srs.reps);
+            m.srs.interval = Math.max(1, Math.ceil(m.srs.interval * 1.2));
+            m.srs.ease = Math.max(1.3, m.srs.ease - 0.15);
+        } else if (rating === 2) { // GOOD (Normal recall)
+            m.srs.reps += 1;
+            if (m.srs.reps === 1) m.srs.interval = 1;
+            else if (m.srs.reps === 2) m.srs.interval = 3;
+            else m.srs.interval = Math.ceil(m.srs.interval * m.srs.ease);
+        } else if (rating === 3) { // EASY (Instant recall)
+            m.srs.reps += 1;
+            if (m.srs.reps === 1) m.srs.interval = 4;
+            else m.srs.interval = Math.ceil(m.srs.interval * m.srs.ease * 1.3);
+            m.srs.ease += 0.15;
+        }
+
+        m.srs.nextReview = Date.now() + (m.srs.interval * 24 * 60 * 60 * 1000);
+        
+        if (m.srs.interval >= 30) m.isMastered = true;
+
+        mistakesDb[mistIdx] = m;
+        saveData(); 
+
+        const widget = document.getElementById(`sm2-widget-${safeId}`);
+        if(widget) {
+            let intervalText = m.srs.interval === 1 ? "1 day" : m.srs.interval + " days";
+            if(rating === 0) intervalText = "10 mins";
+            if(m.isMastered) intervalText = "Vaulted (Mastered 👑)";
+            
+            widget.innerHTML = `<div class="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest w-full text-center py-3 flex items-center justify-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800/50">✅ Scheduled for: ${intervalText}</div>`;
+        }
+    };
 
     window.openHistoryReview = (index) => {
         closeQuizHistory(); closeAnalytics();   
