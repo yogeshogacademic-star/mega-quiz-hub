@@ -1016,25 +1016,64 @@
     window.renderNotesSidebar = () => {
         const tree = document.getElementById('notes-tree');
         let html = '';
-        
-        Object.keys(notesDb).sort().forEach(subject => {
-            let topicsHTML = '';
-            Object.keys(notesDb[subject]).sort().forEach(topic => {
-                let isActive = (activeNoteSubject === subject && activeNoteTopic === topic) ? 'bg-fuchsia-50 border-fuchsia-200 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:border-fuchsia-800/50 dark:text-fuchsia-300' : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200';
-                topicsHTML += `
-                    <div class="flex items-center group/top px-3 py-2 mt-1 rounded-lg border cursor-pointer transition-all ${isActive}">
-                        <div class="flex-1 font-bold text-sm truncate" onclick="renderNoteCanvas('${subject.replace(/'/g,"\\'")}', '${topic.replace(/'/g,"\\'")}')">${topic}</div>
-                        <button onclick="deleteNoteTopic('${subject.replace(/'/g,"\\'")}', '${topic.replace(/'/g,"\\'")}')" class="opacity-0 group-hover/top:opacity-100 text-slate-400 hover:text-red-500 transition-opacity ml-2" title="Delete Topic">🗑️</button>
-                    </div>`;
+
+        // Step 1: Build the Nested Structure (Subject -> Tag2 -> Topic)
+        const nestedTree = {};
+        Object.keys(notesDb).forEach(subject => {
+            nestedTree[subject] = {};
+            Object.keys(notesDb[subject]).forEach(topic => {
+                const noteData = notesDb[subject][topic];
+                // Safely extract tag2_target. Fallback to "General" if missing.
+                const tag2 = (noteData && noteData.tag2_target) ? noteData.tag2_target : "General";
+                
+                if (!nestedTree[subject][tag2]) nestedTree[subject][tag2] = [];
+                nestedTree[subject][tag2].push(topic);
             });
+        });
+
+        // Step 2: Render the Accordion UI
+        Object.keys(nestedTree).sort().forEach(subject => {
+            let tag2HTML = '';
             
+            Object.keys(nestedTree[subject]).sort().forEach(tag2 => {
+                let topicsHTML = '';
+                
+                // Your exact topic rendering logic, preserved perfectly
+                nestedTree[subject][tag2].sort().forEach(topic => {
+                    let isActive = (activeNoteSubject === subject && activeNoteTopic === topic) 
+                        ? 'bg-fuchsia-50 border-fuchsia-200 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:border-fuchsia-800/50 dark:text-fuchsia-300' 
+                        : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200';
+                    
+                    topicsHTML += `
+                        <div class="flex items-center group/top px-3 py-2 mt-1 rounded-lg border cursor-pointer transition-all ${isActive}">
+                            <div class="flex-1 font-bold text-xs truncate" onclick="renderNoteCanvas('${subject.replace(/'/g,"\\'")}', '${topic.replace(/'/g,"\\'")}')">${topic}</div>
+                            <button onclick="deleteNoteTopic('${subject.replace(/'/g,"\\'")}', '${topic.replace(/'/g,"\\'")}')" class="opacity-0 group-hover/top:opacity-100 text-slate-400 hover:text-red-500 transition-opacity ml-2" title="Delete Topic">🗑️</button>
+                        </div>`;
+                });
+
+                // The new Accordion Wrapper for Tag 2
+                tag2HTML += `
+                    <details class="group/tag2 mt-2 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-200 dark:border-slate-700/50 overflow-hidden transition-all duration-200 open:border-indigo-500/30 open:shadow-sm">
+                        <summary class="flex justify-between items-center cursor-pointer px-4 py-2 text-[11px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors select-none">
+                            ${tag2}
+                            <span class="text-slate-400 transition-transform duration-300 group-open/tag2:rotate-180">▼</span>
+                        </summary>
+                        <div class="px-2 pb-2 bg-white dark:bg-slate-900/50">
+                            ${topicsHTML}
+                        </div>
+                    </details>`;
+            });
+
+            // Your exact Subject header wrapper, preserved perfectly
             html += `
                 <div class="mb-4">
                     <div class="flex justify-between items-center bg-slate-100 dark:bg-slate-800/50 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 group/sub">
                         <span class="font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest text-[10px]">${subject}</span>
                         <button onclick="deleteNoteSubject('${subject.replace(/'/g,"\\'")}')" class="opacity-0 group-hover/sub:opacity-100 text-slate-400 hover:text-red-500 transition-opacity" title="Delete Entire Subject">🗑️</button>
                     </div>
-                    <div class="pl-2 mt-1 border-l-2 border-slate-100 dark:border-slate-800/50 ml-4">${topicsHTML}</div>
+                    <div class="mt-1">
+                        ${tag2HTML}
+                    </div>
                 </div>`;
         });
         
