@@ -1577,9 +1577,26 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                 
             let blindOverlay = isBlind ? `<div id="blind-over-${qIndex}" class="absolute inset-0 flex items-center justify-center cursor-pointer z-10" onclick="revealOptions(${qIndex})"><div class="bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 font-black px-8 py-5 rounded-2xl shadow-2xl flex items-center gap-2 hover:scale-105 transition-transform uppercase tracking-widest border border-slate-700 dark:border-white">👁️ Reveal Options (Space)</div></div>` : '';
             
+            let tagHtml = '';
+            let qTags = Array.isArray(q.tags) ? q.tags : (q.tags ? [String(q.tags)] : []);
+            if (qTags.length >= 2) {
+                tagHtml = `
+                <div class="mt-6 flex flex-wrap gap-2 items-center border-t border-slate-200 dark:border-slate-700/50 pt-4">
+                    <span class="text-xs font-black text-slate-400 uppercase tracking-widest mr-2">RADAR:</span>
+                    <span class="bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 text-[10px] font-black px-2 py-1 rounded border border-slate-200 dark:border-slate-700 uppercase">
+                        ${qTags[0] || 'Uncategorized'}
+                    </span>
+                    <span class="bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 text-xs font-black px-2 py-1 rounded border border-blue-200 dark:border-blue-800/50 uppercase">
+                        📂 ${qTags[1] || 'No Chapter'}
+                    </span>
+                    ${qTags[2] ? `<span class="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400 text-sm font-black px-3 py-1 rounded border border-emerald-200 dark:border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.1)]">🎯 ${qTags[2]}</span>` : ''}
+                    ${qTags[3] ? `<span class="bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 text-xs font-black px-2 py-1 rounded border border-red-200 dark:border-red-800/50">🚨 ${qTags[3]}</span>` : ''}
+                </div>`;
+            }
+
             const card = document.createElement('div'); card.id = `qcard-${qIndex}`;
             card.className = `bg-white dark:bg-slate-900 p-6 sm:p-10 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-lg ${lobbySettings.perQTimer ? 'hidden' : ''}`;
-            card.innerHTML = `<div class="flex justify-between items-center mb-8 border-b border-slate-100 dark:border-slate-800 pb-4"><div class="flex items-center gap-4"><span class="text-xs font-black text-emerald-500 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/30 px-4 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-800/30">Question ${qIndex + 1}</span><button onclick="speakText('${speechTxt.replace(/'/g, "\\'")}')" class="text-xl hover:scale-110 transition-transform bg-slate-50 dark:bg-slate-800 p-2 rounded-full" title="Read Aloud">🎧</button></div><button onclick="toggleMark(${qIndex})" id="markBtn-${qIndex}" class="text-xs font-black text-slate-400 hover:text-purple-500 flex items-center gap-2 transition-colors uppercase px-4 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg"><span class="text-lg leading-none">📌</span> Mark (M)</button></div><div class="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6 leading-relaxed">${q.question}</div>${imageHTML}<div class="relative"><div id="opts-cont-${qIndex}" class="space-y-2 transition-all duration-300 ${isBlind ? 'blur-xl opacity-20 pointer-events-none select-none' : ''}">${optsHTML}</div>${blindOverlay}</div>`;
+            card.innerHTML = `<div class="flex justify-between items-center mb-8 border-b border-slate-100 dark:border-slate-800 pb-4"><div class="flex items-center gap-4"><span class="text-xs font-black text-emerald-500 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/30 px-4 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-800/30">Question ${qIndex + 1}</span><button onclick="speakText('${speechTxt.replace(/'/g, "\\'")}')" class="text-xl hover:scale-110 transition-transform bg-slate-50 dark:bg-slate-800 p-2 rounded-full" title="Read Aloud">🎧</button></div><button onclick="toggleMark(${qIndex})" id="markBtn-${qIndex}" class="text-xs font-black text-slate-400 hover:text-purple-500 flex items-center gap-2 transition-colors uppercase px-4 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg"><span class="text-lg leading-none">📌</span> Mark (M)</button></div><div class="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6 leading-relaxed">${q.question}</div>${imageHTML}<div class="relative"><div id="opts-cont-${qIndex}" class="space-y-2 transition-all duration-300 ${isBlind ? 'blur-xl opacity-20 pointer-events-none select-none' : ''}">${optsHTML}</div>${blindOverlay}</div>${tagHtml}`;
             fragment.appendChild(card);
         });
         
@@ -1601,7 +1618,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                 el.className = 'option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-100 shadow-md transform scale-[1.01]';
                 el.children[0].className = 'min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-emerald-500 text-white shadow-inner';
             } else {
-                el.className = 'option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-slate-100 dark:border-slate-800 hover:border-emerald-400 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm';
+                el.className = 'option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-slate-100 dark:border-slate-800 hover:border-emerald-400 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm hover:shadow-md';
                 el.children[0].className = 'min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-slate-100 dark:bg-slate-700 text-slate-500';
             }
         });
