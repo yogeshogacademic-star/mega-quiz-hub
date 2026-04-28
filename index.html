@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V21.2 (Tag Architect Edition)</title>
+    <title>Yogesh's Mega Quiz Hub - V21.3 (Master Migration Edition)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
@@ -69,7 +69,7 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-fuchsia-400 to-purple-500 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(217,70,239,0.4)] tracking-widest border border-fuchsia-200">V21.2</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-fuchsia-400 to-purple-500 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(217,70,239,0.4)] tracking-widest border border-fuchsia-200">V21.3</span>
                     </h1>
                     <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">God-Level Mastery Vault Ecosystem</p>
                 </div>
@@ -479,7 +479,7 @@
                                     <option value="">-- Select Topic --</option>
                                 </select>
                                 <button onclick="addCustomTag2()" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-3 rounded-xl transition-colors shadow-sm" title="Add Custom Topic">➕</button>
-                                <button onclick="deleteCustomTag2()" class="bg-rose-100 hover:bg-rose-200 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 px-3 rounded-xl transition-colors shadow-sm" title="Delete Topic">🗑️</button>
+                                <button onclick="deleteCustomTag2()" class="bg-rose-100 hover:bg-rose-200 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 px-3 rounded-xl transition-colors shadow-sm" title="Bulk Delete Legacy Topic">🗑️</button>
                             </div>
                         </div>
                         <div>
@@ -489,7 +489,7 @@
                                     <option value="">-- Select Concept --</option>
                                 </select>
                                 <button onclick="addCustomTag3()" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-3 rounded-xl transition-colors shadow-sm" title="Add Custom Concept">➕</button>
-                                <button onclick="deleteCustomTag3()" class="bg-rose-100 hover:bg-rose-200 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 px-3 rounded-xl transition-colors shadow-sm" title="Delete Concept">🗑️</button>
+                                <button onclick="deleteCustomTag3()" class="bg-rose-100 hover:bg-rose-200 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 px-3 rounded-xl transition-colors shadow-sm" title="Bulk Delete Legacy Concept">🗑️</button>
                             </div>
                         </div>
                         <div>
@@ -568,7 +568,7 @@
     let activeNoteSubject = null;
     let activeNoteTopic = null;
 
-    // --- V21.2 TAG ARCHITECT CORE ENGINE ---
+    // --- V21.3 TAG ARCHITECT CORE ENGINE ---
     let CUSTOM_TAGS = JSON.parse(localStorage.getItem('megaQuizCustomTags_v1')) || { tag2: {}, tag3: {} };
     function saveCustomTags() { localStorage.setItem('megaQuizCustomTags_v1', JSON.stringify(CUSTOM_TAGS)); }
 
@@ -720,7 +720,7 @@
                 if(!q || !q.question || uniqueTracker.has(q.question)) return; 
                 let isDirty = false;
                 
-                // V21.2 Dirty Tag Logic Check
+                // V21.2/3 Dirty Tag Logic Check
                 if (!q.tags || q.tags.length === 0 || !CORE_SUBJECTS.includes(q.tags[0])) {
                     isDirty = true;
                 } else if (q.tags.length > 1) {
@@ -786,7 +786,47 @@
         sortedConcepts.forEach(concept => { conceptSelect.innerHTML += `<option value="${concept}" ${concept === preselectedConcept ? "selected" : ""}>${concept}</option>`; });
     };
 
-    // V21.2 Custom Tag Buttons Logic
+    // V21.3 Master Bulk Deletion Logic
+    window.deleteCustomTag2 = () => {
+        const sub = document.getElementById('edit-tag-1').value;
+        const sel = document.getElementById('edit-tag-2').value;
+        if(!sub || !sel) return;
+
+        if(SYLLABUS_MAP[sub] && SYLLABUS_MAP[sub].includes(sel)) {
+            return alert("❌ You cannot delete a core Master Chapter.");
+        }
+
+        if(CUSTOM_TAGS.tag2[sub] && CUSTOM_TAGS.tag2[sub].includes(sel)) {
+            if(confirm(`Remove custom topic '${sel}' from your saved dropdown?`)) {
+                CUSTOM_TAGS.tag2[sub] = CUSTOM_TAGS.tag2[sub].filter(t => t !== sel);
+                saveCustomTags();
+                updateTag2Dropdown();
+            }
+            return;
+        }
+
+        // It is a Legacy Ghost Tag! Engage Bulk Scrubber.
+        if(confirm(`⚠️ BULK SCRUBBER ENGAGED:\n\n'${sel}' is a legacy ghost tag attached to your old questions.\n\nDo you want to strip this tag from ALL questions in the database so you can reassign them?`)) {
+            let count = 0;
+            const removeTag2 = (q) => {
+                if(q.tags && q.tags.length > 1 && q.tags[0] === sub && q.tags[1] === sel) {
+                    q.tags.splice(1, 1); 
+                    count++;
+                }
+            };
+            Object.keys(db).forEach(qid => {
+                if (db[qid] && Array.isArray(db[qid].questions)) db[qid].questions.forEach(removeTag2);
+            });
+            mistakesDb.forEach(removeTag2);
+            
+            if(count > 0) {
+                alert(`✅ Successfully scrubbed '${sel}' from ${count} questions!`);
+                saveData(); rebuildSearchCache(); updateTag2Dropdown();
+                if(!document.getElementById('screen-db-manager').classList.contains('hidden')) renderDBList();
+            } else { alert("No questions found with this tag."); }
+        }
+    };
+
     window.addCustomTag2 = () => {
         const sub = document.getElementById('edit-tag-1').value;
         if(!sub) return alert("Select Tag 1 (Subject) first.");
@@ -801,16 +841,42 @@
         }
     };
 
-    window.deleteCustomTag2 = () => {
-        const sub = document.getElementById('edit-tag-1').value;
-        const sel = document.getElementById('edit-tag-2').value;
-        if(!sub || !sel) return;
-        if(confirm(`Remove custom topic '${sel}' from dropdown?\n(This will NOT delete the questions that use it.)`)) {
-            if(CUSTOM_TAGS.tag2[sub]) {
-                CUSTOM_TAGS.tag2[sub] = CUSTOM_TAGS.tag2[sub].filter(t => t !== sel);
+    window.deleteCustomTag3 = () => {
+        const topic = document.getElementById('edit-tag-2').value;
+        const sel = document.getElementById('edit-tag-3').value;
+        if(!topic || !sel) return;
+
+        if(CONCEPT_MAP[topic] && CONCEPT_MAP[topic].includes(sel)) {
+            return alert("❌ You cannot delete a core Master Concept.");
+        }
+
+        if(CUSTOM_TAGS.tag3[topic] && CUSTOM_TAGS.tag3[topic].includes(sel)) {
+            if(confirm(`Remove custom concept '${sel}' from your saved dropdown?`)) {
+                CUSTOM_TAGS.tag3[topic] = CUSTOM_TAGS.tag3[topic].filter(t => t !== sel);
                 saveCustomTags();
+                updateTag3Dropdown();
             }
-            updateTag2Dropdown();
+            return;
+        }
+
+        // Legacy ghost tag 3! Engage Bulk Scrubber.
+        if(confirm(`⚠️ BULK SCRUBBER ENGAGED:\n\n'${sel}' is a legacy concept attached to old questions.\n\nDo you want to strip this concept from ALL questions under '${topic}'?`)) {
+            let count = 0;
+            const removeTag3 = (q) => {
+                if(q.tags && q.tags.length > 2 && q.tags[1] === topic && q.tags[2] === sel) {
+                    q.tags.splice(2, 1);
+                    count++;
+                }
+            };
+            Object.keys(db).forEach(qid => {
+                if (db[qid] && Array.isArray(db[qid].questions)) db[qid].questions.forEach(removeTag3);
+            });
+            mistakesDb.forEach(removeTag3);
+
+            if(count > 0) {
+                alert(`✅ Successfully scrubbed concept '${sel}' from ${count} questions!`);
+                saveData(); rebuildSearchCache(); updateTag3Dropdown();
+            } else { alert("No questions found with this concept."); }
         }
     };
 
@@ -825,19 +891,6 @@
                 saveCustomTags();
                 updateTag3Dropdown(val.trim());
             }
-        }
-    };
-
-    window.deleteCustomTag3 = () => {
-        const topic = document.getElementById('edit-tag-2').value;
-        const sel = document.getElementById('edit-tag-3').value;
-        if(!topic || !sel) return;
-        if(confirm(`Remove custom concept '${sel}' from dropdown?`)) {
-            if(CUSTOM_TAGS.tag3[topic]) {
-                CUSTOM_TAGS.tag3[topic] = CUSTOM_TAGS.tag3[topic].filter(t => t !== sel);
-                saveCustomTags();
-            }
-            updateTag3Dropdown();
         }
     };
 
@@ -925,6 +978,10 @@
         if(!currentlyEditingGlobalText) return;
         let oldText = currentlyEditingGlobalText;
         let t1 = document.getElementById('edit-tag-1').value.trim(), t2 = document.getElementById('edit-tag-2').value.trim(), t3 = document.getElementById('edit-tag-3').value.trim(), t4 = document.getElementById('edit-tag-4').value.trim();
+        
+        // Remove " (Legacy)" if user didn't change it but clicked save
+        if(t3 && t3.includes(" (Legacy)")) t3 = t3.replace(" (Legacy)", "");
+
         let compiledTags = []; if(t1) compiledTags.push(t1); if(t2) compiledTags.push(t2); if(t3) compiledTags.push(t3); if(t4) compiledTags.push(t4);
 
         let dynamicOptions = []; let optInputs = document.querySelectorAll('input[id^="edit-opt-"]');
@@ -1077,7 +1134,7 @@
 
     window.clearSearch = () => { document.getElementById('omni-search').value = ''; performSearch(''); };
 
-    // V21.1 OMNI-SEARCH FUSION (Questions + Notes + Deep Linking)
+    // V21.1 OMNI-SEARCH FUSION
     window.performSearch = (query) => {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => {
@@ -1127,10 +1184,6 @@
         }, 300);
     };
 
-    // ==========================================
-    // V21.1 GOD-LEVEL MASTERY VAULT LOGIC
-    // ==========================================
-    
     window.openNotesVault = () => {
         showScreen('notes');
         renderNotesSidebar();
@@ -1150,28 +1203,23 @@
         const tree = document.getElementById('notes-tree');
         let html = '';
 
-        // Step 1: Build the Nested Structure (Subject -> Tag2 -> Topic)
         const nestedTree = {};
         Object.keys(notesDb).forEach(subject => {
             nestedTree[subject] = {};
             Object.keys(notesDb[subject]).forEach(topic => {
                 const noteData = notesDb[subject][topic];
-                // Safely extract tag2_target. Fallback to "General" if missing.
                 const tag2 = (noteData && noteData.tag2_target) ? noteData.tag2_target : "General";
-                
                 if (!nestedTree[subject][tag2]) nestedTree[subject][tag2] = [];
                 nestedTree[subject][tag2].push(topic);
             });
         });
 
-        // Step 2: Render the Accordion UI
         Object.keys(nestedTree).sort().forEach(subject => {
             let tag2HTML = '';
             
             Object.keys(nestedTree[subject]).sort().forEach(tag2 => {
                 let topicsHTML = '';
                 
-                // Your exact topic rendering logic, preserved perfectly
                 nestedTree[subject][tag2].sort().forEach(topic => {
                     let isActive = (activeNoteSubject === subject && activeNoteTopic === topic) 
                         ? 'bg-fuchsia-50 border-fuchsia-200 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:border-fuchsia-800/50 dark:text-fuchsia-300' 
@@ -1184,7 +1232,6 @@
                         </div>`;
                 });
 
-                // The new Accordion Wrapper for Tag 2
                 tag2HTML += `
                     <details class="group/tag2 mt-2 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-200 dark:border-slate-700/50 overflow-hidden transition-all duration-200 open:border-indigo-500/30 open:shadow-sm">
                         <summary class="flex justify-between items-center cursor-pointer px-4 py-2 text-[11px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors select-none">
@@ -1197,7 +1244,6 @@
                     </details>`;
             });
 
-            // Your exact Subject header wrapper, preserved perfectly
             html += `
                 <div class="mb-4">
                     <div class="flex justify-between items-center bg-slate-100 dark:bg-slate-800/50 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 group/sub">
@@ -1263,7 +1309,6 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
             });
         }
 
-        // Add Manual Points Section
         html += `
             <div class="mt-16 pt-10 border-t border-slate-200 dark:border-slate-800">
                 <h3 class="text-xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight mb-6 flex items-center gap-2">🖊️ User Connections (Manual)</h3>
@@ -1285,7 +1330,6 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                 </div>
             </div>`;
 
-        // ONE SINGLE SMART QUIZ FUSION MODULE
         let matchCount = 0;
         let targetTag2 = note.tag2_target || topic; 
         
@@ -1389,9 +1433,9 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                 let total = (note.blocks ? note.blocks.length : 0);
                 let mastered = (note.masteredBlocks ? note.masteredBlocks.length : 0);
                 
-                let colorClass = "bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700"; // Cold
-                if(total > 0 && mastered > 0 && mastered < total) colorClass = "bg-amber-400 border-amber-500 shadow-[0_0_8px_rgba(251,191,36,0.5)]"; // Warm
-                if(total > 0 && mastered === total) colorClass = "bg-emerald-500 border-emerald-600 shadow-[0_0_10px_rgba(16,185,129,0.8)]"; // Mastered
+                let colorClass = "bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700"; 
+                if(total > 0 && mastered > 0 && mastered < total) colorClass = "bg-amber-400 border-amber-500 shadow-[0_0_8px_rgba(251,191,36,0.5)]"; 
+                if(total > 0 && mastered === total) colorClass = "bg-emerald-500 border-emerald-600 shadow-[0_0_10px_rgba(16,185,129,0.8)]"; 
 
                 html += `<div onclick="renderNoteCanvas('${sub.replace(/'/g,"\\'")}', '${top.replace(/'/g,"\\'")}')" class="w-4 h-4 rounded-[3px] border cursor-pointer hover:scale-150 transition-transform ${colorClass}" title="${sub} > ${top} (${mastered}/${total} Mastered)"></div>`;
             });
@@ -1399,8 +1443,6 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         if(html === '') html = `<div class="text-[10px] text-slate-500 font-bold uppercase">No data to map</div>`;
         mapDiv.innerHTML = html;
     };
-    // ==========================================
-
 
     const getCategoryClass = (s) => {
         s = s.toLowerCase(); let cat = SUBJECT_CATEGORIES[s] ? SUBJECT_CATEGORIES[s].toLowerCase() : s;
@@ -1509,8 +1551,9 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
             const subjectQuizzes = Object.keys(db).filter(id => db[id].subject === subject && !db[id].title.includes("Master Mock") && !db[id].title.includes("🎯") && !db[id].title.includes("SRS"));
             let listHTML = subjectQuizzes.length === 0 ? `<div class="text-xs text-slate-400 font-bold py-4 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg mb-2">No quizzes imported yet.</div>` : '';
             
+            // V21.3 Export Button Added Here
             subjectQuizzes.forEach(id => {
-                listHTML += `<div class="mt-2 flex flex-col gap-2 group/row bg-slate-50 dark:bg-slate-800/80 p-3 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-emerald-400 transition-colors shadow-sm"><div onclick="openLobby('${id}')" class="cursor-pointer flex justify-between items-center w-full"><div class="w-full"><div class="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">${db[id].title}</div><div class="text-[10px] font-black text-slate-400 uppercase mt-1 tracking-widest">${db[id].questions.length} Qs • ${db[id].timeInMinutes} Mins</div></div></div><div class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700/50"><button onclick="openTargetedHistory('${id}')" class="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-amber-100 dark:border-amber-800/30" title="View Past Attempts">📊 Hist</button><button onclick="renameQuiz('${id}')" class="flex-1 bg-cyan-50 hover:bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400 dark:hover:bg-cyan-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-cyan-100 dark:border-cyan-800/30" title="Rename Quiz 🔒">✏️ Name</button><button onclick="deleteQuiz('${id}')" class="bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-black text-xs px-3 py-2 rounded-lg transition-colors border border-red-100 dark:border-red-800/30" title="Delete Quiz 🔒">🗑️</button></div></div>`;
+                listHTML += `<div class="mt-2 flex flex-col gap-2 group/row bg-slate-50 dark:bg-slate-800/80 p-3 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-emerald-400 transition-colors shadow-sm"><div onclick="openLobby('${id}')" class="cursor-pointer flex justify-between items-center w-full"><div class="w-full"><div class="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">${db[id].title}</div><div class="text-[10px] font-black text-slate-400 uppercase mt-1 tracking-widest">${db[id].questions.length} Qs • ${db[id].timeInMinutes} Mins</div></div></div><div class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700/50"><button onclick="openTargetedHistory('${id}')" class="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-amber-100 dark:border-amber-800/30" title="View Past Attempts">📊 Hist</button><button onclick="exportSingleQuiz('${id}')" class="flex-1 bg-fuchsia-50 hover:bg-fuchsia-100 text-fuchsia-600 dark:bg-fuchsia-900/30 dark:text-fuchsia-400 dark:hover:bg-fuchsia-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-fuchsia-100 dark:border-fuchsia-800/30" title="Export Quiz to JSON">📥 Exp</button><button onclick="renameQuiz('${id}')" class="flex-1 bg-cyan-50 hover:bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400 dark:hover:bg-cyan-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-cyan-100 dark:border-cyan-800/30" title="Rename Quiz 🔒">✏️ Name</button><button onclick="deleteQuiz('${id}')" class="bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-black text-xs px-3 py-2 rounded-lg transition-colors border border-red-100 dark:border-red-800/30" title="Delete Quiz 🔒">🗑️</button></div></div>`;
             });
 
             const card = document.createElement('div'); card.className = `bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-lg border border-slate-200 dark:border-slate-800 flex flex-col subject-card relative overflow-hidden`;
@@ -1982,6 +2025,23 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         });
     };
 
+    // V21.3 Export Single Quiz to JSON function
+    window.exportSingleQuiz = (id) => {
+        const quiz = db[id];
+        if(!quiz) return alert("Quiz data not found!");
+        const payload = {
+            title: quiz.title,
+            subject: quiz.subject,
+            timeInMinutes: quiz.timeInMinutes,
+            questions: quiz.questions
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `${quiz.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
+        a.click();
+    };
+
     // V21.1 SMART ROUTING IMPORTER
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('quiz-container').addEventListener('click', (e) => { const optBtn = e.target.closest('.option-btn'); if (optBtn) { const qIdx = parseInt(optBtn.dataset.qindex); const oIdx = parseInt(optBtn.dataset.oindex); selectOption(qIdx, oIdx); } });
@@ -2021,7 +2081,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                     const data = JSON.parse(event.target.result);
                     if(data.db && data.subjects) {
                         db = data.db; SUBJECTS = data.subjects; historyDb = data.history || []; mistakesDb = data.mistakes || [];
-                        if (data.notes) notesDb = data.notes; // V21.1 Restore notes
+                        if (data.notes) notesDb = data.notes; 
                         await saveData(); location.reload();
                     } else { alert("Invalid Backup File."); }
                 } catch(err) { alert("❌ Error reading backup file."); }
@@ -2059,7 +2119,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     window.deleteSubject = (subject) => { requireAuth(() => { if(confirm(`CRITICAL WARNING: Delete the entire subject "${subject}" and ALL its quizzes?`)) { SUBJECTS = SUBJECTS.filter(s => s !== subject); Object.keys(db).forEach(id => { if(db[id].subject === subject) delete db[id]; }); saveData(); rebuildSearchCache(); renderDashboard(); } }); };
 
     window.exportBackup = () => {
-        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, notes: notesDb, categories: SUBJECT_CATEGORIES }; // V21.1 Added notes to backup
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, notes: notesDb, categories: SUBJECT_CATEGORIES }; 
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }); const a = document.createElement("a");
         a.href = URL.createObjectURL(blob); a.download = `MegaQuiz_Backup_${new Date().toISOString().split('T')[0]}.json`; a.click();
     };
