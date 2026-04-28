@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V21.1 (God-Level Mastery Vault)</title>
+    <title>Yogesh's Mega Quiz Hub - V21.2 (Tag Architect Edition)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
@@ -69,7 +69,7 @@
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-fuchsia-400 to-purple-500 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(217,70,239,0.4)] tracking-widest border border-fuchsia-200">V21.1</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-fuchsia-400 to-purple-500 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(217,70,239,0.4)] tracking-widest border border-fuchsia-200">V21.2</span>
                     </h1>
                     <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">God-Level Mastery Vault Ecosystem</p>
                 </div>
@@ -474,13 +474,23 @@
                         </div>
                         <div>
                             <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 2: Topic / Chapter</label>
-                            <select id="edit-tag-2" onchange="handleTag2Change()" class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
-                                <option value="">-- Select Topic --</option>
-                            </select>
+                            <div class="flex gap-2">
+                                <select id="edit-tag-2" onchange="updateTag3Dropdown()" class="flex-1 p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
+                                    <option value="">-- Select Topic --</option>
+                                </select>
+                                <button onclick="addCustomTag2()" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-3 rounded-xl transition-colors shadow-sm" title="Add Custom Topic">➕</button>
+                                <button onclick="deleteCustomTag2()" class="bg-rose-100 hover:bg-rose-200 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 px-3 rounded-xl transition-colors shadow-sm" title="Delete Topic">🗑️</button>
+                            </div>
                         </div>
                         <div>
                             <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 3: Concept (Flashcard Trigger)</label>
-                            <input type="text" id="edit-tag-3" placeholder="e.g., Article 72, Incenter..." class="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
+                            <div class="flex gap-2">
+                                <select id="edit-tag-3" class="flex-1 p-3 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-slate-200">
+                                    <option value="">-- Select Concept --</option>
+                                </select>
+                                <button onclick="addCustomTag3()" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-3 rounded-xl transition-colors shadow-sm" title="Add Custom Concept">➕</button>
+                                <button onclick="deleteCustomTag3()" class="bg-rose-100 hover:bg-rose-200 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 px-3 rounded-xl transition-colors shadow-sm" title="Delete Concept">🗑️</button>
+                            </div>
                         </div>
                         <div>
                             <label class="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Tag 4: Meta-Trap (Optional)</label>
@@ -533,7 +543,7 @@
     let db = {}; 
     let historyDb = [];
     let mistakesDb = []; 
-    let notesDb = {}; // V21.1: ISOLATED NOTES VAULT DB
+    let notesDb = {}; 
     
     let currentQuizId = null;
     let currentAttemptNum = 1;
@@ -543,7 +553,7 @@
     let targetImportSubject = ""; 
     
     let trendChartInstance = null;
-    let globalSearchCache = []; // HIGH SPEED INDEX CACHE
+    let globalSearchCache = []; 
 
     let lobbyQuizMode = 'full';
     window.currentQuizWrongQs = [];
@@ -558,23 +568,13 @@
     let activeNoteSubject = null;
     let activeNoteTopic = null;
 
-    window.openGlobalEditModalBySafeId = (id) => {
-        if(window.editRegistry[id]) { openGlobalEditModal(window.editRegistry[id]); } 
-        else { alert("Error: Question reference lost. Please refresh the page."); }
-    };
-
-    window.shuffleArray = (array) => {
-        let arr = [...array];
-        for (let i = arr.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [arr[i], arr[j]] = [arr[j], arr[i]];
-        }
-        return arr;
-    };
+    // --- V21.2 TAG ARCHITECT CORE ENGINE ---
+    let CUSTOM_TAGS = JSON.parse(localStorage.getItem('megaQuizCustomTags_v1')) || { tag2: {}, tag3: {} };
+    function saveCustomTags() { localStorage.setItem('megaQuizCustomTags_v1', JSON.stringify(CUSTOM_TAGS)); }
 
     const SYLLABUS_MAP = {
-        "Arithmetic": ["Number System", "LCM & HCF", "Percentages", "Profit, Loss & Discount", "Simple & Compound Interest", "Ratio & Proportion", "Partnership & Ages", "Mixture & Alligation", "Average", "Time & Work", "Time, Speed & Distance"],
-        "Advanced Maths": ["Algebra", "Geometry", "Coordinate Geometry", "Mensuration 2D", "Mensuration 3D", "Trigonometry", "Heights & Distances", "Probability & Statistics"],
+        "Arithmetic": ["Percentage", "Ratio & Proportion", "Profit & Loss", "Discount & Dishonest Shopkeeper", "Time & Work", "Pipe & Cistern", "Simple Interest", "Compound Interest", "Installment", "Average", "Time, Speed & Distance", "Problems on Train", "Boat & Stream", "Circular and Linear Race", "Problems on Ages", "Partnership", "Mixture & Alligation"],
+        "Advanced Maths": ["Number System", "Simplification", "Surds & Indices", "LCM & HCF", "Algebra", "Trigonometry", "Height & Distance", "Geometry", "Co-ordinate Geometry", "Polygon", "2D-Mensuration", "3D-Mensuration", "Miscellaneous", "Data Interpretation"],
         "Calculation": ["Tables", "Squares & Square Roots", "Cubes & Cube Roots", "Fraction-to-Percentage", "Pythagorean Triplets", "Digital Sum & Unit Digit", "Approximation & Simplification", "Multiplication & Division Rules", "Surds & Indices"],
         "Reasoning": ["Analogy & Classification", "Number & Letter Series", "Coding-Decoding", "Blood Relations", "Direction & Distance", "Syllogism", "Order & Ranking", "Clock & Calendar", "Venn Diagrams", "Missing Number & Matrix", "Non-Verbal Reasoning", "Logical Reasoning"],
         "English": ["Active & Passive Voice", "Cloze Test", "Direct & Indirect Speech", "Figures of Speech", "Grammar & Error Spotting", "HOMONYMS", "Idioms & Phrases", "One Word Substitution", "Para Jumbles", "PREPOSITION", "Phrasal Verbs", "Reading Comprehension", "Sentence Improvement", "Spelling Errors", "Synonyms & Antonyms"],
@@ -593,6 +593,54 @@
         "Static GK": ["Firsts in India & World", "Superlatives", "Important Dates & Days", "National Parks & Wildlife Sanctuaries", "UNESCO World Heritage Sites", "Capitals & Currencies", "International Headquarters", "Books & Authors", "Sports Terminologies & Trophies"],
         "Current Affairs": ["National News & Governance", "International News", "Economy & Banking Updates", "Sports News", "Awards & Honors", "Appointments & Resignations", "Defense Exercises", "Government Schemes & Yojanas"],
         "Computer Knowledge": ["Computer Fundamentals & History", "Hardware & Software", "Operating Systems", "MS Office", "Internet & Networking", "Cyber Security & Threats", "Keyboard Shortcuts & Abbreviations"]
+    };
+
+    const CONCEPT_MAP = {
+        "Percentage": ["Fraction-to-% Conversion", "Election/Voting", "Population Growth/Depreciation", "Income-Expenditure-Saving", "Successive % Change", "Exam Passing Marks"],
+        "Ratio & Proportion": ["Duplicate/Triplicate Ratios", "Mean/Third/Fourth Proportional", "Coin Problems", "Salary/Saving Ratios", "Income Shifting", "Added/Removed Quantities"],
+        "Profit & Loss": ["CP-SP Relation", "Overall Gain/Loss", "Successive Profit", "Article Quantity Type", "Equal SP Problems", "Markup & Break-even"],
+        "Discount & Dishonest Shopkeeper": ["Successive Discount", "MP-CP-Profit Chain", "Faulty Weight Profit", "Cheating at Buying vs Selling", "Buy-X-Get-Y Free", "Effective Discount %"],
+        "Time & Work": ["MDH Rule (Man-Day-Hour)", "Efficiency/Ratio Based", "Alternate Days", "Leaving/Joining Mid-Work", "Contractor Problems", "Work & Wages Distribution"],
+        "Pipe & Cistern": ["Inflow/Outflow Balance", "Negative Work (Leakage)", "Alternate Pipe Cycles", "Time taken to Empty/Fill", "Capacity of Tank based on Flow"],
+        "Simple Interest": ["P×R×T/100", "Amount = Principal × (1+RT)", "Sum becomes X times", "Rate Scaling", "SI Debt Installments", "Divided Investment"],
+        "Compound Interest": ["Amount = P(1+r/100)ⁿ", "CI Tree Method (Ratio)", "2-Yr/3-Yr Difference", "Half-Yearly/Quarterly Compounding", "Population Increase as CI"],
+        "Installment": ["SI Debt Ladder", "CI Equated Installments", "Down Payment Calculation", "Interest on Unpaid Balance", "Fraction Squaring Method"],
+        "Average": ["Arithmetic Progression (AP) Avg", "Average Speed (2xy/x+y)", "Inclusion/Exclusion (New Avg)", "Error Correction", "Average age/weight shifts"],
+        "Time, Speed & Distance": ["Relative Speed (Same/Opposite)", "Police-Thief Chase", "Average Speed", "Stopping vs Non-stopping Speed", "Constant Distance (Ratio)"],
+        "Problems on Train": ["Pole/Tree/Point Object Crossing", "Platform/Bridge/Tunnel Crossing", "Two Trains Crossing Each Other", "Sound/Bullet Speed Problems"],
+        "Boat & Stream": ["Upstream/Downstream Speeds", "Speed of Flow (Stream)", "Ratio of Boat Speed to Stream", "Round Trip Average Speed", "Mid-Point Crossing"],
+        "Circular and Linear Race": ["Linear Race (A gives B a headstart)", "Dead Heat Finish", "Circular Track Meeting Points", "First Meeting vs Starting Point Meeting"],
+        "Problems on Ages": ["Ratio After N Years", "Product of Ages", "Average Age of Family", "Comparison of Ages (Twice/Thrice)"],
+        "Partnership": ["(Capital × Time) = Profit Ratio", "Active Partner Salary", "Sleeping Partner", "Change in Investment"],
+        "Mixture & Alligation": ["Replacement Formula", "Mean Price Calculation", "Mixing Two Alloys (Ratio)", "Milk & Water replacement cycles", "Weighted Average Mean"],
+        "Number System": ["Divisibility Rules", "Unit Digit/Last Two Digits", "Remainder Theorem", "Factor Theory (Sum/Product)", "Recurring Decimals"],
+        "Simplification": ["V-BODMAS Rule", "Continued Fraction Ladder", "Rationalization of Denominator", "Digit Sum Method", "Approximation/Rounding"],
+        "Surds & Indices": ["Infinite Square Root Series", "Comparison of Surds", "Rationalizing Factors", "Laws of Indices", "Power Scaling"],
+        "LCM & HCF": ["LCM × HCF = Product", "Successive Division Remainders", "Greatest number (HCF Diff)", "Bells/Traffic Lights Meeting"],
+        "Algebra": ["x + 1/x Power Chains", "a³+b³+c³-3abc Identity", "Linear Equations", "Quadratic Roots (α, β)", "Symmetry/Value Putting"],
+        "Trigonometry": ["Complementary Angles", "Standard Identities", "Max/Min Trig Values", "Quadrant System (ASTC)", "Value Putting (0/45/90)"],
+        "Height & Distance": ["30-60-90 Ratio Shortcut", "45-45-90 Triangle", "Opposite Sides Depression", "Shadow length change", "Cloud/Balloon Reflection"],
+        "Geometry": ["Stewart's/Apollonius Theorem", "Circle Chords/Tangents", "Cyclic Quad Properties", "Similarity/Congruency", "Incenter/Orthocenter/Circumcenter"],
+        "Co-ordinate Geometry": ["Shoelace Area Formula", "Slope-Intercept (y=mx+c)", "Mirror/Reflection Points", "Distance/Midpoint Formula", "Area of Quadrilateral"],
+        "Polygon": ["Interior/Exterior Angle Sum", "No. of Diagonals", "Regular Polygon Symmetry", "External Angle Shortcut", "Side-to-Angle Ratio"],
+        "2D-Mensuration": ["Incircle/Circumcircle Radius", "Area of Shaded Regions", "Path Inside/Outside Field", "Rhombus/Trapezium Properties", "Perimeter Change"],
+        "3D-Mensuration": ["Volume Equivalence (Melting)", "Pyramid/Prism LSA & TSA", "Body Diagonal of Cube/Cuboid", "Frustum of Cone", "Sphere vs Cylinder Ratio"],
+        "Miscellaneous": ["Number Series", "Mathematical Logic", "Probability Basics", "Clock/Calendar math", "Progression (AP/GP/HP)"],
+        "Data Interpretation": ["Pie Chart (Degree to %)", "Histogram/Frequency Polygon", "Bar/Line Graph Analysis", "Tabular Data"]
+    };
+
+    window.openGlobalEditModalBySafeId = (id) => {
+        if(window.editRegistry[id]) { openGlobalEditModal(window.editRegistry[id]); } 
+        else { alert("Error: Question reference lost. Please refresh the page."); }
+    };
+
+    window.shuffleArray = (array) => {
+        let arr = [...array];
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
     };
 
     window.requireAuth = (callback) => {
@@ -671,7 +719,17 @@
             questionsArray.forEach((q) => {
                 if(!q || !q.question || uniqueTracker.has(q.question)) return; 
                 let isDirty = false;
-                if (!q.tags || q.tags.length === 0 || !CORE_SUBJECTS.includes(q.tags[0])) isDirty = true;
+                
+                // V21.2 Dirty Tag Logic Check
+                if (!q.tags || q.tags.length === 0 || !CORE_SUBJECTS.includes(q.tags[0])) {
+                    isDirty = true;
+                } else if (q.tags.length > 1) {
+                    let t1 = q.tags[0]; let t2 = q.tags[1];
+                    let validList = SYLLABUS_MAP[t1] || [];
+                    let customList = CUSTOM_TAGS.tag2[t1] || [];
+                    if(!validList.includes(t2) && !customList.includes(t2)) isDirty = true;
+                }
+
                 if (isDirtyFilterActive && !isDirty) return; 
                 const searchStr = ((q.question || "") + " " + (q.solution || "") + " " + (q.tags ? (Array.isArray(q.tags) ? q.tags.join(" ") : String(q.tags)) : "")).toLowerCase();
                 
@@ -695,7 +753,10 @@
     window.updateTag2Dropdown = (preselectedTopic = "") => {
         const subSelect = document.getElementById('edit-tag-1'); const topicSelect = document.getElementById('edit-tag-2'); const selectedSub = subSelect.value;
         topicSelect.innerHTML = '<option value="">-- Select Topic --</option>'; let availableTopics = new Set();
+        
         if (selectedSub && SYLLABUS_MAP[selectedSub]) SYLLABUS_MAP[selectedSub].forEach(t => availableTopics.add(t));
+        if (selectedSub && CUSTOM_TAGS.tag2[selectedSub]) CUSTOM_TAGS.tag2[selectedSub].forEach(t => availableTopics.add(t));
+
         if (globalSearchCache && globalSearchCache.length > 0) {
             globalSearchCache.forEach(item => {
                 if(item.type === 'quiz') {
@@ -705,22 +766,81 @@
             });
         }
         if (preselectedTopic) availableTopics.add(preselectedTopic);
+        
         let sortedTopics = Array.from(availableTopics).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
         sortedTopics.forEach(topic => { topicSelect.innerHTML += `<option value="${topic}" ${topic === preselectedTopic ? "selected" : ""}>${topic}</option>`; });
-        topicSelect.innerHTML += `<option value="__CUSTOM__" class="font-black text-amber-600 dark:text-amber-400">➕ Add Custom Topic...</option>`;
+        
+        updateTag3Dropdown(); 
     };
 
-    window.handleTag2Change = () => {
-        const topicSelect = document.getElementById('edit-tag-2');
-        if (topicSelect.value === "__CUSTOM__") {
-            let customTopic = prompt("Enter new Custom Topic (Tag 2):");
-            if (customTopic && customTopic.trim() !== "") {
-                customTopic = customTopic.trim();
-                const newOption = document.createElement("option"); newOption.value = customTopic; newOption.text = customTopic + " (Custom)";
-                topicSelect.insertBefore(newOption, topicSelect.lastElementChild); topicSelect.value = customTopic;
-            } else { topicSelect.value = ""; }
+    window.updateTag3Dropdown = (preselectedConcept = "") => {
+        const topicSelect = document.getElementById('edit-tag-2'); const conceptSelect = document.getElementById('edit-tag-3'); const selectedTopic = topicSelect.value;
+        conceptSelect.innerHTML = '<option value="">-- Select Concept --</option>'; let availableConcepts = new Set();
+
+        if (selectedTopic && CONCEPT_MAP[selectedTopic]) CONCEPT_MAP[selectedTopic].forEach(c => availableConcepts.add(c));
+        if (selectedTopic && CUSTOM_TAGS.tag3[selectedTopic]) CUSTOM_TAGS.tag3[selectedTopic].forEach(c => availableConcepts.add(c));
+
+        if (preselectedConcept) availableConcepts.add(preselectedConcept);
+
+        let sortedConcepts = Array.from(availableConcepts).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+        sortedConcepts.forEach(concept => { conceptSelect.innerHTML += `<option value="${concept}" ${concept === preselectedConcept ? "selected" : ""}>${concept}</option>`; });
+    };
+
+    // V21.2 Custom Tag Buttons Logic
+    window.addCustomTag2 = () => {
+        const sub = document.getElementById('edit-tag-1').value;
+        if(!sub) return alert("Select Tag 1 (Subject) first.");
+        const val = prompt("Enter new Custom Topic (Tag 2):");
+        if(val && val.trim()) {
+            if(!CUSTOM_TAGS.tag2[sub]) CUSTOM_TAGS.tag2[sub] = [];
+            if(!CUSTOM_TAGS.tag2[sub].includes(val.trim())) {
+                CUSTOM_TAGS.tag2[sub].push(val.trim());
+                saveCustomTags();
+                updateTag2Dropdown(val.trim());
+            }
         }
     };
+
+    window.deleteCustomTag2 = () => {
+        const sub = document.getElementById('edit-tag-1').value;
+        const sel = document.getElementById('edit-tag-2').value;
+        if(!sub || !sel) return;
+        if(confirm(`Remove custom topic '${sel}' from dropdown?\n(This will NOT delete the questions that use it.)`)) {
+            if(CUSTOM_TAGS.tag2[sub]) {
+                CUSTOM_TAGS.tag2[sub] = CUSTOM_TAGS.tag2[sub].filter(t => t !== sel);
+                saveCustomTags();
+            }
+            updateTag2Dropdown();
+        }
+    };
+
+    window.addCustomTag3 = () => {
+        const topic = document.getElementById('edit-tag-2').value;
+        if(!topic) return alert("Select Tag 2 (Topic) first.");
+        const val = prompt("Enter new Custom Concept (Tag 3):");
+        if(val && val.trim()) {
+            if(!CUSTOM_TAGS.tag3[topic]) CUSTOM_TAGS.tag3[topic] = [];
+            if(!CUSTOM_TAGS.tag3[topic].includes(val.trim())) {
+                CUSTOM_TAGS.tag3[topic].push(val.trim());
+                saveCustomTags();
+                updateTag3Dropdown(val.trim());
+            }
+        }
+    };
+
+    window.deleteCustomTag3 = () => {
+        const topic = document.getElementById('edit-tag-2').value;
+        const sel = document.getElementById('edit-tag-3').value;
+        if(!topic || !sel) return;
+        if(confirm(`Remove custom concept '${sel}' from dropdown?`)) {
+            if(CUSTOM_TAGS.tag3[topic]) {
+                CUSTOM_TAGS.tag3[topic] = CUSTOM_TAGS.tag3[topic].filter(t => t !== sel);
+                saveCustomTags();
+            }
+            updateTag3Dropdown();
+        }
+    };
+
 
     window.handleImageUpload = (event) => {
         const file = event.target.files[0]; if (!file) return;
@@ -779,7 +899,20 @@
 
         let tag1Select = document.getElementById('edit-tag-1'); let matchedT1 = Array.from(tag1Select.options).find(opt => opt.value === t1);
         if(matchedT1) tag1Select.value = t1; else if (t1) { tag1Select.innerHTML += `<option value="${t1}">${t1}</option>`; tag1Select.value = t1; } else tag1Select.value = "";
-        updateTag2Dropdown(t2); document.getElementById('edit-tag-3').value = t3;
+        
+        updateTag2Dropdown(t2); 
+
+        // Tag 3 V21.2 Logic
+        let tag3Select = document.getElementById('edit-tag-3');
+        let matchedT3 = Array.from(tag3Select.options).find(opt => opt.value === t3);
+        if(matchedT3) {
+            tag3Select.value = t3;
+        } else if (t3) {
+            tag3Select.innerHTML += `<option value="${t3}">${t3} (Legacy)</option>`;
+            tag3Select.value = t3;
+        } else {
+            tag3Select.value = "";
+        }
         
         let tag4Select = document.getElementById('edit-tag-4'); let matchedT4 = Array.from(tag4Select.options).find(opt => opt.value === t4);
         if(matchedT4) tag4Select.value = t4; else if (t4) { tag4Select.innerHTML += `<option value="${t4}">${t4}</option>`; tag4Select.value = t4; } else tag4Select.value = "";
