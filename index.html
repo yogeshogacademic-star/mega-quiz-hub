@@ -253,12 +253,19 @@
                 </div>
             </div>
 
-            <div id="lobby-mode-selection" class="hidden mb-6 p-6 bg-rose-50 dark:bg-rose-900/10 rounded-2xl border border-rose-100 dark:border-rose-800/30">
+         <div id="lobby-mode-selection" class="hidden mb-6 p-6 bg-rose-50 dark:bg-rose-900/10 rounded-2xl border border-rose-100 dark:border-rose-800/30">
                 <label class="block text-[10px] font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-3 flex items-center gap-2">🧠 Smart Revision Mode</label>
                 <div class="flex gap-4 flex-wrap">
                     <button id="btn-mode-full" onclick="setQuizMode('full')" class="time-btn flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Full Quiz</button>
                     <button id="btn-mode-wrong" onclick="setQuizMode('wrong')" class="time-btn flex-1 bg-rose-100 text-rose-800 border-rose-500 dark:bg-rose-900/40 dark:text-rose-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm">Wrong/Skipped Only (<span id="wrong-count-badge">0</span>)</button>
                 </div>
+            </div>
+
+            <div id="lobby-type-selection" class="hidden mb-6 p-6 bg-blue-50 dark:bg-blue-900/10 rounded-2xl border border-blue-100 dark:border-blue-800/30">
+                <label class="block text-[10px] font-black text-blue-500 dark:text-blue-400 uppercase tracking-widest mb-3 flex items-center gap-2">🎯 Target Specific Concept</label>
+                <select id="lobby-type-dropdown" class="w-full p-4 rounded-xl border border-blue-200 dark:border-blue-700/50 bg-white dark:bg-slate-950 font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm">
+                    <option value="all">Mixed (All Types in this Quiz)</option>
+                </select>
             </div>
 
             <div class="space-y-6">
@@ -1638,10 +1645,29 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         if(prev.length > 0 && wrongQs.length > 0 && !q.title.includes("🎯") && !q.title.includes("SRS")) {
             document.getElementById('lobby-mode-selection').classList.remove('hidden'); document.getElementById('wrong-count-badge').textContent = wrongQs.length; setQuizMode('full');
         } else { document.getElementById('lobby-mode-selection').classList.add('hidden'); }
+        
+        // NEW: Populate Concept Dropdown in Lobby
+        const typeSelect = document.getElementById('lobby-type-dropdown');
+        const typeContainer = document.getElementById('lobby-type-selection');
+        typeSelect.innerHTML = '<option value="all">Mixed (All Types in this Quiz)</option>';
+        let uniqueTypes = new Set();
+        q.questions.forEach(qx => {
+            if (qx.tags && qx.tags.length > 2 && qx.tags[2].startsWith("Type:")) {
+                uniqueTypes.add(qx.tags[2]);
+            }
+        });
+        if (uniqueTypes.size > 0) {
+            typeContainer.classList.remove('hidden');
+            uniqueTypes.forEach(t => {
+                typeSelect.innerHTML += `<option value="${t}">${t.replace("Type: ", "")}</option>`;
+            });
+        } else {
+            typeContainer.classList.add('hidden');
+        }
+
         setLobbyTime('default'); showScreen('lobby');
     }
-
-    function setLobbyTime(mode) {
+ function setLobbyTime(mode) {
         lobbySettings.timeMode = mode;
         document.querySelectorAll('.time-btn-main').forEach(btn => btn.className = 'time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600');
         document.getElementById('btn-time-' + mode).className = 'time-btn-main flex-1 bg-emerald-100 text-emerald-800 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-md';
@@ -1663,10 +1689,19 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         let baseQuestions = quiz.questions;
         if(lobbyQuizMode === 'wrong' && window.currentQuizWrongQs.length > 0) baseQuestions = quiz.questions.filter(q => window.currentQuizWrongQs.includes(q.question));
 
+        // NEW: Filter by selected Concept (Tag 3)
+        const selectedType = document.getElementById('lobby-type-dropdown').value;
+        if (selectedType !== "all") {
+            baseQuestions = baseQuestions.filter(q => q.tags && q.tags.length > 2 && q.tags[2] === selectedType);
+            if (baseQuestions.length === 0) {
+                alert("No questions match this specific type in the current mode.");
+                return; // Stop quiz launch
+            }
+        }
+
         activeQuestions = baseQuestions.map((q, i) => ({...q, originalIndex: i}));
         if (lobbySettings.shuffle) window.shuffleArray(activeQuestions);
-
-        renderQuizView();
+       renderQuizView();
         let mins = lobbySettings.timeMode === 'custom' ? (parseInt(document.getElementById('custom-time-input').value) || quiz.timeInMinutes) : (lobbySettings.timeMode === 'default' ? quiz.timeInMinutes : parseInt(lobbySettings.timeMode));
         if(lobbyQuizMode === 'wrong' && lobbySettings.timeMode === 'default') { let scale = baseQuestions.length / quiz.questions.length; mins = Math.max(1, Math.ceil(mins * scale)); }
 
