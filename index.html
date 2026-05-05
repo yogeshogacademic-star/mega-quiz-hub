@@ -1564,7 +1564,25 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
             });
 
             const card = document.createElement('div'); card.className = `bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-lg border border-slate-200 dark:border-slate-800 flex flex-col subject-card relative overflow-hidden`;
-            card.innerHTML = `<div class="absolute top-0 left-0 w-full h-1.5 ${getCategoryClass(subject)}"></div><div class="flex justify-between items-center pb-3 mb-3 mt-1 border-b border-slate-100 dark:border-slate-800/50"><h2 class="text-xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">${subject}</h2><button onclick="deleteSubject('${subject.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-red-500 transition-colors bg-slate-100 dark:bg-slate-800 p-1.5 rounded-lg" title="Delete Subject & Quizzes 🔒">🗑️</button></div><div class="flex-1 overflow-y-auto pr-2 mb-3 max-h-64 space-y-1">${listHTML}</div><div class="flex gap-2 mt-auto pt-3 border-t border-slate-100 dark:border-slate-800/50"><button onclick="triggerImport('${subject.replace(/'/g, "\\'")}')" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 text-slate-600 dark:text-slate-300 hover:text-emerald-700 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm">➕ Add 🔒</button><button onclick="generateSubjectMock('${subject.replace(/'/g, "\\'")}')" class="flex-1 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-400 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm border border-indigo-100 dark:border-indigo-800/30" title="Combine all questions in this subject into one massive test">🧠 Master</button></div>`;
+    card.innerHTML = `
+                <div class="absolute top-0 left-0 w-full h-1.5 ${getCategoryClass(subject)}"></div>
+                <div class="flex justify-between items-center pb-3 mb-3 mt-1 border-b border-slate-100 dark:border-slate-800/50">
+                    <h2 class="text-xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">${subject}</h2>
+                    <button onclick="deleteSubject('${subject.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-red-500 transition-colors bg-slate-100 dark:bg-slate-800 p-1.5 rounded-lg" title="Delete Subject & Quizzes 🔒">🗑️</button>
+                </div>
+                <div class="flex-1 overflow-y-auto pr-2 mb-3 max-h-64 space-y-1">
+                    ${listHTML}
+                </div>
+                <div class="flex flex-col gap-2 mt-auto pt-3 border-t border-slate-100 dark:border-slate-800/50">
+                    <div class="flex gap-2">
+                        <button onclick="triggerImport('${subject.replace(/'/g, "\\'")}')" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 text-slate-600 dark:text-slate-300 hover:text-emerald-700 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm">➕ Add 🔒</button>
+                        <button onclick="generateSubjectMock('${subject.replace(/'/g, "\\'")}')" class="flex-1 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-400 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm border border-indigo-100 dark:border-indigo-800/30" title="Combine all questions in this subject into one massive test">🧠 Master</button>
+                    </div>
+                    ${subject === "QUANT MOCK QUESTIONS" ? `
+                    <button onclick="generateQuantNotes()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm" title="Generate PDF Cheat Sheet">📝 Formula Notes</button>
+                    ` : ''}
+                </div>
+            `;
             grid.appendChild(card);
         });
 
@@ -2152,6 +2170,76 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     window.deleteQuiz = (id) => { requireAuth(() => { if(confirm(`Are you sure you want to delete ${db[id].title}? This cannot be undone.`)) { delete db[id]; saveData(); rebuildSearchCache(); renderDashboard(); } }); };
 
     window.deleteSubject = (subject) => { requireAuth(() => { if(confirm(`CRITICAL WARNING: Delete the entire subject "${subject}" and ALL its quizzes?`)) { SUBJECTS = SUBJECTS.filter(s => s !== subject); Object.keys(db).forEach(id => { if(db[id].subject === subject) delete db[id]; }); saveData(); rebuildSearchCache(); renderDashboard(); } }); };
+
+window.generateQuantNotes = () => {
+        const targetSubject = "QUANT MOCK QUESTIONS";
+        let allConcepts = {};
+        let foundAny = false;
+
+        Object.values(db).forEach(quiz => {
+            if (quiz.subject === targetSubject && quiz.questions) {
+                quiz.questions.forEach(q => {
+                    let chapter = (q.tags && q.tags.length > 1) ? q.tags[1] : "Mixed Concepts";
+                    if (!allConcepts[chapter]) allConcepts[chapter] = [];
+                    
+                    // Uses 'formula' if it exists, otherwise uses 'solution'
+                    let conceptText = q.formula ? q.formula : q.solution; 
+                    
+                    if (conceptText && conceptText.includes("<b>Reason:</b>")) {
+                        conceptText = conceptText.replace("<b>Reason:</b>", "").trim();
+                    }
+
+                    if (conceptText && !allConcepts[chapter].some(item => item.question === q.question)) {
+                        allConcepts[chapter].push({ question: q.question, concept: conceptText });
+                        foundAny = true;
+                    }
+                });
+            }
+        });
+
+        if (!foundAny) {
+            alert("No questions found in QUANT MOCK QUESTIONS yet!");
+            return;
+        }
+
+        let notesHTML = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <title>Quant Error Log - Concept Notes</title>
+            <style>
+                body { font-family: sans-serif; padding: 40px; background: #f9fafb; line-height: 1.6; }
+                .container { max-width: 900px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                h1 { text-align: center; color: #1e3a8a; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
+                h2 { color: #2563eb; margin-top: 30px; border-bottom: 2px solid #bfdbfe; }
+                .concept-card { border-left: 4px solid #3b82f6; padding: 15px; margin-bottom: 20px; background: #f8fafc; }
+                .q-text { font-size: 0.9em; color: #4b5563; margin-bottom: 10px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 5px; }
+                .f-text { font-weight: bold; color: #0f172a; }
+                .print-btn { display: block; margin: 0 auto 20px auto; padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+                @media print { body { background: white; padding: 0; } .container { box-shadow: none; padding: 0; } .no-print { display: none; } .concept-card { page-break-inside: avoid; border: 1px solid #e2e8f0; } }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <button class="no-print print-btn" onclick="window.print()">🖨️ Save as PDF / Print</button>
+                <h1>Quant Error Log - Formulas & Tricks</h1>
+        `;
+
+        for (const [chapter, items] of Object.entries(allConcepts)) {
+            notesHTML += `<h2>${chapter}</h2>`;
+            items.forEach(item => {
+                notesHTML += `<div class="concept-card"><div class="q-text"><strong>Q:</strong> ${item.question}</div><div class="f-text">${item.concept}</div></div>`;
+            });
+        }
+        notesHTML += `</div></body></html>`;
+        
+        const newWin = window.open('', '_blank');
+        newWin.document.write(notesHTML);
+        newWin.document.close();
+    };
+
+
 
     window.exportBackup = () => {
         const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, notes: notesDb, categories: SUBJECT_CATEGORIES }; 
