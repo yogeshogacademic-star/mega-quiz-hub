@@ -2173,24 +2173,23 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
 
 window.generateQuantNotes = () => {
         const targetSubject = "QUANT MOCK QUESTIONS";
-        let allConcepts = {};
+        let chapters = {};
         let foundAny = false;
 
         Object.values(db).forEach(quiz => {
             if (quiz.subject === targetSubject && quiz.questions) {
                 quiz.questions.forEach(q => {
                     let chapter = (q.tags && q.tags.length > 1) ? q.tags[1] : "Mixed Concepts";
-                    if (!allConcepts[chapter]) allConcepts[chapter] = [];
                     
-                    // Uses 'formula' if it exists, otherwise uses 'solution'
-                    let conceptText = q.formula ? q.formula : q.solution; 
+                    if (!chapters[chapter]) chapters[chapter] = new Set(); 
                     
-                    if (conceptText && conceptText.includes("<b>Reason:</b>")) {
-                        conceptText = conceptText.replace("<b>Reason:</b>", "").trim();
+                    let itemText = q.formula ? q.formula : q.solution; 
+                    if (itemText && itemText.includes("<b>Reason:</b>")) {
+                        itemText = itemText.replace("<b>Reason:</b>", "").trim();
                     }
 
-                    if (conceptText && !allConcepts[chapter].some(item => item.question === q.question)) {
-                        allConcepts[chapter].push({ question: q.question, concept: conceptText });
+                    if (itemText) {
+                        chapters[chapter].add(itemText);
                         foundAny = true;
                     }
                 });
@@ -2207,40 +2206,38 @@ window.generateQuantNotes = () => {
         <html lang="en">
         <head>
             <meta charset="UTF-8">
-            <title>Quant Error Log - Concept Notes</title>
+            <title>Quant Master Formula Sheet</title>
             <style>
-                body { font-family: sans-serif; padding: 40px; background: #f9fafb; line-height: 1.6; }
-                .container { max-width: 900px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-                h1 { text-align: center; color: #1e3a8a; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
-                h2 { color: #2563eb; margin-top: 30px; border-bottom: 2px solid #bfdbfe; }
-                .concept-card { border-left: 4px solid #3b82f6; padding: 15px; margin-bottom: 20px; background: #f8fafc; }
-                .q-text { font-size: 0.9em; color: #4b5563; margin-bottom: 10px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 5px; }
-                .f-text { font-weight: bold; color: #0f172a; }
-                .print-btn { display: block; margin: 0 auto 20px auto; padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-                @media print { body { background: white; padding: 0; } .container { box-shadow: none; padding: 0; } .no-print { display: none; } .concept-card { page-break-inside: avoid; border: 1px solid #e2e8f0; } }
+                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1f2937; background: white; }
+                .container { max-width: 800px; margin: 0 auto; }
+                h1 { text-align: center; color: #111827; border-bottom: 3px solid #2563eb; padding-bottom: 15px; text-transform: uppercase; }
+                p.subtitle { text-align: center; color: #6b7280; font-style: italic; margin-bottom: 30px; }
+                h2 { color: #2563eb; margin-top: 40px; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; text-transform: uppercase; font-size: 1.2em; }
+                ul { list-style-type: none; padding: 0; }
+                li { position: relative; margin-bottom: 12px; background: #f8fafc; padding: 12px 15px 12px 40px; border-radius: 6px; border-left: 4px solid #3b82f6; font-weight: 500;}
+                li::before { content: '💡'; position: absolute; left: 12px; top: 12px; }
+                .print-btn { display: block; margin: 0 auto 30px auto; padding: 12px 24px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+                @media print { .no-print { display: none; } body { padding: 0; } li { page-break-inside: avoid; border: 1px solid #e5e7eb; border-left: 4px solid #3b82f6; } }
             </style>
         </head>
         <body>
             <div class="container">
-                <button class="no-print print-btn" onclick="window.print()">🖨️ Save as PDF / Print</button>
-                <h1>Quant Error Log - Formulas & Tricks</h1>
+                <button class="no-print print-btn" onclick="window.print()">🖨️ Save as PDF</button>
+                <h1>Quant Master Formula Sheet</h1>
+                <p class="subtitle">Distilled Concepts from your Mock Mistakes</p>
         `;
 
-        for (const [chapter, items] of Object.entries(allConcepts)) {
-            notesHTML += `<h2>${chapter}</h2>`;
-            items.forEach(item => {
-                notesHTML += `<div class="concept-card"><div class="q-text"><strong>Q:</strong> ${item.question}</div><div class="f-text">${item.concept}</div></div>`;
-            });
+        for (const [chapter, itemsSet] of Object.entries(chapters)) {
+            notesHTML += `<h2>${chapter}</h2><ul>`;
+            itemsSet.forEach(text => { notesHTML += `<li>${text}</li>`; });
+            notesHTML += `</ul>`;
         }
+
         notesHTML += `</div></body></html>`;
-        
         const newWin = window.open('', '_blank');
         newWin.document.write(notesHTML);
         newWin.document.close();
     };
-
-
-
     window.exportBackup = () => {
         const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, notes: notesDb, categories: SUBJECT_CATEGORIES }; 
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }); const a = document.createElement("a");
