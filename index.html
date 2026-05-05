@@ -2176,64 +2176,123 @@ window.generateQuantNotes = () => {
         let chapters = {};
         let foundAny = false;
 
+        // 1. Gather and Deduplicate Data
         Object.values(db).forEach(quiz => {
             if (quiz.subject === targetSubject && quiz.questions) {
                 quiz.questions.forEach(q => {
                     let chapter = (q.tags && q.tags.length > 1) ? q.tags[1] : "Mixed Concepts";
+                    if (!chapters[chapter]) chapters[chapter] = new Map(); 
                     
-                    if (!chapters[chapter]) chapters[chapter] = new Set(); 
+                    let itemText = q.formula ? q.formula : "";
                     
-                    let itemText = q.formula ? q.formula : q.solution; 
-                    if (itemText && itemText.includes("<b>Reason:</b>")) {
-                        itemText = itemText.replace("<b>Reason:</b>", "").trim();
-                    }
-
                     if (itemText) {
-                        chapters[chapter].add(itemText);
-                        foundAny = true;
+                        itemText = itemText.replace(/<\/?b>/g, "").trim();
+                        if (!chapters[chapter].has(itemText)) {
+                            chapters[chapter].set(itemText, q.diagram || "");
+                            foundAny = true;
+                        }
                     }
                 });
             }
         });
 
         if (!foundAny) {
-            alert("No questions found in QUANT MOCK QUESTIONS yet!");
+            alert("No formulas found! Make sure you are using the upgraded JSONs.");
             return;
         }
 
+        // 2. Build the Concept King HTML Layout & Inject MathJax
         let notesHTML = `
         <!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
-            <title>Quant Master Formula Sheet</title>
+            <title>Maths Concept King - Formula Book</title>
+            
+            <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"><\/script>
+            <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"><\/script>
+            
             <style>
-                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1f2937; background: white; }
-                .container { max-width: 800px; margin: 0 auto; }
-                h1 { text-align: center; color: #111827; border-bottom: 3px solid #2563eb; padding-bottom: 15px; text-transform: uppercase; }
-                p.subtitle { text-align: center; color: #6b7280; font-style: italic; margin-bottom: 30px; }
-                h2 { color: #2563eb; margin-top: 40px; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; text-transform: uppercase; font-size: 1.2em; }
-                ul { list-style-type: none; padding: 0; }
-                li { position: relative; margin-bottom: 12px; background: #f8fafc; padding: 12px 15px 12px 40px; border-radius: 6px; border-left: 4px solid #3b82f6; font-weight: 500;}
-                li::before { content: '💡'; position: absolute; left: 12px; top: 12px; }
-                .print-btn { display: block; margin: 0 auto 30px auto; padding: 12px 24px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-                @media print { .no-print { display: none; } body { padding: 0; } li { page-break-inside: avoid; border: 1px solid #e5e7eb; border-left: 4px solid #3b82f6; } }
+                @import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;1,400&family=Open+Sans:wght@600;800&display=swap');
+                
+                body { font-family: 'Merriweather', serif; padding: 30px; color: #111; background: #fff; line-height: 1.6; }
+                .container { max-width: 1050px; margin: 0 auto; }
+                
+                /* BOOK HEADER */
+                .book-header { text-align: center; margin-bottom: 40px; border-bottom: 5px solid #1e3a8a; padding-bottom: 20px; }
+                .book-title { font-family: 'Open Sans', sans-serif; font-size: 2.8em; font-weight: 800; color: #1e3a8a; text-transform: uppercase; margin: 0; letter-spacing: 1px; }
+                .book-subtitle { font-size: 1.2em; color: #64748b; font-style: italic; margin-top: 5px; }
+                
+                /* TWO COLUMN LAYOUT */
+                .book-content { column-count: 2; column-gap: 50px; column-rule: 1px solid #e2e8f0; }
+                
+                h2.chapter-title { font-family: 'Open Sans', sans-serif; color: #b91c1c; font-size: 1.5em; text-transform: uppercase; border-bottom: 2px solid #b91c1c; padding-bottom: 5px; margin-top: 0; break-after: avoid; }
+                
+                /* SHADED FORMULA BLOCKS */
+                .concept-block { break-inside: avoid; margin-bottom: 25px; padding: 15px 20px; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+                
+                /* VISUAL HIERARCHY: TRICKS VS CONCEPTS */
+                .type-trick { background: #fef2f2; border-left: 6px solid #dc2626; }
+                .type-concept { background: #f0f9ff; border-left: 6px solid #0284c7; }
+                
+                .block-title { font-family: 'Open Sans', sans-serif; font-weight: 800; font-size: 0.85em; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 0.5px; }
+                .type-trick .block-title { color: #dc2626; }
+                .type-concept .block-title { color: #0284c7; }
+                
+                .math-text { font-size: 0.95em; }
+                
+                /* DIAGRAMS */
+                .diagram-container { text-align: center; margin-top: 15px; background: #fff; padding: 10px; border-radius: 4px; border: 1px dashed #cbd5e1; }
+                .diagram-container svg { max-width: 100%; height: auto; }
+                
+                .print-btn { display: block; margin: 0 auto 30px auto; padding: 12px 30px; background: #1e3a8a; color: white; font-family: 'Open Sans', sans-serif; border: none; border-radius: 6px; cursor: pointer; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; }
+                .print-btn:hover { background: #1e40af; }
+                
+                @media print { 
+                    .no-print { display: none; } 
+                    body { padding: 0; } 
+                    .book-content { column-count: 2; }
+                    .concept-block { border: 1px solid #e5e7eb; border-left-width: 6px; }
+                }
             </style>
         </head>
         <body>
             <div class="container">
-                <button class="no-print print-btn" onclick="window.print()">🖨️ Save as PDF</button>
-                <h1>Quant Master Formula Sheet</h1>
-                <p class="subtitle">Distilled Concepts from your Mock Mistakes</p>
+                <button class="no-print print-btn" onclick="window.print()">🖨️ Save Book as PDF</button>
+                <div class="book-header">
+                    <h1 class="book-title">Maths Concept King</h1>
+                    <p class="book-subtitle">Master Formulas, Theorems & Smart Tricks</p>
+                </div>
+                <div class="book-content">
         `;
 
-        for (const [chapter, itemsSet] of Object.entries(chapters)) {
-            notesHTML += `<h2>${chapter}</h2><ul>`;
-            itemsSet.forEach(text => { notesHTML += `<li>${text}</li>`; });
-            notesHTML += `</ul>`;
+        // 3. Inject the Data into the Layout
+        for (const [chapter, itemsMap] of Object.entries(chapters)) {
+            notesHTML += `<h2 class="chapter-title">${chapter}</h2>`;
+            
+            itemsMap.forEach((diagram, text) => {
+                let blockClass = "type-concept";
+                let title = "📐 Theorem / Formula";
+
+                if(text.includes("Trick:")) {
+                    blockClass = "type-trick";
+                    title = "⚡ Smart Trick";
+                    text = text.replace("Trick:", "").trim();
+                } else if(text.includes("Concept:")) {
+                    text = text.replace("Concept:", "").trim();
+                }
+
+                notesHTML += `
+                <div class="concept-block ${blockClass}">
+                    <div class="block-title">${title}</div>
+                    <div class="math-text">${text}</div>
+                    ${diagram ? `<div class="diagram-container">${diagram}</div>` : ''}
+                </div>`;
+            });
         }
 
-        notesHTML += `</div></body></html>`;
+        notesHTML += `</div></div></body></html>`;
+        
         const newWin = window.open('', '_blank');
         newWin.document.write(notesHTML);
         newWin.document.close();
