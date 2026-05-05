@@ -2299,11 +2299,9 @@ window.generateQuantNotes = () => {
 
         notesHTML += `</div></div></body></html>`;
         
-        const newWin = window.open('', '_blank');
-        newWin.document.write(notesHTML);
-        newWin.document.close();
-    };
-    window.exportBackup = () => {
+        const blob = new Blob([notesHTML], { type: 'text/html' });
+        window.open(URL.createObjectURL(blob), '_blank');
+    };    window.exportBackup = () => {
         const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, notes: notesDb, categories: SUBJECT_CATEGORIES }; 
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }); const a = document.createElement("a");
         a.href = URL.createObjectURL(blob); a.download = `MegaQuiz_Backup_${new Date().toISOString().split('T')[0]}.json`; a.click();
