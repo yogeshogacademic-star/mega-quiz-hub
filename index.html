@@ -1610,61 +1610,66 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
 
     window.closeSRSModal = () => { document.getElementById('screen-srs-modal').classList.add('hidden'); };
 
-  window.launchSRSSprint = (type) => {
-        // Find the real subject if "Targeted" is clicked
-        let actualSubject = type;
-        if (type === 'targeted') {
-            actualSubject = document.getElementById('srs-subject-select').value;
-            if (!actualSubject) return alert("Please select a subject first!");
-        }
+// --- DYNAMIC URGENCY SPRINT LAUNCHER (V21.3 EDITION) ---
+window.launchSRSSprint = (type) => {
+    let actualSubject = type;
+    if (type === 'targeted') {
+        actualSubject = document.getElementById('srs-subject-select').value;
+        if (!actualSubject) return alert("Please select a subject first!");
+    }
 
-        let dueCards = [];
-        const now = Date.now();
+    let dueCards = [];
+    const now = Date.now();
 
-        // 1. Scan the new ID-only Database
-        for (let id in srs) {
-            if (actualSubject === 'global' || id.startsWith(actualSubject + "_")) {
-                let m = srs[id];
-                if (!m.isMastered && m.nextReview <= now) {
-                    let parts = id.split('_');
-                    let sub = parts[0];
-                    let qn = parseInt(parts.pop());
-                    let file = parts.slice(1).join('_');
+    // Map titles to db keys
+    let titleMap = {};
+    for (let qid in db) {
+        if (db[qid].title) titleMap[db[qid].title.replace(/[^a-zA-Z0-9 ]/g, "_")] = qid;
+    }
 
-                    if (db[sub] && db[sub][file] && db[sub][file].questions) {
-                        let q = db[sub][file].questions.find(x => x.q_no === qn);
-                        if (q) {
-                            // Priority 1: 10-Min Penalties, Priority 2: Overdue
-                            let urgency = m.interval < 1 ? 999999999 : (now - m.nextReview); 
-                            dueCards.push({ q: q, file: file, urgency: urgency });
-                        }
+    // Scan SRS
+    for (let id in srs) {
+        if (actualSubject === 'global' || id.startsWith(actualSubject + "_")) {
+            let m = srs[id];
+            if (!m.isMastered && m.nextReview <= now) {
+                let parts = id.split('_');
+                let sub = parts[0];
+                let qn = parseInt(parts.pop());
+                let file = parts.slice(1).join('_');
+
+                let qid = titleMap[file];
+                if (qid && db[qid] && db[qid].questions) {
+                    let q = db[qid].questions.find(x => x.q_no === qn);
+                    if (q) {
+                        let urgency = m.interval < 1 ? 999999999 : (now - m.nextReview); 
+                        dueCards.push({ q: q, file: file, originalSubject: sub, urgency: urgency });
                     }
                 }
             }
         }
+    }
 
-        if (dueCards.length === 0) {
-            alert("🎉 You are completely caught up! No SRS reviews due right now.");
-            return;
-        }
+    if (dueCards.length === 0) {
+        alert("🎉 You are completely caught up! No SRS reviews due right now.");
+        return;
+    }
 
-        // 2. Sort by Urgency and slice top 10
-        dueCards.sort((a, b) => b.urgency - a.urgency);
-        let sprintCards = dueCards.slice(0, 10);
-        
-        let sprintQs = sprintCards.map(item => {
-            let clone = JSON.parse(JSON.stringify(item.q));
-            clone.file = item.file; // Tag it so the engine knows where it came from
-            return clone;
-        });
-
-        let titleStr = actualSubject === 'global' ? "🔥 Global Urgency Sprint" : `🔥 ${actualSubject} Urgency Sprint`;
-        db['quiz_srs'] = { title: titleStr, subject: "Spaced Repetition", timeInMinutes: 10, questions: sprintQs };
-        closeSRSModal(); 
-        openLobby('quiz_srs');
+    dueCards.sort((a, b) => b.urgency - a.urgency);
+    let sprintCards = dueCards.slice(0, 10);
     
-    };
-    window.setQuizMode = (mode) => {
+    let sprintQs = sprintCards.map(item => {
+        let clone = JSON.parse(JSON.stringify(item.q));
+        clone.file = item.file; 
+        clone.originalSubject = item.originalSubject; 
+        return clone;
+    });
+
+    let titleStr = actualSubject === 'global' ? "🔥 Global Urgency Sprint" : `🔥 ${actualSubject} Urgency Sprint`;
+    db['quiz_srs'] = { title: titleStr, subject: "Spaced Repetition", timeInMinutes: 10, questions: sprintQs };
+    closeSRSModal(); 
+    openLobby('quiz_srs');
+};
+   window.setQuizMode = (mode) => {
         lobbyQuizMode = mode;
         document.getElementById('btn-mode-full').className = `time-btn flex-1 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm ${mode === 'full' ? 'bg-emerald-100 text-emerald-800 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent hover:border-slate-300 dark:hover:border-slate-600'}`;
         document.getElementById('btn-mode-wrong').className = `time-btn flex-1 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm ${mode === 'wrong' ? 'bg-rose-100 text-rose-800 border-rose-500 dark:bg-rose-900/40 dark:text-rose-300' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent hover:border-slate-300 dark:hover:border-slate-600'}`;
@@ -1901,11 +1906,20 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         document.querySelectorAll('.filter-btn').forEach(btn => { btn.className = `filter-btn flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700`; });
         document.getElementById('btn-filt-' + type).className = `filter-btn active-filt flex-1 md:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${colors[type]}`;
         document.querySelectorAll('.review-card').forEach(card => { if (type === 'all' || card.classList.contains('filter-' + type)) card.style.display = 'block'; else card.style.display = 'none'; });
-    };
+    };yy
 // --- GOLD STANDARD FSRS ENGINE ---
+
+// --- GOLD STANDARD FSRS ENGINE (V21.3 EDITION) ---
 window.autoSpaceQuestion = (q, sel, status) => {
     let isMistake = (status === 'wrong' || status === 'skipped');
-    const id = `${currentSubject}_${currentFile}_${q.q_no}`;
+    
+    // Grab subject/file dynamically
+    let qSub = (q.tags && q.tags.length > 0) ? q.tags[0] : (db[currentQuizId] ? db[currentQuizId].subject : "Miscellaneous");
+    if (q.originalSubject) qSub = q.originalSubject;
+    let file = db[currentQuizId] ? db[currentQuizId].title.replace(/[^a-zA-Z0-9 ]/g, "_") : "Custom_Test";
+    if (currentQuizId === 'quiz_srs' && q.file) file = q.file; 
+
+    const id = `${qSub}_${file}_${q.q_no}`;
 
     if (!srs[id]) {
         srs[id] = { reps: 0, ease: 2.5, interval: 0, nextReview: Date.now(), isMastered: false };
@@ -1933,14 +1947,13 @@ window.autoSpaceQuestion = (q, sel, status) => {
     }
     if (m.interval >= 30) m.isMastered = true; 
 };
+
 // --- GOLD STANDARD BULK INJECTOR (V21.3 Edition) ---
 window.syncQuizToSRS = async (quizId) => {
     if (!db[quizId] || !Array.isArray(db[quizId].questions)) {
         alert("No valid questions found in this quiz!"); return;
     }
     let count = 0;
-    
-    // We assume Tag 1 is the Subject, and the quiz title is the File name
     let subject = db[quizId].subject || "Miscellaneous";
     let file = db[quizId].title.replace(/[^a-zA-Z0-9 ]/g, "_"); 
 
@@ -1954,7 +1967,7 @@ window.syncQuizToSRS = async (quizId) => {
     });
     
     await updateLocalCache();
-    alert(`✅ Sync Complete! ${count} questions from "${db[quizId].title}" were pushed directly into your SRS Matrix.`);
+    alert(`✅ Sync Complete! ${count} questions pushed into your SRS Matrix.`);
 };
     function submitQuiz() {
         if (quizState.submitted) return;
