@@ -1610,13 +1610,20 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
 
     window.closeSRSModal = () => { document.getElementById('screen-srs-modal').classList.add('hidden'); };
 
-   window.launchSRSSprint = (subject) => {
+  window.launchSRSSprint = (type) => {
+        // Find the real subject if "Targeted" is clicked
+        let actualSubject = type;
+        if (type === 'targeted') {
+            actualSubject = document.getElementById('srs-subject-select').value;
+            if (!actualSubject) return alert("Please select a subject first!");
+        }
+
         let dueCards = [];
         const now = Date.now();
 
         // 1. Scan the new ID-only Database
         for (let id in srs) {
-            if (subject === 'global' || id.startsWith(subject + "_")) {
+            if (actualSubject === 'global' || id.startsWith(actualSubject + "_")) {
                 let m = srs[id];
                 if (!m.isMastered && m.nextReview <= now) {
                     let parts = id.split('_');
@@ -1651,9 +1658,11 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
             return clone;
         });
 
-        db['quiz_srs'] = { title: "🔥 Dynamic Urgency Sprint", subject: "Spaced Repetition", timeInMinutes: 10, questions: sprintQs };
+        let titleStr = actualSubject === 'global' ? "🔥 Global Urgency Sprint" : `🔥 ${actualSubject} Urgency Sprint`;
+        db['quiz_srs'] = { title: titleStr, subject: "Spaced Repetition", timeInMinutes: 10, questions: sprintQs };
         closeSRSModal(); 
         openLobby('quiz_srs');
+    };
     };
     window.setQuizMode = (mode) => {
         lobbyQuizMode = mode;
