@@ -551,6 +551,7 @@
     let historyDb = [];
     let mistakesDb = []; 
     let notesDb = {}; 
+    let srs = {};
     
     let currentQuizId = null;
     let currentAttemptNum = 1;
@@ -1613,57 +1614,43 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
 // --- DYNAMIC URGENCY SPRINT LAUNCHER (V21.3 EDITION) ---
 window.launchSRSSprint = (type) => {
     let actualSubject = type;
-    if (type === 'subject') { // Fixed: matching the 'subject' arg from your HTML
+    if (type === 'subject') { 
         actualSubject = document.getElementById('srs-subject-select').value;
         if (!actualSubject) return alert("Please select a subject first!");
     }
 
     let dueCards = [];
     const now = Date.now();
+    let masterMap = getMasterMap(); // Need this to find the tags
 
-    // 1. Scan the SRS memory
-    for (let id in srs) {
-        let m = srs[id];
-        
-        // Filter logic
-        let isGlobal = (actualSubject === 'global');
-        let isMatch = id.startsWith(actualSubject + "_");
+    // 1. Scan the mistakesDb exactly like the modal does
+    mistakesDb.forEach(m => {
+        if (m.srs && m.srs.nextReview <= now && !m.isMastered) {
+            let clean = masterMap[m.question];
+            let activeTags = clean ? clean.tags : (Array.isArray(m.tags) ? m.tags : []);
+            let subName = activeTags.length > 0 ? activeTags[0] : (m.subject || m.originalSubject || "Miscellaneous");
 
-        if ((isGlobal || isMatch) && !m.isMastered && m.nextReview <= now) {
-            // ID Format: Subject_FileTitle_QNumber
-            let parts = id.split('_');
-            let qNum = parseInt(parts.pop());
-            let subject = parts[0];
-            let fileTitle = parts.slice(1).join('_');
+            let isGlobal = (actualSubject === 'global');
+            let isMatch = (subName === actualSubject);
 
-            // 2. Find the question in the Master DB
-            let foundQ = null;
-            for (let qid in db) {
-                // We match by checking if the quiz title matches our encoded fileTitle
-                if (db[qid].title.replace(/[^a-zA-Z0-9 ]/g, "_") === fileTitle) {
-                    foundQ = db[qid].questions.find(x => x.q_no === qNum);
-                    if (foundQ) break;
-                }
-            }
-
-            if (foundQ) {
+            if (isGlobal || isMatch) {
                 // Priority: 10-min penalties (Learning phase) always come first
-                let urgency = (m.interval < 1) ? 999999999 : (now - m.nextReview);
-                dueCards.push({ ...foundQ, urgency: urgency, srsId: id });
+                let urgency = (m.srs.interval < 1) ? 999999999 : (now - m.srs.nextReview);
+                dueCards.push({ ...m, urgency: urgency });
             }
         }
-    }
+    });
 
     if (dueCards.length === 0) {
         alert("🎉 Zero friction! You are completely caught up for this subject.");
         return;
     }
 
-    // 3. Sort by Urgency and take top 10
+    // 2. Sort by Urgency and take top 10
     dueCards.sort((a, b) => b.urgency - a.urgency);
     let sprintQs = dueCards.slice(0, 10);
 
-    // 4. Inject into the Ghost Quiz slot and Launch
+    // 3. Inject into the Ghost Quiz slot and Launch
     db['quiz_srs'] = { 
         title: actualSubject === 'global' ? "🔥 Global Urgency Sprint" : `🔥 ${actualSubject} Sprint`, 
         subject: "Spaced Repetition", 
