@@ -1550,7 +1550,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
             
             // V21.3 Export Button Added Here
             subjectQuizzes.forEach(id => {
-                listHTML += `<div class="mt-2 flex flex-col gap-2 group/row bg-slate-50 dark:bg-slate-800/80 p-3 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-emerald-400 transition-colors shadow-sm"><div onclick="openLobby('${id}')" class="cursor-pointer flex justify-between items-center w-full"><div class="w-full"><div class="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">${db[id].title}</div><div class="text-[10px] font-black text-slate-400 uppercase mt-1 tracking-widest">${db[id].questions.length} Qs • ${db[id].timeInMinutes} Mins</div></div></div><div class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700/50"><button onclick="openTargetedHistory('${id}')" class="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-amber-100 dark:border-amber-800/30" title="View Past Attempts">📊 Hist</button><button onclick="exportSingleQuiz('${id}')" class="flex-1 bg-fuchsia-50 hover:bg-fuchsia-100 text-fuchsia-600 dark:bg-fuchsia-900/30 dark:text-fuchsia-400 dark:hover:bg-fuchsia-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-fuchsia-100 dark:border-fuchsia-800/30" title="Export Quiz to JSON">📥 Exp</button><button onclick="renameQuiz('${id}')" class="flex-1 bg-cyan-50 hover:bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400 dark:hover:bg-cyan-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-cyan-100 dark:border-cyan-800/30" title="Rename Quiz 🔒">✏️ Name</button><button onclick="deleteQuiz('${id}')" class="bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-black text-xs px-3 py-2 rounded-lg transition-colors border border-red-100 dark:border-red-800/30" title="Delete Quiz 🔒">🗑️</button></div></div>`;
+                listHTML += `<div class="mt-2 flex flex-col gap-2 group/row bg-slate-50 dark:bg-slate-800/80 p-3 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-emerald-400 transition-colors shadow-sm"><div onclick="openLobby('${id}')" class="cursor-pointer flex justify-between items-center w-full"><div class="w-full"><div class="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">${db[id].title}</div><div class="text-[10px] font-black text-slate-400 uppercase mt-1 tracking-widest">${db[id].questions.length} Qs • ${db[id].timeInMinutes} Mins</div></div></div><div class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700/50"><button onclick="openTargetedHistory('${id}')" class="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-amber-100 dark:border-amber-800/30" title="View Past Attempts">📊 Hist</button><button onclick="exportSingleQuiz('${id}')" class="flex-1 bg-fuchsia-50 hover:bg-fuchsia-100 text-fuchsia-600 dark:bg-fuchsia-900/30 dark:text-fuchsia-400 dark:hover:bg-fuchsia-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-fuchsia-100 dark:border-fuchsia-800/30" title="Export Quiz to JSON">📥 Exp</button><button onclick="renameQuiz('${id}')" class="flex-1 bg-cyan-50 hover:bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400 dark:hover:bg-cyan-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-cyan-100 dark:border-cyan-800/30" title="Rename Quiz 🔒">✏️ Name</button><button onclick="window.syncQuizToSRS('${id}')" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-blue-100 dark:border-blue-800/30" title="Sync to SRS">🔄 Sync</button><button onclick="deleteQuiz('${id}')" class="bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-black text-xs px-3 py-2 rounded-lg transition-colors border border-red-100 dark:border-red-800/30" title="Delete Quiz 🔒">🗑️</button></div></div>`;
             });
 
             const card = document.createElement('div'); card.className = `bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-lg border border-slate-200 dark:border-slate-800 flex flex-col subject-card relative overflow-hidden`;
@@ -1610,28 +1610,51 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
 
     window.closeSRSModal = () => { document.getElementById('screen-srs-modal').classList.add('hidden'); };
 
-    window.launchSRSSprint = (type) => {
-        let dueQs = []; let titleStr = "";
-        if(type === 'global') {
-            dueQs = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now() && !m.isMastered); titleStr = "🔥 Master Global 10-Q Sprint";
-        } else {
-            let sub = document.getElementById('srs-subject-select').value; if(!sub) return alert("No subjects have due questions.");
-            let masterMap = getMasterMap(); 
-            dueQs = mistakesDb.filter(m => {
-                if (!m.srs || m.srs.nextReview > Date.now() || m.isMastered) return false;
-                let clean = masterMap[m.question]; let activeTags = clean ? clean.tags : (Array.isArray(m.tags) ? m.tags : []);
-                let subName = activeTags.length > 0 ? activeTags[0] : (m.subject || m.originalSubject || "Miscellaneous");
-                return subName === sub;
-            });
-            titleStr = `🔥 ${sub} Targeted Sprint`;
+   window.launchSRSSprint = (subject) => {
+        let dueCards = [];
+        const now = Date.now();
+
+        // 1. Scan the new ID-only Database
+        for (let id in srs) {
+            if (subject === 'global' || id.startsWith(subject + "_")) {
+                let m = srs[id];
+                if (!m.isMastered && m.nextReview <= now) {
+                    let parts = id.split('_');
+                    let sub = parts[0];
+                    let qn = parseInt(parts.pop());
+                    let file = parts.slice(1).join('_');
+
+                    if (db[sub] && db[sub][file] && db[sub][file].questions) {
+                        let q = db[sub][file].questions.find(x => x.q_no === qn);
+                        if (q) {
+                            // Priority 1: 10-Min Penalties, Priority 2: Overdue
+                            let urgency = m.interval < 1 ? 999999999 : (now - m.nextReview); 
+                            dueCards.push({ q: q, file: file, urgency: urgency });
+                        }
+                    }
+                }
+            }
         }
 
-        if(dueQs.length === 0) { alert("No questions due for this selection!"); closeSRSModal(); return; }
-        const sprintQs = window.shuffleArray(dueQs).slice(0, 10);
-        db['quiz_srs'] = { title: titleStr, subject: "Spaced Repetition", timeInMinutes: 10, questions: sprintQs };
-        closeSRSModal(); openLobby('quiz_srs');
-    };
+        if (dueCards.length === 0) {
+            alert("🎉 You are completely caught up! No SRS reviews due right now.");
+            return;
+        }
 
+        // 2. Sort by Urgency and slice top 10
+        dueCards.sort((a, b) => b.urgency - a.urgency);
+        let sprintCards = dueCards.slice(0, 10);
+        
+        let sprintQs = sprintCards.map(item => {
+            let clone = JSON.parse(JSON.stringify(item.q));
+            clone.file = item.file; // Tag it so the engine knows where it came from
+            return clone;
+        });
+
+        db['quiz_srs'] = { title: "🔥 Dynamic Urgency Sprint", subject: "Spaced Repetition", timeInMinutes: 10, questions: sprintQs };
+        closeSRSModal(); 
+        openLobby('quiz_srs');
+    };
     window.setQuizMode = (mode) => {
         lobbyQuizMode = mode;
         document.getElementById('btn-mode-full').className = `time-btn flex-1 font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm ${mode === 'full' ? 'bg-emerald-100 text-emerald-800 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent hover:border-slate-300 dark:hover:border-slate-600'}`;
@@ -1901,6 +1924,29 @@ window.autoSpaceQuestion = (q, sel, status) => {
     }
     if (m.interval >= 30) m.isMastered = true; 
 };
+// --- GOLD STANDARD BULK INJECTOR (V21.3 Edition) ---
+window.syncQuizToSRS = async (quizId) => {
+    if (!db[quizId] || !Array.isArray(db[quizId].questions)) {
+        alert("No valid questions found in this quiz!"); return;
+    }
+    let count = 0;
+    
+    // We assume Tag 1 is the Subject, and the quiz title is the File name
+    let subject = db[quizId].subject || "Miscellaneous";
+    let file = db[quizId].title.replace(/[^a-zA-Z0-9 ]/g, "_"); 
+
+    db[quizId].questions.forEach(q => {
+        let qSub = (q.tags && q.tags.length > 0) ? q.tags[0] : subject;
+        const id = `${qSub}_${file}_${q.q_no}`;
+        if (!srs[id]) {
+            srs[id] = { reps: 2, ease: 2.5, interval: 3, nextReview: Date.now() + (3 * 86400000), isMastered: false };
+            count++;
+        }
+    });
+    
+    await updateLocalCache();
+    alert(`✅ Sync Complete! ${count} questions from "${db[quizId].title}" were pushed directly into your SRS Matrix.`);
+};
     function submitQuiz() {
         if (quizState.submitted) return;
         quizState.submitted = true; clearInterval(quizState.interval); window.speechSynthesis.cancel();
@@ -1915,9 +1961,8 @@ window.autoSpaceQuestion = (q, sel, status) => {
                 cText = q.options?.find(o=>o.correct)?.text || "N/A";
                 if (sel === undefined) { skipped++; isMistake = true; status = 'skipped'; } else if (q.options && q.options[sel] && q.options[sel].correct) { correct++; status = 'correct'; uText = q.options[sel].text; } else { wrong++; isMistake = true; status = 'wrong'; uText = q.options ? q.options[sel].text : "N/A"; }
             }
-              if (currentQuizId !== 'quiz_srs') {
-                window.autoSpaceQuestion(q, sel, status);
-            }
+              // The Gold Standard Engine runs on ALL quizzes now!
+            window.autoSpaceQuestion(q, sel, status);            }
            
             let tags = Array.isArray(q.tags) ? q.tags : ["Miscellaneous"]; window.currentReviewQuestions.push(q);
             let safeId = 'edit_rev_' + window.editCounter++; window.editRegistry[safeId] = q.question;
