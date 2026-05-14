@@ -2542,8 +2542,39 @@ Add these to SRS now?
                     } 
                     // Otherwise it's a Standard Quiz JSON
                     else {
-                        const newId = 'quiz_' + Date.now(); importedData.subject = targetImportSubject; db[newId] = importedData;
-                        saveData(); rebuildSearchCache(); renderDashboard(); alert(`✅ Quiz successfully imported into ${targetImportSubject}!`);
+                        // Check for duplicate: same title already exists in same subject
+                        const dupId = Object.keys(db).find(id => 
+                            db[id].subject === targetImportSubject && 
+                            db[id].title === importedData.title
+                        );
+
+                        if (dupId) {
+                            const choice = confirm(
+                                `⚠️ A quiz named "${importedData.title}" already exists in ${targetImportSubject}.\n\n` +
+                                `Press OK to REPLACE it (old SRS data for its questions will be cleared).\n` +
+                                `Press Cancel to import as a NEW separate copy.`
+                            );
+                            if (choice) {
+                                // REPLACE: clean old SRS entries for the old quiz questions first
+                                if (Array.isArray(db[dupId].questions) && Array.isArray(mistakesDb)) {
+                                    const oldQTexts = new Set(db[dupId].questions.map(q => q.question));
+                                    mistakesDb = mistakesDb.filter(m => !oldQTexts.has(m.question));
+                                }
+                                // Replace quiz in db under same ID so history links survive
+                                importedData.subject = targetImportSubject;
+                                db[dupId] = importedData;
+                                saveData(); rebuildSearchCache(); renderDashboard(); updateSRSBadge();
+                                alert(`✅ Quiz replaced! Old SRS data cleared. Fresh start for "${importedData.title}".`);
+                                e.target.value = ''; return;
+                            }
+                        }
+
+                        // Fresh import (no duplicate, or user chose separate copy)
+                        const newId = 'quiz_' + Date.now(); 
+                        importedData.subject = targetImportSubject; 
+                        db[newId] = importedData;
+                        saveData(); rebuildSearchCache(); renderDashboard(); 
+                        alert(`✅ Quiz successfully imported into ${targetImportSubject}!`);
                     }
                 } catch(err) { alert("❌ Error: Invalid JSON file. Make sure your formatting is perfect."); }
                 e.target.value = ''; 
