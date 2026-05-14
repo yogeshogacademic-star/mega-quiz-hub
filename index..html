@@ -270,7 +270,10 @@
                     <h2 class="text-2xl font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-tight">🔥 SRS Engine</h2>
                     <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Auto-graded · Urgency-sorted</p>
                 </div>
-                <button onclick="closeSRSModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
+                <div class="flex items-center gap-2">
+                    <button onclick="runSRSIntegrityCheck()" class="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-700 hover:bg-amber-200 transition-colors" title="Check SRS for orphans + missing questions">🔍 Integrity</button>
+                    <button onclick="closeSRSModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
+                </div>
             </div>
             <!-- Due Forecast Strip -->
             <div id="srs-forecast-strip" class="mb-5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 border border-slate-200 dark:border-slate-700">
@@ -2250,7 +2253,129 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
 
     // syncQuizToSRS removed — all questions auto-enter SRS on quiz submit
 
-    // Legacy processSM2 stub — maps old 4-button ratings to auto-grade
+    // ============================================================
+    // SRS INTEGRITY CHECKER
+    // 1. Finds questions in historyDb that are NOT in SRS yet
+    // 2. Finds SRS entries whose source question no longer exists in db
+    // ============================================================
+    window.runSRSIntegrityCheck = () => {
+        requireAuth(() => {
+            // Build master set of all questions currently in db
+            const allDbQuestions = new Set();
+            Object.keys(db).forEach(id => {
+                if (db[id] && Array.isArray(db[id].questions))
+                    db[id].questions.forEach(q => { if (q.question) allDbQuestions.add(q.question); });
+            });
+
+            // Build set of all questions already in SRS
+            const allSRSQuestions = new Set(mistakesDb.map(m => m.question));
+
+            // 1. Find attempted questions NOT in SRS
+            const attemptedNotInSRS = new Set();
+            historyDb.forEach(h => {
+                if (h.title && h.title.includes('Sprint')) return; // skip SRS sprints
+                if (h.reviewData) {
+                    h.reviewData.forEach(r => {
+                        if (r.question && !allSRSQuestions.has(r.question) && allDbQuestions.has(r.question))
+                            attemptedNotInSRS.add(r.question);
+                    });
+                }
+            });
+
+            // 2. Find SRS entries whose question no longer exists in db (orphans)
+            const orphanedSRS = mistakesDb.filter(m => !allDbQuestions.has(m.question));
+
+            let report = `🔍 SRS INTEGRITY REPORT
+${'─'.repeat(40)}
+`;
+            report += `✅ Total in SRS queue: ${mistakesDb.length}
+`;
+            report += `✅ Total in database: ${allDbQuestions.size}
+
+`;
+
+            if (orphanedSRS.length > 0) {
+                report += `⚠️ ORPHANED ENTRIES (${orphanedSRS.length})
+These are in SRS but their quiz was deleted:
+`;
+                orphanedSRS.slice(0, 5).forEach(m => report += `  • "${m.question.substring(0,60)}..."
+`);
+                if (orphanedSRS.length > 5) report += `  ...and ${orphanedSRS.length - 5} more
+`;
+                report += `
+Clean these up?
+`;
+            } else {
+                report += `✅ No orphaned entries — SRS is clean.
+`;
+            }
+
+            if (attemptedNotInSRS.size > 0) {
+                report += `
+⚠️ ATTEMPTED BUT MISSING FROM SRS (${attemptedNotInSRS.size})
+These were attempted in quizzes but never entered SRS
+(legacy attempts before auto-entry was added):
+`;
+                [...attemptedNotInSRS].slice(0, 3).forEach(q => report += `  • "${q.substring(0,60)}..."
+`);
+                if (attemptedNotInSRS.size > 3) report += `  ...and ${attemptedNotInSRS.size - 3} more
+`;
+                report += `
+Add these to SRS now?
+`;
+            } else {
+                report += `✅ All attempted questions are in SRS.
+`;
+            }
+
+            const hasIssues = orphanedSRS.length > 0 || attemptedNotInSRS.size > 0;
+            if (!hasIssues) { alert(report + '
+🎉 Your SRS is perfectly in sync!'); return; }
+
+            const action = confirm(report + '
+Press OK to auto-fix both issues now.
+Press Cancel to just view the report.');
+            if (!action) return;
+
+            let fixed = 0;
+            // Fix 1: Remove orphans
+            if (orphanedSRS.length > 0) {
+                const orphanTexts = new Set(orphanedSRS.map(m => m.question));
+                mistakesDb = mistakesDb.filter(m => !orphanTexts.has(m.question));
+                fixed += orphanedSRS.length;
+            }
+
+            // Fix 2: Add missed attempted questions to SRS (due now, reps 0)
+            if (attemptedNotInSRS.size > 0) {
+                attemptedNotInSRS.forEach(qText => {
+                    // Find the full question object from db
+                    let qObj = null;
+                    for (let id in db) {
+                        if (!db[id] || !Array.isArray(db[id].questions)) continue;
+                        qObj = db[id].questions.find(q => q.question === qText);
+                        if (qObj) break;
+                    }
+                    if (!qObj) return;
+                    let newCard = JSON.parse(JSON.stringify(qObj));
+                    let safeTags = Array.isArray(newCard.tags) ? newCard.tags : [];
+                    newCard.subject = (safeTags.length > 0 && CORE_SUBJECTS.includes(safeTags[0])) ? safeTags[0] : "Miscellaneous";
+                    newCard.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() };
+                    newCard.isMastered = false;
+                    mistakesDb.push(newCard);
+                    fixed++;
+                });
+            }
+
+            saveData(); updateSRSBadge(); renderDashboard();
+            alert(`✅ SRS Integrity Fixed!
+
+• Orphans removed: ${orphanedSRS.length}
+• Missing questions added: ${attemptedNotInSRS.size}
+• Total fixes: ${fixed}`);
+        });
+    };
+
+        // Legacy processSM2 stub — maps old 4-button ratings to auto-grade
     window.processSM2 = (safeId, rating) => {
         let qText = window.editRegistry[safeId]; if (!qText) return;
         let status = rating >= 2 ? 'correct' : 'wrong';
