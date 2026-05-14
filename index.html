@@ -111,6 +111,7 @@
                         🧠 Mastery Vault
                     </button>
                     <button onclick="openDBManager()" class="bg-gradient-to-br from-blue-500 to-cyan-600 hover:from-blue-400 hover:to-cyan-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-transform hover:-translate-y-1 border border-cyan-400 flex items-center gap-2">🗄️ Master DB</button>
+                    <button onclick="showScreen('ghost-cleaner')" class="bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-transform hover:-translate-y-1 border border-emerald-400 flex items-center gap-2">🔬 Ghost Cleaner</button>
                     <button onclick="openTargetRadar()" class="bg-gradient-to-br from-rose-500 to-orange-600 hover:from-rose-400 hover:to-orange-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(244,63,94,0.4)] transition-transform hover:-translate-y-1 border border-rose-400 flex items-center gap-2">🎯 Target Radar</button>
                     <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400 flex items-center gap-2">📊 Analytics</button>
                 </div>
@@ -284,6 +285,34 @@
         </div>
     </div>
 
+
+    <!-- GHOST CLEANER SCREEN -->
+    <div id="screen-ghost-cleaner" class="hidden max-w-6xl mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
+        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-teal-500"></div>
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                <div>
+                    <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
+                    <h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">🔬 SRS Ghost Cleaner</h2>
+                    <p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Finds exact clone cards (question + all options identical) · Keeps highest-progress copy</p>
+                </div>
+                <div class="flex gap-3 flex-wrap">
+                    <button onclick="runGhostScan()" class="bg-emerald-500 hover:bg-emerald-600 text-white font-black px-6 py-3 rounded-xl uppercase tracking-widest text-xs shadow-lg transition-all flex items-center gap-2"><span id="gc-scan-label">🔍 Scan SRS</span></button>
+                    <button id="gc-purge-btn" onclick="runGhostPurge()" class="hidden bg-red-500 hover:bg-red-600 text-white font-black px-6 py-3 rounded-xl uppercase tracking-widest text-xs shadow-lg transition-all">🗑️ Delete All Ghosts</button>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div id="gc-stats" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8"></div>
+
+            <!-- Alert -->
+            <div id="gc-alert" class="hidden mb-6 p-4 rounded-xl text-sm font-bold"></div>
+
+            <!-- Results -->
+            <div id="gc-results"></div>
+        </div>
+    </div>
+    <!-- END GHOST CLEANER SCREEN -->
 
     <div id="screen-srs-modal" class="hidden fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center items-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg flex flex-col">
@@ -2526,7 +2555,7 @@ Add these to SRS now?
     window.closeSubjectAnalysis = () => document.getElementById('screen-subject-analysis').classList.add('hidden');
 
     function showScreen(s) { 
-        ['dashboard','lobby','quiz','results','db-manager','target-radar','notes'].forEach(x => {
+        ['dashboard','lobby','quiz','results','db-manager','target-radar','notes','ghost-cleaner'].forEach(x => {
             const el = document.getElementById('screen-'+x);
             if(el) el.classList.add('hidden');
         }); 
@@ -3054,6 +3083,203 @@ window.generateQuantNotes = () => {
     };
 
     window.triggerRestore = () => { requireAuth(() => { document.getElementById('backup-file-input').click(); }); };
+
+    // ── GHOST CLEANER ──────────────────────────────────────────────────────────
+    let gcGroups = [];
+    let gcToDelete = new Set();
+
+    function gcFingerprint(m) {
+        const q = (m.question || '').trim();
+        const opts = Array.isArray(m.options)
+            ? m.options.map(o => (o.text || '').trim()).join('|||')
+            : '';
+        return q + '<<<OPTS>>>' + opts;
+    }
+
+    function gcSrsScore(m) {
+        if (!m.srs) return 0;
+        return (m.srs.reps || 0) * 10 + (m.srs.interval || 1) + (m.isMastered ? 10000 : 0);
+    }
+
+    function gcSrsLabel(m) {
+        if (!m.srs) return 'No SRS data';
+        if (m.isMastered) return '🏆 Mastered';
+        const due = m.srs.nextReview <= Date.now() ? '⚠️ Due now' : '✅ Scheduled';
+        return `${due} · ${m.srs.reps || 0} reps · ${m.srs.interval || 1}d interval`;
+    }
+
+    function gcShowAlert(msg, type) {
+        const el = document.getElementById('gc-alert');
+        const isSuccess = type === 'success';
+        el.className = `mb-6 p-4 rounded-xl text-sm font-bold ${isSuccess ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' : 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'}`;
+        el.textContent = msg;
+        el.classList.remove('hidden');
+        setTimeout(() => el.classList.add('hidden'), 8000);
+    }
+
+    window.runGhostScan = function() {
+        document.getElementById('gc-scan-label').innerHTML = '⏳ Scanning...';
+        document.getElementById('gc-results').innerHTML = '';
+        document.getElementById('gc-stats').classList.add('hidden');
+        document.getElementById('gc-purge-btn').classList.add('hidden');
+        gcGroups = [];
+        gcToDelete.clear();
+
+        if (!Array.isArray(mistakesDb) || mistakesDb.length === 0) {
+            gcShowAlert('SRS is empty. Attempt some quizzes first.', 'warn');
+            document.getElementById('gc-scan-label').textContent = '🔍 Scan SRS';
+            return;
+        }
+
+        const fpMap = new Map();
+        mistakesDb.forEach((m, i) => {
+            const fp = gcFingerprint(m);
+            if (!fpMap.has(fp)) fpMap.set(fp, []);
+            fpMap.get(fp).push(i);
+        });
+
+        fpMap.forEach(indices => {
+            if (indices.length > 1) gcGroups.push(indices);
+        });
+
+        // Auto-mark: keep highest score, delete rest
+        gcToDelete.clear();
+        gcGroups.forEach(indices => {
+            const sorted = [...indices].sort((a, b) => gcSrsScore(mistakesDb[b]) - gcSrsScore(mistakesDb[a]));
+            sorted.slice(1).forEach(i => gcToDelete.add(i));
+        });
+
+        gcRenderStats();
+        gcRenderGroups();
+        document.getElementById('gc-scan-label').textContent = '🔍 Re-Scan';
+        if (gcGroups.length > 0) document.getElementById('gc-purge-btn').classList.remove('hidden');
+    };
+
+    function gcRenderStats() {
+        const total = mistakesDb.length;
+        const ghostCount = gcToDelete.size;
+        const statsEl = document.getElementById('gc-stats');
+        statsEl.className = 'grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8';
+        statsEl.innerHTML = [
+            ['Total SRS Cards', total, ''],
+            ['Duplicate Groups', gcGroups.length, gcGroups.length > 0 ? 'text-red-500' : 'text-emerald-500'],
+            ['Ghost Cards', ghostCount, ghostCount > 0 ? 'text-red-500' : 'text-emerald-500'],
+            ['Clean After Delete', total - ghostCount, 'text-emerald-500'],
+        ].map(([lbl, val, cls]) => `
+            <div class="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 text-center border border-slate-200 dark:border-slate-700">
+                <div class="text-2xl font-black ${cls || 'text-slate-800 dark:text-slate-100'}">${val}</div>
+                <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1">${lbl}</div>
+            </div>`).join('');
+        statsEl.classList.remove('hidden');
+    }
+
+    function gcRenderGroups() {
+        const container = document.getElementById('gc-results');
+        if (gcGroups.length === 0) {
+            container.innerHTML = `<div class="text-center py-16">
+                <div class="text-5xl mb-4">✅</div>
+                <div class="text-xl font-black text-emerald-500 mb-2">No exact duplicates found!</div>
+                <div class="text-sm text-slate-400">Every SRS entry has a unique question + options combination.</div>
+            </div>`;
+            return;
+        }
+
+        let html = `<div class="text-xs font-black uppercase tracking-widest text-slate-400 mb-4">${gcGroups.length} duplicate group${gcGroups.length !== 1 ? 's' : ''} — expand to inspect</div>`;
+
+        gcGroups.forEach((indices, gi) => {
+            const sorted = [...indices].sort((a, b) => gcSrsScore(mistakesDb[b]) - gcSrsScore(mistakesDb[a]));
+            const winnerIdx = sorted[0];
+            const baseQ = (mistakesDb[winnerIdx].question || '').substring(0, 80);
+
+            const cards = sorted.map((idx, pos) => {
+                const m = mistakesDb[idx];
+                const isWinner = pos === 0;
+                const markedDel = gcToDelete.has(idx);
+                const subj = m.subject || (Array.isArray(m.tags) ? m.tags[0] : '') || 'Unknown';
+                const score = gcSrsScore(m);
+
+                let optsHtml = '';
+                if (Array.isArray(m.options)) {
+                    optsHtml = '<div class="text-xs text-slate-400 dark:text-slate-500 mt-2 space-y-0.5">' +
+                        m.options.map((o, oi) => {
+                            const letter = String.fromCharCode(65 + oi);
+                            return `<div class="${o.correct ? 'text-emerald-600 dark:text-emerald-400 font-bold' : ''}">${letter}. ${o.text || ''}</div>`;
+                        }).join('') + '</div>';
+                }
+
+                const borderCls = isWinner
+                    ? 'border-emerald-400 dark:border-emerald-600'
+                    : (markedDel ? 'border-red-400 dark:border-red-600 opacity-50' : 'border-slate-200 dark:border-slate-700');
+
+                return `<div class="bg-slate-50 dark:bg-slate-800 border ${borderCls} rounded-xl p-4 transition-all">
+                    <div class="text-[10px] font-black uppercase tracking-widest mb-2 ${isWinner ? 'text-emerald-500' : 'text-red-500'}">
+                        ${isWinner ? '✓ KEEP — best SRS progress' : '✗ MARKED FOR DELETION'}
+                    </div>
+                    <div class="text-sm font-bold text-slate-800 dark:text-slate-100 mb-1">${m.question || '(no text)'}</div>
+                    ${optsHtml}
+                    <div class="flex flex-wrap gap-2 mt-3">
+                        <span class="text-[10px] font-bold px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">${subj}</span>
+                        <span class="text-[10px] font-bold px-2 py-1 rounded-full ${score > 5 ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'}">${gcSrsLabel(m)}</span>
+                        <span class="text-[10px] font-bold px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-500">Score: ${score}</span>
+                    </div>
+                    ${!isWinner ? `<button onclick="gcSwapWinner(${gi},${idx})" class="mt-3 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white transition-colors">✓ Keep this instead</button>` : ''}
+                </div>`;
+            }).join('');
+
+            html += `<div class="mb-4 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden">
+                <div onclick="gcToggle('gcbody_${gi}')" class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-750 select-none">
+                    <div class="font-bold text-sm text-slate-800 dark:text-slate-100 flex-1 truncate mr-4">${baseQ}${baseQ.length >= 80 ? '…' : ''}</div>
+                    <span class="text-[10px] font-black px-3 py-1 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 mr-3 flex-shrink-0">EXACT CLONE</span>
+                    <span class="text-xs text-slate-400 flex-shrink-0">${indices.length} copies ▾</span>
+                </div>
+                <div id="gcbody_${gi}" class="hidden p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">${cards}</div>
+                    <button onclick="gcSkipGroup(${gi})" class="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">Skip — don't touch this group</button>
+                </div>
+            </div>`;
+        });
+
+        container.innerHTML = html;
+    }
+
+    window.gcToggle = function(id) {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('hidden');
+    };
+
+    window.gcSwapWinner = function(gi, newWinnerIdx) {
+        gcGroups[gi].forEach(i => {
+            if (i === newWinnerIdx) gcToDelete.delete(i);
+            else gcToDelete.add(i);
+        });
+        gcRenderStats();
+        gcRenderGroups();
+    };
+
+    window.gcSkipGroup = function(gi) {
+        gcGroups[gi].forEach(i => gcToDelete.delete(i));
+        gcRenderStats();
+        gcRenderGroups();
+    };
+
+    window.runGhostPurge = async function() {
+        if (gcToDelete.size === 0) { gcShowAlert('No cards marked for deletion.', 'warn'); return; }
+        if (!confirm(`Permanently delete ${gcToDelete.size} ghost card(s) from your SRS?\n\nThe best copy of each group is kept. Cannot be undone.`)) return;
+
+        const before = mistakesDb.length;
+        mistakesDb = mistakesDb.filter((_, i) => !gcToDelete.has(i));
+        const removed = before - mistakesDb.length;
+
+        await saveData();
+        gcToDelete.clear();
+        gcGroups = [];
+        gcShowAlert(`✅ Done! Removed ${removed} ghost cards. SRS now has ${mistakesDb.length} clean entries.`, 'success');
+        gcRenderStats();
+        document.getElementById('gc-results').innerHTML = '';
+        document.getElementById('gc-purge-btn').classList.add('hidden');
+        updateDashboard();
+    };
+    // ── END GHOST CLEANER ──────────────────────────────────────────────────────
 
     initializeSystem();
 </script>
