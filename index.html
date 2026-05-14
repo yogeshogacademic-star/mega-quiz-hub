@@ -2580,57 +2580,68 @@ Add these to SRS now?
         const isDark = document.documentElement.classList.contains('dark');
 
         // ── 1. Build per-subject stats ──────────────────────────────
-        const stats = {}; // { subject: { total, attempted, mastered, accuracy } }
+        // SOURCE OF TRUTH: always use tags[0] of each question, not quiz.subject.
+        // This means GS MOCK / QUANT MOCK container quizzes are transparent —
+        // their questions are counted under their real subject (Polity, Economics etc.)
+        // Only CORE_SUBJECTS appear — container names like "GS MOCK QUESTIONS" never show.
 
-        // Count total questions per subject from db
+        const stats = {}; // { subjectName: { total, attempted, mastered, correctSum, attemptedQTexts } }
+
+        const ensureSubj = s => {
+            if (!stats[s]) stats[s] = { total: 0, attempted: 0, mastered: 0, correctSum: 0, attemptedQTexts: new Set() };
+        };
+
+        // Build question→tag[0] lookup AND count totals
+        const qToSubject = new Map(); // question text → real subject (tag[0])
         Object.keys(db).forEach(id => {
             const quiz = db[id];
             if (!quiz || !Array.isArray(quiz.questions)) return;
-            const subj = quiz.subject || 'Miscellaneous';
-            if (!stats[subj]) stats[subj] = { total: 0, attempted: 0, mastered: 0, correctSum: 0, attemptedQTexts: new Set() };
-            stats[subj].total += quiz.questions.length;
+            quiz.questions.forEach(q => {
+                if (!q.question) return;
+                // Determine real subject: tag[0] if it's a CORE_SUBJECT, else quiz.subject if CORE, else Miscellaneous
+                let realSubj = 'Miscellaneous';
+                if (Array.isArray(q.tags) && q.tags.length > 0 && CORE_SUBJECTS.includes(q.tags[0])) {
+                    realSubj = q.tags[0];
+                } else if (CORE_SUBJECTS.includes(quiz.subject)) {
+                    realSubj = quiz.subject;
+                }
+                qToSubject.set(q.question, realSubj);
+                ensureSubj(realSubj);
+                stats[realSubj].total++;
+            });
         });
 
-        // Build lookup: question text → subject from CURRENT db (source of truth)
-        // This fixes two bugs:
-        // 1. "Mixed" subject cards — sprint/mixed history assigned wrong subject
-        // 2. Stale attempted counts — deleted/re-uploaded questions no longer exist in db
-        const qTextToSubject = new Map();
-        Object.keys(db).forEach(id => {
-            const quiz = db[id];
-            if (!quiz || !Array.isArray(quiz.questions)) return;
-            const subj = quiz.subject || 'Miscellaneous';
-            quiz.questions.forEach(q => { if (q.question) qTextToSubject.set(q.question, subj); });
-        });
-
-        // Count attempted unique questions per subject from historyDb
-        // Only count questions that still exist in the current db
+        // Count attempted unique questions — map via qToSubject so sprint/mixed history
+        // lands under the real subject, and deleted questions are automatically excluded
         historyDb.forEach(h => {
             if (!h.reviewData) return;
             h.reviewData.forEach(r => {
                 if (!r.question) return;
-                const subj = qTextToSubject.get(r.question);
-                if (!subj) return; // question deleted or not in db — skip
-                if (!stats[subj]) stats[subj] = { total: 0, attempted: 0, mastered: 0, correctSum: 0, attemptedQTexts: new Set() };
-                stats[subj].attemptedQTexts.add(r.question);
-                if (r.status === 'correct') stats[subj].correctSum++;
+                const realSubj = qToSubject.get(r.question);
+                if (!realSubj) return; // question deleted or not in db — skip
+                ensureSubj(realSubj);
+                stats[realSubj].attemptedQTexts.add(r.question);
+                if (r.status === 'correct') stats[realSubj].correctSum++;
             });
         });
 
-        // Count mastered per subject from mistakesDb
+        // Count mastered via tag[0] from mistakesDb
         mistakesDb.filter(m => m.isMastered).forEach(m => {
-            const subj = m.subject || (Array.isArray(m.tags) ? m.tags[0] : '') || 'Miscellaneous';
-            if (stats[subj]) stats[subj].mastered++;
+            const realSubj = qToSubject.get(m.question)
+                || (Array.isArray(m.tags) && CORE_SUBJECTS.includes(m.tags[0]) ? m.tags[0] : null)
+                || (CORE_SUBJECTS.includes(m.subject) ? m.subject : null)
+                || 'Miscellaneous';
+            if (stats[realSubj]) stats[realSubj].mastered++;
         });
 
-        // Flatten attemptedQTexts to count
+        // Flatten Sets to counts
         Object.keys(stats).forEach(s => {
-            stats[s].attempted = stats[s].attemptedQTexts ? stats[s].attemptedQTexts.size : 0;
+            stats[s].attempted = stats[s].attemptedQTexts.size;
         });
 
-        // Sort subjects by total questions descending, filter out empty
-        const subjects = Object.keys(stats)
-            .filter(s => stats[s].total > 0)
+        // Only show CORE_SUBJECTS that have at least 1 question in db
+        const subjects = CORE_SUBJECTS
+            .filter(s => stats[s] && stats[s].total > 0)
             .sort((a, b) => stats[b].total - stats[a].total);
 
         if (subjects.length === 0) {
