@@ -174,6 +174,28 @@
             </div>
 
             <div id="dashboard-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-16"></div>
+
+            <!-- ===================== ANALYTICS SECTION ===================== -->
+            <div id="analytics-section" class="mb-16">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight flex items-center gap-3">
+                            📊 Subject Coverage Analytics
+                        </h2>
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Questions in DB · Attempted · Mastered</p>
+                    </div>
+                    <button onclick="renderAnalytics()" class="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200 dark:border-slate-700 transition-all">↺ Refresh</button>
+                </div>
+                <!-- Summary pills row -->
+                <div id="analytics-summary" class="flex flex-wrap gap-3 mb-6"></div>
+                <!-- Main chart canvas -->
+                <div class="bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm overflow-x-auto">
+                    <canvas id="analytics-chart" style="min-width:600px; height:340px;"></canvas>
+                </div>
+                <!-- Per-subject detail cards -->
+                <div id="analytics-cards" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mt-6"></div>
+            </div>
+            <!-- ============================================================ -->
             
             <div class="mt-auto text-center pb-10 border-t border-slate-200 dark:border-slate-800/50 pt-10">
                 <div class="text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em] text-[10px] mb-8 flex items-center justify-center gap-4">
@@ -299,6 +321,7 @@
                     <div class="text-xs text-slate-500 dark:text-slate-400 mb-4 font-bold">Targeted firepower. Select a Tag 1 Subject.</div>
                     <select id="srs-subject-select" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300 mb-4 outline-none focus:ring-2 focus:ring-indigo-500"></select>
                     <button id="srs-subject-launch-btn" onclick="launchSRSSprint('subject')" class="w-full bg-emerald-50 hover:bg-emerald-400 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all">Launch Subject 10-Q</button>
+                    <button onclick="(() => { const sel = document.getElementById('srs-subject-select').value; if(!sel){alert('Select a subject first.');return;} if(confirm('Clear ALL SRS entries for \''+sel+'\'?\n\nThis wipes all intervals and due dates for this subject. Attempt the quiz again to re-enter them fresh.')) clearSubjectSRS(sel); })()" class="w-full mt-2 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-black text-[10px] uppercase tracking-widest py-2.5 rounded-xl border border-red-200 dark:border-red-800/50 transition-all">🗑️ Clear SRS for Selected Subject</button>
                 </div>
             </div>
         </div>
@@ -1616,6 +1639,8 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         const grid = document.getElementById('dashboard-grid'); grid.innerHTML = '';
         let masteredCount = mistakesDb.filter(m => m.isMastered).length;
         updateSRSBadge();
+        // Defer analytics render so chart canvas is in DOM
+        setTimeout(renderAnalytics, 50);
 
         const mambaCard = document.createElement('div');
         mambaCard.className = 'col-span-1 md:col-span-2 xl:col-span-1 mamba-card rounded-3xl bg-slate-950 border border-slate-800 shadow-2xl relative overflow-hidden flex flex-col p-8 group min-h-[300px] xl:min-h-[auto]';
@@ -2372,6 +2397,33 @@ Add these to SRS now?
         });
     };
 
+        // Clear ALL SRS entries for a specific subject — manual reset
+    window.clearSubjectSRS = (subjectName) => {
+        requireAuth(() => {
+            const before = mistakesDb.length;
+            // Find all questions belonging to this subject from the current db
+            const subjectQTexts = new Set();
+            Object.keys(db).forEach(id => {
+                if (!db[id] || !Array.isArray(db[id].questions)) return;
+                // Match by subject field OR by tags[0]
+                const isSubject = db[id].subject === subjectName;
+                db[id].questions.forEach(q => {
+                    const tagMatch = Array.isArray(q.tags) && q.tags[0] === subjectName;
+                    if (isSubject || tagMatch) subjectQTexts.add(q.question);
+                });
+            });
+            // Also match by the subject stored on the SRS card itself
+            mistakesDb = mistakesDb.filter(m => {
+                const cardSubject = m.subject || (Array.isArray(m.tags) ? m.tags[0] : '') || '';
+                const isThisSubject = cardSubject === subjectName || subjectQTexts.has(m.question);
+                return !isThisSubject;
+            });
+            const removed = before - mistakesDb.length;
+            saveData(); updateSRSBadge(); openSRSModal(); // refresh modal
+            alert(`🗑️ Cleared ${removed} SRS entries for "${subjectName}".\nFresh start — attempt the quiz again to re-enter them.`);
+        });
+    };
+
         // Legacy processSM2 stub — maps old 4-button ratings to auto-grade
     window.processSM2 = (safeId, rating) => {
         let qText = window.editRegistry[safeId]; if (!qText) return;
@@ -2519,6 +2571,213 @@ Add these to SRS now?
         a.click();
     };
 
+    // ================================================================
+    // ANALYTICS ENGINE — Subject Coverage Chart
+    // ================================================================
+    let analyticsChartInstance = null;
+
+    window.renderAnalytics = () => {
+        const isDark = document.documentElement.classList.contains('dark');
+
+        // ── 1. Build per-subject stats ──────────────────────────────
+        const stats = {}; // { subject: { total, attempted, mastered, accuracy } }
+
+        // Count total questions per subject from db
+        Object.keys(db).forEach(id => {
+            const quiz = db[id];
+            if (!quiz || !Array.isArray(quiz.questions)) return;
+            const subj = quiz.subject || 'Miscellaneous';
+            if (!stats[subj]) stats[subj] = { total: 0, attempted: 0, mastered: 0, correctSum: 0, attemptedQTexts: new Set() };
+            stats[subj].total += quiz.questions.length;
+        });
+
+        // Count attempted unique questions per subject from historyDb
+        historyDb.forEach(h => {
+            if (!h.reviewData || (h.title && h.title.includes('Sprint'))) return;
+            const subj = h.subject || 'Miscellaneous';
+            if (!stats[subj]) stats[subj] = { total: 0, attempted: 0, mastered: 0, correctSum: 0, attemptedQTexts: new Set() };
+            h.reviewData.forEach(r => {
+                if (r.question) {
+                    stats[subj].attemptedQTexts.add(r.question);
+                    if (r.status === 'correct') stats[subj].correctSum++;
+                }
+            });
+        });
+
+        // Count mastered per subject from mistakesDb
+        mistakesDb.filter(m => m.isMastered).forEach(m => {
+            const subj = m.subject || (Array.isArray(m.tags) ? m.tags[0] : '') || 'Miscellaneous';
+            if (stats[subj]) stats[subj].mastered++;
+        });
+
+        // Flatten attemptedQTexts to count
+        Object.keys(stats).forEach(s => {
+            stats[s].attempted = stats[s].attemptedQTexts ? stats[s].attemptedQTexts.size : 0;
+        });
+
+        // Sort subjects by total questions descending, filter out empty
+        const subjects = Object.keys(stats)
+            .filter(s => stats[s].total > 0)
+            .sort((a, b) => stats[b].total - stats[a].total);
+
+        if (subjects.length === 0) {
+            document.getElementById('analytics-summary').innerHTML = '<p class="text-sm text-slate-400 font-bold">No quizzes imported yet.</p>';
+            return;
+        }
+
+        // ── 2. Summary pills ────────────────────────────────────────
+        const totalQs = subjects.reduce((s, k) => s + stats[k].total, 0);
+        const totalAttempted = subjects.reduce((s, k) => s + stats[k].attempted, 0);
+        const totalMastered = subjects.reduce((s, k) => s + stats[k].mastered, 0);
+        const overallPct = totalQs > 0 ? Math.round((totalAttempted / totalQs) * 100) : 0;
+
+        document.getElementById('analytics-summary').innerHTML = `
+            <div class="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800/50 rounded-xl px-4 py-2">
+                <span class="text-lg font-black text-indigo-600 dark:text-indigo-400">${totalQs.toLocaleString()}</span>
+                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Questions</span>
+            </div>
+            <div class="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800/50 rounded-xl px-4 py-2">
+                <span class="text-lg font-black text-emerald-600 dark:text-emerald-400">${totalAttempted.toLocaleString()}</span>
+                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Unique Attempted</span>
+            </div>
+            <div class="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800/50 rounded-xl px-4 py-2">
+                <span class="text-lg font-black text-amber-600 dark:text-amber-400">${totalMastered.toLocaleString()}</span>
+                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Mastered</span>
+            </div>
+            <div class="flex items-center gap-2 bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800/50 rounded-xl px-4 py-2">
+                <span class="text-lg font-black text-purple-600 dark:text-purple-400">${overallPct}%</span>
+                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Overall Coverage</span>
+            </div>
+            <div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2">
+                <span class="text-lg font-black text-slate-600 dark:text-slate-300">${subjects.length}</span>
+                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Subjects Active</span>
+            </div>`;
+
+        // ── 3. Chart.js bar chart ───────────────────────────────────
+        const canvas = document.getElementById('analytics-chart');
+        if (!canvas) return;
+
+        const gridColor  = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+        const labelColor = isDark ? '#94a3b8' : '#64748b';
+        const tickFont   = { family: 'Nunito Sans, sans-serif', size: 11, weight: '700' };
+
+        const chartData = {
+            labels: subjects,
+            datasets: [
+                {
+                    label: 'Total in DB',
+                    data: subjects.map(s => stats[s].total),
+                    backgroundColor: isDark ? 'rgba(99,102,241,0.25)' : 'rgba(99,102,241,0.18)',
+                    borderColor: isDark ? 'rgba(99,102,241,0.8)' : 'rgba(99,102,241,0.9)',
+                    borderWidth: 2,
+                    borderRadius: 6,
+                    borderSkipped: false,
+                },
+                {
+                    label: 'Attempted',
+                    data: subjects.map(s => stats[s].attempted),
+                    backgroundColor: isDark ? 'rgba(16,185,129,0.35)' : 'rgba(16,185,129,0.25)',
+                    borderColor: isDark ? 'rgba(16,185,129,0.9)' : 'rgba(16,185,129,1)',
+                    borderWidth: 2,
+                    borderRadius: 6,
+                    borderSkipped: false,
+                },
+                {
+                    label: 'Mastered',
+                    data: subjects.map(s => stats[s].mastered),
+                    backgroundColor: isDark ? 'rgba(251,191,36,0.35)' : 'rgba(251,191,36,0.3)',
+                    borderColor: isDark ? 'rgba(251,191,36,0.9)' : 'rgba(245,158,11,1)',
+                    borderWidth: 2,
+                    borderRadius: 6,
+                    borderSkipped: false,
+                }
+            ]
+        };
+
+        if (analyticsChartInstance) { analyticsChartInstance.destroy(); analyticsChartInstance = null; }
+
+        analyticsChartInstance = new Chart(canvas, {
+            type: 'bar',
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: labelColor, font: { ...tickFont, size: 12 }, padding: 20, usePointStyle: true, pointStyleWidth: 10 }
+                    },
+                    tooltip: {
+                        backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                        titleColor: isDark ? '#e2e8f0' : '#1e293b',
+                        bodyColor: isDark ? '#94a3b8' : '#475569',
+                        borderColor: isDark ? '#334155' : '#e2e8f0',
+                        borderWidth: 1,
+                        padding: 12,
+                        cornerRadius: 10,
+                        callbacks: {
+                            afterBody: (items) => {
+                                const subj = subjects[items[0].dataIndex];
+                                const pct = stats[subj].total > 0 ? Math.round((stats[subj].attempted / stats[subj].total) * 100) : 0;
+                                return [`Coverage: ${pct}%`];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: gridColor },
+                        ticks: { color: labelColor, font: tickFont, maxRotation: 35 }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: gridColor },
+                        ticks: { color: labelColor, font: tickFont, precision: 0 }
+                    }
+                }
+            }
+        });
+
+        // ── 4. Per-subject detail cards ─────────────────────────────
+        const cardsEl = document.getElementById('analytics-cards');
+        cardsEl.innerHTML = subjects.map(s => {
+            const st = stats[s];
+            const covPct   = st.total > 0 ? Math.round((st.attempted / st.total) * 100) : 0;
+            const mastPct  = st.attempted > 0 ? Math.round((st.mastered / st.attempted) * 100) : 0;
+            const notTried = st.total - st.attempted;
+            // Color based on coverage
+            const barColor = covPct >= 75 ? 'bg-emerald-500' : covPct >= 40 ? 'bg-amber-400' : 'bg-rose-500';
+            const pctColor = covPct >= 75 ? 'text-emerald-600 dark:text-emerald-400' : covPct >= 40 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400';
+            return `<div class="bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="font-black text-sm text-slate-800 dark:text-slate-100 leading-tight pr-2">${s}</div>
+                    <div class="text-xl font-black ${pctColor} shrink-0">${covPct}%</div>
+                </div>
+                <div class="w-full h-2 bg-slate-100 dark:bg-slate-700 rounded-full mb-3 overflow-hidden">
+                    <div class="${barColor} h-full rounded-full transition-all duration-700" style="width:${covPct}%"></div>
+                </div>
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-indigo-50 dark:bg-indigo-900/30 rounded-lg p-2">
+                        <div class="text-sm font-black text-indigo-600 dark:text-indigo-400">${st.total}</div>
+                        <div class="text-[9px] font-black text-slate-400 uppercase tracking-wide">Total</div>
+                    </div>
+                    <div class="bg-emerald-50 dark:bg-emerald-900/30 rounded-lg p-2">
+                        <div class="text-sm font-black text-emerald-600 dark:text-emerald-400">${st.attempted}</div>
+                        <div class="text-[9px] font-black text-slate-400 uppercase tracking-wide">Tried</div>
+                    </div>
+                    <div class="bg-rose-50 dark:bg-rose-900/30 rounded-lg p-2">
+                        <div class="text-sm font-black text-rose-600 dark:text-rose-400">${notTried}</div>
+                        <div class="text-[9px] font-black text-slate-400 uppercase tracking-wide">Untried</div>
+                    </div>
+                </div>
+                ${st.mastered > 0 ? `<div class="mt-2 text-center text-[10px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg py-1">👑 ${st.mastered} Mastered (${mastPct}% of tried)</div>` : ''}
+            </div>`;
+        }).join('');
+    };
+
+    // ================================================================
+
     // V21.1 SMART ROUTING IMPORTER
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('quiz-container').addEventListener('click', (e) => { const optBtn = e.target.closest('.option-btn'); if (optBtn) { const qIdx = parseInt(optBtn.dataset.qindex); const oIdx = parseInt(optBtn.dataset.oindex); selectOption(qIdx, oIdx); } });
@@ -2542,39 +2801,40 @@ Add these to SRS now?
                     } 
                     // Otherwise it's a Standard Quiz JSON
                     else {
+                        importedData.subject = targetImportSubject;
+
                         // Check for duplicate: same title already exists in same subject
                         const dupId = Object.keys(db).find(id => 
-                            db[id].subject === targetImportSubject && 
+                            db[id] && db[id].subject === targetImportSubject && 
                             db[id].title === importedData.title
                         );
 
                         if (dupId) {
+                            // Always show choice — never silently duplicate
                             const choice = confirm(
-                                `⚠️ A quiz named "${importedData.title}" already exists in ${targetImportSubject}.\n\n` +
-                                `Press OK to REPLACE it (old SRS data for its questions will be cleared).\n` +
-                                `Press Cancel to import as a NEW separate copy.`
+                                `⚠️ "${importedData.title}" already exists in ${targetImportSubject}.\n\n` +
+                                `OK = REPLACE (clears old SRS entries for this quiz — fresh start)\n` +
+                                `Cancel = Keep both (imports as a separate copy)`
                             );
                             if (choice) {
-                                // REPLACE: clean old SRS entries for the old quiz questions first
+                                // Wipe SRS for every question in the OLD copy
                                 if (Array.isArray(db[dupId].questions) && Array.isArray(mistakesDb)) {
                                     const oldQTexts = new Set(db[dupId].questions.map(q => q.question));
                                     mistakesDb = mistakesDb.filter(m => !oldQTexts.has(m.question));
                                 }
-                                // Replace quiz in db under same ID so history links survive
-                                importedData.subject = targetImportSubject;
-                                db[dupId] = importedData;
+                                db[dupId] = importedData; // replace under same ID
                                 saveData(); rebuildSearchCache(); renderDashboard(); updateSRSBadge();
-                                alert(`✅ Quiz replaced! Old SRS data cleared. Fresh start for "${importedData.title}".`);
+                                alert(`✅ Replaced! SRS cleared for "${importedData.title}". Attempt it again to re-enter fresh.`);
                                 e.target.value = ''; return;
                             }
+                            // If Cancel — fall through to fresh import below as a new copy
                         }
 
-                        // Fresh import (no duplicate, or user chose separate copy)
+                        // Fresh import
                         const newId = 'quiz_' + Date.now(); 
-                        importedData.subject = targetImportSubject; 
                         db[newId] = importedData;
                         saveData(); rebuildSearchCache(); renderDashboard(); 
-                        alert(`✅ Quiz successfully imported into ${targetImportSubject}!`);
+                        alert(`✅ Imported into ${targetImportSubject}!`);
                     }
                 } catch(err) { alert("❌ Error: Invalid JSON file. Make sure your formatting is perfect."); }
                 e.target.value = ''; 
