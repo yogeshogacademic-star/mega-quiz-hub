@@ -1558,7 +1558,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
             
             // V21.3 Export Button Added Here
             subjectQuizzes.forEach(id => {
-                listHTML += `<div class="mt-2 flex flex-col gap-2 group/row bg-slate-50 dark:bg-slate-800/80 p-3 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-emerald-400 transition-colors shadow-sm"><div onclick="openLobby('${id}')" class="cursor-pointer flex justify-between items-center w-full"><div class="w-full"><div class="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">${db[id].title}</div><div class="text-[10px] font-black text-slate-400 uppercase mt-1 tracking-widest">${db[id].questions.length} Qs • ${db[id].timeInMinutes} Mins</div></div></div><div class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700/50"><button onclick="openTargetedHistory('${id}')" class="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-amber-100 dark:border-amber-800/30" title="View Past Attempts">📊 Hist</button><button onclick="exportSingleQuiz('${id}')" class="flex-1 bg-fuchsia-50 hover:bg-fuchsia-100 text-fuchsia-600 dark:bg-fuchsia-900/30 dark:text-fuchsia-400 dark:hover:bg-fuchsia-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-fuchsia-100 dark:border-fuchsia-800/30" title="Export Quiz to JSON">📥 Exp</button><button onclick="renameQuiz('${id}')" class="flex-1 bg-cyan-50 hover:bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400 dark:hover:bg-cyan-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-cyan-100 dark:border-cyan-800/30" title="Rename Quiz 🔒">✏️ Name</button><button onclick="syncQuizToSRS('${id}')" class="flex-1 bg-purple-50 hover:bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 dark:hover:bg-purple-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-purple-100 dark:border-purple-800/30" title="Bulk-add all questions to SRS 🔒">🔁 SRS</button><button onclick="deleteQuiz('${id}')" class="bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-black text-xs px-3 py-2 rounded-lg transition-colors border border-red-100 dark:border-red-800/30" title="Delete Quiz 🔒">🗑️</button></div></div>`;
+                listHTML += `<div class="mt-2 flex flex-col gap-2 group/row bg-slate-50 dark:bg-slate-800/80 p-3 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-emerald-400 transition-colors shadow-sm"><div onclick="openLobby('${id}')" class="cursor-pointer flex justify-between items-center w-full"><div class="w-full"><div class="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">${db[id].title}</div><div class="text-[10px] font-black text-slate-400 uppercase mt-1 tracking-widest">${db[id].questions.length} Qs • ${db[id].timeInMinutes} Mins</div></div></div><div class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700/50"><button onclick="openTargetedHistory('${id}')" class="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-amber-100 dark:border-amber-800/30" title="View Past Attempts">📊 Hist</button><button onclick="exportSingleQuiz('${id}')" class="flex-1 bg-fuchsia-50 hover:bg-fuchsia-100 text-fuchsia-600 dark:bg-fuchsia-900/30 dark:text-fuchsia-400 dark:hover:bg-fuchsia-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-fuchsia-100 dark:border-fuchsia-800/30" title="Export Quiz to JSON">📥 Exp</button><button onclick="renameQuiz('${id}')" class="flex-1 bg-cyan-50 hover:bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400 dark:hover:bg-cyan-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-cyan-100 dark:border-cyan-800/30" title="Rename Quiz 🔒">✏️ Name</button><button onclick="deleteQuiz('${id}')" class="bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-black text-xs px-3 py-2 rounded-lg transition-colors border border-red-100 dark:border-red-800/30" title="Delete Quiz 🔒">🗑️</button></div></div>`;
             });
 
             const card = document.createElement('div'); card.className = `bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-lg border border-slate-200 dark:border-slate-800 flex flex-col subject-card relative overflow-hidden`;
@@ -1912,16 +1912,48 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                 // SRS sprint: auto-grade every question (correct advances, wrong/skipped = 10-min penalty)
                 let srsStatus = (status === 'correct') ? 'correct' : 'wrong';
                 autoGradeSRS(q.question, srsStatus);
-            } else if (isMistake) {
-                // Normal quiz: wrong/skipped enters SRS for the first time or re-queues
+            } else {
+                // Normal quiz: ALL questions auto-enter SRS on first encounter.
+                // Correct = head start (due tomorrow). Wrong/skipped = due now (10-min penalty if already in SRS).
+                let assignedSubject = "Miscellaneous";
+                let safeTags = Array.isArray(q.tags) ? q.tags : [];
+                if (safeTags.length > 0 && CORE_SUBJECTS.includes(safeTags[0])) assignedSubject = safeTags[0];
+
                 if (mistIdx === -1) {
-                    let newMistake = JSON.parse(JSON.stringify(q)); let assignedSubject = "Miscellaneous"; let safeTags = Array.isArray(newMistake.tags) ? newMistake.tags : []; 
-                    if (safeTags.length > 0 && CORE_SUBJECTS.includes(safeTags[0])) assignedSubject = safeTags[0];
-                    newMistake.subject = assignedSubject; newMistake.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() }; newMistake.isMastered = false; mistakesDb.push(newMistake);
-                } else {
-                    // Re-queue: 10-min penalty (real)
-                    mistakesDb[mistIdx].srs.reps = 0; mistakesDb[mistIdx].srs.interval = 1; mistakesDb[mistIdx].srs.ease = Math.max(1.3, mistakesDb[mistIdx].srs.ease - 0.2); mistakesDb[mistIdx].srs.nextReview = Date.now() + (10 * 60 * 1000); mistakesDb[mistIdx].isMastered = false;
+                    // First time seeing this question — add to SRS
+                    let newCard = JSON.parse(JSON.stringify(q));
+                    newCard.subject = assignedSubject;
+                    if (status === 'correct') {
+                        // Head start: correct first time, schedule for tomorrow
+                        newCard.srs = { reps: 1, ease: 2.5, interval: 1, nextReview: Date.now() + (24 * 60 * 60 * 1000) };
+                    } else {
+                        // Wrong or skipped: due immediately
+                        newCard.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() };
+                    }
+                    newCard.isMastered = false;
+                    mistakesDb.push(newCard);
+                } else if (!mistakesDb[mistIdx].isMastered) {
+                    // Already in SRS — update based on this attempt
+                    if (status === 'correct') {
+                        // Correct: advance interval (don't regress if already further ahead)
+                        let m = mistakesDb[mistIdx];
+                        m.srs.reps = Math.max(m.srs.reps, 1);
+                        let newInterval = m.srs.reps === 1 ? 1 : (m.srs.reps === 2 ? 3 : Math.ceil(m.srs.interval * m.srs.ease));
+                        if (newInterval > m.srs.interval) {
+                            m.srs.interval = newInterval;
+                            m.srs.nextReview = Date.now() + (m.srs.interval * 24 * 60 * 60 * 1000);
+                        }
+                        if (m.srs.interval >= 30) m.isMastered = true;
+                    } else {
+                        // Wrong or skipped: 10-min penalty
+                        mistakesDb[mistIdx].srs.reps = 0;
+                        mistakesDb[mistIdx].srs.interval = 1;
+                        mistakesDb[mistIdx].srs.ease = Math.max(1.3, mistakesDb[mistIdx].srs.ease - 0.2);
+                        mistakesDb[mistIdx].srs.nextReview = Date.now() + (10 * 60 * 1000);
+                        mistakesDb[mistIdx].isMastered = false;
+                    }
                 }
+                // If already mastered, don't touch it
             }
 
             let tags = Array.isArray(q.tags) ? q.tags : ["Miscellaneous"]; window.currentReviewQuestions.push(q);
@@ -2027,27 +2059,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         if (widget) widget.innerHTML = `<div class="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest w-full text-center py-3 flex items-center justify-center gap-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800/50">👑 Vaulted to Masters!</div>`;
     };
 
-    // Sync button — bulk-add all questions from a quiz into SRS
-    window.syncQuizToSRS = (quizId) => {
-        requireAuth(() => {
-            const quiz = db[quizId]; if (!quiz || !Array.isArray(quiz.questions)) return;
-            let added = 0, skippedCount = 0;
-            quiz.questions.forEach(q => {
-                const exists = mistakesDb.findIndex(m => m.question === q.question);
-                if (exists === -1) {
-                    let newCard = JSON.parse(JSON.stringify(q));
-                    let assignedSubject = (Array.isArray(newCard.tags) && newCard.tags.length > 0 && CORE_SUBJECTS.includes(newCard.tags[0])) ? newCard.tags[0] : "Miscellaneous";
-                    newCard.subject = assignedSubject;
-                    newCard.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() };
-                    newCard.isMastered = false;
-                    mistakesDb.push(newCard);
-                    added++;
-                } else { skippedCount++; }
-            });
-            saveData(); updateSRSBadge();
-            alert(`✅ SRS Sync Complete!\n\nAdded: ${added} new cards\nAlready in SRS: ${skippedCount} cards`);
-        });
-    };
+    // syncQuizToSRS removed — all questions auto-enter SRS on quiz submit
 
     // Legacy processSM2 stub — maps old 4-button ratings to auto-grade
     window.processSM2 = (safeId, rating) => {
