@@ -1068,12 +1068,15 @@
         
         if(!Array.isArray(historyDb)) historyDb = [];
 
-        // SRS MIGRATION: Gemini's old keys had no questionText field — they clog
-        // the due count forever because launchSRSSprint can't look them up.
-        // Wipe any card that has no questionText so the db starts clean.
+        // SRS MIGRATION: Old Gemini keys look like "Subject_FileName_123"
+        // They have no questionText so the sprint can never look them up.
+        // Detect them by the pattern: ends with underscore + digits, no spaces in key,
+        // AND has no questionText stored. Real V22 keys are the question text itself
+        // (long sentences with spaces) so they'll never match this pattern.
         let migrated = false;
         Object.keys(srs).forEach(k => {
-            if (!srs[k] || !srs[k].questionText) { delete srs[k]; migrated = true; }
+            const looksOld = /^[^?!.,\s]{3,}_\d+$/.test(k) || (!srs[k].questionText && k.length < 60 && !k.includes(' '));
+            if (looksOld) { delete srs[k]; migrated = true; }
         });
         if (migrated) idbKeyval.set('megaQuizSRS_v1', srs);
 
@@ -2084,10 +2087,10 @@ window.syncQuizToSRS = async (quizId) => {
         srs[key] = {
             questionText: questionText,
             subject: subject,
-            reps: 2,           // Starts at "Good" baseline
+            reps: 0,
             ease: 2.5,
-            interval: 3,       // Due in 3 days
-            nextReview: Date.now() + (3 * 86400000),
+            interval: 0,
+            nextReview: Date.now() - 1,
             isMastered: false
         };
         addedCount++;
