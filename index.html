@@ -2580,25 +2580,25 @@ Add these to SRS now?
         const isDark = document.documentElement.classList.contains('dark');
 
         // ── 1. Build per-subject stats ──────────────────────────────
-        // SOURCE OF TRUTH: always use tags[0] of each question, not quiz.subject.
-        // This means GS MOCK / QUANT MOCK container quizzes are transparent —
-        // their questions are counted under their real subject (Polity, Economics etc.)
-        // Only CORE_SUBJECTS appear — container names like "GS MOCK QUESTIONS" never show.
+        // DESIGN:
+        // - total    = questions in current db, bucketed by tag[0] (real subject)
+        // - tried    = questions in mistakesDb (SRS) that exist in current db, by tag[0]
+        //              Using SRS as source (not historyDb) means cleaning SRS reflects here.
+        // - mastered = SRS entries with isMastered = true
+        // - "GS MOCK QUESTIONS" / "QUANT MOCK QUESTIONS" never appear — only CORE_SUBJECTS
 
-        const stats = {}; // { subjectName: { total, attempted, mastered, correctSum, attemptedQTexts } }
-
+        const stats = {};
         const ensureSubj = s => {
-            if (!stats[s]) stats[s] = { total: 0, attempted: 0, mastered: 0, correctSum: 0, attemptedQTexts: new Set() };
+            if (!stats[s]) stats[s] = { total: 0, tried: 0, mastered: 0 };
         };
 
-        // Build question→tag[0] lookup AND count totals
-        const qToSubject = new Map(); // question text → real subject (tag[0])
+        // Build question→realSubject map from current db using tag[0]
+        const qToSubject = new Map();
         Object.keys(db).forEach(id => {
             const quiz = db[id];
             if (!quiz || !Array.isArray(quiz.questions)) return;
             quiz.questions.forEach(q => {
                 if (!q.question) return;
-                // Determine real subject: tag[0] if it's a CORE_SUBJECT, else quiz.subject if CORE, else Miscellaneous
                 let realSubj = 'Miscellaneous';
                 if (Array.isArray(q.tags) && q.tags.length > 0 && CORE_SUBJECTS.includes(q.tags[0])) {
                     realSubj = q.tags[0];
@@ -2611,35 +2611,17 @@ Add these to SRS now?
             });
         });
 
-        // Count attempted unique questions — map via qToSubject so sprint/mixed history
-        // lands under the real subject, and deleted questions are automatically excluded
-        historyDb.forEach(h => {
-            if (!h.reviewData) return;
-            h.reviewData.forEach(r => {
-                if (!r.question) return;
-                const realSubj = qToSubject.get(r.question);
-                if (!realSubj) return; // question deleted or not in db — skip
-                ensureSubj(realSubj);
-                stats[realSubj].attemptedQTexts.add(r.question);
-                if (r.status === 'correct') stats[realSubj].correctSum++;
-            });
+        // Count tried + mastered from mistakesDb (only questions still in current db)
+        mistakesDb.forEach(m => {
+            if (!m.question) return;
+            const realSubj = qToSubject.get(m.question);
+            if (!realSubj) return; // orphan — question deleted, skip
+            ensureSubj(realSubj);
+            stats[realSubj].tried++;
+            if (m.isMastered) stats[realSubj].mastered++;
         });
 
-        // Count mastered via tag[0] from mistakesDb
-        mistakesDb.filter(m => m.isMastered).forEach(m => {
-            const realSubj = qToSubject.get(m.question)
-                || (Array.isArray(m.tags) && CORE_SUBJECTS.includes(m.tags[0]) ? m.tags[0] : null)
-                || (CORE_SUBJECTS.includes(m.subject) ? m.subject : null)
-                || 'Miscellaneous';
-            if (stats[realSubj]) stats[realSubj].mastered++;
-        });
-
-        // Flatten Sets to counts
-        Object.keys(stats).forEach(s => {
-            stats[s].attempted = stats[s].attemptedQTexts.size;
-        });
-
-        // Only show CORE_SUBJECTS that have at least 1 question in db
+        // Only CORE_SUBJECTS with at least 1 question, sorted by total desc
         const subjects = CORE_SUBJECTS
             .filter(s => stats[s] && stats[s].total > 0)
             .sort((a, b) => stats[b].total - stats[a].total);
@@ -2651,9 +2633,9 @@ Add these to SRS now?
 
         // ── 2. Summary pills ────────────────────────────────────────
         const totalQs = subjects.reduce((s, k) => s + stats[k].total, 0);
-        const totalAttempted = subjects.reduce((s, k) => s + stats[k].attempted, 0);
+        const totalTried = subjects.reduce((s, k) => s + stats[k].tried, 0);
         const totalMastered = subjects.reduce((s, k) => s + stats[k].mastered, 0);
-        const overallPct = totalQs > 0 ? Math.round((totalAttempted / totalQs) * 100) : 0;
+        const overallPct = totalQs > 0 ? Math.round((totalTried / totalQs) * 100) : 0;
 
         document.getElementById('analytics-summary').innerHTML = `
             <div class="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800/50 rounded-xl px-4 py-2">
@@ -2661,8 +2643,8 @@ Add these to SRS now?
                 <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Questions</span>
             </div>
             <div class="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800/50 rounded-xl px-4 py-2">
-                <span class="text-lg font-black text-emerald-600 dark:text-emerald-400">${totalAttempted.toLocaleString()}</span>
-                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Unique Attempted</span>
+                <span class="text-lg font-black text-emerald-600 dark:text-emerald-400">${totalTried.toLocaleString()}</span>
+                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">In SRS</span>
             </div>
             <div class="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800/50 rounded-xl px-4 py-2">
                 <span class="text-lg font-black text-amber-600 dark:text-amber-400">${totalMastered.toLocaleString()}</span>
@@ -2699,7 +2681,7 @@ Add these to SRS now?
                 },
                 {
                     label: 'Attempted',
-                    data: subjects.map(s => stats[s].attempted),
+                    data: subjects.map(s => stats[s].tried),
                     backgroundColor: isDark ? 'rgba(16,185,129,0.35)' : 'rgba(16,185,129,0.25)',
                     borderColor: isDark ? 'rgba(16,185,129,0.9)' : 'rgba(16,185,129,1)',
                     borderWidth: 2,
@@ -2743,7 +2725,7 @@ Add these to SRS now?
                         callbacks: {
                             afterBody: (items) => {
                                 const subj = subjects[items[0].dataIndex];
-                                const pct = stats[subj].total > 0 ? Math.round((stats[subj].attempted / stats[subj].total) * 100) : 0;
+                                const pct = stats[subj].total > 0 ? Math.round((stats[subj].tried / stats[subj].total) * 100) : 0;
                                 return [`Coverage: ${pct}%`];
                             }
                         }
@@ -2767,9 +2749,9 @@ Add these to SRS now?
         const cardsEl = document.getElementById('analytics-cards');
         cardsEl.innerHTML = subjects.map(s => {
             const st = stats[s];
-            const covPct   = st.total > 0 ? Math.round((st.attempted / st.total) * 100) : 0;
-            const mastPct  = st.attempted > 0 ? Math.round((st.mastered / st.attempted) * 100) : 0;
-            const notTried = st.total - st.attempted;
+            const covPct   = st.total > 0 ? Math.round((st.tried / st.total) * 100) : 0;
+            const mastPct  = st.tried > 0 ? Math.round((st.mastered / st.tried) * 100) : 0;
+            const notTried = st.total - st.tried;
             // Color based on coverage
             const barColor = covPct >= 75 ? 'bg-emerald-500' : covPct >= 40 ? 'bg-amber-400' : 'bg-rose-500';
             const pctColor = covPct >= 75 ? 'text-emerald-600 dark:text-emerald-400' : covPct >= 40 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400';
@@ -2787,12 +2769,12 @@ Add these to SRS now?
                         <div class="text-[9px] font-black text-slate-400 uppercase tracking-wide">Total</div>
                     </div>
                     <div class="bg-emerald-50 dark:bg-emerald-900/30 rounded-lg p-2">
-                        <div class="text-sm font-black text-emerald-600 dark:text-emerald-400">${st.attempted}</div>
-                        <div class="text-[9px] font-black text-slate-400 uppercase tracking-wide">Tried</div>
+                        <div class="text-sm font-black text-emerald-600 dark:text-emerald-400">${st.tried}</div>
+                        <div class="text-[9px] font-black text-slate-400 uppercase tracking-wide">In SRS</div>
                     </div>
                     <div class="bg-rose-50 dark:bg-rose-900/30 rounded-lg p-2">
                         <div class="text-sm font-black text-rose-600 dark:text-rose-400">${notTried}</div>
-                        <div class="text-[9px] font-black text-slate-400 uppercase tracking-wide">Untried</div>
+                        <div class="text-[9px] font-black text-slate-400 uppercase tracking-wide">Not in SRS</div>
                     </div>
                 </div>
                 ${st.mastered > 0 ? `<div class="mt-2 text-center text-[10px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg py-1">👑 ${st.mastered} Mastered (${mastPct}% of tried)</div>` : ''}
