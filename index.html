@@ -321,7 +321,8 @@
                     <div class="text-xs text-slate-500 dark:text-slate-400 mb-4 font-bold">Targeted firepower. Select a Tag 1 Subject.</div>
                     <select id="srs-subject-select" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300 mb-4 outline-none focus:ring-2 focus:ring-indigo-500"></select>
                     <button id="srs-subject-launch-btn" onclick="launchSRSSprint('subject')" class="w-full bg-emerald-50 hover:bg-emerald-400 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all">Launch Subject 10-Q</button>
-                    <button onclick="(() => { const sel = document.getElementById('srs-subject-select').value; if(!sel){alert('Select a subject first.');return;} if(confirm('Clear ALL SRS entries for \''+sel+'\'?\n\nThis wipes all intervals and due dates for this subject. Attempt the quiz again to re-enter them fresh.')) clearSubjectSRS(sel); })()" class="w-full mt-2 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-black text-[10px] uppercase tracking-widest py-2.5 rounded-xl border border-red-200 dark:border-red-800/50 transition-all">🗑️ Clear SRS for Selected Subject</button>
+                    <button onclick="(() => { const sel = document.getElementById('srs-subject-select').value; if(!sel){alert('Select a subject first.');return;} if(confirm('Clear ALL SRS entries for \''+sel+'\'?\n\nThis wipes all intervals and due dates. Attempt the quiz again to re-enter fresh.')) clearSubjectSRS(sel); })()" class="w-full mt-2 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-black text-[10px] uppercase tracking-widest py-2.5 rounded-xl border border-red-200 dark:border-red-800/50 transition-all">🗑️ Clear SRS for Selected Subject</button>
+                    <button onclick="(() => { const sel = document.getElementById('srs-subject-select').value; if(!sel){alert('Select a subject first.');return;} if(confirm('Delete ALL attempt history for \''+sel+'\'?\n\nThis removes past quiz history for this subject AND clears its SRS data.\n\nUse this to fix ghost SRS suggestions after re-uploading a quiz.')) clearSubjectHistory(sel); })()" class="w-full mt-2 bg-orange-50 hover:bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 dark:hover:bg-orange-900/50 font-black text-[10px] uppercase tracking-widest py-2.5 rounded-xl border border-orange-200 dark:border-orange-800/50 transition-all">🕒 Clear History + SRS for Subject</button>
                 </div>
             </div>
         </div>
@@ -2285,120 +2286,87 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     // ============================================================
     window.runSRSIntegrityCheck = () => {
         requireAuth(() => {
-            // Build master set of all questions currently in db
             const allDbQuestions = new Set();
             Object.keys(db).forEach(id => {
                 if (db[id] && Array.isArray(db[id].questions))
                     db[id].questions.forEach(q => { if (q.question) allDbQuestions.add(q.question); });
             });
 
-            // Build set of all questions already in SRS
-            const allSRSQuestions = new Set(mistakesDb.map(m => m.question));
-
-            // 1. Find attempted questions NOT in SRS
-            const attemptedNotInSRS = new Set();
-            historyDb.forEach(h => {
-                if (h.title && h.title.includes('Sprint')) return; // skip SRS sprints
-                if (h.reviewData) {
-                    h.reviewData.forEach(r => {
-                        if (r.question && !allSRSQuestions.has(r.question) && allDbQuestions.has(r.question))
-                            attemptedNotInSRS.add(r.question);
-                    });
-                }
-            });
-
-            // 2. Find SRS entries whose question no longer exists in db (orphans)
+            // True orphans: in SRS but question deleted from ALL quizzes
             const orphanedSRS = mistakesDb.filter(m => !allDbQuestions.has(m.question));
 
-            let report = `🔍 SRS INTEGRITY REPORT
-${'─'.repeat(40)}
-`;
-            report += `✅ Total in SRS queue: ${mistakesDb.length}
-`;
-            report += `✅ Total in database: ${allDbQuestions.size}
+            // Duplicates: same question text appears twice in SRS
+            const seenQ = new Set(); const duplicateSRS = [];
+            mistakesDb.forEach(m => { if (seenQ.has(m.question)) duplicateSRS.push(m.question); else seenQ.add(m.question); });
 
-`;
+            let report = `🔍 SRS INTEGRITY REPORT\n${'─'.repeat(36)}\n`;
+            report += `In SRS: ${mistakesDb.length}  |  In DB: ${allDbQuestions.size}\n\n`;
 
             if (orphanedSRS.length > 0) {
-                report += `⚠️ ORPHANED ENTRIES (${orphanedSRS.length})
-These are in SRS but their quiz was deleted:
-`;
-                orphanedSRS.slice(0, 5).forEach(m => report += `  • "${m.question.substring(0,60)}..."
-`);
-                if (orphanedSRS.length > 5) report += `  ...and ${orphanedSRS.length - 5} more
-`;
-                report += `
-Clean these up?
-`;
+                report += `⚠️ ORPHANED (${orphanedSRS.length}) — quiz deleted but still in SRS:\n`;
+                orphanedSRS.slice(0, 4).forEach(m => report += `  • "${m.question.substring(0,55)}..."\n`);
+                if (orphanedSRS.length > 4) report += `  ...+${orphanedSRS.length-4} more\n`;
             } else {
-                report += `✅ No orphaned entries — SRS is clean.
-`;
+                report += `✅ No orphaned entries.\n`;
             }
 
-            if (attemptedNotInSRS.size > 0) {
-                report += `
-⚠️ ATTEMPTED BUT MISSING FROM SRS (${attemptedNotInSRS.size})
-These were attempted in quizzes but never entered SRS
-(legacy attempts before auto-entry was added):
-`;
-                [...attemptedNotInSRS].slice(0, 3).forEach(q => report += `  • "${q.substring(0,60)}..."
-`);
-                if (attemptedNotInSRS.size > 3) report += `  ...and ${attemptedNotInSRS.size - 3} more
-`;
-                report += `
-Add these to SRS now?
-`;
+            if (duplicateSRS.length > 0) {
+                report += `\n⚠️ DUPLICATES (${duplicateSRS.length}):\n`;
+                duplicateSRS.slice(0,3).forEach(q => report += `  • "${q.substring(0,55)}"\n`);
             } else {
-                report += `✅ All attempted questions are in SRS.
-`;
+                report += `✅ No duplicate SRS entries.\n`;
             }
 
-            const hasIssues = orphanedSRS.length > 0 || attemptedNotInSRS.size > 0;
-            if (!hasIssues) { alert(report + '\n🎉 Your SRS is perfectly in sync!'); return; }
+            const hasIssues = orphanedSRS.length > 0 || duplicateSRS.length > 0;
+            if (!hasIssues) { alert(report + '\n🎉 SRS is perfectly clean!'); return; }
 
-            const action = confirm(report + '\nPress OK to auto-fix both issues now.\nPress Cancel to just view the report.');
-            if (!action) return;
+            if (!confirm(report + '\nOK = auto-fix now  |  Cancel = just view')) return;
 
             let fixed = 0;
-            // Fix 1: Remove orphans
             if (orphanedSRS.length > 0) {
-                const orphanTexts = new Set(orphanedSRS.map(m => m.question));
-                mistakesDb = mistakesDb.filter(m => !orphanTexts.has(m.question));
+                const ots = new Set(orphanedSRS.map(m => m.question));
+                mistakesDb = mistakesDb.filter(m => !ots.has(m.question));
                 fixed += orphanedSRS.length;
             }
-
-            // Fix 2: Add missed attempted questions to SRS (due now, reps 0)
-            if (attemptedNotInSRS.size > 0) {
-                attemptedNotInSRS.forEach(qText => {
-                    // Find the full question object from db
-                    let qObj = null;
-                    for (let id in db) {
-                        if (!db[id] || !Array.isArray(db[id].questions)) continue;
-                        qObj = db[id].questions.find(q => q.question === qText);
-                        if (qObj) break;
-                    }
-                    if (!qObj) return;
-                    let newCard = JSON.parse(JSON.stringify(qObj));
-                    let safeTags = Array.isArray(newCard.tags) ? newCard.tags : [];
-                    newCard.subject = (safeTags.length > 0 && CORE_SUBJECTS.includes(safeTags[0])) ? safeTags[0] : "Miscellaneous";
-                    newCard.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() };
-                    newCard.isMastered = false;
-                    mistakesDb.push(newCard);
-                    fixed++;
-                });
+            if (duplicateSRS.length > 0) {
+                const seen = new Set();
+                mistakesDb = mistakesDb.filter(m => { if (seen.has(m.question)) return false; seen.add(m.question); return true; });
+                fixed += duplicateSRS.length;
             }
 
             saveData(); updateSRSBadge(); renderDashboard();
-            alert(`✅ SRS Integrity Fixed!
-
-• Orphans removed: ${orphanedSRS.length}
-• Missing questions added: ${attemptedNotInSRS.size}
-• Total fixes: ${fixed}`);
+            alert(`✅ Fixed ${fixed} issue(s).\n• Orphans removed: ${orphanedSRS.length}\n• Duplicates removed: ${duplicateSRS.length}`);
         });
     };
 
         // Clear ALL SRS entries for a specific subject — manual reset
-    window.clearSubjectSRS = (subjectName) => {
+    // Delete ALL history entries for a specific subject
+    // This kills ghost "attempted but missing from SRS" suggestions
+    window.clearSubjectHistory = (subjectName) => {
+        requireAuth(() => {
+            if (!subjectName) return alert('No subject selected.');
+            const before = historyDb.length;
+            historyDb = historyDb.filter(h => {
+                // Remove entries where subject matches OR title contains subject name
+                const hSubject = h.subject || '';
+                return hSubject !== subjectName;
+            });
+            const removed = before - historyDb.length;
+            saveData();
+            if (removed > 0) {
+                alert(`🗑️ Deleted ${removed} history attempt(s) for "${subjectName}".
+
+Ghost SRS suggestions for this subject are now gone.
+Attempt the quiz again to start fresh.`);
+            } else {
+                alert(`No history entries found for "${subjectName}".`);
+            }
+            // Re-render to reflect the change
+            if (typeof renderAnalytics === 'function') setTimeout(renderAnalytics, 50);
+        });
+    };
+
+        window.clearSubjectSRS = (subjectName) => {
         requireAuth(() => {
             const before = mistakesDb.length;
             // Find all questions belonging to this subject from the current db
