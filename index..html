@@ -174,6 +174,28 @@
             </div>
 
             <div id="dashboard-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-16"></div>
+
+            <!-- ===================== ANALYTICS SECTION ===================== -->
+            <div id="analytics-section" class="mb-16">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight flex items-center gap-3">
+                            📊 Subject Coverage Analytics
+                        </h2>
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Questions in DB · Attempted · Mastered</p>
+                    </div>
+                    <button onclick="renderAnalytics()" class="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200 dark:border-slate-700 transition-all">↺ Refresh</button>
+                </div>
+                <!-- Summary pills row -->
+                <div id="analytics-summary" class="flex flex-wrap gap-3 mb-6"></div>
+                <!-- Main chart canvas -->
+                <div class="bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm overflow-x-auto">
+                    <canvas id="analytics-chart" style="min-width:600px; height:340px;"></canvas>
+                </div>
+                <!-- Per-subject detail cards -->
+                <div id="analytics-cards" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mt-6"></div>
+            </div>
+            <!-- ============================================================ -->
             
             <div class="mt-auto text-center pb-10 border-t border-slate-200 dark:border-slate-800/50 pt-10">
                 <div class="text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em] text-[10px] mb-8 flex items-center justify-center gap-4">
@@ -299,6 +321,8 @@
                     <div class="text-xs text-slate-500 dark:text-slate-400 mb-4 font-bold">Targeted firepower. Select a Tag 1 Subject.</div>
                     <select id="srs-subject-select" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300 mb-4 outline-none focus:ring-2 focus:ring-indigo-500"></select>
                     <button id="srs-subject-launch-btn" onclick="launchSRSSprint('subject')" class="w-full bg-emerald-50 hover:bg-emerald-400 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all">Launch Subject 10-Q</button>
+                    <button onclick="(() => { const sel = document.getElementById('srs-subject-select').value; if(!sel){alert('Select a subject first.');return;} if(confirm('Clear ALL SRS entries for \''+sel+'\'?\n\nThis wipes all intervals and due dates. Attempt the quiz again to re-enter fresh.')) clearSubjectSRS(sel); })()" class="w-full mt-2 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-black text-[10px] uppercase tracking-widest py-2.5 rounded-xl border border-red-200 dark:border-red-800/50 transition-all">🗑️ Clear SRS for Selected Subject</button>
+                    <button onclick="(() => { const sel = document.getElementById('srs-subject-select').value; if(!sel){alert('Select a subject first.');return;} if(confirm('Delete ALL attempt history for \''+sel+'\'?\n\nThis removes past quiz history for this subject AND clears its SRS data.\n\nUse this to fix ghost SRS suggestions after re-uploading a quiz.')) clearSubjectHistory(sel); })()" class="w-full mt-2 bg-orange-50 hover:bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 dark:hover:bg-orange-900/50 font-black text-[10px] uppercase tracking-widest py-2.5 rounded-xl border border-orange-200 dark:border-orange-800/50 transition-all">🕒 Clear History + SRS for Subject</button>
                 </div>
             </div>
         </div>
@@ -1616,6 +1640,8 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         const grid = document.getElementById('dashboard-grid'); grid.innerHTML = '';
         let masteredCount = mistakesDb.filter(m => m.isMastered).length;
         updateSRSBadge();
+        // Defer analytics render so chart canvas is in DOM
+        setTimeout(renderAnalytics, 50);
 
         const mambaCard = document.createElement('div');
         mambaCard.className = 'col-span-1 md:col-span-2 xl:col-span-1 mamba-card rounded-3xl bg-slate-950 border border-slate-800 shadow-2xl relative overflow-hidden flex flex-col p-8 group min-h-[300px] xl:min-h-[auto]';
@@ -2260,114 +2286,109 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     // ============================================================
     window.runSRSIntegrityCheck = () => {
         requireAuth(() => {
-            // Build master set of all questions currently in db
             const allDbQuestions = new Set();
             Object.keys(db).forEach(id => {
                 if (db[id] && Array.isArray(db[id].questions))
                     db[id].questions.forEach(q => { if (q.question) allDbQuestions.add(q.question); });
             });
 
-            // Build set of all questions already in SRS
-            const allSRSQuestions = new Set(mistakesDb.map(m => m.question));
-
-            // 1. Find attempted questions NOT in SRS
-            const attemptedNotInSRS = new Set();
-            historyDb.forEach(h => {
-                if (h.title && h.title.includes('Sprint')) return; // skip SRS sprints
-                if (h.reviewData) {
-                    h.reviewData.forEach(r => {
-                        if (r.question && !allSRSQuestions.has(r.question) && allDbQuestions.has(r.question))
-                            attemptedNotInSRS.add(r.question);
-                    });
-                }
-            });
-
-            // 2. Find SRS entries whose question no longer exists in db (orphans)
+            // True orphans: in SRS but question deleted from ALL quizzes
             const orphanedSRS = mistakesDb.filter(m => !allDbQuestions.has(m.question));
 
-            let report = `🔍 SRS INTEGRITY REPORT
-${'─'.repeat(40)}
-`;
-            report += `✅ Total in SRS queue: ${mistakesDb.length}
-`;
-            report += `✅ Total in database: ${allDbQuestions.size}
+            // Duplicates: same question text appears twice in SRS
+            const seenQ = new Set(); const duplicateSRS = [];
+            mistakesDb.forEach(m => { if (seenQ.has(m.question)) duplicateSRS.push(m.question); else seenQ.add(m.question); });
 
-`;
+            let report = `🔍 SRS INTEGRITY REPORT\n${'─'.repeat(36)}\n`;
+            report += `In SRS: ${mistakesDb.length}  |  In DB: ${allDbQuestions.size}\n\n`;
 
             if (orphanedSRS.length > 0) {
-                report += `⚠️ ORPHANED ENTRIES (${orphanedSRS.length})
-These are in SRS but their quiz was deleted:
-`;
-                orphanedSRS.slice(0, 5).forEach(m => report += `  • "${m.question.substring(0,60)}..."
-`);
-                if (orphanedSRS.length > 5) report += `  ...and ${orphanedSRS.length - 5} more
-`;
-                report += `
-Clean these up?
-`;
+                report += `⚠️ ORPHANED (${orphanedSRS.length}) — quiz deleted but still in SRS:\n`;
+                orphanedSRS.slice(0, 4).forEach(m => report += `  • "${m.question.substring(0,55)}..."\n`);
+                if (orphanedSRS.length > 4) report += `  ...+${orphanedSRS.length-4} more\n`;
             } else {
-                report += `✅ No orphaned entries — SRS is clean.
-`;
+                report += `✅ No orphaned entries.\n`;
             }
 
-            if (attemptedNotInSRS.size > 0) {
-                report += `
-⚠️ ATTEMPTED BUT MISSING FROM SRS (${attemptedNotInSRS.size})
-These were attempted in quizzes but never entered SRS
-(legacy attempts before auto-entry was added):
-`;
-                [...attemptedNotInSRS].slice(0, 3).forEach(q => report += `  • "${q.substring(0,60)}..."
-`);
-                if (attemptedNotInSRS.size > 3) report += `  ...and ${attemptedNotInSRS.size - 3} more
-`;
-                report += `
-Add these to SRS now?
-`;
+            if (duplicateSRS.length > 0) {
+                report += `\n⚠️ DUPLICATES (${duplicateSRS.length}):\n`;
+                duplicateSRS.slice(0,3).forEach(q => report += `  • "${q.substring(0,55)}"\n`);
             } else {
-                report += `✅ All attempted questions are in SRS.
-`;
+                report += `✅ No duplicate SRS entries.\n`;
             }
 
-           const hasIssues = orphanedSRS.length > 0 || attemptedNotInSRS.size > 0;
-            if (!hasIssues) { alert(report + `\n🎉 Your SRS is perfectly in sync!`); return; }
+            const hasIssues = orphanedSRS.length > 0 || duplicateSRS.length > 0;
+            if (!hasIssues) { alert(report + '\n🎉 SRS is perfectly clean!'); return; }
 
-            const action = confirm(report + `\nPress OK to auto-fix both issues now.\nPress Cancel to just view the report.`);
-            if (!action) return;           
+            if (!confirm(report + '\nOK = auto-fix now  |  Cancel = just view')) return;
+
             let fixed = 0;
-            // Fix 1: Remove orphans
             if (orphanedSRS.length > 0) {
-                const orphanTexts = new Set(orphanedSRS.map(m => m.question));
-                mistakesDb = mistakesDb.filter(m => !orphanTexts.has(m.question));
+                const ots = new Set(orphanedSRS.map(m => m.question));
+                mistakesDb = mistakesDb.filter(m => !ots.has(m.question));
                 fixed += orphanedSRS.length;
             }
-
-            // Fix 2: Add missed attempted questions to SRS (due now, reps 0)
-            if (attemptedNotInSRS.size > 0) {
-                attemptedNotInSRS.forEach(qText => {
-                    // Find the full question object from db
-                    let qObj = null;
-                    for (let id in db) {
-                        if (!db[id] || !Array.isArray(db[id].questions)) continue;
-                        qObj = db[id].questions.find(q => q.question === qText);
-                        if (qObj) break;
-                    }
-                    if (!qObj) return;
-                    let newCard = JSON.parse(JSON.stringify(qObj));
-                    let safeTags = Array.isArray(newCard.tags) ? newCard.tags : [];
-                    newCard.subject = (safeTags.length > 0 && CORE_SUBJECTS.includes(safeTags[0])) ? safeTags[0] : "Miscellaneous";
-                    newCard.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() };
-                    newCard.isMastered = false;
-                    mistakesDb.push(newCard);
-                    fixed++;
-                });
+            if (duplicateSRS.length > 0) {
+                const seen = new Set();
+                mistakesDb = mistakesDb.filter(m => { if (seen.has(m.question)) return false; seen.add(m.question); return true; });
+                fixed += duplicateSRS.length;
             }
 
             saveData(); updateSRSBadge(); renderDashboard();
-            alert(`✅ SRS Integrity Fixed!
+            alert(`✅ Fixed ${fixed} issue(s).\n• Orphans removed: ${orphanedSRS.length}\n• Duplicates removed: ${duplicateSRS.length}`);
+        });
+    };
 
-• Orphans removed: ${orphanedSRS.length}
-• Missing questions added: ${attemptedNotInSRS.size}
-• Total fixes: ${fixed}`);
+        // Clear ALL SRS entries for a specific subject — manual reset
+    // Delete ALL history entries for a specific subject
+    // This kills ghost "attempted but missing from SRS" suggestions
+    window.clearSubjectHistory = (subjectName) => {
+        requireAuth(() => {
+            if (!subjectName) return alert('No subject selected.');
+            const before = historyDb.length;
+            historyDb = historyDb.filter(h => {
+                // Remove entries where subject matches OR title contains subject name
+                const hSubject = h.subject || '';
+                return hSubject !== subjectName;
+            });
+            const removed = before - historyDb.length;
+            saveData();
+            if (removed > 0) {
+                alert(`🗑️ Deleted ${removed} history attempt(s) for "${subjectName}".
+
+Ghost SRS suggestions for this subject are now gone.
+Attempt the quiz again to start fresh.`);
+            } else {
+                alert(`No history entries found for "${subjectName}".`);
+            }
+            // Re-render to reflect the change
+            if (typeof renderAnalytics === 'function') setTimeout(renderAnalytics, 50);
+        });
+    };
+
+        window.clearSubjectSRS = (subjectName) => {
+        requireAuth(() => {
+            const before = mistakesDb.length;
+            // Find all questions belonging to this subject from the current db
+            const subjectQTexts = new Set();
+            Object.keys(db).forEach(id => {
+                if (!db[id] || !Array.isArray(db[id].questions)) return;
+                // Match by subject field OR by tags[0]
+                const isSubject = db[id].subject === subjectName;
+                db[id].questions.forEach(q => {
+                    const tagMatch = Array.isArray(q.tags) && q.tags[0] === subjectName;
+                    if (isSubject || tagMatch) subjectQTexts.add(q.question);
+                });
+            });
+            // Also match by the subject stored on the SRS card itself
+            mistakesDb = mistakesDb.filter(m => {
+                const cardSubject = m.subject || (Array.isArray(m.tags) ? m.tags[0] : '') || '';
+                const isThisSubject = cardSubject === subjectName || subjectQTexts.has(m.question);
+                return !isThisSubject;
+            });
+            const removed = before - mistakesDb.length;
+            saveData(); updateSRSBadge(); openSRSModal(); // refresh modal
+            alert(`🗑️ Cleared ${removed} SRS entries for "${subjectName}".\nFresh start — attempt the quiz again to re-enter them.`);
         });
     };
 
@@ -2518,6 +2539,219 @@ Add these to SRS now?
         a.click();
     };
 
+    // ================================================================
+    // ANALYTICS ENGINE — Subject Coverage Chart
+    // ================================================================
+    let analyticsChartInstance = null;
+
+    window.renderAnalytics = () => {
+        const isDark = document.documentElement.classList.contains('dark');
+
+        // ── 1. Build per-subject stats ──────────────────────────────
+        // DESIGN:
+        // - total    = questions in current db, bucketed by tag[0] (real subject)
+        // - tried    = questions in mistakesDb (SRS) that exist in current db, by tag[0]
+        //              Using SRS as source (not historyDb) means cleaning SRS reflects here.
+        // - mastered = SRS entries with isMastered = true
+        // - "GS MOCK QUESTIONS" / "QUANT MOCK QUESTIONS" never appear — only CORE_SUBJECTS
+
+        const stats = {};
+        const ensureSubj = s => {
+            if (!stats[s]) stats[s] = { total: 0, tried: 0, mastered: 0 };
+        };
+
+        // Build question→realSubject map from current db using tag[0]
+        const qToSubject = new Map();
+        Object.keys(db).forEach(id => {
+            const quiz = db[id];
+            if (!quiz || !Array.isArray(quiz.questions)) return;
+            quiz.questions.forEach(q => {
+                if (!q.question) return;
+                let realSubj = 'Miscellaneous';
+                if (Array.isArray(q.tags) && q.tags.length > 0 && CORE_SUBJECTS.includes(q.tags[0])) {
+                    realSubj = q.tags[0];
+                } else if (CORE_SUBJECTS.includes(quiz.subject)) {
+                    realSubj = quiz.subject;
+                }
+                qToSubject.set(q.question, realSubj);
+                ensureSubj(realSubj);
+                stats[realSubj].total++;
+            });
+        });
+
+        // Count tried + mastered from mistakesDb (only questions still in current db)
+        mistakesDb.forEach(m => {
+            if (!m.question) return;
+            const realSubj = qToSubject.get(m.question);
+            if (!realSubj) return; // orphan — question deleted, skip
+            ensureSubj(realSubj);
+            stats[realSubj].tried++;
+            if (m.isMastered) stats[realSubj].mastered++;
+        });
+
+        // Only CORE_SUBJECTS with at least 1 question, sorted by total desc
+        const subjects = CORE_SUBJECTS
+            .filter(s => stats[s] && stats[s].total > 0)
+            .sort((a, b) => stats[b].total - stats[a].total);
+
+        if (subjects.length === 0) {
+            document.getElementById('analytics-summary').innerHTML = '<p class="text-sm text-slate-400 font-bold">No quizzes imported yet.</p>';
+            return;
+        }
+
+        // ── 2. Summary pills ────────────────────────────────────────
+        const totalQs = subjects.reduce((s, k) => s + stats[k].total, 0);
+        const totalTried = subjects.reduce((s, k) => s + stats[k].tried, 0);
+        const totalMastered = subjects.reduce((s, k) => s + stats[k].mastered, 0);
+        const overallPct = totalQs > 0 ? Math.round((totalTried / totalQs) * 100) : 0;
+
+        document.getElementById('analytics-summary').innerHTML = `
+            <div class="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800/50 rounded-xl px-4 py-2">
+                <span class="text-lg font-black text-indigo-600 dark:text-indigo-400">${totalQs.toLocaleString()}</span>
+                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Questions</span>
+            </div>
+            <div class="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800/50 rounded-xl px-4 py-2">
+                <span class="text-lg font-black text-emerald-600 dark:text-emerald-400">${totalTried.toLocaleString()}</span>
+                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">In SRS</span>
+            </div>
+            <div class="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800/50 rounded-xl px-4 py-2">
+                <span class="text-lg font-black text-amber-600 dark:text-amber-400">${totalMastered.toLocaleString()}</span>
+                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Mastered</span>
+            </div>
+            <div class="flex items-center gap-2 bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800/50 rounded-xl px-4 py-2">
+                <span class="text-lg font-black text-purple-600 dark:text-purple-400">${overallPct}%</span>
+                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Overall Coverage</span>
+            </div>
+            <div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2">
+                <span class="text-lg font-black text-slate-600 dark:text-slate-300">${subjects.length}</span>
+                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Subjects Active</span>
+            </div>`;
+
+        // ── 3. Chart.js bar chart ───────────────────────────────────
+        const canvas = document.getElementById('analytics-chart');
+        if (!canvas) return;
+
+        const gridColor  = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+        const labelColor = isDark ? '#94a3b8' : '#64748b';
+        const tickFont   = { family: 'Nunito Sans, sans-serif', size: 11, weight: '700' };
+
+        const chartData = {
+            labels: subjects,
+            datasets: [
+                {
+                    label: 'Total in DB',
+                    data: subjects.map(s => stats[s].total),
+                    backgroundColor: isDark ? 'rgba(99,102,241,0.25)' : 'rgba(99,102,241,0.18)',
+                    borderColor: isDark ? 'rgba(99,102,241,0.8)' : 'rgba(99,102,241,0.9)',
+                    borderWidth: 2,
+                    borderRadius: 6,
+                    borderSkipped: false,
+                },
+                {
+                    label: 'Attempted',
+                    data: subjects.map(s => stats[s].tried),
+                    backgroundColor: isDark ? 'rgba(16,185,129,0.35)' : 'rgba(16,185,129,0.25)',
+                    borderColor: isDark ? 'rgba(16,185,129,0.9)' : 'rgba(16,185,129,1)',
+                    borderWidth: 2,
+                    borderRadius: 6,
+                    borderSkipped: false,
+                },
+                {
+                    label: 'Mastered',
+                    data: subjects.map(s => stats[s].mastered),
+                    backgroundColor: isDark ? 'rgba(251,191,36,0.35)' : 'rgba(251,191,36,0.3)',
+                    borderColor: isDark ? 'rgba(251,191,36,0.9)' : 'rgba(245,158,11,1)',
+                    borderWidth: 2,
+                    borderRadius: 6,
+                    borderSkipped: false,
+                }
+            ]
+        };
+
+        if (analyticsChartInstance) { analyticsChartInstance.destroy(); analyticsChartInstance = null; }
+
+        analyticsChartInstance = new Chart(canvas, {
+            type: 'bar',
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: labelColor, font: { ...tickFont, size: 12 }, padding: 20, usePointStyle: true, pointStyleWidth: 10 }
+                    },
+                    tooltip: {
+                        backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                        titleColor: isDark ? '#e2e8f0' : '#1e293b',
+                        bodyColor: isDark ? '#94a3b8' : '#475569',
+                        borderColor: isDark ? '#334155' : '#e2e8f0',
+                        borderWidth: 1,
+                        padding: 12,
+                        cornerRadius: 10,
+                        callbacks: {
+                            afterBody: (items) => {
+                                const subj = subjects[items[0].dataIndex];
+                                const pct = stats[subj].total > 0 ? Math.round((stats[subj].tried / stats[subj].total) * 100) : 0;
+                                return [`Coverage: ${pct}%`];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: gridColor },
+                        ticks: { color: labelColor, font: tickFont, maxRotation: 35 }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: gridColor },
+                        ticks: { color: labelColor, font: tickFont, precision: 0 }
+                    }
+                }
+            }
+        });
+
+        // ── 4. Per-subject detail cards ─────────────────────────────
+        const cardsEl = document.getElementById('analytics-cards');
+        cardsEl.innerHTML = subjects.map(s => {
+            const st = stats[s];
+            const covPct   = st.total > 0 ? Math.round((st.tried / st.total) * 100) : 0;
+            const mastPct  = st.tried > 0 ? Math.round((st.mastered / st.tried) * 100) : 0;
+            const notTried = st.total - st.tried;
+            // Color based on coverage
+            const barColor = covPct >= 75 ? 'bg-emerald-500' : covPct >= 40 ? 'bg-amber-400' : 'bg-rose-500';
+            const pctColor = covPct >= 75 ? 'text-emerald-600 dark:text-emerald-400' : covPct >= 40 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400';
+            return `<div class="bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="font-black text-sm text-slate-800 dark:text-slate-100 leading-tight pr-2">${s}</div>
+                    <div class="text-xl font-black ${pctColor} shrink-0">${covPct}%</div>
+                </div>
+                <div class="w-full h-2 bg-slate-100 dark:bg-slate-700 rounded-full mb-3 overflow-hidden">
+                    <div class="${barColor} h-full rounded-full transition-all duration-700" style="width:${covPct}%"></div>
+                </div>
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-indigo-50 dark:bg-indigo-900/30 rounded-lg p-2">
+                        <div class="text-sm font-black text-indigo-600 dark:text-indigo-400">${st.total}</div>
+                        <div class="text-[9px] font-black text-slate-400 uppercase tracking-wide">Total</div>
+                    </div>
+                    <div class="bg-emerald-50 dark:bg-emerald-900/30 rounded-lg p-2">
+                        <div class="text-sm font-black text-emerald-600 dark:text-emerald-400">${st.tried}</div>
+                        <div class="text-[9px] font-black text-slate-400 uppercase tracking-wide">In SRS</div>
+                    </div>
+                    <div class="bg-rose-50 dark:bg-rose-900/30 rounded-lg p-2">
+                        <div class="text-sm font-black text-rose-600 dark:text-rose-400">${notTried}</div>
+                        <div class="text-[9px] font-black text-slate-400 uppercase tracking-wide">Not in SRS</div>
+                    </div>
+                </div>
+                ${st.mastered > 0 ? `<div class="mt-2 text-center text-[10px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg py-1">👑 ${st.mastered} Mastered (${mastPct}% of tried)</div>` : ''}
+            </div>`;
+        }).join('');
+    };
+
+    // ================================================================
+
     // V21.1 SMART ROUTING IMPORTER
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('quiz-container').addEventListener('click', (e) => { const optBtn = e.target.closest('.option-btn'); if (optBtn) { const qIdx = parseInt(optBtn.dataset.qindex); const oIdx = parseInt(optBtn.dataset.oindex); selectOption(qIdx, oIdx); } });
@@ -2541,8 +2775,40 @@ Add these to SRS now?
                     } 
                     // Otherwise it's a Standard Quiz JSON
                     else {
-                        const newId = 'quiz_' + Date.now(); importedData.subject = targetImportSubject; db[newId] = importedData;
-                        saveData(); rebuildSearchCache(); renderDashboard(); alert(`✅ Quiz successfully imported into ${targetImportSubject}!`);
+                        importedData.subject = targetImportSubject;
+
+                        // Check for duplicate: same title already exists in same subject
+                        const dupId = Object.keys(db).find(id => 
+                            db[id] && db[id].subject === targetImportSubject && 
+                            db[id].title === importedData.title
+                        );
+
+                        if (dupId) {
+                            // Always show choice — never silently duplicate
+                            const choice = confirm(
+                                `⚠️ "${importedData.title}" already exists in ${targetImportSubject}.\n\n` +
+                                `OK = REPLACE (clears old SRS entries for this quiz — fresh start)\n` +
+                                `Cancel = Keep both (imports as a separate copy)`
+                            );
+                            if (choice) {
+                                // Wipe SRS for every question in the OLD copy
+                                if (Array.isArray(db[dupId].questions) && Array.isArray(mistakesDb)) {
+                                    const oldQTexts = new Set(db[dupId].questions.map(q => q.question));
+                                    mistakesDb = mistakesDb.filter(m => !oldQTexts.has(m.question));
+                                }
+                                db[dupId] = importedData; // replace under same ID
+                                saveData(); rebuildSearchCache(); renderDashboard(); updateSRSBadge();
+                                alert(`✅ Replaced! SRS cleared for "${importedData.title}". Attempt it again to re-enter fresh.`);
+                                e.target.value = ''; return;
+                            }
+                            // If Cancel — fall through to fresh import below as a new copy
+                        }
+
+                        // Fresh import
+                        const newId = 'quiz_' + Date.now(); 
+                        db[newId] = importedData;
+                        saveData(); rebuildSearchCache(); renderDashboard(); 
+                        alert(`✅ Imported into ${targetImportSubject}!`);
                     }
                 } catch(err) { alert("❌ Error: Invalid JSON file. Make sure your formatting is perfect."); }
                 e.target.value = ''; 
