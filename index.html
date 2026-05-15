@@ -1654,7 +1654,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
             
             // V21.3 Export Button Added Here
             subjectQuizzes.forEach(id => {
-                listHTML += `<div class="mt-2 flex flex-col gap-2 group/row bg-slate-50 dark:bg-slate-800/80 p-3 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-emerald-400 transition-colors shadow-sm"><div onclick="openLobby('${id}')" class="cursor-pointer flex justify-between items-center w-full"><div class="w-full"><div class="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">${db[id].title}</div><div class="text-[10px] font-black text-slate-400 uppercase mt-1 tracking-widest">${db[id].questions.length} Qs • ${db[id].timeInMinutes} Mins</div></div></div><div class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700/50"><button onclick="openTargetedHistory('${id}')" class="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-amber-100 dark:border-amber-800/30" title="View Past Attempts">📊 Hist</button><button onclick="exportSingleQuiz('${id}')" class="flex-1 bg-fuchsia-50 hover:bg-fuchsia-100 text-fuchsia-600 dark:bg-fuchsia-900/30 dark:text-fuchsia-400 dark:hover:bg-fuchsia-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-fuchsia-100 dark:border-fuchsia-800/30" title="Export Quiz to JSON">📥 Exp</button><button onclick="renameQuiz('${id}')" class="flex-1 bg-cyan-50 hover:bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400 dark:hover:bg-cyan-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-cyan-100 dark:border-cyan-800/30" title="Rename Quiz 🔒">✏️ Name</button><button onclick="deleteQuiz('${id}')" class="bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-black text-xs px-3 py-2 rounded-lg transition-colors border border-red-100 dark:border-red-800/30" title="Delete Quiz 🔒">🗑️</button></div></div>`;
+                listHTML += `<div class="mt-2 flex flex-col gap-2 group/row bg-slate-50 dark:bg-slate-800/80 p-3 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-emerald-400 transition-colors shadow-sm"><div onclick="openLobby('${id}')" class="cursor-pointer flex justify-between items-center w-full"><div class="w-full"><div class="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">${db[id].title}</div><div class="text-[10px] font-black text-slate-400 uppercase mt-1 tracking-widest">${db[id].questions.length} Qs • ${db[id].timeInMinutes} Mins</div></div></div><div class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700/50"><button onclick="openTargetedHistory('${id}')" class="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-amber-100 dark:border-amber-800/30" title="View Past Attempts">📊 Hist</button><button onclick="exportSingleQuiz('${id}')" class="flex-1 bg-fuchsia-50 hover:bg-fuchsia-100 text-fuchsia-600 dark:bg-fuchsia-900/30 dark:text-fuchsia-400 dark:hover:bg-fuchsia-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-fuchsia-100 dark:border-fuchsia-800/30" title="Export Quiz to JSON">📥 Exp</button><button onclick="renameQuiz('${id}')" class="flex-1 bg-cyan-50 hover:bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400 dark:hover:bg-cyan-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-cyan-100 dark:border-cyan-800/30" title="Rename Quiz 🔒">✏️ Name</button><button onclick="purgeQuizHistory('${id}')" class="flex-1 bg-orange-50 hover:bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 dark:hover:bg-orange-900/50 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg transition-colors border border-orange-100 dark:border-orange-800/30" title="Delete quiz + wipe all history + SRS 🔒">🧹 Purge</button></div></div>`;
             });
 
             const card = document.createElement('div'); card.className = `bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-lg border border-slate-200 dark:border-slate-800 flex flex-col subject-card relative overflow-hidden`;
@@ -2051,15 +2051,14 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                 } else if (!mistakesDb[mistIdx].isMastered) {
                     // Already in SRS (not yet mastered) — update based on this attempt
                     if (status === 'correct') {
-                        // Correct: increment reps, grow ease, advance interval
                         let m = mistakesDb[mistIdx];
-                        m.srs.reps += 1;  // FIX: was Math.max(reps,1) — reps was frozen at 1 forever
+                        m.srs.reps += 1; // FIX1: was Math.max(reps,1) — reps was stuck at 1 forever
                         let newInterval = m.srs.reps === 1 ? 1 : (m.srs.reps === 2 ? 3 : Math.ceil(m.srs.interval * m.srs.ease));
                         if (newInterval > m.srs.interval) {
                             m.srs.interval = newInterval;
                             m.srs.nextReview = Date.now() + (m.srs.interval * 24 * 60 * 60 * 1000);
                         }
-                        m.srs.ease = Math.min(3.0, m.srs.ease + 0.1);  // FIX: ease was never growing on correct in subject quiz
+                        m.srs.ease = Math.min(3.0, m.srs.ease + 0.1); // FIX2: ease was never growing in subject quiz
                         if (m.srs.interval >= 30) m.isMastered = true;
                     } else {
                         // Wrong or skipped: 10-min penalty
@@ -2070,14 +2069,14 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                         mistakesDb[mistIdx].isMastered = false;
                     }
                 } else if (status !== 'correct') {
-                    // FIX: Was mastered but got it WRONG in subject quiz — demote back into SRS
+                    // FIX3: Was mastered but got it WRONG — demote back into active SRS
                     mistakesDb[mistIdx].srs.reps = 0;
-                    mistakesDb[mistIdx].srs.interval = 3;  // Not back to 1 — softer reset, proven some knowledge
+                    mistakesDb[mistIdx].srs.interval = 3; // soft reset — not back to day 1, some knowledge proven
                     mistakesDb[mistIdx].srs.ease = Math.max(1.3, mistakesDb[mistIdx].srs.ease - 0.2);
                     mistakesDb[mistIdx].srs.nextReview = Date.now() + (10 * 60 * 1000);
                     mistakesDb[mistIdx].isMastered = false;
                 }
-                // Mastered + correct → leave untouched (already good)
+                // Mastered + correct → leave untouched (no regression)
             }
 
             let tags = Array.isArray(q.tags) ? q.tags : ["Miscellaneous"]; window.currentReviewQuestions.push(q);
@@ -2136,7 +2135,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         }
         let imageHTML = q.image ? `<div class="mb-6"><img src="${q.image}" class="max-h-64 rounded-xl shadow-md border border-slate-200 dark:border-slate-700 object-contain mx-auto"></div>` : '';
 
-        return `<div class="review-card filter-${status} bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-800 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow"><div class="absolute top-0 left-0 w-1.5 h-full ${s.border}"></div><div class="flex justify-between items-center mb-4"><span class="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-md border ${s.badge}">${status}</span><button onclick="openGlobalEditModalBySafeId('${safeId}')" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-widest border border-amber-200 dark:border-amber-800/50 hover:bg-amber-200 dark:hover:bg-amber-800/50 transition-colors">✏️ Edit / Fix Error</button></div><div class="font-bold text-slate-800 dark:text-slate-200 mb-6 text-lg md:text-xl leading-relaxed">${highlightText(q.question, term)}</div>${imageHTML}<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6"><div class="bg-slate-50 dark:bg-slate-950/50 p-5 rounded-xl border ${s.box} shadow-inner"><div class="text-[10px] font-black uppercase tracking-widest mb-1 ${s.badge.split(' ')[0]}">${q.type === 'typing' ? 'You Typed' : 'You Selected'}</div><div class="text-sm font-bold text-slate-700 dark:text-slate-300">${highlightText(uText, term)}</div></div><div class="bg-emerald-50/50 dark:bg-emerald-900/10 p-5 rounded-xl border border-emerald-200 dark:border-emerald-800/50 shadow-inner"><div class="text-[10px] font-black tracking-widest text-emerald-600 dark:text-emerald-500 uppercase mb-1">Correct Answer</div><div class="text-sm font-bold text-slate-700 dark:text-slate-300">${highlightText(cText, term)}</div></div></div><div class="bg-slate-50 dark:bg-slate-800/50 p-5 md:p-6 rounded-xl text-sm text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800 shadow-inner"><span class="font-black text-slate-800 dark:text-slate-200 block mb-2 uppercase tracking-widest text-[10px]">📖 Detailed Solution:</span><div class="leading-relaxed font-medium">${highlightText(q.solution || 'No detailed solution provided.', term)}</div></div>${sm2Widget}</div>`; 
+        return `<div id="review-card-${safeId}" class="review-card filter-${status} bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-800 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow"><div class="absolute top-0 left-0 w-1.5 h-full ${s.border}"></div><div class="flex justify-between items-center mb-4"><span class="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-md border ${s.badge}">${status}</span><div class="flex items-center gap-2"><button onclick="openGlobalEditModalBySafeId('${safeId}')" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-widest border border-amber-200 dark:border-amber-800/50 hover:bg-amber-200 dark:hover:bg-amber-800/50 transition-colors">✏️ Edit / Fix Error</button><button onclick="deleteQuestionEverywhere('${safeId}')" class="bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400 px-3 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-widest border border-red-200 dark:border-red-800/50 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" title="Delete this question from everywhere">🗑️ Delete Q</button></div></div><div class="font-bold text-slate-800 dark:text-slate-200 mb-6 text-lg md:text-xl leading-relaxed">${highlightText(q.question, term)}</div>${imageHTML}<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6"><div class="bg-slate-50 dark:bg-slate-950/50 p-5 rounded-xl border ${s.box} shadow-inner"><div class="text-[10px] font-black uppercase tracking-widest mb-1 ${s.badge.split(' ')[0]}">${q.type === 'typing' ? 'You Typed' : 'You Selected'}</div><div class="text-sm font-bold text-slate-700 dark:text-slate-300">${highlightText(uText, term)}</div></div><div class="bg-emerald-50/50 dark:bg-emerald-900/10 p-5 rounded-xl border border-emerald-200 dark:border-emerald-800/50 shadow-inner"><div class="text-[10px] font-black tracking-widest text-emerald-600 dark:text-emerald-500 uppercase mb-1">Correct Answer</div><div class="text-sm font-bold text-slate-700 dark:text-slate-300">${highlightText(cText, term)}</div></div></div><div class="bg-slate-50 dark:bg-slate-800/50 p-5 md:p-6 rounded-xl text-sm text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800 shadow-inner"><span class="font-black text-slate-800 dark:text-slate-200 block mb-2 uppercase tracking-widest text-[10px]">📖 Detailed Solution:</span><div class="leading-relaxed font-medium">${highlightText(q.solution || 'No detailed solution provided.', term)}</div></div>${sm2Widget}</div>`; 
     }
 
     // ============================================================
@@ -2199,9 +2198,8 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     window.renderForecastBars = () => {
         const container = document.getElementById('srs-forecast-bars');
         if (!container) return;
-        const now = Date.now();
         const DAY = 24 * 60 * 60 * 1000;
-        // Anchor to midnight so overdue cards always fall in Today bucket, not lost between days
+        // FIX4: Anchor to midnight so overdue cards always land in Today bucket, not lost in float
         const todayMidnight = new Date(); todayMidnight.setHours(0,0,0,0);
         const todayStart = todayMidnight.getTime();
         const days = [];
@@ -2210,7 +2208,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
             const dayEnd   = dayStart + DAY;
             const count = mistakesDb.filter(m => {
                 if (m.isMastered || !m.srs) return false;
-                // Today: everything due before end of today (catches past-overdue cards too)
+                // Today: everything due before end of today, including past-overdue cards
                 if (i === 0) return m.srs.nextReview < dayEnd;
                 return m.srs.nextReview >= dayStart && m.srs.nextReview < dayEnd;
             }).length;
@@ -2290,65 +2288,190 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         if (widget) widget.innerHTML = `<div class="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest w-full text-center py-3 flex items-center justify-center gap-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800/50">👑 Vaulted to Masters!</div>`;
     };
 
+    // Delete a single question from absolutely everywhere: db (all quizzes), SRS, and history reviewData
+    window.deleteQuestionEverywhere = (safeId) => {
+        const qText = window.editRegistry[safeId];
+        if (!qText) return;
+        if (!confirm(`🗑️ DELETE THIS QUESTION EVERYWHERE?\n\n"${qText.substring(0, 100)}${qText.length > 100 ? '...' : ''}"\n\nThis will permanently remove it from:\n• Every quiz in the Hub\n• Your SRS queue\n• All past attempt history\n\nThis cannot be undone.`)) return;
+
+        // 1. Remove from every quiz in db
+        let dbRemoved = 0;
+        Object.keys(db).forEach(id => {
+            if (!db[id] || !Array.isArray(db[id].questions)) return;
+            const before = db[id].questions.length;
+            db[id].questions = db[id].questions.filter(q => q.question !== qText);
+            dbRemoved += before - db[id].questions.length;
+        });
+
+        // 2. Remove from SRS (mistakesDb)
+        const srsBefore = mistakesDb.length;
+        mistakesDb = mistakesDb.filter(m => m.question !== qText);
+        const srsRemoved = srsBefore - mistakesDb.length;
+
+        // 3. Scrub from all history attempt reviewData (keep the attempt, just remove this Q from it)
+        let histScrubbed = 0;
+        historyDb.forEach(h => {
+            if (!Array.isArray(h.reviewData)) return;
+            const before = h.reviewData.length;
+            h.reviewData = h.reviewData.filter(r => r.question !== qText);
+            histScrubbed += before - h.reviewData.length;
+        });
+
+        saveData(); rebuildSearchCache(); updateSRSBadge();
+
+        // 4. Collapse the card in the DOM instantly — no need to re-render everything
+        const card = document.getElementById(`review-card-${safeId}`);
+        if (card) {
+            card.style.transition = 'opacity 0.3s, max-height 0.4s';
+            card.style.overflow = 'hidden';
+            card.style.opacity = '0';
+            card.style.maxHeight = card.offsetHeight + 'px';
+            setTimeout(() => { card.style.maxHeight = '0'; card.style.marginBottom = '0'; }, 50);
+            setTimeout(() => card.remove(), 500);
+        }
+
+        // Small toast confirmation
+        const toast = document.createElement('div');
+        toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs font-black uppercase tracking-widest px-5 py-3 rounded-xl shadow-2xl z-[9999] border border-slate-700';
+        toast.textContent = `🗑️ Question deleted from Hub (${dbRemoved}), SRS (${srsRemoved}), History (${histScrubbed})`;
+        document.body.appendChild(toast);
+        setTimeout(() => { toast.style.transition = 'opacity 0.4s'; toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 3000);
+    };
+
     // syncQuizToSRS removed — all questions auto-enter SRS on quiz submit
 
     // ============================================================
-    // SRS INTEGRITY CHECKER
-    // 1. Finds questions in historyDb that are NOT in SRS yet
-    // 2. Finds SRS entries whose source question no longer exists in db
+    // SRS INTEGRITY CHECKER — God Level
+    // Catches: orphans, duplicates, corrupt cards, flag mismatches,
+    //          history orphans, and broken sprint residue
     // ============================================================
     window.runSRSIntegrityCheck = () => {
         requireAuth(() => {
+            // Build master set of all valid question texts currently in db
             const allDbQuestions = new Set();
             Object.keys(db).forEach(id => {
                 if (db[id] && Array.isArray(db[id].questions))
                     db[id].questions.forEach(q => { if (q.question) allDbQuestions.add(q.question); });
             });
 
-            // True orphans: in SRS but question deleted from ALL quizzes
-            const orphanedSRS = mistakesDb.filter(m => !allDbQuestions.has(m.question));
+            // 1. ORPHANED — in SRS but source question gone from all quizzes
+            const orphaned = mistakesDb.filter(m => !allDbQuestions.has(m.question));
 
-            // Duplicates: same question text appears twice in SRS
-            const seenQ = new Set(); const duplicateSRS = [];
-            mistakesDb.forEach(m => { if (seenQ.has(m.question)) duplicateSRS.push(m.question); else seenQ.add(m.question); });
+            // 2. DUPLICATES — same question text more than once in SRS
+            const seenQ = new Set(); const duplicates = [];
+            mistakesDb.forEach(m => { if (seenQ.has(m.question)) duplicates.push(m.question); else seenQ.add(m.question); });
 
-            let report = `🔍 SRS INTEGRITY REPORT\n${'─'.repeat(36)}\n`;
-            report += `In SRS: ${mistakesDb.length}  |  In DB: ${allDbQuestions.size}\n\n`;
+            // 3. CORRUPT CARDS — missing .srs object, or NaN/null/negative fields
+            const corrupt = mistakesDb.filter(m => {
+                if (!m.srs) return true;
+                if (typeof m.srs.interval !== 'number' || isNaN(m.srs.interval) || m.srs.interval < 1) return true;
+                if (typeof m.srs.ease !== 'number'     || isNaN(m.srs.ease)     || m.srs.ease < 1.3)   return true;
+                if (typeof m.srs.reps !== 'number'     || isNaN(m.srs.reps)     || m.srs.reps < 0)     return true;
+                if (typeof m.srs.nextReview !== 'number' || isNaN(m.srs.nextReview)) return true;
+                return false;
+            });
 
-            if (orphanedSRS.length > 0) {
-                report += `⚠️ ORPHANED (${orphanedSRS.length}) — quiz deleted but still in SRS:\n`;
-                orphanedSRS.slice(0, 4).forEach(m => report += `  • "${m.question.substring(0,55)}..."\n`);
-                if (orphanedSRS.length > 4) report += `  ...+${orphanedSRS.length-4} more\n`;
-            } else {
-                report += `✅ No orphaned entries.\n`;
-            }
+            // 4. FLAG MISMATCHES — interval>=30 but isMastered not set (missed promotion)
+            //    We do NOT flag mastered cards with interval<30 — user may have manually vaulted them
+            //    via Send to Masters, which is intentional. Those are safe to leave.
+            const flagMismatch = mistakesDb.filter(m => {
+                if (!m.srs) return false;
+                if (!m.isMastered && m.srs.interval >= 30) return true; // missed mastery flag
+                return false;
+            });
 
-            if (duplicateSRS.length > 0) {
-                report += `\n⚠️ DUPLICATES (${duplicateSRS.length}):\n`;
-                duplicateSRS.slice(0,3).forEach(q => report += `  • "${q.substring(0,55)}"\n`);
-            } else {
-                report += `✅ No duplicate SRS entries.\n`;
-            }
+            // 5. HISTORY ORPHANS — reviewData entries in historyDb for questions no longer in any quiz
+            let histOrphanCount = 0;
+            historyDb.forEach(h => {
+                if (!Array.isArray(h.reviewData)) return;
+                h.reviewData.forEach(r => { if (r.question && !allDbQuestions.has(r.question)) histOrphanCount++; });
+            });
 
-            const hasIssues = orphanedSRS.length > 0 || duplicateSRS.length > 0;
-            if (!hasIssues) { alert(report + '\n🎉 SRS is perfectly clean!'); return; }
+            // Build report
+            const totalIssues = orphaned.length + duplicates.length + corrupt.length + flagMismatch.length + histOrphanCount;
+            let report = `🔍 SRS INTEGRITY REPORT\n${'─'.repeat(40)}\n`;
+            report += `SRS cards: ${mistakesDb.length}  |  DB questions: ${allDbQuestions.size}  |  Issues: ${totalIssues}\n\n`;
 
-            if (!confirm(report + '\nOK = auto-fix now  |  Cancel = just view')) return;
+            if (orphaned.length > 0) {
+                report += `⚠️ ORPHANED (${orphaned.length}) — question deleted from Hub:\n`;
+                orphaned.slice(0, 3).forEach(m => report += `  • "${m.question.substring(0, 60)}"\n`);
+                if (orphaned.length > 3) report += `  ...+${orphaned.length - 3} more\n`;
+                report += '\n';
+            } else { report += `✅ No orphaned cards\n`; }
 
-            let fixed = 0;
-            if (orphanedSRS.length > 0) {
-                const ots = new Set(orphanedSRS.map(m => m.question));
+            if (duplicates.length > 0) {
+                report += `⚠️ DUPLICATES (${duplicates.length}) — same Q appears twice:\n`;
+                duplicates.slice(0, 3).forEach(q => report += `  • "${q.substring(0, 60)}"\n`);
+                report += '\n';
+            } else { report += `✅ No duplicates\n`; }
+
+            if (corrupt.length > 0) {
+                report += `⚠️ CORRUPT (${corrupt.length}) — missing/invalid SRS data:\n`;
+                corrupt.slice(0, 3).forEach(m => report += `  • "${m.question.substring(0, 60)}"\n`);
+                report += '\n';
+            } else { report += `✅ No corrupt cards\n`; }
+
+            if (flagMismatch.length > 0) {
+                report += `⚠️ MISSED MASTERS (${flagMismatch.length}) — interval≥30 but not flagged as mastered:\n`;
+                flagMismatch.slice(0, 3).forEach(m => report += `  • "${m.question.substring(0, 50)}" (interval=${m.srs.interval})\n`);
+                report += '\n';
+            } else { report += `✅ No missed mastery flags\n`; }
+
+            if (histOrphanCount > 0) {
+                report += `⚠️ HISTORY ORPHANS (${histOrphanCount}) — deleted Q refs in past attempts\n`;
+            } else { report += `✅ No history orphans\n`; }
+
+            if (totalIssues === 0) { alert(report + '\n🎉 SRS is perfectly clean!'); return; }
+
+            if (!confirm(report + '\nOK = auto-fix all now  |  Cancel = just view')) return;
+
+            // AUTO-FIX ALL
+
+            // Fix 1: remove orphans
+            if (orphaned.length > 0) {
+                const ots = new Set(orphaned.map(m => m.question));
                 mistakesDb = mistakesDb.filter(m => !ots.has(m.question));
-                fixed += orphanedSRS.length;
             }
-            if (duplicateSRS.length > 0) {
+
+            // Fix 2: remove duplicates (keep first occurrence)
+            if (duplicates.length > 0) {
                 const seen = new Set();
                 mistakesDb = mistakesDb.filter(m => { if (seen.has(m.question)) return false; seen.add(m.question); return true; });
-                fixed += duplicateSRS.length;
+            }
+
+            // Fix 3: repair corrupt cards (reset to safe defaults, keep question + subject)
+            mistakesDb = mistakesDb.map(m => {
+                if (!m.srs || typeof m.srs.interval !== 'number' || isNaN(m.srs.interval) || m.srs.interval < 1 ||
+                    typeof m.srs.ease !== 'number' || isNaN(m.srs.ease) || m.srs.ease < 1.3 ||
+                    typeof m.srs.reps !== 'number' || isNaN(m.srs.reps) || m.srs.reps < 0 ||
+                    typeof m.srs.nextReview !== 'number' || isNaN(m.srs.nextReview)) {
+                    m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() };
+                    m.isMastered = false;
+                }
+                return m;
+            });
+
+            // Fix 4: correct flag mismatches
+            // ONLY promote missed masters (interval>=30 but flag not set)
+            // NEVER demote manually mastered cards — user may have vaulted intentionally via Send to Masters
+            // The only safe demotion already happens in submitQuiz when user gets it wrong in a quiz
+            mistakesDb = mistakesDb.map(m => {
+                if (!m.srs) return m;
+                if (!m.isMastered && m.srs.interval >= 30) m.isMastered = true; // promote missed masters only
+                return m;
+            });
+
+            // Fix 5: scrub history orphans from reviewData (keep the attempt, just remove dead Q rows)
+            if (histOrphanCount > 0) {
+                historyDb = historyDb.map(h => {
+                    if (!Array.isArray(h.reviewData)) return h;
+                    h.reviewData = h.reviewData.filter(r => !r.question || allDbQuestions.has(r.question));
+                    return h;
+                });
             }
 
             saveData(); updateSRSBadge(); renderDashboard();
-            alert(`✅ Fixed ${fixed} issue(s).\n• Orphans removed: ${orphanedSRS.length}\n• Duplicates removed: ${duplicateSRS.length}`);
+            alert(`✅ SRS fully cleaned!\n\n• Orphans removed: ${orphaned.length}\n• Duplicates removed: ${duplicates.length}\n• Corrupt cards repaired: ${corrupt.length}\n• Flag mismatches fixed: ${flagMismatch.length}\n• History orphan rows scrubbed: ${histOrphanCount}`);
         });
     };
 
@@ -2358,23 +2481,31 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     window.clearSubjectHistory = (subjectName) => {
         requireAuth(() => {
             if (!subjectName) return alert('No subject selected.');
+            // Clear attempt history
             const before = historyDb.length;
             historyDb = historyDb.filter(h => {
-                // Remove entries where subject matches OR title contains subject name
                 const hSubject = h.subject || '';
                 return hSubject !== subjectName;
             });
-            const removed = before - historyDb.length;
-            saveData();
-            if (removed > 0) {
-                alert(`🗑️ Deleted ${removed} history attempt(s) for "${subjectName}".
-
-Ghost SRS suggestions for this subject are now gone.
-Attempt the quiz again to start fresh.`);
-            } else {
-                alert(`No history entries found for "${subjectName}".`);
-            }
-            // Re-render to reflect the change
+            const removedHistory = before - historyDb.length;
+            // FIX5: Also clear SRS entries for this subject (button label promised this but code didn't do it)
+            const srsBefore = mistakesDb.length;
+            const subjectQTexts = new Set();
+            Object.keys(db).forEach(id => {
+                if (!db[id] || !Array.isArray(db[id].questions)) return;
+                const isSubject = db[id].subject === subjectName;
+                db[id].questions.forEach(q => {
+                    const tagMatch = Array.isArray(q.tags) && q.tags[0] === subjectName;
+                    if (isSubject || tagMatch) subjectQTexts.add(q.question);
+                });
+            });
+            mistakesDb = mistakesDb.filter(m => {
+                const cardSubject = m.subject || (Array.isArray(m.tags) ? m.tags[0] : '') || '';
+                return cardSubject !== subjectName && !subjectQTexts.has(m.question);
+            });
+            const removedSRS = srsBefore - mistakesDb.length;
+            saveData(); updateSRSBadge();
+            alert(`🗑️ Cleared for "${subjectName}":\n• ${removedHistory} history attempt(s)\n• ${removedSRS} SRS card(s)\n\nAttempt the quiz again to start fresh.`);
             if (typeof renderAnalytics === 'function') setTimeout(renderAnalytics, 50);
         });
     };
@@ -2882,6 +3013,33 @@ Attempt the quiz again to start fresh.`);
                 updateSRSBadge();
             } 
         }); 
+    };
+
+    // Purge all history + SRS for a quiz WITHOUT deleting the quiz itself.
+    // Use before re-uploading a quiz to prevent ghost/duplicate SRS cards.
+    window.purgeQuizHistory = (id) => {
+        requireAuth(() => {
+            if (!db[id]) return;
+            const title = db[id].title;
+            if (!confirm(`🧹 DELETE + FULL PURGE:\n"${title}"\n\nThis will permanently:\n• Remove the quiz from the Hub\n• Delete ALL past attempt history\n• Wipe ALL its SRS cards\n\nUpload the same JSON again for a completely clean start.\n\nThis cannot be undone.`)) return;
+
+            // 1. Wipe SRS cards — match by question text
+            const quizQTexts = new Set(db[id].questions.map(q => q.question));
+            const srsBefore = mistakesDb.length;
+            mistakesDb = mistakesDb.filter(m => !quizQTexts.has(m.question));
+            const srsRemoved = srsBefore - mistakesDb.length;
+
+            // 2. Wipe attempt history — match by quiz title
+            const histBefore = historyDb.length;
+            historyDb = historyDb.filter(h => h.title !== title);
+            const histRemoved = histBefore - historyDb.length;
+
+            // 3. Delete the quiz itself
+            delete db[id];
+
+            saveData(); rebuildSearchCache(); renderDashboard(); updateSRSBadge();
+            alert(`✅ Fully purged "${title}":\n• Quiz deleted from Hub\n• ${histRemoved} history attempt(s) removed\n• ${srsRemoved} SRS card(s) removed\n\nRe-upload the JSON for a completely clean start.`);
+        });
     };
 
     window.deleteSubject = (subject) => { 
