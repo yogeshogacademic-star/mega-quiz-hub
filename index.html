@@ -1117,18 +1117,27 @@
             }
         }
 
-        // ── HISTORY PATCH ──────────────────────────────────────────────────────────
-        // When a question is edited (text OR options/correct-answer changed):
+        // ── HISTORY PATCH + SRS RESYNC ────────────────────────────────────────────
+        // When a question is edited (correct answer changed):
         //   1. Sync question text, cText, solution, tags in every reviewData row
-        //   2. RE-EVALUATE status (correct/wrong) against the NEW correct answer
-        //   3. RECALCULATE score, accuracy, totalCorrect/Wrong/Skipped on every
-        //      affected history attempt — scoreboard now reflects updated answer key.
+        //   2. RE-EVALUATE each row's status using the new correct-answer option Set
+        //   3. RECALCULATE score/accuracy/totals for every affected history attempt
+        //   4. RESYNC mistakesDb (SRS) to match the most recent attempt's new status
+        //      — if your pick is now correct → advance SRS interval (reward)
+        //      — if your pick is now wrong   → reset SRS to due-now (penalise)
         if (updatedDb && Array.isArray(historyDb)) {
-            const newCText = (target.options && Array.isArray(target.options))
-                ? (target.options.find(o => o.correct) || {}).text || null
+            // Build Set of all correct-option texts from the newly saved options
+            const correctTexts = (target.options && Array.isArray(target.options))
+                ? new Set(target.options.filter(o => o.correct).map(o => o.text))
                 : null;
+            const newCText = correctTexts && correctTexts.size > 0
+                ? [...correctTexts][0] : null;
 
-            historyDb.forEach(h => {
+            // Track the NEW status for this question from the MOST RECENT attempt
+            // (historyDb is newest-first, so the first match is the most recent)
+            let mostRecentNewStatus = null;
+
+            historyDb.forEach((h, hIdx) => {
                 if (!Array.isArray(h.reviewData)) return;
                 let needsRescore = false;
 
@@ -1145,19 +1154,25 @@
                     if (target.solution !== undefined) r.solution = target.solution;
                     if (target.tags     !== undefined) r.tags     = target.tags;
 
-                    // 4. Re-evaluate status against new correct answer.
-                    //    uText holds what the user actually selected during the attempt.
-                    if (newCText !== null && r.uText && r.uText !== 'Skipped') {
+                    // 4. Re-evaluate status — compare what user picked (r.uText)
+                    //    against the set of now-correct option texts.
+                    //    Skipped questions have no pick so skip them.
+                    if (correctTexts !== null && r.status !== 'skipped') {
                         const wasCorrect = r.status === 'correct';
-                        const nowCorrect = r.uText === newCText;
+                        const nowCorrect = correctTexts.has(r.uText);
                         if (wasCorrect !== nowCorrect) {
                             r.status     = nowCorrect ? 'correct' : 'wrong';
                             needsRescore = true;
                         }
                     }
+
+                    // 5. Record the new status from the most recent attempt only
+                    if (mostRecentNewStatus === null) {
+                        mostRecentNewStatus = r.status; // historyDb is newest-first
+                    }
                 });
 
-                // 5. If any status flipped, recalculate this attempt's totals & score
+                // 6. Recalculate attempt-level score if any status flipped
                 if (needsRescore) {
                     let c = 0, w = 0, sk = 0;
                     h.reviewData.forEach(r => {
@@ -1173,11 +1188,46 @@
                     h.accuracy     = Math.round((c / total) * 100);
                 }
             });
+
+            // ── SRS RESYNC ──────────────────────────────────────────────────────────
+            // After re-evaluating all history, apply the most recent attempt's
+            // new status to the SRS card so the queue reflects the corrected answer.
+            //
+            //   wrong→correct after edit: card was penalised unfairly. Advance it —
+            //     give it a 1-day interval (same as a first correct answer).
+            //   correct→wrong after edit: card was rewarded incorrectly. Reset it to
+            //     due-immediately so it comes up again for proper review.
+            //
+            if (mostRecentNewStatus !== null && Array.isArray(mistakesDb)) {
+                const srsIdx = mistakesDb.findIndex(
+                    m => m.question === oldText || m.question === target.question
+                );
+                if (srsIdx !== -1) {
+                    const m = mistakesDb[srsIdx];
+                    if (!m.isMastered) { // never demote a mastered card automatically
+                        if (mostRecentNewStatus === 'correct') {
+                            // Was wrong, now correct → give fair credit: 1-day head start
+                            m.srs.reps      = Math.max(m.srs.reps, 1); // at least 1 rep
+                            m.srs.interval  = 1;
+                            m.srs.ease      = Math.min(3.0, m.srs.ease + 0.1);
+                            m.srs.nextReview = Date.now() + (24 * 60 * 60 * 1000); // due tomorrow
+                        } else if (mostRecentNewStatus === 'wrong') {
+                            // Was correct, now wrong → penalise: due immediately
+                            m.srs.reps      = 0;
+                            m.srs.interval  = 1;
+                            m.srs.ease      = Math.max(1.3, m.srs.ease - 0.2);
+                            m.srs.nextReview = Date.now(); // due now
+                        }
+                        // skipped → leave SRS unchanged (no new information)
+                    }
+                }
+            }
+            // ── END SRS RESYNC ──────────────────────────────────────────────────────
         }
-        // ── END HISTORY PATCH ──────────────────────────────────────────────────────
+        // ── END HISTORY PATCH + SRS RESYNC ────────────────────────────────────────
 
         if(updatedDb) {
-            rebuildSearchCache(); saveData(); closeEditModal();
+            rebuildSearchCache(); saveData(); updateSRSBadge(); closeEditModal();
             if(!document.getElementById('screen-db-manager').classList.contains('hidden')) renderDBList(document.getElementById('db-manager-search').value);
             if(!document.getElementById('screen-target-radar').classList.contains('hidden')) renderTargetRadar();
             if(!document.getElementById('search-results-container').classList.contains('hidden')) performSearch(document.getElementById('omni-search').value);
