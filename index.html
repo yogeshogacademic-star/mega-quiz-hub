@@ -1118,37 +1118,60 @@
         }
 
         // ── HISTORY PATCH ──────────────────────────────────────────────────────────
-        // When a question is edited (text OR options/correct-answer changed), keep all
-        // past attempt records in sync so no attempt is ever "lost" or shows stale data.
+        // When a question is edited (text OR options/correct-answer changed):
+        //   1. Sync question text, cText, solution, tags in every reviewData row
+        //   2. RE-EVALUATE status (correct/wrong) against the NEW correct answer
+        //   3. RECALCULATE score, accuracy, totalCorrect/Wrong/Skipped on every
+        //      affected history attempt — scoreboard now reflects updated answer key.
         if (updatedDb && Array.isArray(historyDb)) {
-            // Work out what the new correct-answer text is (for MCQ questions)
             const newCText = (target.options && Array.isArray(target.options))
                 ? (target.options.find(o => o.correct) || {}).text || null
                 : null;
 
             historyDb.forEach(h => {
                 if (!Array.isArray(h.reviewData)) return;
+                let needsRescore = false;
+
                 h.reviewData.forEach(r => {
-                    // Match on EITHER old question text (text changed) OR new question text (text unchanged)
-                    if (r.question === oldText || r.question === target.question) {
-                        // 1. Keep question text in sync if it was renamed
-                        r.question = target.question;
+                    if (r.question !== oldText && r.question !== target.question) return;
 
-                        // 2. Keep the stored correct-answer text in sync with the edited options.
-                        //    This is the main fix: if you changed WHICH option is correct,
-                        //    old attempts now correctly reflect the new right answer so the
-                        //    review card displays properly (no blank / wrong cText).
-                        if (newCText !== null) {
-                            r.cText = newCText;
+                    // 1. Sync question text
+                    r.question = target.question;
+
+                    // 2. Sync correct-answer display text
+                    if (newCText !== null) r.cText = newCText;
+
+                    // 3. Sync solution & tags
+                    if (target.solution !== undefined) r.solution = target.solution;
+                    if (target.tags     !== undefined) r.tags     = target.tags;
+
+                    // 4. Re-evaluate status against new correct answer.
+                    //    uText holds what the user actually selected during the attempt.
+                    if (newCText !== null && r.uText && r.uText !== 'Skipped') {
+                        const wasCorrect = r.status === 'correct';
+                        const nowCorrect = r.uText === newCText;
+                        if (wasCorrect !== nowCorrect) {
+                            r.status     = nowCorrect ? 'correct' : 'wrong';
+                            needsRescore = true;
                         }
-
-                        // 3. Keep solution text in sync
-                        if (target.solution !== undefined) r.solution = target.solution;
-
-                        // 4. Keep tags in sync
-                        if (target.tags !== undefined) r.tags = target.tags;
                     }
                 });
+
+                // 5. If any status flipped, recalculate this attempt's totals & score
+                if (needsRescore) {
+                    let c = 0, w = 0, sk = 0;
+                    h.reviewData.forEach(r => {
+                        if      (r.status === 'correct') c++;
+                        else if (r.status === 'skipped') sk++;
+                        else                              w++;
+                    });
+                    const total    = h.reviewData.length || 1;
+                    h.totalCorrect = c;
+                    h.totalWrong   = w;
+                    h.totalSkipped = sk;
+                    h.score        = parseFloat(((c * 2) - (w * 0.66)).toFixed(2));
+                    h.accuracy     = Math.round((c / total) * 100);
+                }
             });
         }
         // ── END HISTORY PATCH ──────────────────────────────────────────────────────
@@ -1159,19 +1182,34 @@
             if(!document.getElementById('screen-target-radar').classList.contains('hidden')) renderTargetRadar();
             if(!document.getElementById('search-results-container').classList.contains('hidden')) performSearch(document.getElementById('omni-search').value);
             if(!document.getElementById('screen-results').classList.contains('hidden')) {
+                // ── LIVE SCORE REFRESH ─────────────────────────────────────────────
+                // The score banner (res-score, res-correct, etc.) must reflect the
+                // recalculated totals from the history entry we are currently viewing.
+                const viewIdx = (window.currentHistoryViewIndex !== undefined && window.currentHistoryViewIndex !== null)
+                    ? window.currentHistoryViewIndex : 0;
+                const liveEntry = historyDb[viewIdx];
+                if (liveEntry) {
+                    document.getElementById('res-score').textContent   = liveEntry.score;
+                    document.getElementById('res-correct').textContent  = liveEntry.totalCorrect  || 0;
+                    document.getElementById('res-wrong').textContent    = liveEntry.totalWrong    || 0;
+                    document.getElementById('res-skipped').textContent  = liveEntry.totalSkipped  || 0;
+                }
+                // ── END LIVE SCORE REFRESH ─────────────────────────────────────────
+
                 if(window.currentReviewQuestions && window.currentReviewQuestions.length > 0) {
                     let fullHTML = '';
+                    const activeHistEntry = liveEntry || null;
                     window.currentReviewQuestions.forEach((qObj, idx) => {
                         // Re-apply latest edited data to the in-memory question object
                         if(qObj.question === oldText || qObj.question === target.question) {
                             qObj = {...qObj, ...target};
                             window.currentReviewQuestions[idx] = qObj;
                         }
-                        // Pull from historyDb[0] which is the most recent attempt (just submitted)
-                        let histMatch = (historyDb && historyDb[0]) ? historyDb[0].reviewData.find(r => r.question === qObj.question) : null;
-                        let stat = histMatch ? histMatch.status : 'skipped';
-                        let cText = histMatch ? histMatch.cText : 'N/A';
-                        let uText = histMatch ? histMatch.uText : 'N/A';
+                        // Pull status/uText/cText from the correct history entry being viewed
+                        let histMatch = activeHistEntry ? activeHistEntry.reviewData.find(r => r.question === qObj.question) : null;
+                        let stat  = histMatch ? histMatch.status : 'skipped';
+                        let cText = histMatch ? histMatch.cText  : 'N/A';
+                        let uText = histMatch ? histMatch.uText  : 'N/A';
                         fullHTML += genDeepReviewCard(qObj, stat, uText, cText, "", idx);
                     });
                     document.getElementById('revision-container').innerHTML = fullHTML;
