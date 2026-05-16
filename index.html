@@ -1117,14 +1117,41 @@
             }
         }
 
-        // Update historyDb so edited questions don't become history orphans
+        // ── HISTORY PATCH ──────────────────────────────────────────────────────────
+        // When a question is edited (text OR options/correct-answer changed), keep all
+        // past attempt records in sync so no attempt is ever "lost" or shows stale data.
         if (updatedDb && Array.isArray(historyDb)) {
+            // Work out what the new correct-answer text is (for MCQ questions)
+            const newCText = (target.options && Array.isArray(target.options))
+                ? (target.options.find(o => o.correct) || {}).text || null
+                : null;
+
             historyDb.forEach(h => {
                 if (!Array.isArray(h.reviewData)) return;
-                // FIX: Also update historyDb when question text changes
-                h.reviewData.forEach(r => { if (r.question === oldText) r.question = target.question; });
+                h.reviewData.forEach(r => {
+                    // Match on EITHER old question text (text changed) OR new question text (text unchanged)
+                    if (r.question === oldText || r.question === target.question) {
+                        // 1. Keep question text in sync if it was renamed
+                        r.question = target.question;
+
+                        // 2. Keep the stored correct-answer text in sync with the edited options.
+                        //    This is the main fix: if you changed WHICH option is correct,
+                        //    old attempts now correctly reflect the new right answer so the
+                        //    review card displays properly (no blank / wrong cText).
+                        if (newCText !== null) {
+                            r.cText = newCText;
+                        }
+
+                        // 3. Keep solution text in sync
+                        if (target.solution !== undefined) r.solution = target.solution;
+
+                        // 4. Keep tags in sync
+                        if (target.tags !== undefined) r.tags = target.tags;
+                    }
+                });
             });
         }
+        // ── END HISTORY PATCH ──────────────────────────────────────────────────────
 
         if(updatedDb) {
             rebuildSearchCache(); saveData(); closeEditModal();
@@ -1135,9 +1162,16 @@
                 if(window.currentReviewQuestions && window.currentReviewQuestions.length > 0) {
                     let fullHTML = '';
                     window.currentReviewQuestions.forEach((qObj, idx) => {
-                        if(qObj.question === oldText) { qObj = {...qObj, ...target}; window.currentReviewQuestions[idx] = qObj; }
+                        // Re-apply latest edited data to the in-memory question object
+                        if(qObj.question === oldText || qObj.question === target.question) {
+                            qObj = {...qObj, ...target};
+                            window.currentReviewQuestions[idx] = qObj;
+                        }
+                        // Pull from historyDb[0] which is the most recent attempt (just submitted)
                         let histMatch = (historyDb && historyDb[0]) ? historyDb[0].reviewData.find(r => r.question === qObj.question) : null;
-                        let stat = histMatch ? histMatch.status : 'skipped'; let cText = histMatch ? histMatch.cText : 'N/A'; let uText = histMatch ? histMatch.uText : 'N/A';
+                        let stat = histMatch ? histMatch.status : 'skipped';
+                        let cText = histMatch ? histMatch.cText : 'N/A';
+                        let uText = histMatch ? histMatch.uText : 'N/A';
                         fullHTML += genDeepReviewCard(qObj, stat, uText, cText, "", idx);
                     });
                     document.getElementById('revision-container').innerHTML = fullHTML;
