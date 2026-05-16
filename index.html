@@ -268,7 +268,7 @@
                     <p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Global Vault Editor</p>
                 </div>
                 <div class="w-full md:w-auto flex flex-col sm:flex-row gap-3">
-                    <input type="text" id="db-manager-search" oninput="renderDBList(this.value)" placeholder="Search questions or tags..." class="w-full md:w-80 px-5 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-200">
+                    <input type="text" id="db-manager-search" oninput="clearTimeout(dbSearchTimer); dbSearchTimer = setTimeout(() => renderDBList(this.value), 250)" placeholder="Search questions or tags..." class="w-full md:w-80 px-5 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-200">
                     <button id="dirty-filter-btn" onclick="toggleDirtyFilter()" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50 font-black px-4 py-3 rounded-xl border border-amber-200 dark:border-amber-800/50 transition-colors uppercase tracking-widest text-[10px] shadow-sm flex-shrink-0">⚠️ Find Dirty Tags</button>
                 </div>
             </div>
@@ -663,6 +663,7 @@
     let currentlyEditingGlobalText = null;
     let isDirtyFilterActive = false;
     let searchTimeout = null;
+    let dbSearchTimer = null;
 
     window.editRegistry = {};
     window.editCounter = 0;
@@ -814,6 +815,8 @@
     window.renderDBList = (searchTerm) => {
         if(searchTerm === undefined) searchTerm = document.getElementById('db-manager-search').value;
         const term = (searchTerm || "").toLowerCase().trim(); const listContainer = document.getElementById('db-manager-list');
+        // MEMORY FIX: reset edit registry on each DB list render
+        window.editRegistry = {}; window.editCounter = 0;
         let html = ''; let uniqueTracker = new Set(); let matchCount = 0;
 
         const processList = (questionsArray, sourceTitle) => {
@@ -1754,25 +1757,47 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
 
     window.launchSRSSprint = (type) => {
         let dueQs = []; let titleStr = "";
+
+        // BUG FIX: exclude questions graded in the most recent sprint session
+        // so wrong-answered cards (nextReview = now+10min) don't immediately re-appear
+        const lastSprintEntry = historyDb.find(h => h.title && h.title.includes('Sprint'));
+        const recentlyGraded = new Set(
+            (lastSprintEntry && Array.isArray(lastSprintEntry.reviewData))
+                ? lastSprintEntry.reviewData.map(r => r.question)
+                : []
+        );
+
         if(type === 'global') {
-            dueQs = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now() && !m.isMastered); titleStr = "🔥 Master Global 10-Q Sprint";
+            dueQs = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now() && !m.isMastered && !recentlyGraded.has(m.question));
+            // If filtering removes everything, fall back to full due list (edge case: only 1 sprint card exists)
+            if(dueQs.length === 0) dueQs = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now() && !m.isMastered);
+            titleStr = "🔥 Master Global 10-Q Sprint";
         } else {
             let sub = document.getElementById('srs-subject-select').value; if(!sub) return alert("No subjects have due questions.");
             let masterMap = getMasterMap(); 
             dueQs = mistakesDb.filter(m => {
                 if (!m.srs || m.srs.nextReview > Date.now() || m.isMastered) return false;
+                if (recentlyGraded.has(m.question)) return false;
                 let clean = masterMap[m.question]; let activeTags = clean ? clean.tags : (Array.isArray(m.tags) ? m.tags : []);
                 let subName = activeTags.length > 0 ? activeTags[0] : (m.subject || m.originalSubject || "Miscellaneous");
                 return subName === sub;
             });
+            // Same fallback: if all due cards were in last sprint, show them anyway
+            if(dueQs.length === 0) {
+                dueQs = mistakesDb.filter(m => {
+                    if (!m.srs || m.srs.nextReview > Date.now() || m.isMastered) return false;
+                    let clean = masterMap[m.question]; let activeTags = clean ? clean.tags : (Array.isArray(m.tags) ? m.tags : []);
+                    let subName = activeTags.length > 0 ? activeTags[0] : (m.subject || m.originalSubject || "Miscellaneous");
+                    return subName === sub;
+                });
+            }
             titleStr = `🔥 ${sub} Targeted Sprint`;
         }
 
         if(dueQs.length === 0) { alert("No questions due for this selection!"); closeSRSModal(); return; }
         // Urgency sort: 10-min penalty cards (nextReview soonest / most overdue) come first
-        const now = Date.now();
         dueQs.sort((a, b) => a.srs.nextReview - b.srs.nextReview);
-        // Take top 10 most urgent, then shuffle within that pool for variety
+        // Take top 30 most urgent, then shuffle within that pool for variety
         const urgentPool = dueQs.slice(0, Math.min(30, dueQs.length));
         const sprintQs = window.shuffleArray(urgentPool).slice(0, 10);
         db['quiz_srs'] = { title: titleStr, subject: "Spaced Repetition", timeInMinutes: 10, questions: sprintQs };
@@ -2021,7 +2046,13 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     function submitQuiz() {
         if (quizState.submitted) return;
         quizState.submitted = true; clearInterval(quizState.interval); window.speechSynthesis.cancel();
+        // MEMORY FIX: reset edit registry each submit cycle — prevents unbounded growth across sessions
+        window.editRegistry = {}; window.editCounter = 0;
         let correct = 0, wrong = 0, skipped = 0, fullReviewHTML = ''; let historicalReviewData = []; window.currentReviewQuestions = [];
+
+        // PERFORMANCE FIX: build index map once — O(n) — instead of findIndex per question O(n²)
+        const srsIndexMap = new Map();
+        mistakesDb.forEach((m, idx) => { if(m.question) srsIndexMap.set(m.question, idx); });
 
         activeQuestions.forEach((q, i) => {
             const sel = quizState.answers[i]; let isMistake = false; let status = ''; let uText = 'Skipped'; let cText = 'N/A';
@@ -2033,7 +2064,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                 if (sel === undefined) { skipped++; isMistake = true; status = 'skipped'; } else if (q.options && q.options[sel] && q.options[sel].correct) { correct++; status = 'correct'; uText = q.options[sel].text; } else { wrong++; isMistake = true; status = 'wrong'; uText = q.options ? q.options[sel].text : "N/A"; }
             }
 
-            let mistIdx = mistakesDb.findIndex(m => m.question === q.question);
+            let mistIdx = srsIndexMap.get(q.question) ?? -1;
             if (currentQuizId === 'quiz_srs') {
                 // SRS sprint: auto-grade every question (correct advances, wrong/skipped = 10-min penalty)
                 let srsStatus = (status === 'correct') ? 'correct' : 'wrong';
@@ -2154,9 +2185,13 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     // Live badge + ring + stats strip updater — call after any mistakesDb change
     window.updateSRSBadge = () => {
         const now = Date.now();
-        const total    = mistakesDb.filter(m => !m.isMastered).length;
-        const due      = mistakesDb.filter(m => m.srs && m.srs.nextReview <= now && !m.isMastered).length;
-        const mastered = mistakesDb.filter(m => m.isMastered).length;
+        // PERFORMANCE FIX: single pass instead of 4 separate .filter() calls
+        let due = 0, mastered = 0, activeTotal = 0;
+        mistakesDb.forEach(m => {
+            if (m.isMastered) { mastered++; return; }
+            activeTotal++;
+            if (m.srs && m.srs.nextReview <= now) due++;
+        });
         const grandTotal = mistakesDb.length;
 
         // Badge
@@ -2717,7 +2752,8 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         document.getElementById('results-title').textContent = `${attempt.candidateName || 'Yogesh'}'s Report - Attempt #${attempt.attemptNumber || 1}`;
         document.getElementById('res-score').textContent = attempt.score; document.getElementById('res-correct').textContent = attempt.totalCorrect || 0;
         document.getElementById('res-wrong').textContent = attempt.totalWrong || 0; document.getElementById('res-skipped').textContent = attempt.totalSkipped || 0;
-
+        // MEMORY FIX: reset edit registry before rendering history review cards
+        window.editRegistry = {}; window.editCounter = 0;
         window.currentReviewQuestions = []; let fullReviewHTML = '';
         attempt.reviewData.forEach((data, i) => { 
             let qObj = { question: data.question, solution: data.solution, tags: data.tags, formulaUsed: data.formulaUsed }; let foundInDb = false;
@@ -2839,9 +2875,11 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         };
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
         const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
+        const _singleUrl = URL.createObjectURL(blob);
+        a.href = _singleUrl;
         a.download = `${quiz.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
         a.click();
+        setTimeout(() => URL.revokeObjectURL(_singleUrl), 1000);
     };
 
     // ================================================================
@@ -3357,11 +3395,18 @@ window.generateQuantNotes = () => {
         notesHTML += `</div></div></body></html>`;
         
         const blob = new Blob([notesHTML], { type: 'text/html' });
-        window.open(URL.createObjectURL(blob), '_blank');
+        const _notesUrl = URL.createObjectURL(blob);
+        window.open(_notesUrl, '_blank');
+        setTimeout(() => URL.revokeObjectURL(_notesUrl), 5000);
     };    window.exportBackup = () => {
         const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, notes: notesDb, categories: SUBJECT_CATEGORIES }; 
-        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }); const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob); a.download = `MegaQuiz_Backup_${new Date().toISOString().split('T')[0]}.json`; a.click();
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        const _backupUrl = URL.createObjectURL(blob);
+        a.href = _backupUrl;
+        a.download = `MegaQuiz_Backup_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(_backupUrl), 1000);
     };
 
     window.triggerRestore = () => { requireAuth(() => { document.getElementById('backup-file-input').click(); }); };
