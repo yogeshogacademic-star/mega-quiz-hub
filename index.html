@@ -77,6 +77,18 @@
         }
         .particle { position:absolute; width:6px; height:6px; border-radius:50%; pointer-events:none; animation: particle-fly 0.7s ease-out forwards; }
     </style>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['\\(', '\\)'], ['$', '$']],
+                displayMath: [['\\[', '\\]'], ['$$', '$$']],
+                packages: {'[+]': ['boldsymbol']}
+            },
+            options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] },
+            startup: { typeset: false }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-[#0a0f1c] dark:text-slate-200 min-h-screen flex flex-col pb-20">
 
@@ -312,7 +324,7 @@
                     <div id="fc-quiz-cat-chip" class="text-[9px] font-black uppercase tracking-widest text-amber-500 mb-2"></div>
                     <div id="fc-quiz-title" class="text-2xl font-black text-slate-800 dark:text-slate-100 mb-2"></div>
                     <div id="fc-quiz-front" class="text-sm font-bold text-slate-500 dark:text-slate-400 mb-4"></div>
-                    <div id="fc-quiz-answer" class="hidden text-xl font-black text-indigo-600 dark:text-indigo-400 font-mono whitespace-pre-line leading-relaxed"></div>
+                    <div id="fc-quiz-answer" class="hidden text-xl font-black text-indigo-600 dark:text-indigo-400 leading-relaxed"></div>
                     <div id="fc-quiz-tap" class="text-xs text-slate-300 dark:text-slate-600 mt-4 font-bold">tap to reveal ↓</div>
                     <span id="fc-quiz-diff-badge" class="absolute top-4 right-4 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest"></span>
                 </div>
@@ -3821,6 +3833,20 @@ window.generateQuantNotes = () => {
     const FC_CARDS_KEY = 'yogesh_fc_cards_v2';
     const FC_PROG_KEY  = 'yogesh_fc_prog_v2';
 
+    // ---- MATH RENDERING HELPER ----
+    // Detects raw LaTeX and wraps in \( \) for MathJax; otherwise returns plain text safely
+    function fcMathHTML(text) {
+        if (!text) return '';
+        // If already has LaTeX delimiters, just return escaped but preserve delimiters
+        const hasLatex = /\\[a-zA-Z{(]|\\frac|\\sqrt|\\sum|\\int|\^|_[{0-9a-zA-Z]/.test(text);
+        const safe = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        if (hasLatex) {
+            // Wrap whole thing in inline math so MathJax renders it
+            return '\\(' + text + '\\)';
+        }
+        return safe;
+    }
+
     // SRS intervals in days: index = number of correct reviews
     const SRS_INTERVALS = [1, 3, 7, 14, 30];
     const MASTERED_THRESHOLD = 5; // reviews needed to master
@@ -3947,6 +3973,10 @@ window.generateQuantNotes = () => {
                 </div>`;
             grid.appendChild(div);
         });
+        // Typeset math in browse grid
+        if(window.MathJax && MathJax.typesetPromise) {
+            MathJax.typesetPromise([document.getElementById('fc-browse-grid')]).catch(()=>{});
+        }
     };
 
     window.fcBuildCatFilters = function(){
@@ -4108,14 +4138,18 @@ window.generateQuantNotes = () => {
         document.getElementById('fc-quiz-label').textContent = 'Question';
         document.getElementById('fc-quiz-label').style.color = '';
         document.getElementById('fc-quiz-cat-chip').textContent = card.category;
-        document.getElementById('fc-quiz-title').textContent = card.title;
-        document.getElementById('fc-quiz-front').textContent = card.front;
-        document.getElementById('fc-quiz-answer').textContent = card.back;
+        document.getElementById('fc-quiz-title').innerHTML = fcMathHTML(card.title);
+        document.getElementById('fc-quiz-front').innerHTML = fcMathHTML(card.front);
+        document.getElementById('fc-quiz-answer').innerHTML = fcMathHTML(card.back);
         document.getElementById('fc-quiz-answer').classList.add('hidden');
         document.getElementById('fc-quiz-tap').classList.remove('hidden');
         document.getElementById('fc-quiz-btns').classList.add('hidden');
         document.getElementById('fc-interval-preview').classList.add('hidden');
         document.getElementById('fc-next-review-label').classList.add('hidden');
+        // Typeset question side
+        if(window.MathJax && MathJax.typesetPromise) {
+            MathJax.typesetPromise([document.getElementById('fc-quiz-card')]).catch(()=>{});
+        }
         const badge = document.getElementById('fc-quiz-diff-badge');
         badge.textContent = card.difficulty;
         badge.style.background = diffBg[card.difficulty];
@@ -4142,6 +4176,10 @@ window.generateQuantNotes = () => {
         const nextLabel = fcGetIntervalLabel(p.reviews);
         document.getElementById('fc-interval-got').textContent = nextLabel;
         document.getElementById('fc-interval-preview').classList.remove('hidden');
+        // Typeset math in the flipped answer
+        if(window.MathJax && MathJax.typesetPromise) {
+            MathJax.typesetPromise([document.getElementById('fc-quiz-card')]).catch(()=>{});
+        }
         const qcard = document.getElementById('fc-quiz-card');
         qcard.classList.remove('border-slate-200','dark:border-slate-700');
         qcard.classList.add('border-indigo-300','dark:border-indigo-600');
