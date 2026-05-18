@@ -196,8 +196,8 @@
                         <input id="fc-new-front" type="text" placeholder="e.g. Area of rhombus (diagonals d1, d2)" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
                     </div>
                     <div>
-                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Back — The Formula</label>
-                        <input id="fc-new-back" type="text" placeholder="e.g. ½ × d1 × d2" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Back — Formula <span class="text-amber-500 font-black">(one per line = separate row)</span></label>
+                        <textarea id="fc-new-back" rows="3" placeholder="Line 1: ½ × d1 × d2&#10;Line 2: another formula" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200 resize-none"></textarea>
                     </div>
                     <div>
                         <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Memory Trick (optional)</label>
@@ -206,6 +206,61 @@
                 </div>
                 <button onclick="fcAddCard()" class="bg-amber-500 hover:bg-amber-600 text-white font-black px-6 py-2.5 rounded-xl text-sm transition-colors">Save Card ✓</button>
             </div>
+
+            <!-- ===== EDIT CARD MODAL ===== -->
+            <div id="fc-edit-modal" class="hidden fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm flex justify-center items-center p-4">
+                <div class="bg-white dark:bg-slate-900 rounded-3xl p-7 w-full max-w-2xl shadow-2xl border border-slate-200 dark:border-slate-700 relative">
+                    <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-amber-400 to-orange-500 rounded-t-3xl"></div>
+                    <div class="flex justify-between items-center mb-6">
+                        <div class="text-lg font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">✏️ Edit Formula Card</div>
+                        <button onclick="fcCloseEditModal()" class="text-slate-400 hover:text-red-500 font-black text-2xl transition-colors">×</button>
+                    </div>
+                    <input type="hidden" id="fc-edit-id">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Title</label>
+                            <input id="fc-edit-title" type="text" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Chapter</label>
+                            <select id="fc-edit-cat" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
+                                <optgroup label="Arithmetic"><option>Number System</option><option>HCF &amp; LCM</option><option>Simplification</option><option>Percentage</option><option>Profit &amp; Loss</option><option>Discount</option><option>Simple Interest</option><option>Compound Interest</option><option>Ratio &amp; Proportion</option><option>Mixture &amp; Alligation</option><option>Time &amp; Work</option><option>Pipes &amp; Cisterns</option><option>Time Speed Distance</option><option>Boats &amp; Streams</option><option>Trains</option></optgroup>
+                                <optgroup label="Algebra"><option>Algebra — Identities</option><option>Algebra — Equations</option><option>Sequence &amp; Series</option></optgroup>
+                                <optgroup label="Trigonometry"><option>Trigonometry — Identities</option><option>Trigonometry — Ratios</option><option>Trigonometry — Heights &amp; Distances</option></optgroup>
+                                <optgroup label="Geometry"><option>Geometry — Lines &amp; Angles</option><option>Geometry — Triangles</option><option>Geometry — Circles</option><option>Geometry — Quadrilaterals</option><option>Geometry — Polygons</option></optgroup>
+                                <optgroup label="Mensuration 2D"><option>Mensuration — Triangle</option><option>Mensuration — Circle &amp; Sector</option><option>Mensuration — Rectangle &amp; Square</option><option>Mensuration — Trapezium &amp; Rhombus</option><option>Mensuration — Parallelogram</option></optgroup>
+                                <optgroup label="Mensuration 3D"><option>Mensuration — Cube &amp; Cuboid</option><option>Mensuration — Cylinder</option><option>Mensuration — Cone</option><option>Mensuration — Sphere &amp; Hemisphere</option><option>Mensuration — Prism &amp; Pyramid</option></optgroup>
+                                <optgroup label="Data / Stats"><option>Statistics</option><option>Data Interpretation</option><option>Permutation &amp; Combination</option><option>Probability</option></optgroup>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Difficulty</label>
+                            <select id="fc-edit-diff" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
+                                <option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Front — Question</label>
+                            <input id="fc-edit-front" type="text" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Back — Formula <span class="text-amber-500">(new line = new row)</span></label>
+                            <textarea id="fc-edit-back" rows="3" placeholder="Formula 1&#10;Formula 2 on new line" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200 resize-none"></textarea>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Memory Trick</label>
+                            <input id="fc-edit-hint" type="text" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
+                        </div>
+                    </div>
+                    <div class="flex gap-3 mt-2">
+                        <button onclick="fcCloseEditModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black py-3 rounded-2xl text-sm transition-colors hover:bg-slate-200 dark:hover:bg-slate-700">Cancel</button>
+                        <button onclick="fcSaveEdit()" class="flex-1 bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black py-3 rounded-2xl text-sm transition-all shadow-lg">💾 Save Changes</button>
+                    </div>
+                </div>
+            </div>
+            <!-- ===== END EDIT MODAL ===== -->
 
             <!-- VIEW TABS: Browse | SRS Quiz | Mix Quiz | Chapter Quiz -->
             <div id="fc-main-view">
@@ -3837,14 +3892,27 @@ window.generateQuantNotes = () => {
     // Detects raw LaTeX and wraps in \( \) for MathJax; otherwise returns plain text safely
     function fcMathHTML(text) {
         if (!text) return '';
-        // If already has LaTeX delimiters, just return escaped but preserve delimiters
-        const hasLatex = /\\[a-zA-Z{(]|\\frac|\\sqrt|\\sum|\\int|\^|_[{0-9a-zA-Z]/.test(text);
-        const safe = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        if (hasLatex) {
-            // Wrap whole thing in inline math so MathJax renders it
-            return '\\(' + text + '\\)';
-        }
-        return safe;
+        // Split on newlines so each line is rendered independently
+        return text.split('\n').map(line => {
+            if (!line.trim()) return '<br>';
+            // Detect LaTeX anywhere on the line
+            const hasLatex = /\\[a-zA-Z{\[(]|\^\{|\^[0-9a-zA-Z]|_\{|_[0-9a-zA-Z]|\\frac|\\sqrt|\\sum|\\int|\\cdot|\\times|\\pm|\\alpha|\\beta|\\theta|\\pi|\\sigma/.test(line);
+            if (!hasLatex) {
+                return '<div>' + line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>';
+            }
+            // Mixed line: split out LaTeX segments wrapped in \( \) and plain text
+            // Strategy: wrap the whole line content in \( \) but prefix plain text parts
+            // Find segments: plain text before first \ or ^ or _, then LaTeX from there
+            // Simpler: if line has LaTeX, wrap entirely — MathJax handles text() within math
+            // Use \text{} for non-math prefixes like "1. " or "2. "
+            const prefixMatch = line.match(/^([^\\^_$]*?)((?:\\[a-zA-Z{\[(]|\$|\.\s*\\|\^|_(?=[{0-9])).*)$/);
+            if (prefixMatch && prefixMatch[1].trim()) {
+                const plainPart = prefixMatch[1].replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                const mathPart  = prefixMatch[2];
+                return '<div>' + plainPart + ' \\(' + mathPart + '\\)</div>';
+            }
+            return '<div>\\(' + line + '\\)</div>';
+        }).join('');
     }
 
     // SRS intervals in days: index = number of correct reviews
@@ -3959,13 +4027,14 @@ window.generateQuantNotes = () => {
                     <span style="background:${diffBg[card.difficulty]};color:${diffColor[card.difficulty]}" class="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">${card.difficulty}</span>
                     <div class="flex gap-2 items-center">
                         ${mastered ? '<span title="Mastered!">⭐</span>' : ''}
+                        <button onclick="fcOpenEditModal('${card.id}')" class="text-slate-300 dark:text-slate-600 hover:text-amber-500 transition-colors text-sm font-black px-2 py-0.5 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20" title="Edit">✏️</button>
                         <button onclick="fcDeleteCard('${card.id}')" class="text-slate-300 dark:text-slate-600 hover:text-red-500 transition-colors text-lg font-black" title="Delete">×</button>
                     </div>
                 </div>
                 <div class="text-[9px] font-black uppercase tracking-widest text-amber-500 mb-1">${card.category}</div>
                 <div class="text-base font-black text-slate-800 dark:text-slate-100 mb-1">${card.title}</div>
                 <div class="text-xs font-bold text-slate-400 mb-3">${card.front}</div>
-                <div class="text-sm font-black text-indigo-600 dark:text-indigo-400 font-mono whitespace-pre-line bg-slate-50 dark:bg-slate-900/60 rounded-xl px-3 py-2 mb-3">${card.back}</div>
+                <div class="text-sm font-black text-indigo-600 dark:text-indigo-400 bg-slate-50 dark:bg-slate-900/60 rounded-xl px-3 py-2 mb-3 leading-relaxed">${fcMathHTML(card.back)}</div>
                 ${card.hint ? `<div class="text-[10px] text-amber-600 dark:text-amber-400 font-bold mb-2">💡 ${card.hint}</div>` : ''}
                 <div class="flex items-center justify-between mt-1">
                     <span class="text-[9px] font-black px-2 py-0.5 rounded-full ${due ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400' : mastered ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-500'}">${nextLabel}</span>
@@ -4052,6 +4121,50 @@ window.generateQuantNotes = () => {
         fcRender();
         fcRenderChapterList();
     };
+
+    // ---- EDIT CARD ----
+    window.fcOpenEditModal = function(id){
+        const card = fcCards.find(c=>c.id===id);
+        if(!card) return;
+        document.getElementById('fc-edit-id').value    = id;
+        document.getElementById('fc-edit-title').value = card.title;
+        document.getElementById('fc-edit-front').value = card.front;
+        document.getElementById('fc-edit-back').value  = card.back;
+        document.getElementById('fc-edit-hint').value  = card.hint||'';
+        document.getElementById('fc-edit-diff').value  = card.difficulty||'medium';
+        // Set category dropdown
+        const sel = document.getElementById('fc-edit-cat');
+        for(let i=0;i<sel.options.length;i++){
+            if(sel.options[i].value===card.category){ sel.selectedIndex=i; break; }
+        }
+        document.getElementById('fc-edit-modal').classList.remove('hidden');
+    };
+    window.fcCloseEditModal = function(){
+        document.getElementById('fc-edit-modal').classList.add('hidden');
+    };
+    window.fcSaveEdit = function(){
+        const id    = document.getElementById('fc-edit-id').value;
+        const title = document.getElementById('fc-edit-title').value.trim();
+        const front = document.getElementById('fc-edit-front').value.trim();
+        const back  = document.getElementById('fc-edit-back').value.trim();
+        const hint  = document.getElementById('fc-edit-hint').value.trim();
+        const cat   = document.getElementById('fc-edit-cat').value;
+        const diff  = document.getElementById('fc-edit-diff').value;
+        if(!title||!front||!back){ alert('Title, Front and Back are required.'); return; }
+        const idx = fcCards.findIndex(c=>c.id===id);
+        if(idx===-1) return;
+        fcCards[idx] = { ...fcCards[idx], title, front, back, hint, category:cat, difficulty:diff };
+        fcSave();
+        fcCloseEditModal();
+        fcBuildCatFilters();
+        fcUpdateStats();
+        fcRender();
+        fcRenderChapterList();
+    };
+    // Close modal on backdrop click
+    document.getElementById('fc-edit-modal').addEventListener('click', function(e){
+        if(e.target===this) fcCloseEditModal();
+    });
 
     // ---- VIEW SWITCHING ----
     window.fcSetView = function(view){
