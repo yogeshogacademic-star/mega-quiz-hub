@@ -83,6 +83,269 @@
     <input type="file" id="global-file-input" accept=".json, .txt" class="hidden">
     <input type="file" id="backup-file-input" accept=".json" class="hidden">
 
+    <!-- ===================== MATH FLASHCARDS SCREEN ===================== -->
+    <div id="screen-flashcards" class="hidden max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
+        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-amber-400 to-orange-500"></div>
+
+            <!-- Top bar -->
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-slate-100 dark:border-slate-800 pb-6">
+                <div>
+                    <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-2 flex items-center gap-2 transition-colors">← Back to Hub</button>
+                    <h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">🧮 Math Flashcards</h2>
+                    <p class="text-xs font-bold text-slate-500 mt-1 uppercase tracking-widest">SSC CGL Formula Vault · Spaced Repetition</p>
+                </div>
+                <div class="flex gap-3 flex-wrap items-center">
+                    <div class="bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-2 text-center border border-slate-200 dark:border-slate-700">
+                        <div id="fc-stat-total" class="text-xl font-black text-amber-500">0</div>
+                        <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Cards</div>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-2 text-center border border-slate-200 dark:border-slate-700">
+                        <div id="fc-stat-due" class="text-xl font-black text-rose-500">0</div>
+                        <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Due Today</div>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-800 rounded-2xl px-4 py-2 text-center border border-slate-200 dark:border-slate-700">
+                        <div id="fc-stat-mastered" class="text-xl font-black text-emerald-500">0</div>
+                        <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Mastered</div>
+                    </div>
+                    <button onclick="fcToggleAddForm()" id="fc-add-btn" class="bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black px-5 py-3 rounded-2xl shadow-lg transition-transform hover:-translate-y-0.5 border border-amber-400 text-sm">+ Add Formula</button>
+                </div>
+            </div>
+
+            <!-- SRS INFO BANNER -->
+            <div id="fc-srs-banner" class="hidden mb-6 bg-gradient-to-r from-violet-50 to-indigo-50 dark:from-violet-900/20 dark:to-indigo-900/20 border border-violet-200 dark:border-violet-800/40 rounded-2xl p-4 flex items-start gap-4">
+                <div class="text-2xl">🧠</div>
+                <div class="flex-1 text-sm">
+                    <div class="font-black text-violet-700 dark:text-violet-300 mb-1">How Spaced Repetition Works Here</div>
+                    <div class="text-violet-600 dark:text-violet-400 font-bold text-xs leading-relaxed">
+                        When you mark a card <span class="text-emerald-600 dark:text-emerald-400">✅ Got It</span>, its next review is scheduled further in the future (1 day → 3 days → 7 days → 14 days → 30 days). 
+                        When you mark <span class="text-red-500">❌ Review Again</span>, it resets to 1 day. Cards due today appear in <span class="text-rose-600 dark:text-rose-400">Due Today</span> count and get prioritised in SRS Quiz.
+                        <span class="font-black text-violet-700 dark:text-violet-300">⭐ Mastered = 5 correct reviews in a row with growing intervals.</span>
+                    </div>
+                </div>
+                <button onclick="document.getElementById('fc-srs-banner').classList.add('hidden')" class="text-slate-400 hover:text-red-500 font-black text-lg">×</button>
+            </div>
+
+            <!-- Add Card Form -->
+            <div id="fc-add-form" class="hidden mb-6 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 rounded-2xl p-6">
+                <div class="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-4">New Formula Card</div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Title</label>
+                        <input id="fc-new-title" type="text" placeholder="e.g. Area of Rhombus" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Chapter</label>
+                        <select id="fc-new-cat" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
+                            <optgroup label="Arithmetic">
+                                <option>Number System</option><option>HCF &amp; LCM</option><option>Simplification</option>
+                                <option>Percentage</option><option>Profit &amp; Loss</option><option>Discount</option>
+                                <option>Simple Interest</option><option>Compound Interest</option>
+                                <option>Ratio &amp; Proportion</option><option>Mixture &amp; Alligation</option>
+                                <option>Time &amp; Work</option><option>Pipes &amp; Cisterns</option>
+                                <option>Time Speed Distance</option><option>Boats &amp; Streams</option><option>Trains</option>
+            </optgroup>
+                            <optgroup label="Algebra">
+                                <option>Algebra — Identities</option><option>Algebra — Equations</option><option>Sequence &amp; Series</option>
+                            </optgroup>
+                            <optgroup label="Trigonometry">
+                                <option>Trigonometry — Identities</option><option>Trigonometry — Ratios</option><option>Trigonometry — Heights &amp; Distances</option>
+                            </optgroup>
+                            <optgroup label="Geometry">
+                                <option>Geometry — Lines &amp; Angles</option><option>Geometry — Triangles</option>
+                                <option>Geometry — Circles</option><option>Geometry — Quadrilaterals</option><option>Geometry — Polygons</option>
+                            </optgroup>
+                            <optgroup label="Mensuration 2D">
+                                <option>Mensuration — Triangle</option><option>Mensuration — Circle &amp; Sector</option>
+                                <option>Mensuration — Rectangle &amp; Square</option><option>Mensuration — Trapezium &amp; Rhombus</option>
+                                <option>Mensuration — Parallelogram</option>
+                            </optgroup>
+                            <optgroup label="Mensuration 3D">
+                                <option>Mensuration — Cube &amp; Cuboid</option><option>Mensuration — Cylinder</option>
+                                <option>Mensuration — Cone</option><option>Mensuration — Sphere &amp; Hemisphere</option>
+                                <option>Mensuration — Prism &amp; Pyramid</option>
+                            </optgroup>
+                            <optgroup label="Data / Stats">
+                                <option>Statistics</option><option>Data Interpretation</option>
+                                <option>Permutation &amp; Combination</option><option>Probability</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Difficulty</label>
+                        <select id="fc-new-diff" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
+                            <option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Front — What to recall?</label>
+                        <input id="fc-new-front" type="text" placeholder="e.g. Area of rhombus (diagonals d1, d2)" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Back — The Formula</label>
+                        <input id="fc-new-back" type="text" placeholder="e.g. ½ × d1 × d2" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Memory Trick (optional)</label>
+                        <input id="fc-new-hint" type="text" placeholder="e.g. Half product of diagonals" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
+                    </div>
+                </div>
+                <button onclick="fcAddCard()" class="bg-amber-500 hover:bg-amber-600 text-white font-black px-6 py-2.5 rounded-xl text-sm transition-colors">Save Card ✓</button>
+            </div>
+
+            <!-- VIEW TABS: Browse | SRS Quiz | Mix Quiz | Chapter Quiz -->
+            <div id="fc-main-view">
+                <div class="flex gap-1 mb-5 bg-slate-100 dark:bg-slate-800 rounded-2xl p-1.5 w-fit">
+                    <button onclick="fcSetView('browse')" id="fc-tab-browse" class="fc-tab px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm">📖 Browse</button>
+                    <button onclick="fcSetView('srs')" id="fc-tab-srs" class="fc-tab px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">🧠 SRS Quiz</button>
+                    <button onclick="fcSetView('chapter')" id="fc-tab-chapter" class="fc-tab px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">📚 Chapter Quiz</button>
+                    <button onclick="fcSetView('mix')" id="fc-tab-mix" class="fc-tab px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">🎲 Mix Quiz</button>
+                </div>
+
+                <!-- BROWSE VIEW -->
+                <div id="fc-view-browse">
+                    <div class="flex gap-2 flex-wrap items-center mb-5">
+                        <input id="fc-search" type="text" oninput="fcRender()" placeholder="🔍 Search formulas..." class="px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 w-56 text-slate-800 dark:text-slate-200">
+                        <div id="fc-cat-filters" class="flex gap-2 flex-wrap flex-1"></div>
+                    </div>
+                    <div id="fc-browse-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                        <div class="col-span-3 text-center py-20 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-3xl">
+                            <div class="text-4xl mb-3">📭</div>
+                            <div class="text-slate-400 font-black uppercase tracking-widest text-xs mb-2">No cards yet</div>
+                            <div class="text-slate-400 text-xs font-bold">Hit <span class="text-amber-500">+ Add Formula</span> above to add your first hard-to-remember formula</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SRS QUIZ VIEW -->
+                <div id="fc-view-srs" class="hidden">
+                    <div class="max-w-2xl mx-auto">
+                        <div class="bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-900/20 dark:to-indigo-900/20 border border-violet-200 dark:border-violet-800/40 rounded-2xl p-6 mb-4">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <div class="text-lg font-black text-violet-700 dark:text-violet-300">🧠 Spaced Repetition Queue</div>
+                                    <div class="text-xs font-bold text-violet-500 mt-1">Reviews prioritised by how urgently you need them</div>
+                                </div>
+                                <button onclick="document.getElementById('fc-srs-banner').classList.remove('hidden')" class="text-[10px] font-black text-violet-500 border border-violet-300 dark:border-violet-700 px-3 py-1.5 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-colors">❓ How SRS works</button>
+                            </div>
+                            <div class="grid grid-cols-3 gap-3 mb-5">
+                                <div class="bg-white dark:bg-slate-800 rounded-xl p-3 text-center border border-violet-100 dark:border-violet-900/40">
+                                    <div id="fc-srs-due-count" class="text-2xl font-black text-rose-500">0</div>
+                                    <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Due Today</div>
+                                </div>
+                                <div class="bg-white dark:bg-slate-800 rounded-xl p-3 text-center border border-violet-100 dark:border-violet-900/40">
+                                    <div id="fc-srs-new-count" class="text-2xl font-black text-amber-500">0</div>
+                                    <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">New (Unseen)</div>
+                                </div>
+                                <div class="bg-white dark:bg-slate-800 rounded-xl p-3 text-center border border-violet-100 dark:border-violet-900/40">
+                                    <div id="fc-srs-mastered-count" class="text-2xl font-black text-emerald-500">0</div>
+                                    <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Mastered</div>
+                                </div>
+                            </div>
+                            <!-- SRS intervals legend -->
+                            <div class="bg-white/60 dark:bg-slate-800/60 rounded-xl p-4 mb-5 border border-violet-100 dark:border-violet-900/30">
+                                <div class="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3">Review Intervals (Got It streak)</div>
+                                <div class="flex gap-2 flex-wrap">
+                                    <span class="text-[10px] font-black bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 px-2.5 py-1 rounded-full border border-rose-200 dark:border-rose-800/40">New → 1 day</span>
+                                    <span class="text-[10px] font-black bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-2.5 py-1 rounded-full border border-orange-200 dark:border-orange-800/40">1× → 3 days</span>
+                                    <span class="text-[10px] font-black bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 px-2.5 py-1 rounded-full border border-amber-200 dark:border-amber-800/40">2× → 7 days</span>
+                                    <span class="text-[10px] font-black bg-lime-100 dark:bg-lime-900/30 text-lime-600 dark:text-lime-400 px-2.5 py-1 rounded-full border border-lime-200 dark:border-lime-800/40">3× → 14 days</span>
+                                    <span class="text-[10px] font-black bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800/40">4× → 30 days</span>
+                                    <span class="text-[10px] font-black bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-amber-900/30 dark:to-yellow-900/30 text-amber-700 dark:text-amber-300 px-2.5 py-1 rounded-full border border-amber-300 dark:border-amber-700/40">5× ⭐ MASTERED</span>
+                                </div>
+                                <div class="text-[10px] text-slate-400 font-bold mt-2">❌ Review Again → resets interval to 1 day</div>
+                            </div>
+                            <button onclick="fcStartSRSQuiz()" id="fc-srs-start-btn" class="w-full bg-gradient-to-br from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-black py-3.5 rounded-2xl text-sm transition-all shadow-lg hover:shadow-violet-500/30 hover:-translate-y-0.5 border border-violet-400">
+                                🧠 Start SRS Session (<span id="fc-srs-btn-count">0</span> cards due)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CHAPTER QUIZ VIEW -->
+                <div id="fc-view-chapter" class="hidden">
+                    <div class="max-w-2xl mx-auto">
+                        <div class="text-sm font-black text-slate-700 dark:text-slate-300 mb-4 uppercase tracking-widest">Select a Chapter to Quiz</div>
+                        <div id="fc-chapter-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+                    </div>
+                </div>
+
+                <!-- MIX QUIZ VIEW -->
+                <div id="fc-view-mix" class="hidden">
+                    <div class="max-w-xl mx-auto">
+                        <div class="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-2xl p-6">
+                            <div class="text-lg font-black text-emerald-700 dark:text-emerald-300 mb-1">🎲 Mix Quiz</div>
+                            <div class="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-5">Random cards from ALL chapters, shuffled</div>
+                            <div class="mb-5">
+                                <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2">How many cards?</label>
+                                <div class="flex gap-2 flex-wrap">
+                                    <button onclick="fcSetMixCount(10)" id="fc-mix-10" class="fc-mix-btn px-4 py-2 rounded-xl text-sm font-black border border-emerald-300 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 transition-all">10</button>
+                                    <button onclick="fcSetMixCount(20)" id="fc-mix-20" class="fc-mix-btn px-4 py-2 rounded-xl text-sm font-black border border-slate-200 dark:border-slate-700 text-slate-500 hover:border-emerald-300 transition-all">20</button>
+                                    <button onclick="fcSetMixCount(30)" id="fc-mix-30" class="fc-mix-btn px-4 py-2 rounded-xl text-sm font-black border border-slate-200 dark:border-slate-700 text-slate-500 hover:border-emerald-300 transition-all">30</button>
+                                    <button onclick="fcSetMixCount(0)" id="fc-mix-all" class="fc-mix-btn px-4 py-2 rounded-xl text-sm font-black border border-slate-200 dark:border-slate-700 text-slate-500 hover:border-emerald-300 transition-all">All</button>
+                                </div>
+                            </div>
+                            <div class="text-xs font-bold text-slate-500 mb-5">Total cards in vault: <span id="fc-mix-total" class="text-emerald-600 dark:text-emerald-400 font-black">0</span></div>
+                            <button onclick="fcStartMixQuiz()" class="w-full bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black py-3.5 rounded-2xl text-sm transition-all shadow-lg hover:-translate-y-0.5 border border-emerald-400">🎲 Start Mix Quiz</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== QUIZ RUNNER (shared for all quiz modes) ===== -->
+            <div id="fc-quiz-runner" class="hidden max-w-xl mx-auto py-2">
+                <div class="flex justify-between items-center mb-3 text-xs font-black uppercase tracking-widest text-slate-400">
+                    <span id="fc-quiz-counter">Card 1 of 10</span>
+                    <span id="fc-quiz-mode-label" class="px-3 py-1 rounded-full text-[10px] bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-800/40">SRS</span>
+                    <button onclick="fcExitQuiz()" class="text-slate-400 hover:text-red-500 transition-colors font-black">✕ Exit</button>
+                </div>
+                <div class="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full mb-6 overflow-hidden">
+                    <div id="fc-quiz-progress" class="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full transition-all duration-500" style="width:0%"></div>
+                </div>
+                <!-- Next review label -->
+                <div id="fc-next-review-label" class="hidden text-center mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400"></div>
+                <!-- Flip Card -->
+                <div id="fc-quiz-card" onclick="fcFlipCard()" class="min-h-[260px] rounded-3xl border-2 border-slate-200 dark:border-slate-700 p-8 flex flex-col justify-center items-center text-center cursor-pointer transition-all hover:shadow-xl hover:-translate-y-0.5 relative bg-slate-50 dark:bg-slate-800 select-none">
+                    <div id="fc-quiz-label" class="text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-slate-400">Question</div>
+                    <div id="fc-quiz-cat-chip" class="text-[9px] font-black uppercase tracking-widest text-amber-500 mb-2"></div>
+                    <div id="fc-quiz-title" class="text-2xl font-black text-slate-800 dark:text-slate-100 mb-2"></div>
+                    <div id="fc-quiz-front" class="text-sm font-bold text-slate-500 dark:text-slate-400 mb-4"></div>
+                    <div id="fc-quiz-answer" class="hidden text-xl font-black text-indigo-600 dark:text-indigo-400 font-mono whitespace-pre-line leading-relaxed"></div>
+                    <div id="fc-quiz-tap" class="text-xs text-slate-300 dark:text-slate-600 mt-4 font-bold">tap to reveal ↓</div>
+                    <span id="fc-quiz-diff-badge" class="absolute top-4 right-4 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest"></span>
+                </div>
+                <!-- Hint -->
+                <div class="text-center mt-3" id="fc-hint-area"></div>
+                <!-- SRS next interval preview (shows after flip) -->
+                <div id="fc-interval-preview" class="hidden text-center mt-3 text-xs font-bold text-slate-400">
+                    Next review if ✅: <span id="fc-interval-got" class="text-emerald-500 font-black"></span> &nbsp;|&nbsp; if ❌: <span class="text-rose-500 font-black">Tomorrow</span>
+                </div>
+                <!-- Judgment Buttons -->
+                <div id="fc-quiz-btns" class="hidden flex gap-4 mt-5 justify-center">
+                    <button onclick="fcMark('miss')" class="flex-1 max-w-[200px] bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/40 font-black py-3.5 rounded-2xl text-sm hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors">❌ Review Again</button>
+                    <button onclick="fcMark('got')" class="flex-1 max-w-[200px] bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 font-black py-3.5 rounded-2xl text-sm hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors">✅ Got It!</button>
+                </div>
+            </div>
+
+            <!-- QUIZ DONE -->
+            <div id="fc-quiz-done" class="hidden text-center py-16">
+                <div class="text-6xl mb-4">🎉</div>
+                <div class="text-3xl font-black text-slate-800 dark:text-slate-100 mb-2">Session Complete!</div>
+                <div id="fc-done-msg" class="text-sm font-bold text-slate-500 mb-3"></div>
+                <div id="fc-done-stats" class="flex gap-4 justify-center mb-8 flex-wrap"></div>
+                <div class="flex gap-4 justify-center">
+                    <button onclick="fcReplayQuiz()" class="bg-violet-600 hover:bg-violet-500 text-white font-black px-8 py-3 rounded-2xl text-sm transition-colors">🔁 Again</button>
+                    <button onclick="fcExitQuiz()" class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-black px-8 py-3 rounded-2xl text-sm transition-colors">📖 Back</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ================================================================== -->
+
+
+
     <div id="screen-dashboard" class="max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 flex-1 w-full block">
         <header class="bg-slate-900 dark:bg-slate-900 text-white rounded-[2rem] p-6 sm:p-10 mb-10 shadow-2xl relative overflow-hidden border border-slate-800 group">
             <div class="absolute inset-0 bg-cover bg-center opacity-60 dark:opacity-70 transition-transform duration-1000 group-hover:scale-105" style="background-image: url('wp2550249-kobe-bryant-wallpaper.jpg'); pointer-events: none;"></div>
@@ -113,6 +376,10 @@
                     <button onclick="openDBManager()" class="bg-gradient-to-br from-blue-500 to-cyan-600 hover:from-blue-400 hover:to-cyan-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-transform hover:-translate-y-1 border border-cyan-400 flex items-center gap-2">🗄️ Master DB</button>
                     <button onclick="openTargetRadar()" class="bg-gradient-to-br from-rose-500 to-orange-600 hover:from-rose-400 hover:to-orange-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(244,63,94,0.4)] transition-transform hover:-translate-y-1 border border-rose-400 flex items-center gap-2">🎯 Target Radar</button>
                     <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400 flex items-center gap-2">📊 Analytics</button>
+                    <button onclick="showScreen('flashcards')" class="bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(251,146,60,0.5)] transition-transform hover:-translate-y-1 border border-amber-400 flex items-center gap-2 relative overflow-hidden group">
+                        <div class="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity"></div>
+                        🧮 Math Flashcards
+                    </button>
                 </div>
             </div>
 
@@ -1147,19 +1414,26 @@
                     // 1. Sync question text
                     r.question = target.question;
 
-                    // 2. Sync correct-answer display text
+                    // 2. Save oldCText BEFORE overwriting — required for rename detection
+                    const oldCText = r.cText || null;
                     if (newCText !== null) r.cText = newCText;
 
                     // 3. Sync solution & tags
                     if (target.solution !== undefined) r.solution = target.solution;
                     if (target.tags     !== undefined) r.tags     = target.tags;
 
-                    // 4. Re-evaluate status — compare what user picked (r.uText)
-                    //    against the set of now-correct option texts.
-                    //    Skipped questions have no pick so skip them.
+                    // 4. Re-evaluate status — 3-rule algorithm handles all cases:
+                    //    A) directMatch   : user's pick IS in new correct-option texts → correct
+                    //    B) rename        : user picked old correct text, that text is now GONE
+                    //                      from ALL options (renamed, not unchecked) → still correct
+                    //    C) radio moved   : old correct text still exists but unchecked → wrong
                     if (correctTexts !== null && r.status !== 'skipped') {
-                        const wasCorrect = r.status === 'correct';
-                        const nowCorrect = correctTexts.has(r.uText);
+                        const allNewTexts        = target.options ? new Set(target.options.map(o => o.text)) : new Set();
+                        const directMatch        = correctTexts.has(r.uText);
+                        const oldCTextGone       = oldCText && !allNewTexts.has(oldCText);
+                        const wasPickingOldRight = r.uText === oldCText;
+                        const wasCorrect  = r.status === 'correct';
+                        const nowCorrect  = directMatch || (wasPickingOldRight && oldCTextGone);
                         if (wasCorrect !== nowCorrect) {
                             r.status     = nowCorrect ? 'correct' : 'wrong';
                             needsRescore = true;
@@ -1231,40 +1505,36 @@
             if(!document.getElementById('screen-db-manager').classList.contains('hidden')) renderDBList(document.getElementById('db-manager-search').value);
             if(!document.getElementById('screen-target-radar').classList.contains('hidden')) renderTargetRadar();
             if(!document.getElementById('search-results-container').classList.contains('hidden')) performSearch(document.getElementById('omni-search').value);
-            if(!document.getElementById('screen-results').classList.contains('hidden')) {
-                // ── LIVE SCORE REFRESH ─────────────────────────────────────────────
-                // The score banner (res-score, res-correct, etc.) must reflect the
-                // recalculated totals from the history entry we are currently viewing.
-                const viewIdx = (window.currentHistoryViewIndex !== undefined && window.currentHistoryViewIndex !== null)
-                    ? window.currentHistoryViewIndex : 0;
-                const liveEntry = historyDb[viewIdx];
-                if (liveEntry) {
-                    document.getElementById('res-score').textContent   = liveEntry.score;
-                    document.getElementById('res-correct').textContent  = liveEntry.totalCorrect  || 0;
-                    document.getElementById('res-wrong').textContent    = liveEntry.totalWrong    || 0;
-                    document.getElementById('res-skipped').textContent  = liveEntry.totalSkipped  || 0;
-                }
-                // ── END LIVE SCORE REFRESH ─────────────────────────────────────────
-
+            // ── UNCONDITIONAL SCORE + CARD REFRESH ────────────────────────────────
+            // Always update score banner regardless of which screen is visible.
+            // Cards only re-render when results screen is open (no wasted work).
+            const viewIdx   = (window.currentHistoryViewIndex != null) ? window.currentHistoryViewIndex : 0;
+            const liveEntry = (historyDb && historyDb[viewIdx]) ? historyDb[viewIdx] : null;
+            if (liveEntry) {
+                const _el = id => document.getElementById(id);
+                if(_el('res-score'))   _el('res-score').textContent   = liveEntry.score;
+                if(_el('res-correct')) _el('res-correct').textContent = liveEntry.totalCorrect  || 0;
+                if(_el('res-wrong'))   _el('res-wrong').textContent   = liveEntry.totalWrong    || 0;
+                if(_el('res-skipped')) _el('res-skipped').textContent = liveEntry.totalSkipped  || 0;
+            }
+            if (!document.getElementById('screen-results').classList.contains('hidden')) {
                 if(window.currentReviewQuestions && window.currentReviewQuestions.length > 0) {
                     let fullHTML = '';
-                    const activeHistEntry = liveEntry || null;
                     window.currentReviewQuestions.forEach((qObj, idx) => {
-                        // Re-apply latest edited data to the in-memory question object
                         if(qObj.question === oldText || qObj.question === target.question) {
                             qObj = {...qObj, ...target};
                             window.currentReviewQuestions[idx] = qObj;
                         }
-                        // Pull status/uText/cText from the correct history entry being viewed
-                        let histMatch = activeHistEntry ? activeHistEntry.reviewData.find(r => r.question === qObj.question) : null;
-                        let stat  = histMatch ? histMatch.status : 'skipped';
-                        let cText = histMatch ? histMatch.cText  : 'N/A';
-                        let uText = histMatch ? histMatch.uText  : 'N/A';
+                        const histMatch = liveEntry ? liveEntry.reviewData.find(r => r.question === qObj.question) : null;
+                        const stat  = histMatch ? histMatch.status : 'skipped';
+                        const cText = histMatch ? histMatch.cText  : 'N/A';
+                        const uText = histMatch ? histMatch.uText  : 'N/A';
                         fullHTML += genDeepReviewCard(qObj, stat, uText, cText, "", idx);
                     });
                     document.getElementById('revision-container').innerHTML = fullHTML;
                 }
             }
+            // ── END UNCONDITIONAL SCORE + CARD REFRESH ─────────────────────────────
         } else { alert("Save failed: Could not locate original question."); }
     };
 
@@ -1937,14 +2207,18 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         document.getElementById('lobby-title').textContent = q.title; document.getElementById('lobby-meta').textContent = `${q.questions.length} Questions | Default Time: ${q.timeInMinutes} Mins`;
         const lastStoredName = localStorage.getItem('megaQuizCandidateName') || "Yogesh"; document.getElementById('candidate-name').value = lastStoredName;
         
-        let prev = historyDb.filter(h => h.title === q.title); currentAttemptNum = prev.length + 1;
-        let lastScoreText = prev.length > 0 ? `Previous Score: ${prev[0].score} (${prev[0].accuracy}% ACC)` : "First Attempt";
+        let prev = historyDb.filter(h => h.title === q.title);
+        // Exclude Revision Runs so attempt# only counts real full attempts
+        let fullAttempts = prev.filter(h => !h.title.endsWith('(Revision Run)'));
+        currentAttemptNum = fullAttempts.length + 1;
+        let lastScoreText = fullAttempts.length > 0 ? `Previous Score: ${fullAttempts[0].score} (${fullAttempts[0].accuracy}% ACC)` : "First Attempt";
         document.getElementById('attempt-info').innerHTML = `<div class="text-xl font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tight">Attempt #${currentAttemptNum}</div><div class="text-[11px] font-black uppercase tracking-widest text-slate-500 mt-1">${lastScoreText}</div>`;
         
         lobbyQuizMode = 'full'; let wrongQs = [];
-        if(prev.length > 0) { let lastAttempt = prev[0]; if(lastAttempt.reviewData && Array.isArray(lastAttempt.reviewData)) wrongQs = lastAttempt.reviewData.filter(r => r.status === 'wrong' || r.status === 'skipped').map(r => r.question); }
+        // Pull wrong Qs from last real attempt (not a revision run)
+        if(fullAttempts.length > 0) { let lastAttempt = fullAttempts[0]; if(lastAttempt.reviewData && Array.isArray(lastAttempt.reviewData)) wrongQs = lastAttempt.reviewData.filter(r => r.status === 'wrong' || r.status === 'skipped').map(r => r.question); }
         window.currentQuizWrongQs = wrongQs;
-        if(prev.length > 0 && wrongQs.length > 0 && !q.title.includes("🎯") && !q.title.includes("SRS")) {
+        if(fullAttempts.length > 0 && wrongQs.length > 0 && !q.title.includes("🎯") && !q.title.includes("SRS")) {
             document.getElementById('lobby-mode-selection').classList.remove('hidden'); document.getElementById('wrong-count-badge').textContent = wrongQs.length; setQuizMode('full');
         } else { document.getElementById('lobby-mode-selection').classList.add('hidden'); }
         
@@ -2168,8 +2442,10 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     function submitQuiz() {
         if (quizState.submitted) return;
         quizState.submitted = true; clearInterval(quizState.interval); window.speechSynthesis.cancel();
-        // MEMORY FIX: reset edit registry each submit cycle — prevents unbounded growth across sessions
+        // MEMORY FIX: reset edit registry each submit cycle
         window.editRegistry = {}; window.editCounter = 0;
+        // Fresh live result — reset history-view index so saveEdit uses historyDb[0]
+        window.currentHistoryViewIndex = 0;
         let correct = 0, wrong = 0, skipped = 0, fullReviewHTML = ''; let historicalReviewData = []; window.currentReviewQuestions = [];
 
         // PERFORMANCE FIX: build index map once — O(n) — instead of findIndex per question O(n²)
@@ -2870,7 +3146,10 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     window.openHistoryReview = (index) => {
         closeQuizHistory(); closeAnalytics(); const attempt = historyDb[index];
         if (!attempt.reviewData) return alert("This test is from an older version of the Hub and does not have Deep Review data saved.");
-        
+
+        // Track which attempt is being viewed so saveEdit re-renders the right one
+        window.currentHistoryViewIndex = index;
+
         document.getElementById('results-title').textContent = `${attempt.candidateName || 'Yogesh'}'s Report - Attempt #${attempt.attemptNumber || 1}`;
         document.getElementById('res-score').textContent = attempt.score; document.getElementById('res-correct').textContent = attempt.totalCorrect || 0;
         document.getElementById('res-wrong').textContent = attempt.totalWrong || 0; document.getElementById('res-skipped').textContent = attempt.totalSkipped || 0;
@@ -3535,5 +3814,411 @@ window.generateQuantNotes = () => {
 
     initializeSystem();
 </script>
+
+<!-- ===================== MATH FLASHCARDS JS ===================== -->
+<script>
+(function(){
+    const FC_CARDS_KEY = 'yogesh_fc_cards_v2';
+    const FC_PROG_KEY  = 'yogesh_fc_prog_v2';
+
+    // SRS intervals in days: index = number of correct reviews
+    const SRS_INTERVALS = [1, 3, 7, 14, 30];
+    const MASTERED_THRESHOLD = 5; // reviews needed to master
+
+    let fcCards = [];
+    let fcProgress = {};
+    let fcActiveCat = 'All';
+    let fcQuizQueue = [];
+    let fcQuizIdx = 0;
+    let fcFlipped = false;
+    let fcCurrentView = 'browse';
+    let fcLastQuizMode = 'srs';
+    let fcMixCount = 10;
+
+    // ---- STORAGE ----
+    function fcLoad(){
+        try { const s = localStorage.getItem(FC_CARDS_KEY); fcCards = s ? JSON.parse(s) : []; } catch { fcCards = []; }
+        try { const p = localStorage.getItem(FC_PROG_KEY);  if(p) fcProgress = JSON.parse(p); } catch {}
+    }
+    function fcSave(){
+        try { localStorage.setItem(FC_CARDS_KEY, JSON.stringify(fcCards)); localStorage.setItem(FC_PROG_KEY, JSON.stringify(fcProgress)); } catch {}
+    }
+
+    // ---- SRS LOGIC ----
+    function fcGetProgress(id){
+        return fcProgress[id] || { correct:0, wrong:0, reviews:0, nextReview: Date.now(), interval: 0 };
+    }
+    function fcIsDue(id){
+        const p = fcGetProgress(id);
+        return p.nextReview <= Date.now() + 60000; // 1 min grace
+    }
+    function fcIsMastered(id){
+        return fcGetProgress(id).reviews >= MASTERED_THRESHOLD;
+    }
+    function fcGetIntervalLabel(reviews){
+        const days = SRS_INTERVALS[Math.min(reviews, SRS_INTERVALS.length-1)];
+        if(days === 1) return 'Tomorrow';
+        return 'In ' + days + ' days';
+    }
+    function fcRecordResult(id, result){
+        const prev = fcGetProgress(id);
+        const wasReviewed = prev.reviews > 0;
+        let newReviews = result === 'got' ? prev.reviews + 1 : 0;
+        const intervalDays = result === 'got' ? SRS_INTERVALS[Math.min(prev.reviews, SRS_INTERVALS.length-1)] : 1;
+        const nextReview = Date.now() + intervalDays * 86400000;
+        fcProgress[id] = {
+            correct:    result === 'got'  ? prev.correct + 1 : prev.correct,
+            wrong:      result === 'miss' ? prev.wrong + 1   : prev.wrong,
+            reviews:    newReviews,
+            interval:   intervalDays,
+            nextReview: nextReview,
+            lastSeen:   Date.now()
+        };
+        fcSave();
+    }
+
+    // ---- STATS ----
+    function fcUpdateStats(){
+        const total    = fcCards.length;
+        const mastered = fcCards.filter(c => fcIsMastered(c.id)).length;
+        const due      = fcCards.filter(c => {
+            const p = fcGetProgress(c.id);
+            return p.lastSeen && fcIsDue(c.id) && !fcIsMastered(c.id);
+        }).length;
+        const el = (id,v) => { const e=document.getElementById(id); if(e) e.textContent=v; };
+        el('fc-stat-total', total);
+        el('fc-stat-mastered', mastered);
+        el('fc-stat-due', due);
+        el('fc-mix-total', total);
+        // SRS view counts
+        const newUnseen = fcCards.filter(c => !fcProgress[c.id]).length;
+        el('fc-srs-due-count', due);
+        el('fc-srs-new-count', newUnseen);
+        el('fc-srs-mastered-count', mastered);
+        el('fc-srs-btn-count', due + newUnseen);
+    }
+
+    // ---- BROWSE ----
+    window.fcRender = function(){
+        const search = (document.getElementById('fc-search')||{value:''}).value.toLowerCase();
+        const grid = document.getElementById('fc-browse-grid');
+        if(!grid) return;
+        const filtered = fcCards.filter(c =>
+            (fcActiveCat === 'All' || c.category === fcActiveCat) &&
+            (!search || c.title.toLowerCase().includes(search) || c.front.toLowerCase().includes(search))
+        );
+        if(!filtered.length){
+            grid.innerHTML = fcActiveCat === 'All' && !search
+                ? `<div class="col-span-3 text-center py-20 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-3xl">
+                    <div class="text-4xl mb-3">📭</div>
+                    <div class="text-slate-400 font-black uppercase tracking-widest text-xs mb-2">No cards yet</div>
+                    <div class="text-slate-400 text-xs font-bold">Hit <span class="text-amber-500">+ Add Formula</span> above to add your first formula</div>
+                   </div>`
+                : `<div class="col-span-3 text-center text-slate-400 font-bold py-16 text-xs uppercase tracking-widest">No cards match. Try a different filter.</div>`;
+            return;
+        }
+        const diffColor = {easy:'#10b981',medium:'#f59e0b',hard:'#ef4444'};
+        const diffBg = {easy:'rgba(16,185,129,0.1)',medium:'rgba(245,158,11,0.1)',hard:'rgba(239,68,68,0.1)'};
+        grid.innerHTML = '';
+        filtered.forEach(card => {
+            const p = fcGetProgress(card.id);
+            const mastered = fcIsMastered(card.id);
+            const due = p.lastSeen && fcIsDue(card.id) && !mastered;
+            const reviews = p.reviews || 0;
+            const nextLabel = p.lastSeen ? (mastered ? '⭐ Mastered' : (due ? '🔴 Due now' : `Next: ${new Date(p.nextReview).toLocaleDateString()}`)) : '🆕 New';
+            const div = document.createElement('div');
+            div.className = 'rounded-2xl border p-5 transition-all hover:-translate-y-1 hover:shadow-lg ' + (mastered ? 'border-emerald-200 dark:border-emerald-800/40 bg-emerald-50/50 dark:bg-emerald-900/10' : due ? 'border-rose-200 dark:border-rose-800/40 bg-rose-50/30 dark:bg-rose-900/10' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50');
+            div.innerHTML = `
+                <div class="flex justify-between items-start mb-3">
+                    <span style="background:${diffBg[card.difficulty]};color:${diffColor[card.difficulty]}" class="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">${card.difficulty}</span>
+                    <div class="flex gap-2 items-center">
+                        ${mastered ? '<span title="Mastered!">⭐</span>' : ''}
+                        <button onclick="fcDeleteCard('${card.id}')" class="text-slate-300 dark:text-slate-600 hover:text-red-500 transition-colors text-lg font-black" title="Delete">×</button>
+                    </div>
+                </div>
+                <div class="text-[9px] font-black uppercase tracking-widest text-amber-500 mb-1">${card.category}</div>
+                <div class="text-base font-black text-slate-800 dark:text-slate-100 mb-1">${card.title}</div>
+                <div class="text-xs font-bold text-slate-400 mb-3">${card.front}</div>
+                <div class="text-sm font-black text-indigo-600 dark:text-indigo-400 font-mono whitespace-pre-line bg-slate-50 dark:bg-slate-900/60 rounded-xl px-3 py-2 mb-3">${card.back}</div>
+                ${card.hint ? `<div class="text-[10px] text-amber-600 dark:text-amber-400 font-bold mb-2">💡 ${card.hint}</div>` : ''}
+                <div class="flex items-center justify-between mt-1">
+                    <span class="text-[9px] font-black px-2 py-0.5 rounded-full ${due ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400' : mastered ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-500'}">${nextLabel}</span>
+                    ${reviews > 0 ? `<span class="text-[9px] text-slate-400 font-bold">✅${p.correct} ❌${p.wrong} 🔄${reviews}/${MASTERED_THRESHOLD}</span>` : ''}
+                </div>`;
+            grid.appendChild(div);
+        });
+    };
+
+    window.fcBuildCatFilters = function(){
+        const el = document.getElementById('fc-cat-filters');
+        if(!el) return;
+        const cats = ['All', ...new Set(fcCards.map(c=>c.category))].sort((a,b) => a==='All'?-1:a.localeCompare(b));
+        el.innerHTML = cats.map(cat => {
+            const safe = cat.replace(/[^a-z0-9]/gi,'_');
+            const active = fcActiveCat === cat;
+            return `<button onclick="fcSetCat('${cat}')" class="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border transition-all ${active ? 'bg-amber-500 border-amber-500 text-white' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-amber-300'}">${cat}</button>`;
+        }).join('');
+    };
+
+    window.fcSetCat = function(cat){ fcActiveCat=cat; fcBuildCatFilters(); fcRender(); };
+
+    // ---- CHAPTER QUIZ LIST ----
+    function fcRenderChapterList(){
+        const el = document.getElementById('fc-chapter-list');
+        if(!el) return;
+        const cats = [...new Set(fcCards.map(c=>c.category))].sort();
+        if(!cats.length){
+            el.innerHTML = '<div class="col-span-2 text-center text-slate-400 font-bold text-xs uppercase tracking-widest py-10">Add some cards first!</div>';
+            return;
+        }
+        el.innerHTML = cats.map(cat => {
+            const count = fcCards.filter(c=>c.category===cat).length;
+            const due   = fcCards.filter(c=>c.category===cat && fcIsDue(c.id) && !fcIsMastered(c.id)).length;
+            return `<button onclick="fcStartChapterQuiz('${cat.replace(/'/g,"\'")}')"
+                class="text-left p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 hover:border-amber-300 dark:hover:border-amber-700 hover:-translate-y-0.5 transition-all group">
+                <div class="font-black text-slate-800 dark:text-slate-100 text-sm mb-1 group-hover:text-amber-600 dark:group-hover:text-amber-400">${cat}</div>
+                <div class="flex items-center gap-2 text-[10px] font-bold text-slate-400">
+                    <span>${count} card${count>1?'s':''}</span>
+                    ${due ? `<span class="text-rose-500 font-black">${due} due</span>` : ''}
+                </div>
+            </button>`;
+        }).join('');
+    }
+
+    // ---- ADD CARD ----
+    window.fcToggleAddForm = function(){
+        const f = document.getElementById('fc-add-form');
+        const b = document.getElementById('fc-add-btn');
+        if(!f) return;
+        const nowHidden = f.classList.toggle('hidden');
+        if(b) b.textContent = nowHidden ? '+ Add Formula' : '✕ Cancel';
+    };
+
+    window.fcAddCard = function(){
+        const title = document.getElementById('fc-new-title').value.trim();
+        const front = document.getElementById('fc-new-front').value.trim();
+        const back  = document.getElementById('fc-new-back').value.trim();
+        const hint  = document.getElementById('fc-new-hint').value.trim();
+        const cat   = document.getElementById('fc-new-cat').value;
+        const diff  = document.getElementById('fc-new-diff').value;
+        if(!title||!front||!back){ alert('Please fill Title, Front (question) and Back (formula).'); return; }
+        const id = 'fc_' + Date.now();
+        fcCards.push({id,category:cat,difficulty:diff,title,front,back,hint});
+        fcSave();
+        ['fc-new-title','fc-new-front','fc-new-back','fc-new-hint'].forEach(i=>{ const e=document.getElementById(i); if(e)e.value=''; });
+        fcToggleAddForm();
+        fcUpdateStats();
+        fcBuildCatFilters();
+        fcRender();
+        fcRenderChapterList();
+    };
+
+    window.fcDeleteCard = function(id){
+        fcCards = fcCards.filter(c=>c.id!==id);
+        delete fcProgress[id];
+        fcSave();
+        fcUpdateStats();
+        fcBuildCatFilters();
+        fcRender();
+        fcRenderChapterList();
+    };
+
+    // ---- VIEW SWITCHING ----
+    window.fcSetView = function(view){
+        fcCurrentView = view;
+        ['browse','srs','chapter','mix'].forEach(v => {
+            const panel = document.getElementById('fc-view-'+v);
+            const tab   = document.getElementById('fc-tab-'+v);
+            if(panel) panel.classList.toggle('hidden', v !== view);
+            if(tab){
+                if(v === view){
+                    tab.classList.add('bg-white','dark:bg-slate-700','text-slate-800','dark:text-white','shadow-sm');
+                    tab.classList.remove('text-slate-500','dark:text-slate-400');
+                } else {
+                    tab.classList.remove('bg-white','dark:bg-slate-700','text-slate-800','dark:text-white','shadow-sm');
+                    tab.classList.add('text-slate-500','dark:text-slate-400');
+                }
+            }
+        });
+        if(view === 'chapter') fcRenderChapterList();
+        if(view === 'srs') fcUpdateStats();
+        if(view === 'mix') fcUpdateStats();
+    };
+
+    // ---- MIX COUNT ----
+    window.fcSetMixCount = function(n){
+        fcMixCount = n;
+        ['fc-mix-10','fc-mix-20','fc-mix-30','fc-mix-all'].forEach(id => {
+            const el = document.getElementById(id);
+            if(!el) return;
+            const isActive = (id === 'fc-mix-'+n) || (id === 'fc-mix-all' && n === 0);
+            el.className = 'fc-mix-btn px-4 py-2 rounded-xl text-sm font-black border transition-all ' +
+                (isActive ? 'border-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300' : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:border-emerald-300');
+        });
+    };
+
+    // ---- QUIZ LAUNCHERS ----
+    window.fcStartSRSQuiz = function(){
+        if(!fcCards.length){ alert('Add some cards first!'); return; }
+        // Prioritise: due (sorted by overdue-ness) then new (unseen)
+        const due    = fcCards.filter(c => fcIsDue(c.id) && !fcIsMastered(c.id)).sort((a,b)=>(fcGetProgress(a.id).nextReview||0)-(fcGetProgress(b.id).nextReview||0));
+        const unseen = fcCards.filter(c => !fcProgress[c.id]);
+        fcQuizQueue = [...due, ...unseen];
+        if(!fcQuizQueue.length){ alert('No cards due! Great job. Check back later or use Mix Quiz to practice anyway.'); return; }
+        fcLastQuizMode = 'srs';
+        fcLaunchQuiz('🧠 SRS');
+    };
+
+    window.fcStartChapterQuiz = function(cat){
+        const pool = fcCards.filter(c=>c.category===cat);
+        if(!pool.length){ alert('No cards in this chapter yet!'); return; }
+        fcQuizQueue = [...pool].sort(()=>Math.random()-0.5);
+        fcLastQuizMode = 'chapter:'+cat;
+        fcLaunchQuiz('📚 '+cat);
+    };
+
+    window.fcStartMixQuiz = function(){
+        if(!fcCards.length){ alert('Add some cards first!'); return; }
+        let pool = [...fcCards].sort(()=>Math.random()-0.5);
+        if(fcMixCount > 0) pool = pool.slice(0, fcMixCount);
+        fcQuizQueue = pool;
+        fcLastQuizMode = 'mix';
+        fcLaunchQuiz('🎲 Mix');
+    };
+
+    function fcLaunchQuiz(modeLabel){
+        fcQuizIdx = 0;
+        fcFlipped = false;
+        document.getElementById('fc-main-view').classList.add('hidden');
+        document.getElementById('fc-quiz-done').classList.add('hidden');
+        document.getElementById('fc-quiz-runner').classList.remove('hidden');
+        document.getElementById('fc-quiz-mode-label').textContent = modeLabel;
+        fcShowQuizCard();
+    }
+
+    // ---- QUIZ CARD ----
+    function fcShowQuizCard(){
+        const card = fcQuizQueue[fcQuizIdx];
+        if(!card) return;
+        const diffColor = {easy:'#10b981',medium:'#f59e0b',hard:'#ef4444'};
+        const diffBg    = {easy:'rgba(16,185,129,0.1)',medium:'rgba(245,158,11,0.1)',hard:'rgba(239,68,68,0.1)'};
+        const p = fcGetProgress(card.id);
+        document.getElementById('fc-quiz-counter').textContent = `Card ${fcQuizIdx+1} of ${fcQuizQueue.length}`;
+        document.getElementById('fc-quiz-progress').style.width = `${(fcQuizIdx/fcQuizQueue.length)*100}%`;
+        document.getElementById('fc-quiz-label').textContent = 'Question';
+        document.getElementById('fc-quiz-label').style.color = '';
+        document.getElementById('fc-quiz-cat-chip').textContent = card.category;
+        document.getElementById('fc-quiz-title').textContent = card.title;
+        document.getElementById('fc-quiz-front').textContent = card.front;
+        document.getElementById('fc-quiz-answer').textContent = card.back;
+        document.getElementById('fc-quiz-answer').classList.add('hidden');
+        document.getElementById('fc-quiz-tap').classList.remove('hidden');
+        document.getElementById('fc-quiz-btns').classList.add('hidden');
+        document.getElementById('fc-interval-preview').classList.add('hidden');
+        document.getElementById('fc-next-review-label').classList.add('hidden');
+        const badge = document.getElementById('fc-quiz-diff-badge');
+        badge.textContent = card.difficulty;
+        badge.style.background = diffBg[card.difficulty];
+        badge.style.color = diffColor[card.difficulty];
+        const qcard = document.getElementById('fc-quiz-card');
+        qcard.style.borderColor = '';
+        qcard.className = 'min-h-[260px] rounded-3xl border-2 border-slate-200 dark:border-slate-700 p-8 flex flex-col justify-center items-center text-center cursor-pointer transition-all hover:shadow-xl hover:-translate-y-0.5 relative bg-slate-50 dark:bg-slate-800 select-none';
+        document.getElementById('fc-hint-area').innerHTML = card.hint
+            ? `<button onclick="fcShowHint()" class="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40 hover:bg-amber-100 transition-colors">💡 Hint</button>` : '';
+        fcFlipped = false;
+    }
+
+    window.fcFlipCard = function(){
+        if(fcFlipped) return;
+        fcFlipped = true;
+        const card = fcQuizQueue[fcQuizIdx];
+        const p = fcGetProgress(card.id);
+        document.getElementById('fc-quiz-answer').classList.remove('hidden');
+        document.getElementById('fc-quiz-tap').classList.add('hidden');
+        document.getElementById('fc-quiz-btns').classList.remove('hidden');
+        document.getElementById('fc-quiz-label').textContent = 'Answer';
+        document.getElementById('fc-quiz-label').style.color = '#6366f1';
+        // Show next interval preview
+        const nextLabel = fcGetIntervalLabel(p.reviews);
+        document.getElementById('fc-interval-got').textContent = nextLabel;
+        document.getElementById('fc-interval-preview').classList.remove('hidden');
+        const qcard = document.getElementById('fc-quiz-card');
+        qcard.classList.remove('border-slate-200','dark:border-slate-700');
+        qcard.classList.add('border-indigo-300','dark:border-indigo-600');
+    };
+
+    window.fcShowHint = function(){
+        const card = fcQuizQueue[fcQuizIdx];
+        if(!card||!card.hint) return;
+        document.getElementById('fc-hint-area').innerHTML = `<div class="inline-block text-[11px] font-bold bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40 rounded-full px-4 py-1.5">💡 ${card.hint}</div>`;
+    };
+
+    window.fcMark = function(result){
+        const card = fcQuizQueue[fcQuizIdx];
+        if(!card) return;
+        fcRecordResult(card.id, result);
+        fcUpdateStats();
+        fcQuizIdx++;
+        if(fcQuizIdx >= fcQuizQueue.length){
+            // Show done screen
+            document.getElementById('fc-quiz-runner').classList.add('hidden');
+            document.getElementById('fc-quiz-done').classList.remove('hidden');
+            const got  = fcQuizQueue.filter(c => fcGetProgress(c.id).correct > (fcProgress[c.id]?.correct - (result==='got'?1:0) || 0)).length;
+            document.getElementById('fc-done-msg').textContent = `You went through ${fcQuizQueue.length} cards.`;
+            const correct = fcQuizQueue.filter(c => { const p=fcGetProgress(c.id); return p.correct>0; }).length;
+            document.getElementById('fc-done-stats').innerHTML = `
+                <div class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/30 rounded-2xl px-6 py-3 text-center">
+                    <div class="text-2xl font-black text-emerald-600 dark:text-emerald-400">${fcCards.filter(c=>fcIsMastered(c.id)).length}</div>
+                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mastered Total</div>
+                </div>
+                <div class="bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/30 rounded-2xl px-6 py-3 text-center">
+                    <div class="text-2xl font-black text-violet-600 dark:text-violet-400">${fcCards.filter(c=>fcIsDue(c.id)&&!fcIsMastered(c.id)).length}</div>
+                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Still Due</div>
+                </div>`;
+        } else {
+            fcShowQuizCard();
+        }
+    };
+
+    window.fcReplayQuiz = function(){
+        document.getElementById('fc-quiz-done').classList.add('hidden');
+        if(fcLastQuizMode === 'srs') fcStartSRSQuiz();
+        else if(fcLastQuizMode === 'mix') fcStartMixQuiz();
+        else if(fcLastQuizMode.startsWith('chapter:')) fcStartChapterQuiz(fcLastQuizMode.replace('chapter:',''));
+    };
+
+    window.fcExitQuiz = function(){
+        document.getElementById('fc-quiz-runner').classList.add('hidden');
+        document.getElementById('fc-quiz-done').classList.add('hidden');
+        document.getElementById('fc-main-view').classList.remove('hidden');
+        fcUpdateStats();
+        fcRender();
+        fcRenderChapterList();
+    };
+
+    // ---- HOOK INTO showScreen ----
+    const _origShowScreen = window.showScreen;
+    window.showScreen = function(name){
+        if(name === 'flashcards'){
+            fcLoad();
+            document.querySelectorAll('[id^="screen-"]').forEach(s => s.classList.add('hidden'));
+            const fc = document.getElementById('screen-flashcards');
+            if(fc) fc.classList.remove('hidden');
+            fcBuildCatFilters();
+            fcUpdateStats();
+            fcSetView('browse');
+            fcRender();
+            return;
+        }
+        if(_origShowScreen) _origShowScreen(name);
+        else {
+            document.querySelectorAll('[id^="screen-"]').forEach(s => s.classList.add('hidden'));
+            const el = document.getElementById('screen-'+name);
+            if(el) el.classList.remove('hidden');
+        }
+    };
+})();
+</script>
+<!-- ================================================================== -->
 </body>
 </html>
