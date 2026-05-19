@@ -4095,26 +4095,21 @@ window.generateQuantNotes = () => {
     // Detects raw LaTeX and wraps in \( \) for MathJax; otherwise returns plain text safely
     function fcMathHTML(text) {
         if (!text) return '';
-        // Split on newlines so each line is rendered independently
-        return text.split('\n').map(line => {
-            if (!line.trim()) return '<br>';
-            // Detect LaTeX anywhere on the line
+        const lines = text.split('\n').filter(l => l.trim());
+        return lines.map((line, i) => {
             const hasLatex = /\\[a-zA-Z{\[(]|\^\{|\^[0-9a-zA-Z]|_\{|_[0-9a-zA-Z]|\\frac|\\sqrt|\\sum|\\int|\\cdot|\\times|\\pm|\\alpha|\\beta|\\theta|\\pi|\\sigma/.test(line);
+            const sep = (i < lines.length - 1) ? '<div style="height:1px;background:rgba(99,102,241,0.15);margin:4px 0"></div>' : '';
+            const safe = line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
             if (!hasLatex) {
-                return '<div>' + line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>';
+                return '<div style="padding:3px 0">' + safe + '</div>' + sep;
             }
-            // Mixed line: split out LaTeX segments wrapped in \( \) and plain text
-            // Strategy: wrap the whole line content in \( \) but prefix plain text parts
-            // Find segments: plain text before first \ or ^ or _, then LaTeX from there
-            // Simpler: if line has LaTeX, wrap entirely — MathJax handles text() within math
-            // Use \text{} for non-math prefixes like "1. " or "2. "
-            const prefixMatch = line.match(/^([^\\^_$]*?)((?:\\[a-zA-Z{\[(]|\$|\.\s*\\|\^|_(?=[{0-9])).*)$/);
+            const prefixMatch = line.match(/^([^\\^_$]*?)((?:\\[a-zA-Z{\[(]|\$|\.\s*\\|\^|_(?=[{0-9])).*)/);
             if (prefixMatch && prefixMatch[1].trim()) {
                 const plainPart = prefixMatch[1].replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
                 const mathPart  = prefixMatch[2];
-                return '<div>' + plainPart + ' \\(' + mathPart + '\\)</div>';
+                return '<div style="padding:3px 0">' + plainPart + ' \\(' + mathPart + '\\)</div>' + sep;
             }
-            return '<div>\\(' + line + '\\)</div>';
+            return '<div style="padding:3px 0">\\(' + line + '\\)</div>' + sep;
         }).join('');
     }
 
@@ -4239,11 +4234,11 @@ window.generateQuantNotes = () => {
                         <button onclick="fcDeleteCard('${card.id}')" class="text-slate-300 dark:text-slate-600 hover:text-red-500 transition-colors text-lg font-black" title="Delete">×</button>
                     </div>
                 </div>
-                <div class="text-[9px] font-black uppercase tracking-widest text-amber-500 mb-1">${card.category}</div>
-                <div class="text-base font-black text-slate-800 dark:text-slate-100 mb-1">${card.title}</div>
-                <div class="text-xs font-bold text-slate-400 mb-3">${card.front}</div>
-                <div class="text-sm font-black text-indigo-600 dark:text-indigo-400 bg-slate-50 dark:bg-slate-900/60 rounded-xl px-3 py-2 mb-3 leading-relaxed">${fcMathHTML(card.back)}</div>
-                ${card.hint ? `<div class="text-[10px] text-amber-600 dark:text-amber-400 font-bold mb-2">💡 ${card.hint}</div>` : ''}
+                <div class="text-[9px] font-black uppercase tracking-widest text-amber-500 mb-1.5">${card.category}</div>
+                <div class="text-base font-black text-slate-800 dark:text-slate-100 mb-2 leading-snug">${card.title}</div>
+                <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3 leading-relaxed" style="white-space:pre-line">${card.front}</div>
+                <div class="text-sm font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50/60 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/40 rounded-xl px-4 py-3 mb-3" style="line-height:2.2">${fcMathHTML(card.back)}</div>
+                ${card.hint ? `<div class="text-[10px] text-amber-700 dark:text-amber-400 font-bold mb-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30 rounded-lg px-3 py-1.5">💡 ${card.hint}</div>` : ''}
                 <div class="flex items-center justify-between mt-1">
                     <span class="text-[9px] font-black px-2 py-0.5 rounded-full ${due ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400' : mastered ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-500'}">${nextLabel}</span>
                     ${reviews > 0 ? `<span class="text-[9px] text-slate-400 font-bold">✅${p.correct} ❌${p.wrong} 🔄${reviews}/${MASTERED_THRESHOLD}</span>` : ''}
