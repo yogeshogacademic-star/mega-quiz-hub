@@ -4216,7 +4216,7 @@ window.generateQuantNotes = () => {
 
 
 <!-- ===================== FACT SHEET SCREEN ===================== -->
-<div id="screen-factsheet" class="hidden w-full flex-1" style="background:#0f172a;min-height:100vh">
+<div id="screen-factsheet" class="hidden w-full flex-1" style="background:#0f172a;min-height:100vh;display:none">
   <div style="background:linear-gradient(135deg,#1e1b4b,#0f172a);padding:18px 28px;border-bottom:2px solid #6366f1;position:sticky;top:0;z-index:200;display:flex;justify-content:space-between;align-items:center">
     <div>
       <div style="font-size:18px;font-weight:900;color:#fff;letter-spacing:0.05em">⚡ SSC CGL — Live Fact Sheet</div>
@@ -5846,9 +5846,9 @@ const FS_DATA = [
   const _orig = window.showScreen;
   window.showScreen = function(name){
     if(name === 'factsheet'){
-      document.querySelectorAll('[id^="screen-"]').forEach(s=>s.classList.add('hidden'));
+      document.querySelectorAll('[id^="screen-"]').forEach(s=>{ s.classList.add('hidden'); s.style.display=''; });
       const el = document.getElementById('screen-factsheet');
-      if(el){ el.classList.remove('hidden'); fsBuild(); }
+      if(el){ el.classList.remove('hidden'); el.style.display='block'; fsBuild(); }
       return;
     }
     if(_orig) _orig(name);
