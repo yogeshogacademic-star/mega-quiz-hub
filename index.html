@@ -615,7 +615,7 @@
                         <div class="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity"></div>
                         🧮 Math Flashcards
                     </button>
-                    <button onclick="showScreen('factsheet')" class="bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-transform hover:-translate-y-1 border border-emerald-400 flex items-center gap-2">📋 Fact Sheet</button>
+                    <button onclick="openFactSheet()" class="bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-transform hover:-translate-y-1 border border-emerald-400 flex items-center gap-2">📋 Fact Sheet</button>
                 </div>
             </div>
 
@@ -988,15 +988,13 @@
             <div id="revision-container" class="space-y-6"></div>
             
             <div class="mt-12 border-t border-slate-100 dark:border-slate-800 pt-10 flex flex-col items-center gap-4">
-                <div id="retry-wrong-wrap" class="hidden flex flex-col items-center gap-3">
-                    <div id="retry-round-badge" class="text-xs font-black uppercase tracking-widest text-amber-500 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 px-4 py-1.5 rounded-full"></div>
-                    <button onclick="retryWrongQuestions()" class="bg-gradient-to-br from-rose-500 to-orange-600 hover:from-rose-400 hover:to-orange-500 text-white font-black py-4 px-10 rounded-xl uppercase tracking-widest shadow-xl transition-transform hover:-translate-y-1 flex items-center gap-3">
-                        🔁 <span id="retry-btn-label">Retry Wrong & Skipped</span>
-                    </button>
+                <div id="retry-wrap" style="display:none;flex-direction:column;align-items:center;gap:12px">
+                    <div id="retry-badge" class="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 px-4 py-1.5 rounded-full"></div>
+                    <button onclick="retryWrong()" class="bg-gradient-to-br from-rose-500 to-orange-500 hover:from-rose-400 hover:to-orange-400 text-white font-black py-4 px-10 rounded-xl uppercase tracking-widest shadow-xl transition-transform hover:-translate-y-1 flex items-center gap-3 text-sm">🔁 <span id="retry-label">Retry Wrong & Skipped</span></button>
                 </div>
-                <div id="mastered-all-banner" class="hidden bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/30 rounded-2xl px-8 py-5 text-center">
-                    <div class="text-2xl font-black text-emerald-600 dark:text-emerald-400 mb-1" id="mastered-all-text">🔥 Mastered all questions!</div>
-                    <div class="text-xs font-bold text-emerald-500">Every question answered correctly. SRS updated from Round 1 only.</div>
+                <div id="mastered-banner" style="display:none" class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/30 rounded-2xl px-8 py-5 text-center">
+                    <div id="mastered-text" class="text-2xl font-black text-emerald-600 dark:text-emerald-400 mb-1">🔥 All mastered!</div>
+                    <div class="text-xs font-bold text-emerald-500 dark:text-emerald-600">SRS updated from Round 1 only. Keep crushing it! 💪</div>
                 </div>
                 <button onclick="showScreen('dashboard')" class="bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 hover:scale-105 transition-transform font-black py-4 px-12 rounded-xl uppercase tracking-widest shadow-xl">Return to Dashboard</button>
             </div>
@@ -2840,8 +2838,8 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
             }
 
             let mistIdx = srsIndexMap.get(q.question) ?? -1;
-            if (window._skipSRSUpdate) {
-                // Retry round — skip ALL SRS updates, just record for review
+            if (currentQuizId === 'quiz_retry') {
+                // Retry round — NO SRS updates, just record result for review
             } else if (currentQuizId === 'quiz_srs') {
                 // SRS sprint: auto-grade every question (correct advances, wrong/skipped = 10-min penalty)
                 let srsStatus = (status === 'correct') ? 'correct' : 'wrong';
@@ -2894,7 +2892,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                     mistakesDb[mistIdx].isMastered = false;
                 }
                 // Mastered + correct → leave untouched (no regression)
-            } // end SRS update block
+            }
 
             let tags = Array.isArray(q.tags) ? q.tags : ["Miscellaneous"]; window.currentReviewQuestions.push(q);
             let safeId = 'edit_rev_' + window.editCounter++; window.editRegistry[safeId] = q.question;
@@ -2915,7 +2913,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         historyDb.unshift({ date: new Date().toLocaleDateString(), title: displayTitle, subject: db[currentQuizId] ? db[currentQuizId].subject : "Mixed", score: parseFloat(score.toFixed(2)), accuracy: Math.round((correct / activeQuestions.length) * 100) || 0, candidateName: candName, attemptNumber: currentAttemptNum, totalCorrect: correct, totalWrong: wrong, totalSkipped: skipped, reviewData: historicalReviewData });
         if (historyDb.length > 500) historyDb.length = 500;
         
-        saveData(); updateSRSBadge(); showScreen('results'); window.scrollTo(0,0); filterReview('all'); 
+        saveData(); updateSRSBadge(); showScreen('results'); window.scrollTo(0,0); filterReview('all'); _afterSubmit(correct, wrong, skipped, activeQuestions.length); 
     }
 
     function genDeepReviewCard(q, status, uText, cText, term = "", index = 0, safeId = null) { 
@@ -4215,24 +4213,6 @@ window.generateQuantNotes = () => {
 </script>
 
 
-<!-- ===================== FACT SHEET SCREEN ===================== -->
-<div id="screen-factsheet" class="hidden w-full flex-1" style="background:#0f172a;min-height:100vh;display:none">
-  <div style="background:linear-gradient(135deg,#1e1b4b,#0f172a);padding:18px 28px;border-bottom:2px solid #6366f1;position:sticky;top:0;z-index:200;display:flex;justify-content:space-between;align-items:center">
-    <div>
-      <div style="font-size:18px;font-weight:900;color:#fff;letter-spacing:0.05em">⚡ SSC CGL — Live Fact Sheet</div>
-      <div style="font-size:11px;color:#94a3b8;margin-top:2px">Auto-generated from your quiz questions · Updates as you add more quizzes</div>
-    </div>
-    <button onclick="showScreen('dashboard')" style="color:#94a3b8;font-size:12px;font-weight:800;background:#1e293b;border:1px solid #334155;padding:6px 14px;border-radius:8px;cursor:pointer">← Back</button>
-  </div>
-  <div style="padding:10px 28px;background:#1e293b;border-bottom:1px solid #334155;position:sticky;top:61px;z-index:199">
-    <input type="text" id="fs-search" placeholder="🔍 Search any fact, article, formula, concept..." oninput="fsSearch(this.value)"
-      style="width:100%;max-width:700px;padding:9px 16px;border-radius:12px;border:1.5px solid #334155;background:#0f172a;color:#e2e8f0;font-size:13px;outline:none">
-  </div>
-  <div id="fs-nav" style="display:flex;flex-wrap:wrap;gap:7px;padding:10px 28px;background:#1e293b;border-bottom:1px solid #334155;position:sticky;top:107px;z-index:198"></div>
-  <div id="fs-main" style="padding:20px 28px;max-width:1400px"></div>
-</div>
-<!-- ===================== END FACT SHEET SCREEN ===================== -->
-
 <!-- ===================== MATH FLASHCARDS JS ===================== -->
 <script>
 (function(){
@@ -5063,9 +5043,28 @@ Rules:
 </script>
 <!-- ================================================================== -->
 
+
+<!-- ===== FACT SHEET MODAL ===== -->
+<div id="fs-modal" style="display:none;position:fixed;inset:0;z-index:500;background:#0f172a;overflow-y:auto;flex-direction:column">
+  <div style="background:linear-gradient(135deg,#1e1b4b,#0f172a);padding:16px 24px;border-bottom:2px solid #6366f1;position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <div style="font-size:17px;font-weight:900;color:#fff;letter-spacing:0.04em">⚡ SSC CGL Live Fact Sheet</div>
+      <div style="font-size:10px;color:#94a3b8;margin-top:2px">Facts from your questions · Updates with new quizzes</div>
+    </div>
+    <button onclick="closeFactSheet()" style="color:#94a3b8;font-size:13px;font-weight:800;background:#1e293b;border:1px solid #334155;padding:7px 16px;border-radius:8px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.color='#e2e8f0'" onmouseout="this.style.color='#94a3b8'">✕ Close</button>
+  </div>
+  <div style="padding:10px 24px;background:#1e293b;border-bottom:1px solid #334155;position:sticky;top:57px;z-index:9">
+    <input id="fs-search" type="text" placeholder="🔍 Search facts, articles, formulas..." oninput="fsDoSearch(this.value)"
+      style="width:100%;max-width:650px;padding:9px 16px;border-radius:10px;border:1.5px solid #334155;background:#0f172a;color:#e2e8f0;font-size:13px;outline:none">
+  </div>
+  <div id="fs-nav" style="display:flex;flex-wrap:wrap;gap:6px;padding:10px 24px;background:#1e293b;border-bottom:1px solid #334155;position:sticky;top:109px;z-index:8"></div>
+  <div id="fs-body" style="padding:20px 24px;max-width:1400px;margin:0 auto"></div>
+</div>
+<!-- ===== END FACT SHEET MODAL ===== -->
+
 <script>
 // ================================================================
-// FACT SHEET — Live generated from quiz data
+// FACT SHEET
 // ================================================================
 const FS_DATA = [
 {id:'polity',emoji:'🏛️',title:'Polity',color:'#818cf8',bg:'#1e1b4b',chapters:[
@@ -5095,11 +5094,6 @@ const FS_DATA = [
 'The President nominates 12 members to the Rajya Sabha who have special knowledge in four areas: Literature, Science, Art, and Social Service (CLASS). \'State Service\' is not one of them.',
 'Option B is the false statement. The Speaker of the Lok Sabha submits their resignation in writing to the DEPUTY SPEAKER, not the President of India.',
 'The Parliament (Prevention of Disqualification) Act explicitly exempts the Chairperson of the National Commission for Women from being considered an \'office of profit\'. Abstaining from voting is defection (disqualification). Holding NCDC chair is an office of profit.',
-'Statement 2 is wrong (Speaker does NOT vote in the first instance). Statement 4 is wrong (while convention dictates maintaining status quo, it is not a constitutional rule). Thus, only 1 and 3 are constitutionally strictly correct.',
-'Option A is blatantly false. Representatives of States in the Rajya Sabha are indirectly elected by the elected members of the State Legislative Assemblies, NOT directly by the people.',
-'Article 75(3) states that the Council of Ministers is collectively responsible to the Lok Sabha. Thus, a No-Confidence Motion is always moved against the ENTIRE Council of Ministers, never a single minister.',
-'In the 1951-52 general elections, the Indian National Congress won a landslide (364 seats). The Communist Party of India (CPI) came a distant second by winning 16 seats.',
-'Mizoram, Nagaland, and Sikkim each have only 1 Lok Sabha seat. Arunachal, Goa, and Meghalaya each have 2 seats.',
 ]},
 {t:'Union Executive',f:[
 '<b>Correct Answer: i and ii only</b><br>Statements i and ii are correct. The VP is the Chairman of Rajya Sabha (Art 64) and acts as President during vacancies (Art 65).<br>Statement iii is incorrect. The VP is indirectly elected by an electoral college consisting of members of both Houses of Parliament (Art 66), not directly by the people.',
@@ -5127,11 +5121,6 @@ const FS_DATA = [
 '<b>Correct Answer: D</b><br><b>⚡ Article Shortcut:</b> Article 59 deals with conditions of the President\'s office. 59(3) specifically states the President is entitled to official residences without payment of rent and to such emoluments, allowances, and privileges as determined by Parliament.',
 '<b>Correct Answer: d</b><br><b>?? Fact Summary:</b> The value of the vote is currently frozen based on the 1971 Census (via the 84th Amendment), not the post-2026 census.',
 '<b>Correct Answer: A</b><br><b>?? Fact Summary:</b> The Presidential and Vice-Presidential Elections Act, 1952 regulates the matters relating to or connected with the elections to the offices of the President and Vice-President.',
-'<b>Correct Answer: B</b><br><b>?? Concept:</b> Identical to Q27. Regulated by the 1952 Act.',
-'<b>Correct Answer: A</b><br><b>⚡ Article Shortcut:</b> Article 55 explicitly mandates \'proportional representation\' by means of the single transferable vote.',
-'<b>Correct Answer: A</b><br><b>⚡ Article Shortcut:</b> Article 61 provides the procedure for the impeachment of the President solely on the grounds of \'violation of the Constitution\'.',
-'<b>Correct Answer: B</b><br><b>?? Power Summary:</b> The impeachment charges can be initiated by either house, and both houses must pass it with a 2/3rd majority of their total membership.',
-'<b>Correct Answer: C</b><br><b>⚡ Article Shortcut:</b> Article 72. Only the President has the power to pardon a death sentence (capital punishment). The Governor (Article 161) cannot pardon a death sentence.',
 ]},
 {t:'Judiciary',f:[
 '<b>Official Answer: (c)</b><br>⚡ <b>Mamba Logic:</b> Prohibition is judicial/quasi-judicial. It stops a lower court from exceeding its powers. Don\'t confuse it with Mandamus which is for government officers.',
@@ -5159,11 +5148,6 @@ const FS_DATA = [
 '<b>Official Answer: (a)</b><br>⚡ <b>Correction:</b> Retired HC judge CAN plead in SC and other HCs where they weren\'t permanent judges.',
 '<b>Official Answer: (d)</b><br>⚡ <b>Mamba Breakdown:</b> Parliament <b>can</b> enlarge jurisdiction (Art 138). HC expenses are on State Fund.',
 '<b>Official Answer: (c)</b><br>⚡ <b>Authority:</b> Article 138.',
-'<b>Official Answer: (c)</b>',
-'<b>Official Answer: (c)</b><br>⚡ <b>Mamba Logic:</b> Contempt is about court dignity, not specifically to fuel \'Activism\'.',
-'<b>Official Answer: (c)</b><br>⚡ <b>Reference:</b> Article 236.',
-'<b>Official Answer: (a)</b><br>⚡ <b>Mamba Insight:</b> Administrative acts are under State scrutiny, unlike judicial acts.',
-'<b>Official Answer: (c)</b><br>⚡ <b>Fact:</b> SC can refuse to answer. Reference is heard by at least 5 judges.',
 ]},
 {t:'State Govt & Legislature',f:[
 '<br>1. The <b>Attorney General</b> (Article 76) is appointed by the President.<br>2. The <b>Solicitor General</b> is appointed by the Appointments Committee of the Cabinet (ACC).<br>3. Presidential candidates must make a ₹15,000 security deposit with the RBI and have 50 proposers and 50 seconders.',
@@ -5191,11 +5175,6 @@ const FS_DATA = [
 '<b>Correct Answer: A</b><br><b>📐 Concept Summary:</b> The Governor appoints the CM, summons/prorogues the assembly, and grants pardons (Art 161).',
 '<b>Correct Answer: B. The Governor may withdraw the ordinance</b><br><b>⚡ Article Shortcut:</b> Article 213(2)(b) explicitly empowers the Governor to withdraw an ordinance at any time.',
 '<b>Correct Answer: D. Neither 1 nor 2</b><br><b>📐 Concept Summary:</b> Ordinance making (Article 213) is NOT a discretionary power of the Governor.<br>Exp) Option d is the correct answer<br>Ordinance making power of the governor is not a',
-'<b>Correct Answer: A</b><br><b>📐 Concept Summary:</b><br>The duties of the Governor as a constitutional Head of the State do not become the subject matter of questions or debate in the Parliament. The Constitution makes it clear that if any question arises whether a matter falls within the governor’s discretion or not, the decision of the governor is final and the validity of anything done by him cannot be called into question on the ground that he ought or ',
-'<b>Correct Answer: B. Thakkar Commission</b><br><b>📐 Concept Summary:</b> The Thakkar Commission investigated the assassination of Indira Gandhi. The Sarkaria, Punchhi, and Venkatachaliah Commissions all dealt with Centre-State relations, including the role and removal of Governors.',
-'<b>Correct Answer: A. 1 and 2</b><br><b>📐 Concept Summary:</b> Statement 1 is true (7th Amendment). Statement 2 is true (Article 161 pardoning power). Statement 3 is false: The Governor is appointed by the President on the advice of the Union Cabinet, not the State CM.',
-'<b>Correct Answer: C. State cabinet</b><br><b>📐 Concept Summary:</b> In the state executive, the \'real\' executive power is vested in the State Council of Ministers headed by the Chief Minister.',
-'<b>Correct Answer: C. Advocate General</b><br><b>⚡ Article Shortcut:</b> Under Article 165, the Advocate General is the highest legal officer of the State Government.',
 ]},
 {t:'Emergency Provisions',f:[
 '<br>1. Article 263 empowers the <b>President</b> (not Parliament) to establish an Inter-State Council.<br>2. It was established in 1990 based on the Sarkaria Commission\'s recommendation.<br>3. <b>Composition:</b> PM (Chairman), 6 Union Cabinet Ministers, and Chief Ministers of all States/UTs.',
@@ -5265,11 +5244,6 @@ const FS_DATA = [
 '<b>Reason:</b> 6a² = 5400 ⇒ a² = 900 ⇒ a = 30. Original Volume = 30³ = 27000. New side = 35. New Volume = 35³ = 42875. Percentage Increase = (15875/27000) × 100 ≈ 58.79% ≈ 59%.',
 '<b>Reason:</b> 64 = 4 × 4 × 4. To get 4 pieces along one axis: 3 cuts. For 3 axes = 3 × 3 = 9 cuts if pieces are rearranged between cuts. But if pieces can be rearranged after each cut, minimum = 3 cuts per axis without rearranging = 9 cuts.',
 '<b>Reason:</b> Let cube side = a. Original TSA = 6a². Cut into 125 cubes: each small cube side = a/5. New TSA = 125 × 6(a/5)² = 125 × 6a²/25 = 30a². Percentage Increase = (24a²/6a²) × 100 = 400%.',
-'<b>Reason:</b> a³ = 13824 ⇒ a = 24 cm. Volume of small cube = 13824/8 = 1728 ⇒ side = 12 cm. Original SA = 6 × 24² = 3456. SA of 3 small cubes = 3 × 6 × 12² = 2592. Ratio = 3456:2592 = 4:3.',
-'<b>Reason:</b> Unfold the 4 walls into a flat 2D rectangle of width 4a and height a. The string path is the diagonal of this rectangle: √((4a)² + a²) = √(16a² + a²) = a√17.',
-'<b>Reason:</b> Original SA = 6 × 5² = 150 cm². Removing 1 unit cube from the middle of a face: lose 1 outer face but expose 4 inner side faces. Net gain per face = +4 cm². For 6 faces: 6 × 4 = 24 cm². New SA = 150 + 24 = 174 cm².',
-'<b>Reason:</b> Outer SA (5 faces, open top) = 5 × 5² = 125 cm². Inner side = 5 − 2(0.5) = 4 cm. Inner height = 5 − 0.5 = 4.5 cm. Inner SA = bottom (4×4) + 4 walls (4 × 4×4.5) = 16 + 72 = 88 cm². Rim area = 5² − 4² = 25 − 16 = 9 cm². Total = 125 + 88 + 9 = 222 cm².',
-'<b>Reason:</b> Volume removed = 61 litres = 61000 cm³. Base area = 50 × 50 = 2500 cm². Drop in level = 61000/2500 = 24.4 cm.',
 ]},
 {t:'Geometry',f:[
 '<b>Topic Breakdown:</b><br>1. Given YA = AZ + 5 and total YZ = 21.<br>2. AZ + (AZ + 5) = 21 => 2AZ = 16 => AZ = 8 cm. Thus, YA = 13 cm.<br>3. Apply the Angle Bisector Theorem: XY / XZ = YA / AZ.',
@@ -5366,11 +5340,6 @@ const FS_DATA = [
 '<b>Shortcut:</b> Tax constant. I1 * 12% = I2 * 10%. I1/I2 = 5/6. Diff 1u = 1.2 lakhs. Increased Income (6u) = 7.2 lakhs.',
 '<b>Shortcut:</b> (I + 4.5)*20% - I*26% = 12000. Solve for I, then I+4.5 = 17.5 lakhs.',
 '<b>Shortcut:</b> Shift calculation based on Tax ratio * Income ratio = Total Tax paid ratio.',
-'<b>Shortcut:</b> 100 -> 175 (Price). Desired exp -> 126. Drop = 175 to 126 = 49. 49/175 = 28%.',
-'<b>Shortcut:</b> 100 -> 153. Allowable = 119. Reduction 153 -> 119 = 34. Fraction = 34/153 = 2/9. 2/9 of 38.7 = 8.6 kg.',
-'<b>Shortcut:</b> Let number = LCM(12,16) = 48. Correct = 33, Wrong = 28. Error = 5/33 = 15.15%.',
-'<b>Shortcut:</b> Let B=100, A=128. C = 75% of (228) = 171. C is more than A by 43. 43/128 = 33.6%.',
-'<b>Shortcut:</b> C=100, B=124, A = 40% of 124 = 49.6. C is more than A by 50.4. (50.4/49.6)*100 = 101.6%.',
 ]},
 {t:'Time & Work',f:[
 '1. Time for Garva + Sarva = 18 x (25/9) = 50 days. Total work = LCM(50, 300) = 300 units.<br>2. Eff(G+S) = 300 / 50 = 6 units/day. Eff(Alok) = 1 unit/day.<br>3. Eff(Sarva) = 1 x (4/3) = 4/3 units/day.<br>4. Eff(Garva) = 6 - 4/3 = 14/3 units/day.',
@@ -5480,11 +5449,6 @@ const FS_DATA = [
 '<b>Correct Answer: Teetotaller</b><br><b>Meaning:</b> शराब न पीने वाला व्यक्ति<br><b>Mnemonic:</b> <b>Tea-Taller:</b> Jo daaru chhod kar sirf \'Tea\' (chai) peeta ho.<br><b>Exam Frequency:</b> 🎯 Asked 11 times in SSC Exams',
 '<b>Correct Answer: Archive</b><br><b>Meaning:</b> अभिलेखागार<br><b>Mnemonic:</b> <b>R-Chive:</b> \'Record\' + \'Hive\'. Jaha purane records ka hive (chhatta) ho.<br><b>Exam Frequency:</b> 🎯 Asked 10 times in SSC Exams',
 '<b>Correct Answer: Cannibal</b><br><b>Meaning:</b> नरभक्षक<br><b>Mnemonic:</b> <b>Can-Nibal:</b> Jo insaan ko bhi \'nibble\' kar jaye.<br><b>Exam Frequency:</b> 🎯 Asked 14 times in SSC Exams',
-'<b>Correct Answer: Fastidious</b><br><b>[ Adjective ]</b><br><b>Meaning:</b> बारीकियों पर अत्यधिक ध्यान देने वाला; बहुत चुनींदा<br><b>Mnemonic:</b> <b>Fast-Tedious:</b> Jisko khush karna bahut tedious (mushkil) kaam ho.',
-'<b>Correct Answer: Iconoclast</b><br><b>Meaning:</b> स्थापित मान्यताओं का विरोधी<br><b>Mnemonic:</b> <b>Icon-Blast:</b> Jo society ke \'Icons\' ya traditions ko blast kar de.<br><b>Exam Frequency:</b> 🎯 Asked 12 times in SSC Exams',
-'<b>Correct Answer: Infallible</b><br><b>[ Adjective ]</b><br><b>Meaning:</b> अचूक<br><b>Mnemonic:</b> <b>In-Fall:</b> Jo kabhi galti se bhi \'fall\' (gir) na kare.',
-'<b>Correct Answer: Misanthrope</b><br><b>Meaning:</b> मानवद्वेषी<br><b>Mnemonic:</b> <b>Mis-Anthro:</b> \'Mis\' (hate) + \'Anthro\' (human). Insano se nafrat karne wala.<br><b>Exam Frequency:</b> 🎯 Asked 10 times in SSC Exams',
-'<b>Correct Answer: Oligarchy</b><br><b>Meaning:</b> अल्पतंत्र (कुछ लोगों का शासन)<br><b>Mnemonic:</b> <b>Only-Garchy:</b> Jaha \'Only\' (sirf kuch) logo ki garchy chale.<br><b>Exam Frequency:</b> 🎯 Asked 8 times in SSC Exams',
 ]},
 {t:'Synonyms & Antonyms',f:[
 '<b>Correct Answer: Option B (Vilification)</b><br><b>💡 Meaning:</b> Harsh criticism, public disgrace, or verbal abuse.<br><b>🧠 Mnemonic Tricks:</b><br>• <b>Opprobrium:</b> Sounds like \'Oppose + Problem\'. If you oppose everyone and cause problems, society will shower you with public disgrace and criticism.',
@@ -5512,11 +5476,6 @@ const FS_DATA = [
 '<b>Correct Answer: Ludicrous</b><br><b>[ Adjective ]</b><br><b>Word:</b> Absurd<br><b>Meaning:</b> Be-tukka',
 '<b>Correct Answer: Aloof</b><br><b>[ Adjective ]</b><br><b>Word:</b> Amiable<br><b>Meaning:</b> Milansar / Friendly',
 '<b>Correct Answer: Sagacious</b><br><b>[ Adjective ]</b><br><b>Word:</b> Erudite<br><b>Meaning:</b> Vidwan / Gyaani',
-'<b>Correct Answer: Clarify</b><br><b>Word:</b> Baffle<br><b>Meaning:</b> Chakrana / Pareshan karna<br><b>Mnemonic:</b> <b>Buffalo:</b> Achanak sadak par ajeeb buffalo dekh kar aadmi chakraya gaya.',
-'<b>Correct Answer: Idiosyncratic</b><br><b>[ Adjective ]</b><br><b>Word:</b> Eccentric<br><b>Meaning:</b> Ajib-o-garib / Sanki',
-'<b>Correct Answer: Aggravate</b><br><b>Word:</b> Alleviate<br><b>Meaning:</b> Rahat dena / Kam karna<br><b>Mnemonic:</b> <b>All-Elevate:</b> Painkillers ne sabka dard kam karke mood ko \'Elevate\' kar diya.',
-'<b>Correct Answer: Mammoth</b><br><b>[ Adjective ]</b><br><b>Word:</b> Colossal<br><b>Meaning:</b> Vishal / Bahut bada',
-'<b>Correct Answer: Reliable</b><br><b>[ Adjective ]</b><br><b>Word:</b> Dubious<br><b>Meaning:</b> Shaqi / Sandigdh',
 ]},
 {t:'Grammar & Error Spotting',f:[
 '<b>Correct Answer: Option A</b><br><b>💡 Grammar Rule: Adjective modifies a Noun.</b><br>In this sentence, the main word is \'focus\', which acts as a Noun. To describe a Noun, we must use an Adjective.<br><b>🔍 Why it\'s wrong:</b> \'Insistence\' is a Noun. You cannot use a Noun to describe another Noun here. It must be changed to the Adjective form: <b>\'insistent\'</b>.',
@@ -5769,226 +5728,153 @@ const FS_DATA = [
 ];
 
 
-(function(){
-  // Build fact sheet when screen opens
-  let fsBuilt = false;
+let _fsBuilt = false;
 
-  function fsBuildNav(){
-    const nav = document.getElementById('fs-nav');
-    if(!nav) return;
-    nav.innerHTML = '';
-    FS_DATA.forEach(s => {
-      const total = s.chapters.reduce((a,c)=>a+c.f.length,0);
-      nav.innerHTML += `<a href="#fs-${s.id}" style="background:${s.bg};color:${s.color};border:1.5px solid ${s.color}50;padding:4px 13px;border-radius:999px;font-size:10px;font-weight:800;text-decoration:none;white-space:nowrap">${s.emoji} ${s.title} <span style="opacity:0.45;font-size:9px;margin-left:2px">${total}</span></a>`;
-    });
-  }
+window.openFactSheet = function() {
+  const modal = document.getElementById('fs-modal');
+  if(modal) { modal.style.display = 'flex'; if(!_fsBuilt) _fsBuild(); }
+};
 
-  function fsBuild(){
-    if(fsBuilt) return;
-    fsBuilt = true;
-    fsBuildNav();
-    const main = document.getElementById('fs-main');
-    if(!main) return;
-    let html = '';
-    FS_DATA.forEach(s => {
-      const total = s.chapters.reduce((a,c)=>a+c.f.length,0);
-      html += `<div class="fs-subj" id="fs-${s.id}" style="margin-bottom:28px;border-radius:16px;overflow:hidden;border:1px solid #334155">
-        <div style="padding:14px 22px;background:${s.bg};border-bottom:2px solid ${s.color};display:flex;justify-content:space-between;align-items:center">
-          <div><div style="font-size:18px;font-weight:900;color:${s.color}">${s.emoji} ${s.title}</div>
-          <div style="font-size:10px;opacity:0.6;margin-top:2px">${total} facts from your questions · ${s.chapters.length} topics</div></div>
-          <div style="font-size:28px;opacity:0.2">${s.emoji}</div>
+window.closeFactSheet = function() {
+  const modal = document.getElementById('fs-modal');
+  if(modal) modal.style.display = 'none';
+};
+
+function _fsBuild() {
+  _fsBuilt = true;
+  const nav = document.getElementById('fs-nav');
+  const body = document.getElementById('fs-body');
+  if(!nav || !body) return;
+  let navHtml = '', bodyHtml = '';
+  FS_DATA.forEach(s => {
+    const total = s.chapters.reduce((a,c)=>a+c.f.length,0);
+    navHtml += `<a href="#fsid-${s.id}" onclick="document.getElementById('fsid-${s.id}').scrollIntoView({behavior:'smooth'});return false;" style="background:${s.bg};color:${s.color};border:1.5px solid ${s.color}50;padding:4px 12px;border-radius:999px;font-size:10px;font-weight:800;text-decoration:none;white-space:nowrap;cursor:pointer">${s.emoji} ${s.title} <span style="opacity:0.45;font-size:9px;margin-left:2px">${total}</span></a>`;
+    const topicTotal = s.chapters.reduce((a,c)=>a+c.f.length,0);
+    bodyHtml += `<div class="fs-sb" id="fsid-${s.id}" style="margin-bottom:28px;border-radius:16px;overflow:hidden;border:1px solid #334155">
+      <div style="padding:14px 22px;background:${s.bg};border-bottom:2px solid ${s.color};display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-size:18px;font-weight:900;color:${s.color}">${s.emoji} ${s.title}</div>
+        <div style="font-size:10px;opacity:0.6;margin-top:2px">${topicTotal} facts · ${s.chapters.length} topics</div></div>
+        <div style="font-size:28px;opacity:0.2">${s.emoji}</div>
+      </div>`;
+    s.chapters.forEach((ch, ci) => {
+      bodyHtml += `<div class="fs-ch" style="border-bottom:1px solid #334155">
+        <div onclick="fsTog(this)" style="padding:9px 22px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;background:#0f172a;display:flex;justify-content:space-between;cursor:pointer;color:${s.color};user-select:none">
+          <span>📌 ${ch.t}</span><span style="font-size:10px;opacity:0.4">${ch.f.length} ▾</span>
+        </div>
+        <div class="fs-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));background:#1e293b">`;
+      ch.f.forEach((fact, fi) => {
+        const s_text = fact.replace(/<[^>]+>/g,' ').toLowerCase().replace(/"/g,'').substring(0,300);
+        bodyHtml += `<div class="fs-card" data-s="${s_text}" style="padding:12px 18px;border-right:1px solid #2d3748;border-bottom:1px solid #2d3748">
+          <div style="display:inline-block;background:#334155;color:#94a3b8;font-size:9px;font-weight:900;padding:1px 6px;border-radius:4px;margin-bottom:6px">${fi+1}</div>
+          <div style="font-size:13px;color:#cbd5e1;line-height:1.7">${fact}</div>
         </div>`;
-      s.chapters.forEach((ch,ci) => {
-        html += `<div class="fs-topic" style="border-bottom:1px solid #334155">
-          <div onclick="fsTog(this)" style="padding:9px 22px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;background:#0f172a;display:flex;justify-content:space-between;cursor:pointer;color:${s.color}">
-            <span>📌 ${ch.t}</span><span style="font-size:10px;opacity:0.4">${ch.f.length} ▾</span>
-          </div>
-          <div class="fs-tbody" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));background:#1e293b">`;
-        ch.f.forEach((fact,fi) => {
-          const search = fact.replace(/<[^>]+>/g,' ').toLowerCase().replace(/"/g,'').substring(0,300);
-          html += `<div class="fs-card" data-s="${search}" style="padding:12px 18px;border-right:1px solid #2d3748;border-bottom:1px solid #2d3748">
-            <div style="display:inline-block;background:#334155;color:#94a3b8;font-size:9px;font-weight:900;padding:1px 6px;border-radius:4px;margin-bottom:6px">${fi+1}</div>
-            <div style="font-size:13px;color:#cbd5e1;line-height:1.7">${fact}</div>
-          </div>`;
-        });
-        html += `</div></div>`;
       });
-      html += '</div>';
+      bodyHtml += `</div></div>`;
     });
-    main.innerHTML = html;
-  }
+    bodyHtml += '</div>';
+  });
+  nav.innerHTML = navHtml;
+  body.innerHTML = bodyHtml;
+}
 
-  window.fsTog = function(el){
-    const b = el.nextElementSibling;
-    const collapsed = b.style.display === 'none';
-    b.style.display = collapsed ? 'grid' : 'none';
-    el.lastElementChild.textContent = el.lastElementChild.textContent.includes('▾') ?
-      el.lastElementChild.textContent.replace('▾','▸') : el.lastElementChild.textContent.replace('▸','▾');
-  };
+window.fsTog = function(el) {
+  const grid = el.nextElementSibling;
+  const open = grid.style.display !== 'none';
+  grid.style.display = open ? 'none' : 'grid';
+  el.lastElementChild.textContent = open ?
+    el.lastElementChild.textContent.replace('▾','▸') :
+    el.lastElementChild.textContent.replace('▸','▾');
+};
 
-  window.fsSearch = function(v){
-    const t = v.toLowerCase().trim();
-    document.querySelectorAll('.fs-card').forEach(el => {
-      el.style.display = (t.length > 1 && !el.dataset.s.includes(t)) ? 'none' : '';
-    });
-    document.querySelectorAll('.fs-topic').forEach(el => {
-      const vis = [...el.querySelectorAll('.fs-card')].filter(c=>c.style.display!=='none').length;
-      el.style.display = (t.length > 1 && vis === 0) ? 'none' : '';
-      if(t.length > 1 && vis > 0) el.querySelector('.fs-tbody').style.display = 'grid';
-    });
-    document.querySelectorAll('.fs-subj').forEach(el => {
-      const vis = [...el.querySelectorAll('.fs-card')].filter(c=>c.style.display!=='none').length;
-      el.style.display = (t.length > 1 && vis === 0) ? 'none' : '';
-    });
-  };
-
-  // Hook into showScreen
-  const _orig = window.showScreen;
-  window.showScreen = function(name){
-    if(name === 'factsheet'){
-      document.querySelectorAll('[id^="screen-"]').forEach(s=>{ s.classList.add('hidden'); s.style.display=''; });
-      const el = document.getElementById('screen-factsheet');
-      if(el){ el.classList.remove('hidden'); el.style.display='block'; fsBuild(); }
-      return;
-    }
-    if(_orig) _orig(name);
-    else {
-      document.querySelectorAll('[id^="screen-"]').forEach(s=>s.classList.add('hidden'));
-      const el = document.getElementById('screen-'+name);
-      if(el) el.classList.remove('hidden');
-    }
-  };
-})();
+window.fsDoSearch = function(v) {
+  const t = v.toLowerCase().trim();
+  document.querySelectorAll('.fs-card').forEach(el => {
+    el.style.display = (t.length > 1 && !el.dataset.s.includes(t)) ? 'none' : '';
+  });
+  document.querySelectorAll('.fs-ch').forEach(el => {
+    const vis = [...el.querySelectorAll('.fs-card')].filter(c=>c.style.display!=='none').length;
+    el.style.display = (t.length > 1 && vis === 0) ? 'none' : '';
+    if(t.length > 1 && vis > 0) el.querySelector('.fs-grid').style.display = 'grid';
+  });
+  document.querySelectorAll('.fs-sb').forEach(el => {
+    const vis = [...el.querySelectorAll('.fs-card')].filter(c=>c.style.display!=='none').length;
+    el.style.display = (t.length > 1 && vis === 0) ? 'none' : '';
+  });
+};
 
 // ================================================================
-// RETRY WRONG/SKIPPED — Master This Quiz feature
+// RETRY WRONG/SKIPPED
 // ================================================================
-(function(){
-  let _retryRound = 0;
-  let _retryQuestions = [];
-  let _originalTotal = 0;
+let _retryRound = 0;
+let _origTotal = 0;
+let _retryQs = [];
 
-  // After submitQuiz runs, check if there are wrong/skipped and show retry button
-  const _origSubmit = window.submitQuiz;
-  
-  // Patch submitQuiz to show retry button after results
-  const origSubmitQuiz = window.submitQuiz;
-  window.submitQuiz = function(){
-    origSubmitQuiz && origSubmitQuiz();
-    // Wait a tick for DOM to update
-    setTimeout(checkShowRetry, 100);
-  };
+window._afterSubmit = function(correct, wrong, skipped, total) {
+  const wrap = document.getElementById('retry-wrap');
+  const banner = document.getElementById('mastered-banner');
+  const badge = document.getElementById('retry-badge');
+  const label = document.getElementById('retry-label');
+  if(!wrap) return;
 
-  function checkShowRetry(){
-    const wrong = parseInt(document.getElementById('res-wrong')?.textContent || '0');
-    const skipped = parseInt(document.getElementById('res-skipped')?.textContent || '0');
-    const total = wrong + skipped;
-    
-    const wrap = document.getElementById('retry-wrong-wrap');
-    const banner = document.getElementById('mastered-all-banner');
-    const badge = document.getElementById('retry-round-badge');
-    const btnLabel = document.getElementById('retry-btn-label');
-    
-    if(!wrap) return;
+  const needRetry = wrong + skipped;
 
-    if(total === 0 && _retryRound > 0){
-      // All correct after retrying!
-      wrap.classList.add('hidden');
-      if(banner){ 
-        banner.classList.remove('hidden');
-        document.getElementById('mastered-all-text').textContent = 
-          `🔥 Mastered all ${_originalTotal} questions in ${_retryRound + 1} rounds!`;
-      }
-      _retryRound = 0;
-      _originalTotal = 0;
-    } else if(total > 0){
-      wrap.classList.remove('hidden');
-      if(banner) banner.classList.add('hidden');
-      if(_retryRound === 0) _originalTotal = parseInt(document.getElementById('res-correct')?.textContent||'0') + total;
-      badge.textContent = _retryRound === 0 ? `Round 1 complete · ${total} to retry` : `Round ${_retryRound+1} complete · ${total} still wrong`;
-      btnLabel.textContent = `Retry ${total} Wrong & Skipped`;
-    } else {
-      // First attempt, all correct — no retry needed
-      wrap.classList.add('hidden');
-      if(banner) banner.classList.add('hidden');
-    }
+  if(needRetry === 0 && _retryRound > 0) {
+    // All correct after retrying!
+    wrap.style.display = 'none';
+    banner.style.display = 'block';
+    document.getElementById('mastered-text').textContent =
+      `🔥 Mastered all ${_origTotal} in ${_retryRound + 1} rounds!`;
+    _retryRound = 0; _origTotal = 0;
+  } else if(needRetry > 0) {
+    if(_retryRound === 0) _origTotal = total;
+    wrap.style.display = 'flex';
+    banner.style.display = 'none';
+    badge.textContent = _retryRound === 0
+      ? `Round 1 done · ${needRetry} to retry`
+      : `Round ${_retryRound+1} done · ${needRetry} still wrong`;
+    label.textContent = `Retry ${needRetry} Wrong & Skipped`;
+  } else {
+    wrap.style.display = 'none';
+    banner.style.display = 'none';
+  }
+};
+
+window.retryWrong = function() {
+  _retryRound++;
+  // Get wrong/skipped questions
+  const last = window.historyDb && window.historyDb[0];
+  if(!last || !last.reviewData) return;
+  const wrongSet = new Set(last.reviewData.filter(r=>r.status==='wrong'||r.status==='skipped').map(r=>r.question));
+  _retryQs = (window.currentReviewQuestions||[]).filter(q=>wrongSet.has(q.question));
+  if(_retryQs.length === 0) return;
+
+  // Shuffle
+  for(let i=_retryQs.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [_retryQs[i],_retryQs[j]]=[_retryQs[j],_retryQs[i]];
   }
 
-  window.retryWrongQuestions = function(){
-    _retryRound++;
-    
-    // Collect wrong/skipped questions from current review
-    if(!window.currentReviewQuestions) return;
-    
-    // Get wrong/skipped from historyDb[0] reviewData
-    const lastHistory = window.historyDb && window.historyDb[0];
-    if(!lastHistory || !lastHistory.reviewData) return;
-    
-    const wrongStatuses = new Set(
-      lastHistory.reviewData
-        .filter(r => r.status === 'wrong' || r.status === 'skipped')
-        .map(r => r.question)
-    );
-    
-    _retryQuestions = (window.currentReviewQuestions || []).filter(q => wrongStatuses.has(q.question));
-    
-    if(_retryQuestions.length === 0) return;
-    
-    // Build retry quiz — mark as retry round so SRS is NOT updated
-    window._isRetryRound = true;
-    window.activeQuestions = _retryQuestions.map(q => ({...q}));
-    window.currentQuizId = 'quiz_retry_' + Date.now();
-    
-    // Shuffle retry questions
-    for(let i = window.activeQuestions.length-1; i>0; i--){
-      const j = Math.floor(Math.random()*(i+1));
-      [window.activeQuestions[i],window.activeQuestions[j]] = [window.activeQuestions[j],window.activeQuestions[i]];
-    }
-    
-    // Reset quiz state
-    window.quizState = { answers: {}, flagged: new Set(), submitted: false, interval: null, timeLeft: 0 };
-    window.currentQuestionIndex = 0;
-    
-    // Show quiz screen
-    document.querySelectorAll('[id^="screen-"]').forEach(s=>s.classList.add('hidden'));
-    document.getElementById('screen-quiz')?.classList.remove('hidden');
-    
-    // Render first question
-    if(window.renderQuestion) window.renderQuestion();
-    if(window.updatePalette) window.updatePalette();
-    
-    // Update title
-    const titleEl = document.getElementById('quiz-title');
-    if(titleEl) titleEl.textContent = `🔁 Retry Round ${_retryRound} — ${_retryQuestions.length} Questions`;
-    
-    // Hide timer for retry
-    const timerEl = document.getElementById('quiz-timer');
-    if(timerEl) timerEl.style.display = 'none';
-    
-    window.scrollTo(0,0);
-  };
+  // Mark as retry so SRS is skipped
+  window._isRetryRound = true;
 
-  // Patch submitQuiz to skip SRS updates on retry rounds
-  const _origSubmitFn = window.submitQuiz;
-  // We patch at the SRS update level by checking window._isRetryRound inside submitQuiz
-  // The key patch: override saveData temporarily during retry submit
-  const _patchedSubmit = function(){
-    if(window._isRetryRound){
-      // Save original saveData
-      const _origSave = window.saveData;
-      // Temporarily replace with no-op for SRS (still saves to history but skips SRS)
-      window._skipSRSUpdate = true;
-      _origSubmitFn && _origSubmitFn();
-      window._skipSRSUpdate = false;
-      window._isRetryRound = false;
-      setTimeout(checkShowRetry, 100);
-    } else {
-      _origSubmitFn && _origSubmitFn();
-      setTimeout(checkShowRetry, 100);
-    }
-  };
-  window.submitQuiz = _patchedSubmit;
-})();
+  // Launch quiz with wrong questions
+  window.activeQuestions = _retryQs.map(q=>Object.assign({},q));
+  window.currentQuizId = 'quiz_retry';
+  window.quizState = {answers:{}, flagged:new Set(), submitted:false, interval:null, timeLeft:0};
+  window.currentQuestionIndex = 0;
+
+  document.querySelectorAll('[id^="screen-"]').forEach(s=>s.classList.add('hidden'));
+  document.getElementById('screen-quiz')?.classList.remove('hidden');
+  if(window.renderQuestion) window.renderQuestion();
+  if(window.updatePalette) window.updatePalette();
+
+  const titleEl = document.getElementById('quiz-title');
+  if(titleEl) titleEl.textContent = `🔁 Retry Round ${_retryRound} — ${_retryQs.length} Qs`;
+  const timerEl = document.getElementById('quiz-timer');
+  if(timerEl) timerEl.style.visibility = 'hidden';
+
+  window.scrollTo(0,0);
+};
 </script>
 
 </body>
