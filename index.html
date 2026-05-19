@@ -76,6 +76,9 @@
             100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity:0; }
         }
         .particle { position:absolute; width:6px; height:6px; border-radius:50%; pointer-events:none; animation: particle-fly 0.7s ease-out forwards; }
+        .srs-size-btn { background: var(--tw-bg-opacity, white); color: #64748b; border-color: #cbd5e1; }
+        .dark .srs-size-btn { background: #1e293b; color: #94a3b8; border-color: #334155; }
+        .srs-size-active { background: #6366f1 !important; color: white !important; border-color: #6366f1 !important; }
     </style>
     <script>
         window.MathJax = {
@@ -806,8 +809,12 @@
             <div class="space-y-6">
                 <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 text-center shadow-inner">
                     <div class="text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2">Master Global Quiz</div>
-                    <div class="text-xs text-slate-500 dark:text-slate-400 mb-4 font-bold">10 Random Questions from ALL due subjects.</div>
-                    <button onclick="launchSRSSprint('global')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all">Launch Master 10-Q (<span id="srs-global-count-modal">0</span> Due)</button>
+                    <div class="text-xs text-slate-500 dark:text-slate-400 mb-2 font-bold">Random Questions from ALL due subjects.</div>
+                    <div id="srs-global-size-row" class="hidden mb-3 flex gap-2 justify-center">
+                        <button onclick="setSRSSprintSize('global',10)" id="srs-global-size-10" class="srs-size-btn srs-size-active px-4 py-1.5 rounded-lg text-xs font-black border transition-all">10 Q</button>
+                        <button onclick="setSRSSprintSize('global',32)" id="srs-global-size-32" class="srs-size-btn px-4 py-1.5 rounded-lg text-xs font-black border transition-all">32 Q 🔥</button>
+                    </div>
+                    <button onclick="launchSRSSprint('global')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all">Launch Master <span id="srs-global-size-label">10</span>-Q (<span id="srs-global-count-modal">0</span> Due)</button>
                 </div>
 
                 <div class="flex items-center justify-center gap-4">
@@ -819,8 +826,12 @@
                 <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 text-center shadow-inner">
                     <div class="text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2">Subject Mode</div>
                     <div class="text-xs text-slate-500 dark:text-slate-400 mb-4 font-bold">Targeted firepower. Select a Tag 1 Subject.</div>
-                    <select id="srs-subject-select" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300 mb-4 outline-none focus:ring-2 focus:ring-indigo-500"></select>
-                    <button id="srs-subject-launch-btn" onclick="launchSRSSprint('subject')" class="w-full bg-emerald-50 hover:bg-emerald-400 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all">Launch Subject 10-Q</button>
+                    <select id="srs-subject-select" onchange="onSubjectSelectChange()" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 outline-none focus:ring-2 focus:ring-indigo-500"></select>
+                    <div id="srs-subject-size-row" class="hidden mb-3 flex gap-2 justify-center">
+                        <button onclick="setSRSSprintSize('subject',10)" id="srs-subject-size-10" class="srs-size-btn srs-size-active px-4 py-1.5 rounded-lg text-xs font-black border transition-all">10 Q</button>
+                        <button onclick="setSRSSprintSize('subject',32)" id="srs-subject-size-32" class="srs-size-btn px-4 py-1.5 rounded-lg text-xs font-black border transition-all">32 Q 🔥</button>
+                    </div>
+                    <button id="srs-subject-launch-btn" onclick="launchSRSSprint('subject')" class="w-full bg-emerald-50 hover:bg-emerald-400 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all">Launch Subject <span id="srs-subject-size-label">10</span>-Q</button>
                     <button onclick="(() => { const sel = document.getElementById('srs-subject-select').value; if(!sel){alert('Select a subject first.');return;} if(confirm('Clear ALL SRS entries for \''+sel+'\'?\n\nThis wipes all intervals and due dates. Attempt the quiz again to re-enter fresh.')) clearSubjectSRS(sel); })()" class="w-full mt-2 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-black text-[10px] uppercase tracking-widest py-2.5 rounded-xl border border-red-200 dark:border-red-800/50 transition-all">🗑️ Clear SRS for Selected Subject</button>
                     <button onclick="(() => { const sel = document.getElementById('srs-subject-select').value; if(!sel){alert('Select a subject first.');return;} if(confirm('Delete ALL attempt history for \''+sel+'\'?\n\nThis removes past quiz history for this subject AND clears its SRS data.\n\nUse this to fix ghost SRS suggestions after re-uploading a quiz.')) clearSubjectHistory(sel); })()" class="w-full mt-2 bg-orange-50 hover:bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 dark:hover:bg-orange-900/50 font-black text-[10px] uppercase tracking-widest py-2.5 rounded-xl border border-orange-200 dark:border-orange-800/50 transition-all">🕒 Clear History + SRS for Subject</button>
                 </div>
@@ -2408,6 +2419,9 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         });
 
         document.getElementById('srs-global-count-modal').textContent = globalDue;
+        const globalSizeRow = document.getElementById('srs-global-size-row');
+        if(globalSizeRow) globalSizeRow.classList.toggle('hidden', globalDue < 100);
+        if(globalDue < 100 && window._srsSprintSizes) { window._srsSprintSizes['global'] = 10; const lbl = document.getElementById('srs-global-size-label'); if(lbl) lbl.textContent = '10'; }
         let hasAnyDue = false;
         // Sort subjects alphabetically for clean display
         Object.keys(subjectsWithDue).sort().forEach(sub => {
@@ -2471,11 +2485,39 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         if(dueQs.length === 0) { alert("No questions due for this selection!"); closeSRSModal(); return; }
         // Urgency sort: 10-min penalty cards (nextReview soonest / most overdue) come first
         dueQs.sort((a, b) => a.srs.nextReview - b.srs.nextReview);
-        // Take top 30 most urgent, then shuffle within that pool for variety
-        const urgentPool = dueQs.slice(0, Math.min(30, dueQs.length));
-        const sprintQs = window.shuffleArray(urgentPool).slice(0, 10);
-        db['quiz_srs'] = { title: titleStr, subject: "Spaced Repetition", timeInMinutes: 10, questions: sprintQs };
+        const sprintSize = window._srsSprintSizes ? (window._srsSprintSizes[type] || 10) : 10;
+        // Take top pool (3x sprint size for variety), then shuffle and pick sprint size
+        const urgentPool = dueQs.slice(0, Math.min(sprintSize * 3, dueQs.length));
+        const sprintQs = window.shuffleArray(urgentPool).slice(0, sprintSize);
+        const timeLimit = sprintSize <= 10 ? 10 : 32;
+        db['quiz_srs'] = { title: titleStr, subject: "Spaced Repetition", timeInMinutes: timeLimit, questions: sprintQs };
         closeSRSModal(); openLobby('quiz_srs');
+    };
+
+    // Sprint size state
+    window._srsSprintSizes = { global: 10, subject: 10 };
+
+    window.setSRSSprintSize = function(type, size) {
+        window._srsSprintSizes[type] = size;
+        const active = 'srs-size-active';
+        ['10','32'].forEach(s => {
+            const btn = document.getElementById('srs-'+type+'-size-'+s);
+            if(btn) btn.classList.toggle(active, s == size);
+        });
+        const label = document.getElementById('srs-'+type+'-size-label');
+        if(label) label.textContent = size;
+    };
+
+    window.onSubjectSelectChange = function() {
+        const sel = document.getElementById('srs-subject-select');
+        if(!sel || !sel.value) return;
+        // Parse due count from option text e.g. "Polity (143 Due)"
+        const match = sel.options[sel.selectedIndex]?.text.match(/\((\d+) Due\)/);
+        const dueCount = match ? parseInt(match[1]) : 0;
+        const sizeRow = document.getElementById('srs-subject-size-row');
+        if(sizeRow) sizeRow.classList.toggle('hidden', dueCount < 100);
+        // Reset to 10 when switching subjects
+        setSRSSprintSize('subject', 10);
     };
 
     window.setQuizMode = (mode) => {
