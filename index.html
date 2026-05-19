@@ -120,9 +120,119 @@
                         <div id="fc-stat-mastered" class="text-xl font-black text-emerald-500">0</div>
                         <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Mastered</div>
                     </div>
+                    <button onclick="fcToggleScanModal()" id="fc-scan-btn" class="bg-gradient-to-br from-violet-600 to-purple-700 hover:from-violet-500 hover:to-purple-600 text-white font-black px-5 py-3 rounded-2xl shadow-lg shadow-violet-500/30 transition-transform hover:-translate-y-0.5 border border-violet-400 text-sm flex items-center gap-2">
+                        <span>📸</span> Scan Screenshot
+                    </button>
                     <button onclick="fcToggleAddForm()" id="fc-add-btn" class="bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black px-5 py-3 rounded-2xl shadow-lg transition-transform hover:-translate-y-0.5 border border-amber-400 text-sm">+ Add Formula</button>
                 </div>
             </div>
+
+            <!-- ===== AI SCREENSHOT SCAN MODAL ===== -->
+            <div id="fc-scan-modal" class="hidden fixed inset-0 z-[400] bg-black/80 backdrop-blur-md flex justify-center items-center p-4">
+                <div class="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-2xl shadow-2xl border border-slate-200 dark:border-slate-700 relative overflow-hidden">
+                    <!-- Top gradient bar -->
+                    <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-violet-500 via-purple-500 to-pink-500"></div>
+                    <!-- Header -->
+                    <div class="flex justify-between items-center p-6 pb-4">
+                        <div>
+                            <div class="text-xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">📸 AI Formula Scanner</div>
+                            <div class="text-xs font-bold text-slate-400 mt-0.5">Drop a screenshot → AI reads the formula → auto-fills your flashcard</div>
+                        </div>
+                        <button onclick="fcCloseScanModal()" class="text-slate-400 hover:text-red-500 font-black text-2xl transition-colors">×</button>
+                    </div>
+
+                    <div class="px-6 pb-6 space-y-4">
+                        <!-- Drop Zone -->
+                        <div id="fc-scan-dropzone"
+                            onclick="document.getElementById('fc-scan-file-input').click()"
+                            ondragover="event.preventDefault(); this.classList.add('border-violet-400','bg-violet-50','dark:bg-violet-900/20')"
+                            ondragleave="this.classList.remove('border-violet-400','bg-violet-50','dark:bg-violet-900/20')"
+                            ondrop="fcHandleDrop(event)"
+                            class="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-2xl p-8 text-center cursor-pointer transition-all hover:border-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/10 group">
+                            <input type="file" id="fc-scan-file-input" accept="image/*" class="hidden" onchange="fcHandleFileSelect(event)">
+                            <div id="fc-scan-preview-wrap" class="hidden mb-4">
+                                <img id="fc-scan-preview" class="max-h-48 mx-auto rounded-xl shadow-lg object-contain border border-slate-200 dark:border-slate-700">
+                            </div>
+                            <div id="fc-scan-placeholder">
+                                <div class="text-4xl mb-3 group-hover:scale-110 transition-transform">🖼️</div>
+                                <div class="text-sm font-black text-slate-600 dark:text-slate-300 mb-1">Click to upload or drag & drop</div>
+                                <div class="text-xs font-bold text-slate-400">PNG, JPG, WEBP — screenshot of any formula</div>
+                            </div>
+                        </div>
+
+                        <!-- Paste hint -->
+                        <div class="text-center text-xs font-bold text-slate-400">or press <kbd class="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-0.5 font-mono text-slate-600 dark:text-slate-300">Ctrl+V</kbd> to paste a screenshot directly</div>
+
+                        <!-- Scan Button -->
+                        <button onclick="fcRunAIScan()" id="fc-scan-run-btn" class="hidden w-full bg-gradient-to-br from-violet-600 to-purple-700 hover:from-violet-500 hover:to-purple-600 text-white font-black py-4 rounded-2xl text-sm transition-all shadow-lg hover:shadow-violet-500/40 hover:-translate-y-0.5 border border-violet-400 flex items-center justify-center gap-2">
+                            <span>🤖</span> Scan with AI
+                        </button>
+
+                        <!-- Loading State -->
+                        <div id="fc-scan-loading" class="hidden text-center py-6">
+                            <div class="inline-flex items-center gap-3 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/40 rounded-2xl px-6 py-4">
+                                <div class="w-5 h-5 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
+                                <div class="text-sm font-black text-violet-700 dark:text-violet-300" id="fc-scan-loading-msg">AI is reading your formula...</div>
+                            </div>
+                        </div>
+
+                        <!-- AI Result Preview -->
+                        <div id="fc-scan-result" class="hidden bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 border border-violet-200 dark:border-violet-800/40 rounded-2xl p-5">
+                            <div class="flex items-center gap-2 mb-4">
+                                <div class="text-base font-black text-violet-700 dark:text-violet-300">✨ AI Extracted</div>
+                                <div class="text-[10px] font-black bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full">Review before saving</div>
+                            </div>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Title</label>
+                                    <input id="fc-scan-title" type="text" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-violet-200 dark:border-violet-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-violet-400 text-slate-800 dark:text-slate-200">
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Chapter</label>
+                                        <select id="fc-scan-cat" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-violet-200 dark:border-violet-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-violet-400 text-slate-800 dark:text-slate-200">
+                                            <optgroup label="Arithmetic"><option>Number System</option><option>HCF &amp; LCM</option><option>Simplification</option><option>Percentage</option><option>Profit &amp; Loss</option><option>Discount</option><option>Simple Interest</option><option>Compound Interest</option><option>Ratio &amp; Proportion</option><option>Mixture &amp; Alligation</option><option>Time &amp; Work</option><option>Pipes &amp; Cisterns</option><option>Time Speed Distance</option><option>Boats &amp; Streams</option><option>Trains</option></optgroup>
+                                            <optgroup label="Algebra"><option>Algebra — Identities</option><option>Algebra — Equations</option><option>Sequence &amp; Series</option></optgroup>
+                                            <optgroup label="Trigonometry"><option>Trigonometry — Identities</option><option>Trigonometry — Ratios</option><option>Trigonometry — Heights &amp; Distances</option></optgroup>
+                                            <optgroup label="Geometry"><option>Geometry — Lines &amp; Angles</option><option>Geometry — Triangles</option><option>Geometry — Circles</option><option>Geometry — Quadrilaterals</option><option>Geometry — Polygons</option></optgroup>
+                                            <optgroup label="Mensuration 2D"><option>Mensuration — Triangle</option><option>Mensuration — Circle &amp; Sector</option><option>Mensuration — Rectangle &amp; Square</option><option>Mensuration — Trapezium &amp; Rhombus</option><option>Mensuration — Parallelogram</option></optgroup>
+                                            <optgroup label="Mensuration 3D"><option>Mensuration — Cube &amp; Cuboid</option><option>Mensuration — Cylinder</option><option>Mensuration — Cone</option><option>Mensuration — Sphere &amp; Hemisphere</option><option>Mensuration — Prism &amp; Pyramid</option></optgroup>
+                                            <optgroup label="Data / Stats"><option>Statistics</option><option>Data Interpretation</option><option>Permutation &amp; Combination</option><option>Probability</option></optgroup>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Difficulty</label>
+                                        <select id="fc-scan-diff" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-violet-200 dark:border-violet-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-violet-400 text-slate-800 dark:text-slate-200">
+                                            <option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Front — Question prompt</label>
+                                    <input id="fc-scan-front" type="text" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-violet-200 dark:border-violet-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-violet-400 text-slate-800 dark:text-slate-200">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Back — Formula (LaTeX, one per line)</label>
+                                    <textarea id="fc-scan-back" rows="3" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-violet-200 dark:border-violet-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-violet-400 text-slate-800 dark:text-slate-200 font-mono resize-none"></textarea>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Memory Trick</label>
+                                    <input id="fc-scan-hint" type="text" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-violet-200 dark:border-violet-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-violet-400 text-slate-800 dark:text-slate-200">
+                                </div>
+                            </div>
+                            <!-- Save button -->
+                            <div class="flex gap-3 mt-5">
+                                <button onclick="fcScanReset()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black py-3 rounded-2xl text-sm transition-colors hover:bg-slate-200">🔄 Scan Another</button>
+                                <button onclick="fcScanSaveCard()" class="flex-2 bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black py-3 px-8 rounded-2xl text-sm transition-all shadow-lg hover:-translate-y-0.5 border border-emerald-400">✅ Add to Flashcards</button>
+                            </div>
+                        </div>
+
+                        <!-- Error State -->
+                        <div id="fc-scan-error" class="hidden bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-2xl p-4 text-sm font-bold text-red-600 dark:text-red-400"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- ===== END AI SCAN MODAL ===== -->
 
             <!-- SRS INFO BANNER -->
             <div id="fc-srs-banner" class="hidden mb-6 bg-gradient-to-r from-violet-50 to-indigo-50 dark:from-violet-900/20 dark:to-indigo-900/20 border border-violet-200 dark:border-violet-800/40 rounded-2xl p-4 flex items-start gap-4">
@@ -1657,6 +1767,9 @@
         } else if(state === 'error') {
             el.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> Offline Mode`;
             el.className = "absolute top-6 right-6 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full bg-red-900/60 text-red-400 border border-red-800/50 flex items-center gap-2 z-20 shadow-lg backdrop-blur-md";
+        } else if(state === 'blocked') {
+            el.innerHTML = `<span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span> ⛔ Save Blocked`;
+            el.className = "absolute top-6 right-6 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full bg-orange-900/60 text-orange-400 border border-orange-800/50 flex items-center gap-2 z-20 shadow-lg backdrop-blur-md";
         }
     }
 
@@ -1665,11 +1778,44 @@
         let cleanDb = {};
         Object.keys(db).forEach(key => { if (!key.startsWith('quiz_srs') && !key.startsWith('quiz_master_mock') && !key.startsWith('quiz_topic_practice')) { cleanDb[key] = db[key]; } });
         let tempDb = db; db = cleanDb; await updateLocalCache(); db = tempDb;
-        
-        const payload = { subjects: SUBJECTS, db: cleanDb, history: historyDb, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES };
+
+        // Load flashcard data to include in cloud sync
+        let fcCardsCloud = []; let fcProgCloud = {};
+        try { const s = localStorage.getItem('yogesh_fc_cards_v2'); if(s) fcCardsCloud = JSON.parse(s); } catch{}
+        try { const p = localStorage.getItem('yogesh_fc_prog_v2');  if(p) fcProgCloud  = JSON.parse(p); } catch{}
+
+        // ── SAFETY GUARD ──────────────────────────────────────────────────
+        // Attach a save timestamp. The Apps Script should reject (or we skip)
+        // any payload whose savedAt is older than the cloud's savedAt.
+        const nowTs = Date.now();
+        const lastCloudTs = parseInt(localStorage.getItem('megaLastCloudSave') || '0');
+
+        // Count total questions as a sanity check
+        const totalQLocal = Object.values(cleanDb).reduce((a,subj)=>a+Object.values(subj).reduce((b,topic)=>b+(Array.isArray(topic)?topic.length:0),0),0);
+        const lastKnownCount = parseInt(localStorage.getItem('megaLastKnownCount') || '0');
+
+        // DANGER CHECK: if local question count is significantly lower than last known cloud count,
+        // this is likely a stale/old file — DO NOT OVERWRITE the cloud.
+        if (lastKnownCount > 0 && totalQLocal < lastKnownCount * 0.85) {
+            console.warn(`⛔ SAVE BLOCKED: local has ${totalQLocal}q but last known was ${lastKnownCount}q. Refusing to overwrite cloud with stale data.`);
+            showSyncStatus('error');
+            // Show a visible warning
+            const warn = document.createElement('div');
+            warn.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:9999;background:#7f1d1d;color:#fca5a5;font-weight:900;font-size:13px;padding:14px 24px;border-radius:16px;border:1px solid #b91c1c;box-shadow:0 4px 24px rgba(0,0,0,0.5);max-width:420px;text-align:center;';
+            warn.innerHTML = '⛔ SAVE BLOCKED — Local data looks incomplete (' + totalQLocal + ' vs ' + lastKnownCount + ' questions). Cloud data is safe. Please refresh to load from cloud.';
+            document.body.appendChild(warn);
+            setTimeout(() => warn.remove(), 8000);
+            return;
+        }
+
+        const payload = { subjects: SUBJECTS, db: cleanDb, history: historyDb, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, savedAt: nowTs };
         try {
             const response = await fetch(CLOUD_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
-            if(response.ok) showSyncStatus('synced'); else showSyncStatus('error');
+            if(response.ok) {
+                showSyncStatus('synced');
+                localStorage.setItem('megaLastCloudSave', nowTs.toString());
+                localStorage.setItem('megaLastKnownCount', totalQLocal.toString());
+            } else { showSyncStatus('error'); }
         } catch (error) { showSyncStatus('error'); }
     }
 
@@ -1689,7 +1835,21 @@
                 if (data.history) historyDb = data.history || [];
                 if (data.mistakes) mistakesDb = data.mistakes || [];
                 if (data.notes) notesDb = data.notes || {};
+                // Restore flashcard data from cloud
+                if (data.fcCards && Array.isArray(data.fcCards)) {
+                    localStorage.setItem('yogesh_fc_cards_v2', JSON.stringify(data.fcCards));
+                }
+                if (data.fcProgress && typeof data.fcProgress === 'object') {
+                    localStorage.setItem('yogesh_fc_prog_v2', JSON.stringify(data.fcProgress));
+                }
                 
+                // Record the authoritative count from cloud so saveData can detect stale saves
+                const cloudQCount = Object.values(db).reduce((a,subj)=>a+Object.values(subj).reduce((b,topic)=>b+(Array.isArray(topic)?topic.length:0),0),0);
+                if (cloudQCount > 0) {
+                    localStorage.setItem('megaLastKnownCount', cloudQCount.toString());
+                    localStorage.setItem('megaLastCloudSave', (data.savedAt || Date.now()).toString());
+                }
+
                 await updateLocalCache(); rebuildSearchCache(); renderDashboard(); showSyncStatus('synced');
             } else { showSyncStatus('error'); }
         } catch (error) { showSyncStatus('error'); }
@@ -3936,6 +4096,11 @@ window.generateQuantNotes = () => {
     }
     function fcSave(){
         try { localStorage.setItem(FC_CARDS_KEY, JSON.stringify(fcCards)); localStorage.setItem(FC_PROG_KEY, JSON.stringify(fcProgress)); } catch {}
+        // Piggyback on the main app's cloud sync so flashcards sync across devices
+        if(typeof saveData === 'function') {
+            clearTimeout(window._fcSaveTimer);
+            window._fcSaveTimer = setTimeout(saveData, 800); // debounce 800ms
+        }
     }
 
     // ---- SRS LOGIC ----
@@ -4347,11 +4512,189 @@ window.generateQuantNotes = () => {
         fcRenderChapterList();
     };
 
+    // ---- AI SCREENSHOT SCANNER ----
+    let fcScanImageBase64 = null;
+    let fcScanImageType   = null;
+
+    window.fcToggleScanModal = function(){
+        const m = document.getElementById('fc-scan-modal');
+        if(m) { m.classList.remove('hidden'); fcScanReset(); }
+    };
+    window.fcCloseScanModal = function(){
+        const m = document.getElementById('fc-scan-modal');
+        if(m) m.classList.add('hidden');
+        fcScanReset();
+    };
+
+    window.fcScanReset = function(){
+        fcScanImageBase64 = null;
+        fcScanImageType   = null;
+        document.getElementById('fc-scan-preview-wrap').classList.add('hidden');
+        document.getElementById('fc-scan-placeholder').classList.remove('hidden');
+        document.getElementById('fc-scan-run-btn').classList.add('hidden');
+        document.getElementById('fc-scan-loading').classList.add('hidden');
+        document.getElementById('fc-scan-result').classList.add('hidden');
+        document.getElementById('fc-scan-error').classList.add('hidden');
+        const inp = document.getElementById('fc-scan-file-input');
+        if(inp) inp.value = '';
+    };
+
+    function fcLoadImageFile(file){
+        if(!file || !file.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = function(e){
+            const dataUrl = e.target.result;
+            fcScanImageType   = file.type;
+            fcScanImageBase64 = dataUrl.split(',')[1];
+            document.getElementById('fc-scan-preview').src = dataUrl;
+            document.getElementById('fc-scan-preview-wrap').classList.remove('hidden');
+            document.getElementById('fc-scan-placeholder').classList.add('hidden');
+            document.getElementById('fc-scan-result').classList.add('hidden');
+            document.getElementById('fc-scan-error').classList.add('hidden');
+            document.getElementById('fc-scan-run-btn').classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    window.fcHandleFileSelect = function(e){ fcLoadImageFile(e.target.files[0]); };
+    window.fcHandleDrop = function(e){
+        e.preventDefault();
+        e.currentTarget.classList.remove('border-violet-400','bg-violet-50','dark:bg-violet-900/20');
+        const file = e.dataTransfer.files[0];
+        fcLoadImageFile(file);
+    };
+
+    // Ctrl+V paste support (only when modal is open)
+    document.addEventListener('paste', function(e){
+        const modal = document.getElementById('fc-scan-modal');
+        if(!modal || modal.classList.contains('hidden')) return;
+        const items = e.clipboardData && e.clipboardData.items;
+        if(!items) return;
+        for(let item of items){
+            if(item.type.startsWith('image/')){
+                fcLoadImageFile(item.getAsFile());
+                break;
+            }
+        }
+    });
+
+    window.fcRunAIScan = async function(){
+        if(!fcScanImageBase64){ alert('Please upload an image first.'); return; }
+        document.getElementById('fc-scan-run-btn').classList.add('hidden');
+        document.getElementById('fc-scan-loading').classList.remove('hidden');
+        document.getElementById('fc-scan-result').classList.add('hidden');
+        document.getElementById('fc-scan-error').classList.add('hidden');
+
+        const msgs = ['AI is reading your formula...','Extracting LaTeX...','Almost done...'];
+        let mi = 0;
+        const ticker = setInterval(()=>{ const el=document.getElementById('fc-scan-loading-msg'); if(el) el.textContent=msgs[Math.min(mi++,msgs.length-1)]; }, 1200);
+
+        const SYSTEM_PROMPT = `You are a math formula extractor for an SSC CGL exam flashcard app.
+Given an image containing one or more mathematical formulas, extract them and respond ONLY with a valid JSON object (no markdown, no backticks, no explanation).
+
+The JSON must have exactly these fields:
+{
+  "title": "Short name of the formula (e.g. Heron's Formula)",
+  "category": "One of: Number System, HCF & LCM, Simplification, Percentage, Profit & Loss, Discount, Simple Interest, Compound Interest, Ratio & Proportion, Mixture & Alligation, Time & Work, Pipes & Cisterns, Time Speed Distance, Boats & Streams, Trains, Algebra — Identities, Algebra — Equations, Sequence & Series, Trigonometry — Identities, Trigonometry — Ratios, Trigonometry — Heights & Distances, Geometry — Lines & Angles, Geometry — Triangles, Geometry — Circles, Geometry — Quadrilaterals, Geometry — Polygons, Mensuration — Triangle, Mensuration — Circle & Sector, Mensuration — Rectangle & Square, Mensuration — Trapezium & Rhombus, Mensuration — Parallelogram, Mensuration — Cube & Cuboid, Mensuration — Cylinder, Mensuration — Cone, Mensuration — Sphere & Hemisphere, Mensuration — Prism & Pyramid, Statistics, Data Interpretation, Permutation & Combination, Probability",
+  "difficulty": "easy or medium or hard",
+  "front": "The question/recall prompt (e.g. 'Area of a triangle given all 3 sides')",
+  "back": "The formula(s) in LaTeX. If multiple formulas, put each on a new line using \n. Use standard LaTeX like \\sqrt{}, \\frac{}{}, ^, _ etc.",
+  "hint": "A short memory trick or note (1 sentence max)"
+}
+
+Rules:
+- back must be proper LaTeX that MathJax can render
+- If there are multiple related formulas in the image, include ALL of them in back separated by \n
+- Keep title short (3-6 words max)
+- front should be a question a student would ask themselves`;
+
+        try {
+            const response = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: 'claude-sonnet-4-20250514',
+                    max_tokens: 1000,
+                    system: SYSTEM_PROMPT,
+                    messages: [{
+                        role: 'user',
+                        content: [{
+                            type: 'image',
+                            source: { type: 'base64', media_type: fcScanImageType, data: fcScanImageBase64 }
+                        },{
+                            type: 'text',
+                            text: 'Extract the formula(s) from this image and return the JSON.'
+                        }]
+                    }]
+                })
+            });
+
+            clearInterval(ticker);
+            const data = await response.json();
+
+            if(!response.ok){
+                throw new Error(data.error?.message || 'API error ' + response.status);
+            }
+
+            const raw = data.content.map(b => b.type==='text' ? b.text : '').join('').trim();
+            // Strip markdown fences if present
+            const cleaned = raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
+            const parsed = JSON.parse(cleaned);
+
+            // Populate result form
+            document.getElementById('fc-scan-title').value = parsed.title  || '';
+            document.getElementById('fc-scan-front').value = parsed.front  || '';
+            document.getElementById('fc-scan-back').value  = parsed.back   || '';
+            document.getElementById('fc-scan-hint').value  = parsed.hint   || '';
+            document.getElementById('fc-scan-diff').value  = parsed.difficulty || 'medium';
+            // Set category dropdown
+            const sel = document.getElementById('fc-scan-cat');
+            for(let i=0;i<sel.options.length;i++){
+                if(sel.options[i].value === parsed.category){ sel.selectedIndex=i; break; }
+            }
+
+            document.getElementById('fc-scan-loading').classList.add('hidden');
+            document.getElementById('fc-scan-result').classList.remove('hidden');
+
+        } catch(err) {
+            clearInterval(ticker);
+            document.getElementById('fc-scan-loading').classList.add('hidden');
+            document.getElementById('fc-scan-run-btn').classList.remove('hidden');
+            const errEl = document.getElementById('fc-scan-error');
+            errEl.textContent = '❌ ' + (err.message || 'Failed to scan. Try again.');
+            errEl.classList.remove('hidden');
+        }
+    };
+
+    window.fcScanSaveCard = function(){
+        const title = document.getElementById('fc-scan-title').value.trim();
+        const front = document.getElementById('fc-scan-front').value.trim();
+        const back  = document.getElementById('fc-scan-back').value.trim();
+        const hint  = document.getElementById('fc-scan-hint').value.trim();
+        const cat   = document.getElementById('fc-scan-cat').value;
+        const diff  = document.getElementById('fc-scan-diff').value;
+        if(!title||!front||!back){ alert('Please make sure Title, Front and Back are filled.'); return; }
+        const id = 'fc_scan_' + Date.now();
+        fcCards.push({id, category:cat, difficulty:diff, title, front, back, hint});
+        fcSave();
+        fcCloseScanModal();
+        fcBuildCatFilters();
+        fcUpdateStats();
+        fcRender();
+        fcRenderChapterList();
+        // Flash a success toast
+        const toast = document.createElement('div');
+        toast.className = 'fixed top-6 left-1/2 -translate-x-1/2 z-[500] bg-emerald-600 text-white font-black px-6 py-3 rounded-2xl shadow-2xl text-sm flex items-center gap-2 animate-bounce';
+        toast.innerHTML = '✅ Formula card added from screenshot!';
+        document.body.appendChild(toast);
+        setTimeout(()=>toast.remove(), 2800);
+    };
+
     // ---- HOOK INTO showScreen ----
     const _origShowScreen = window.showScreen;
     window.showScreen = function(name){
         if(name === 'flashcards'){
-            fcLoad();
+            fcLoad(); // always re-read localStorage so we get latest cloud-synced data
             document.querySelectorAll('[id^="screen-"]').forEach(s => s.classList.add('hidden'));
             const fc = document.getElementById('screen-flashcards');
             if(fc) fc.classList.remove('hidden');
