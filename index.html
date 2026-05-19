@@ -1963,6 +1963,19 @@
     async function initializeSystem() {
         if(localStorage.getItem('megaTheme') === 'dark') document.documentElement.classList.add('dark');
         await loadLocalFallback(); renderDashboard();
+
+        // PERMANENT FIX: recalculate lastKnownCount from actual local data
+        // prevents "SAVE BLOCKED" after fresh deploys
+        try {
+            const actualCount = Object.values(db).reduce((a,subj) => {
+                if(!subj || typeof subj !== 'object') return a;
+                return a + Object.values(subj).reduce((b,topic)=>b+(Array.isArray(topic)?topic.length:0),0);
+            }, 0);
+            if(actualCount > 0) {
+                localStorage.setItem('megaLastKnownCount', actualCount.toString());
+            }
+        } catch(e) {}
+
         await tryCloudSync(0);
 
         // Auto-retry when browser comes back online
