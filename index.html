@@ -4719,6 +4719,41 @@ window.generateQuantNotes = () => {
         }
     });
 
+    // ---- LOCAL TEXT PARSER (no API needed) ----
+    function fcParseStructuredText(raw){
+        const get = (label) => {
+            const m = raw.match(new RegExp(label + '[^:\\n]*[:\\-\u2013]\\s*([\\s\\S]+?)(?=\\n\\s*[\\*\\-]?[A-Z]|$)', 'i'));
+            return m ? m[1].trim() : '';
+        };
+        // LaTeX-ify common symbols in back
+        const latexify = (s) => s
+            .replace(/×/g,'\\times').replace(/÷/g,'\\div')
+            .replace(/²/g,'^2').replace(/³/g,'^3')
+            .replace(/π/g,'\\pi').replace(/√/g,'\\sqrt')
+            .replace(/\^(\d+)/g,'^{$1}');
+
+        const CATEGORIES = ['Number System','HCF & LCM','Simplification','Percentage','Profit & Loss','Discount','Simple Interest','Compound Interest','Ratio & Proportion','Mixture & Alligation','Time & Work','Pipes & Cisterns','Time Speed Distance','Boats & Streams','Trains','Algebra — Identities','Algebra — Equations','Sequence & Series','Trigonometry — Identities','Trigonometry — Ratios','Trigonometry — Heights & Distances','Geometry — Lines & Angles','Geometry — Triangles','Geometry — Circles','Geometry — Quadrilaterals','Geometry — Polygons','Mensuration — Triangle','Mensuration — Circle & Sector','Mensuration — Rectangle & Square','Mensuration — Trapezium & Rhombus','Mensuration — Parallelogram','Mensuration — Cube & Cuboid','Mensuration — Cylinder','Mensuration — Cone','Mensuration — Sphere & Hemisphere','Mensuration — Prism & Pyramid','Statistics','Data Interpretation','Permutation & Combination','Probability'];
+
+        const chapterRaw = get('Chapter');
+        // Try to match chapter to known category
+        let category = CATEGORIES.find(c => chapterRaw && c.toLowerCase().includes(chapterRaw.toLowerCase().replace(/mensuration\s*3d\s*[—\-]?\s*/i,'').trim())) || chapterRaw || 'Mensuration — Cube & Cuboid';
+
+        const backRaw = get('Back[^:]*?(?:Formula[^:]*)?');
+        const back = latexify(backRaw || get('Formula'));
+
+        const diffRaw = (get('Difficulty') || 'medium').toLowerCase();
+        const difficulty = ['easy','medium','hard'].find(d => diffRaw.includes(d)) || 'medium';
+
+        return {
+            title:      get('Title') || get('\\* ?Title'),
+            category,
+            difficulty,
+            front:      get('Front[^:]*'),
+            back,
+            hint:       get('Memory Trick') || get('Trick') || get('Hint')
+        };
+    }
+
     window.fcRunAIScan = async function(){
         if(fcScanMode === 'image' && !fcScanImageBase64){ alert('Please upload or paste an image first.'); return; }
         if(fcScanMode === 'text'){
@@ -4735,6 +4770,32 @@ window.generateQuantNotes = () => {
         let mi = 0;
         const ticker = setInterval(()=>{ const el=document.getElementById('fc-scan-loading-msg'); if(el) el.textContent=msgs[Math.min(mi++,msgs.length-1)]; }, 1200);
 
+        // ---- TEXT MODE: parse locally, no API call ----
+        if(fcScanMode === 'text'){
+            clearInterval(ticker);
+            try {
+                const raw = document.getElementById('fc-scan-text-input').value.trim();
+                const parsed = fcParseStructuredText(raw);
+                document.getElementById('fc-scan-title').value = parsed.title      || '';
+                document.getElementById('fc-scan-front').value = parsed.front      || '';
+                document.getElementById('fc-scan-back').value  = parsed.back       || '';
+                document.getElementById('fc-scan-hint').value  = parsed.hint       || '';
+                document.getElementById('fc-scan-diff').value  = parsed.difficulty || 'medium';
+                const sel = document.getElementById('fc-scan-cat');
+                for(let i=0;i<sel.options.length;i++){ if(sel.options[i].value===parsed.category){ sel.selectedIndex=i; break; } }
+                document.getElementById('fc-scan-loading').classList.add('hidden');
+                document.getElementById('fc-scan-result').classList.remove('hidden');
+            } catch(err){
+                document.getElementById('fc-scan-loading').classList.add('hidden');
+                document.getElementById('fc-scan-run-btn').classList.remove('hidden');
+                const errEl = document.getElementById('fc-scan-error');
+                errEl.textContent = '❌ Could not parse text. Try the structured format: Title / Chapter / Front / Back / Memory Trick.';
+                errEl.classList.remove('hidden');
+            }
+            return;
+        }
+
+        // ---- IMAGE MODE: call /api/claude proxy (Vercel serverless) ----
         const SYSTEM_PROMPT = `You are a math formula extractor for an SSC CGL exam flashcard app.
 Extract formula(s) from the input (image or text) and respond ONLY with a valid JSON object — no markdown, no backticks, no explanation.
 
@@ -4744,26 +4805,22 @@ JSON fields (all required):
   "category": "Exact match from: Number System, HCF & LCM, Simplification, Percentage, Profit & Loss, Discount, Simple Interest, Compound Interest, Ratio & Proportion, Mixture & Alligation, Time & Work, Pipes & Cisterns, Time Speed Distance, Boats & Streams, Trains, Algebra — Identities, Algebra — Equations, Sequence & Series, Trigonometry — Identities, Trigonometry — Ratios, Trigonometry — Heights & Distances, Geometry — Lines & Angles, Geometry — Triangles, Geometry — Circles, Geometry — Quadrilaterals, Geometry — Polygons, Mensuration — Triangle, Mensuration — Circle & Sector, Mensuration — Rectangle & Square, Mensuration — Trapezium & Rhombus, Mensuration — Parallelogram, Mensuration — Cube & Cuboid, Mensuration — Cylinder, Mensuration — Cone, Mensuration — Sphere & Hemisphere, Mensuration — Prism & Pyramid, Statistics, Data Interpretation, Permutation & Combination, Probability",
   "difficulty": "easy or medium or hard",
   "front": "Question a student asks themselves (e.g. 'Area of triangle given all 3 sides?')",
-  "back": "Formula(s) in proper LaTeX. Multiple formulas separated by \n. Use \\sqrt{}, \\frac{}{}, ^, _ etc.",
+  "back": "Formula(s) in proper LaTeX. Multiple formulas separated by \\n. Use \\\\sqrt{}, \\\\frac{}{}, ^, _ etc.",
   "hint": "One short memory trick (max 1 sentence)"
 }
 
 Rules:
 - back must be valid LaTeX renderable by MathJax
-- If input has multiple related formulas include ALL of them in back separated by \n
-- For plain text input like 'A = πr²', convert to proper LaTeX: A = \\pi r^2`;
+- If input has multiple related formulas include ALL of them in back separated by \\n
+- For plain text input like 'A = πr²', convert to proper LaTeX: A = \\\\pi r^2`;
 
         try {
-            const msgContent = fcScanMode === 'image'
-                ? [
-                    { type: 'image', source: { type: 'base64', media_type: fcScanImageType, data: fcScanImageBase64 } },
-                    { type: 'text',  text: 'Extract the formula(s) from this image and return JSON.' }
-                  ]
-                : [
-                    { type: 'text',  text: 'Extract and convert the formula(s) from this text to proper LaTeX and return JSON:\n\n' + document.getElementById('fc-scan-text-input').value.trim() }
-                  ];
+            const msgContent = [
+                { type: 'image', source: { type: 'base64', media_type: fcScanImageType, data: fcScanImageBase64 } },
+                { type: 'text',  text: 'Extract the formula(s) from this image and return JSON.' }
+            ];
 
-            const response = await fetch('https://api.anthropic.com/v1/messages', {
+            const response = await fetch('/api/claude', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -4798,7 +4855,7 @@ Rules:
             document.getElementById('fc-scan-loading').classList.add('hidden');
             document.getElementById('fc-scan-run-btn').classList.remove('hidden');
             const errEl = document.getElementById('fc-scan-error');
-            errEl.textContent = '❌ ' + (err.message || 'Failed. Check your internet and try again.');
+            errEl.textContent = '❌ Image scan needs the Vercel proxy to be set up. See instructions at: https://github.com/your-repo#setup — Or switch to Text mode and paste the formula instead (works offline, no setup needed).';
             errEl.classList.remove('hidden');
         }
     };
