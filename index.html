@@ -704,7 +704,7 @@
                     <span class="w-10 h-px bg-slate-200 dark:bg-slate-700"></span> System Administration (Secured) <span class="w-10 h-px bg-slate-200 dark:bg-slate-700"></span>
                 </div>
                 <div class="flex justify-center gap-4 flex-wrap">
-                    <button onclick="exportBackup()" class="bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-blue-100 dark:border-blue-900/30">💾 Full Backup (Everything)</button>
+                    <button onclick="exportBackup()" class="bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-blue-100 dark:border-blue-900/30">💾 Backup Database</button>
                     <button onclick="triggerRestore()" class="bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-amber-100 dark:border-amber-900/30">📂 Restore Backup 🔒</button>
                     <button onclick="factoryReset()" class="bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-red-100 dark:border-red-900/30">⚠️ Reset System 🔒</button>
                 </div>
@@ -1145,7 +1145,7 @@
     </div>
 
 <script>
-    const CLOUD_URL = "https://script.google.com/macros/s/AKfycbyuAFvjWZHAlkDx00DsDoHiPgFMq-CmGgHKyQXq_6cfi1QwmnwUVp3ZNLrtpnLPhOXB/exec";
+    const CLOUD_URL = "https://script.google.com/macros/s/AKfycbwDDAtrBiUk1AJVOmtMrZs4VuvdJy_xmSbRgRC2gfE6E5ZbB1GHf5GxkAjx37eyEr8/exec";
     
     const CORE_SUBJECTS = ["Arithmetic", "Advanced Maths", "Reasoning", "English", "Ancient History", "Medieval History", "Modern History", "Art & Culture", "Geography", "Polity", "Economics", "Physics", "Chemistry", "Biology", "Environment & Ecology", "Science & Technology", "Static GK", "Current Affairs", "Computer Knowledge", "Calculation"];
     
@@ -4151,52 +4151,14 @@ window.generateQuantNotes = () => {
         window.open(_notesUrl, '_blank');
         setTimeout(() => URL.revokeObjectURL(_notesUrl), 5000);
     };    window.exportBackup = () => {
-        // Collect EVERYTHING
-        let fcCards = []; let fcProgress = {};
-        try { fcCards   = JSON.parse(localStorage.getItem('yogesh_fc_cards_v2') || '[]'); } catch{}
-        try { fcProgress = JSON.parse(localStorage.getItem('yogesh_fc_prog_v2')  || '{}'); } catch{}
-
-        // Collect ALL localStorage keys for full safety net
-        const allLocalStorage = {};
-        for(let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            try { allLocalStorage[key] = JSON.parse(localStorage.getItem(key)); } 
-            catch{ allLocalStorage[key] = localStorage.getItem(key); }
-        }
-
-        const payload = {
-            // Core quiz data
-            subjects: SUBJECTS,
-            db: db,
-            history: historyDb,
-            mistakes: mistakesDb,
-            notes: notesDb,
-            categories: SUBJECT_CATEGORIES,
-            // Flashcards
-            fcCards: fcCards,
-            fcProgress: fcProgress,
-            // Full localStorage safety net
-            _allLocalStorage: allLocalStorage,
-            // Metadata
-            savedAt: Date.now(),
-            backupVersion: 'FULL_V1',
-            backupDate: new Date().toLocaleString('en-IN')
-        };
-
+        const payload = { subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb, notes: notesDb, categories: SUBJECT_CATEGORIES }; 
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
         const a = document.createElement("a");
         const _backupUrl = URL.createObjectURL(blob);
         a.href = _backupUrl;
-        a.download = `MegaQuiz_FULL_Backup_${new Date().toISOString().split('T')[0]}.json`;
+        a.download = `MegaQuiz_Backup_${new Date().toISOString().split('T')[0]}.json`;
         a.click();
         setTimeout(() => URL.revokeObjectURL(_backupUrl), 1000);
-
-        // Show confirmation toast
-        const toast = document.createElement('div');
-        toast.style.cssText = 'position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:9999;background:#065f46;color:#a7f3d0;font-weight:900;font-size:13px;padding:14px 28px;border-radius:16px;border:1px solid #10b981;box-shadow:0 4px 24px rgba(0,0,0,0.4);text-align:center;';
-        toast.innerHTML = '✅ FULL Backup Downloaded! Includes questions, SRS, flashcards & all data.';
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 4000);
     };
 
     window.triggerRestore = () => { requireAuth(() => { document.getElementById('backup-file-input').click(); }); };
