@@ -1831,7 +1831,7 @@
             el.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Cloud Synced`;
             el.className = "absolute top-6 right-6 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full bg-emerald-900/60 text-emerald-400 border border-emerald-800/50 flex items-center gap-2 z-20 shadow-[0_0_15px_rgba(16,185,129,0.3)] backdrop-blur-md";
         } else if(state === 'error') {
-            el.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> Offline Mode`;
+            el.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> Offline — <span onclick="tryCloudSync(0)" style="cursor:pointer;text-decoration:underline">Retry</span>`;
             el.className = "absolute top-6 right-6 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full bg-red-900/60 text-red-400 border border-red-800/50 flex items-center gap-2 z-20 shadow-lg backdrop-blur-md";
         } else if(state === 'blocked') {
             el.innerHTML = `<span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span> ⛔ Save Blocked`;
@@ -1864,7 +1864,7 @@
         // this is likely a stale/old file — DO NOT OVERWRITE the cloud.
         if (lastKnownCount > 0 && totalQLocal < lastKnownCount * 0.85) {
             console.warn(`⛔ SAVE BLOCKED: local has ${totalQLocal}q but last known was ${lastKnownCount}q. Refusing to overwrite cloud with stale data.`);
-            showSyncStatus('error');
+            showSyncStatus('blocked');
             // Show a visible warning
             const warn = document.createElement('div');
             warn.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:9999;background:#7f1d1d;color:#fca5a5;font-weight:900;font-size:13px;padding:14px 24px;border-radius:16px;border:1px solid #b91c1c;box-shadow:0 4px 24px rgba(0,0,0,0.5);max-width:420px;text-align:center;';
@@ -1885,40 +1885,67 @@
         } catch (error) { showSyncStatus('error'); }
     }
 
+    async function fetchFromCloud(timeoutMs) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            const response = await fetch(CLOUD_URL, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            return await response.json();
+        } catch(e) {
+            clearTimeout(timeoutId);
+            throw e;
+        }
+    }
+
+    async function applyCloudData(data) {
+        if (!data || !data.db) return false;
+        if (data.subjects) SUBJECTS = data.subjects;
+        if (data.categories) SUBJECT_CATEGORIES = data.categories;
+        db = data.db;
+        historyDb = data.history || [];
+        mistakesDb = data.mistakes || [];
+        notesDb = data.notes || {};
+        if (data.fcCards && Array.isArray(data.fcCards)) localStorage.setItem('yogesh_fc_cards_v2', JSON.stringify(data.fcCards));
+        if (data.fcProgress && typeof data.fcProgress === 'object') localStorage.setItem('yogesh_fc_prog_v2', JSON.stringify(data.fcProgress));
+        const cloudQCount = Object.values(db).reduce((a,subj)=>a+Object.values(subj).reduce((b,topic)=>b+(Array.isArray(topic)?topic.length:0),0),0);
+        if (cloudQCount > 0) {
+            localStorage.setItem('megaLastKnownCount', cloudQCount.toString());
+            localStorage.setItem('megaLastCloudSave', (data.savedAt || Date.now()).toString());
+        }
+        await updateLocalCache(); rebuildSearchCache(); renderDashboard(); showSyncStatus('synced');
+        return true;
+    }
+
+    async function tryCloudSync(attempt) {
+        // Progressive timeouts: 12s, 18s, 25s
+        const timeouts = [12000, 18000, 25000];
+        const ms = timeouts[Math.min(attempt, timeouts.length - 1)];
+        try {
+            showSyncStatus('syncing');
+            const data = await fetchFromCloud(ms);
+            const ok = await applyCloudData(data);
+            if (!ok) throw new Error('empty response');
+        } catch(e) {
+            if (attempt < 2) {
+                // Wait 3s then retry
+                await new Promise(r => setTimeout(r, 3000));
+                return tryCloudSync(attempt + 1);
+            }
+            showSyncStatus('error');
+        }
+    }
+
     async function initializeSystem() {
         if(localStorage.getItem('megaTheme') === 'dark') document.documentElement.classList.add('dark');
-        await loadLocalFallback(); renderDashboard(); showSyncStatus('syncing');
+        await loadLocalFallback(); renderDashboard();
+        await tryCloudSync(0);
 
-        try {
-            const controller = new AbortController(); const timeoutId = setTimeout(() => controller.abort(), 8000); 
-            const response = await fetch(CLOUD_URL, { signal: controller.signal }); clearTimeout(timeoutId);
-            const data = await response.json();
-            
-            if (data && Object.keys(data).length > 0 && data.db) {
-                if (data.subjects) SUBJECTS = data.subjects;
-                if (data.categories) SUBJECT_CATEGORIES = data.categories;
-                if (data.db) db = data.db;
-                if (data.history) historyDb = data.history || [];
-                if (data.mistakes) mistakesDb = data.mistakes || [];
-                if (data.notes) notesDb = data.notes || {};
-                // Restore flashcard data from cloud
-                if (data.fcCards && Array.isArray(data.fcCards)) {
-                    localStorage.setItem('yogesh_fc_cards_v2', JSON.stringify(data.fcCards));
-                }
-                if (data.fcProgress && typeof data.fcProgress === 'object') {
-                    localStorage.setItem('yogesh_fc_prog_v2', JSON.stringify(data.fcProgress));
-                }
-                
-                // Record the authoritative count from cloud so saveData can detect stale saves
-                const cloudQCount = Object.values(db).reduce((a,subj)=>a+Object.values(subj).reduce((b,topic)=>b+(Array.isArray(topic)?topic.length:0),0),0);
-                if (cloudQCount > 0) {
-                    localStorage.setItem('megaLastKnownCount', cloudQCount.toString());
-                    localStorage.setItem('megaLastCloudSave', (data.savedAt || Date.now()).toString());
-                }
-
-                await updateLocalCache(); rebuildSearchCache(); renderDashboard(); showSyncStatus('synced');
-            } else { showSyncStatus('error'); }
-        } catch (error) { showSyncStatus('error'); }
+        // Auto-retry when browser comes back online
+        window.addEventListener('online', () => {
+            const el = document.getElementById('sync-status');
+            if (el && el.textContent.includes('Offline')) tryCloudSync(0);
+        });
     }
 
     function toggleDarkMode() {
