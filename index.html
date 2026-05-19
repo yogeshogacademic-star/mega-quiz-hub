@@ -1843,29 +1843,24 @@
         showSyncStatus('syncing');
         let cleanDb = {};
         Object.keys(db).forEach(key => { if (!key.startsWith('quiz_srs') && !key.startsWith('quiz_master_mock') && !key.startsWith('quiz_topic_practice')) { cleanDb[key] = db[key]; } });
-        let tempDb = db; db = cleanDb; await updateLocalCache(); db = tempDb;
+        let tempDb = db; db = cleanDb;
+        try { await updateLocalCache(); } catch(err) { console.warn("Local cache update failed, continuing to cloud sync...", err); }
+        db = tempDb;
 
-        // Load flashcard data to include in cloud sync
         let fcCardsCloud = []; let fcProgCloud = {};
         try { const s = localStorage.getItem('yogesh_fc_cards_v2'); if(s) fcCardsCloud = JSON.parse(s); } catch{}
         try { const p = localStorage.getItem('yogesh_fc_prog_v2');  if(p) fcProgCloud  = JSON.parse(p); } catch{}
 
-        // ── SAFETY GUARD ──────────────────────────────────────────────────
-        // Attach a save timestamp. The Apps Script should reject (or we skip)
-        // any payload whose savedAt is older than the cloud's savedAt.
         const nowTs = Date.now();
-        const lastCloudTs = parseInt(localStorage.getItem('megaLastCloudSave') || '0');
-
-        // Count total questions as a sanity check
-        const totalQLocal = Object.values(cleanDb).reduce((a,subj)=>a+Object.values(subj).reduce((b,topic)=>b+(Array.isArray(topic)?topic.length:0),0),0);
+        const totalQLocal = Object.values(cleanDb).reduce((a,subj) => {
+            if(!subj || typeof subj !== 'object') return a;
+            return a + Object.values(subj).reduce((b,topic)=>b+(Array.isArray(topic)?topic.length:0),0);
+        }, 0);
         const lastKnownCount = parseInt(localStorage.getItem('megaLastKnownCount') || '0');
 
-        // DANGER CHECK: if local question count is significantly lower than last known cloud count,
-        // this is likely a stale/old file — DO NOT OVERWRITE the cloud.
         if (lastKnownCount > 0 && totalQLocal < lastKnownCount * 0.85) {
-            console.warn(`⛔ SAVE BLOCKED: local has ${totalQLocal}q but last known was ${lastKnownCount}q. Refusing to overwrite cloud with stale data.`);
+            console.warn(`⛔ SAVE BLOCKED: local has ${totalQLocal}q but last known was ${lastKnownCount}q.`);
             showSyncStatus('blocked');
-            // Show a visible warning
             const warn = document.createElement('div');
             warn.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:9999;background:#7f1d1d;color:#fca5a5;font-weight:900;font-size:13px;padding:14px 24px;border-radius:16px;border:1px solid #b91c1c;box-shadow:0 4px 24px rgba(0,0,0,0.5);max-width:420px;text-align:center;';
             warn.innerHTML = '⛔ SAVE BLOCKED — Local data looks incomplete (' + totalQLocal + ' vs ' + lastKnownCount + ' questions). Cloud data is safe. Please refresh to load from cloud.';
@@ -1876,22 +1871,42 @@
 
         const payload = { subjects: SUBJECTS, db: cleanDb, history: historyDb, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, savedAt: nowTs };
         try {
-            const response = await fetch(CLOUD_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
+            const response = await fetch(CLOUD_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload),
+                redirect: 'follow'
+            });
             if(response.ok) {
                 showSyncStatus('synced');
                 localStorage.setItem('megaLastCloudSave', nowTs.toString());
                 localStorage.setItem('megaLastKnownCount', totalQLocal.toString());
-            } else { showSyncStatus('error'); }
-        } catch (error) { showSyncStatus('error'); }
+            } else {
+                console.error("Save failed HTTP:", response.status);
+                showSyncStatus('error');
+            }
+        } catch (error) {
+            console.error("Cloud POST error:", error);
+            showSyncStatus('error');
+        }
     }
 
     async function fetchFromCloud(timeoutMs) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
         try {
-            const response = await fetch(CLOUD_URL, { signal: controller.signal });
+            const response = await fetch(CLOUD_URL, {
+                signal: controller.signal,
+                redirect: 'follow'
+            });
             clearTimeout(timeoutId);
-            return await response.json();
+            const text = await response.text();
+            try {
+                return JSON.parse(text);
+            } catch(jsonErr) {
+                console.error("Cloud response not valid JSON:", text.substring(0, 150));
+                throw new Error("Invalid JSON from cloud. Check Apps Script permissions.");
+            }
         } catch(e) {
             clearTimeout(timeoutId);
             throw e;
@@ -1908,7 +1923,10 @@
         notesDb = data.notes || {};
         if (data.fcCards && Array.isArray(data.fcCards)) localStorage.setItem('yogesh_fc_cards_v2', JSON.stringify(data.fcCards));
         if (data.fcProgress && typeof data.fcProgress === 'object') localStorage.setItem('yogesh_fc_prog_v2', JSON.stringify(data.fcProgress));
-        const cloudQCount = Object.values(db).reduce((a,subj)=>a+Object.values(subj).reduce((b,topic)=>b+(Array.isArray(topic)?topic.length:0),0),0);
+        const cloudQCount = Object.values(db).reduce((a,subj) => {
+            if(!subj || typeof subj !== 'object') return a;
+            return a + Object.values(subj).reduce((b,topic)=>b+(Array.isArray(topic)?topic.length:0),0);
+        }, 0);
         if (cloudQCount > 0) {
             localStorage.setItem('megaLastKnownCount', cloudQCount.toString());
             localStorage.setItem('megaLastCloudSave', (data.savedAt || Date.now()).toString());
