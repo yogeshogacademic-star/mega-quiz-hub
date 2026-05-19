@@ -1145,7 +1145,7 @@
     </div>
 
 <script>
-    const CLOUD_URL = "https://script.google.com/macros/s/AKfycbx7ug3NMrKvepROPglLg2jDEx5OMw9rhnl6qo-qRZ0kWJ3B6v1kHBFxC5fkY_2ZzBg/exec";
+    const CLOUD_URL = "https://script.google.com/macros/s/AKfycbx8irWAKW2et9njlTExdqMrnhRop_nOKtWVmx-dNQPGB75xkRKcEcPHfBp7R_1k_uQ/exec";
     
     const CORE_SUBJECTS = ["Arithmetic", "Advanced Maths", "Reasoning", "English", "Ancient History", "Medieval History", "Modern History", "Art & Culture", "Geography", "Polity", "Economics", "Physics", "Chemistry", "Biology", "Environment & Ecology", "Science & Technology", "Static GK", "Current Affairs", "Computer Knowledge", "Calculation"];
     
@@ -1871,20 +1871,17 @@
 
         const payload = { subjects: SUBJECTS, db: cleanDb, history: historyDb, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, savedAt: nowTs };
         try {
-            const response = await fetch(CLOUD_URL, {
+            // Use no-cors for POST to avoid CORS block on Google's redirect
+            await fetch(CLOUD_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify(payload),
-                redirect: 'follow'
+                mode: 'no-cors'
             });
-            if(response.ok) {
-                showSyncStatus('synced');
-                localStorage.setItem('megaLastCloudSave', nowTs.toString());
-                localStorage.setItem('megaLastKnownCount', totalQLocal.toString());
-            } else {
-                console.error("Save failed HTTP:", response.status);
-                showSyncStatus('error');
-            }
+            // no-cors returns opaque response — assume success if no exception thrown
+            showSyncStatus('synced');
+            localStorage.setItem('megaLastCloudSave', nowTs.toString());
+            localStorage.setItem('megaLastKnownCount', totalQLocal.toString());
         } catch (error) {
             console.error("Cloud POST error:", error);
             showSyncStatus('error');
