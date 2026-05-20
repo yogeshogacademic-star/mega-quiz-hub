@@ -4200,230 +4200,500 @@ window.generateQuantNotes = () => {
 // Groups by Tag 2 (topic), deduplicates, renders Concept King style
 // ================================================================
 window.generateAdvMathsNotes = () => {
-    const TARGET_SUBJECTS = ["Advanced Maths"];
-    
-    // Tag 2 → display order & category color
-    const TOPIC_ORDER = [
-        "Number System", "Simplification", "Surds & Indices", "LCM & HCF",
-        "Algebra", "Trigonometry", "Height & Distance", "Geometry",
-        "Co-ordinate Geometry", "Polygon", "2D-Mensuration", "3D-Mensuration",
-        "Data Interpretation", "Miscellaneous"
-    ];
-    
-    const TOPIC_COLORS = {
-        "Algebra":           { h: "#7c3aed", bg: "#f5f3ff", border: "#7c3aed" },
-        "Trigonometry":      { h: "#0369a1", bg: "#e0f2fe", border: "#0369a1" },
-        "Height & Distance": { h: "#0369a1", bg: "#e0f2fe", border: "#0369a1" },
-        "Geometry":          { h: "#047857", bg: "#ecfdf5", border: "#047857" },
-        "2D-Mensuration":    { h: "#b45309", bg: "#fffbeb", border: "#b45309" },
-        "3D-Mensuration":    { h: "#b45309", bg: "#fffbeb", border: "#b45309" },
-        "Number System":     { h: "#dc2626", bg: "#fef2f2", border: "#dc2626" },
-        "Surds & Indices":   { h: "#dc2626", bg: "#fef2f2", border: "#dc2626" },
-        "LCM & HCF":         { h: "#dc2626", bg: "#fef2f2", border: "#dc2626" },
-        "DEFAULT":           { h: "#1d4ed8", bg: "#eff6ff", border: "#1d4ed8" },
-    };
 
-    // Collect formulaUsed per topic, deduplicate
-    let chapters = {}; // { topic: Map(formula -> {tag3, tag4, type}) }
-    let totalFound = 0;
+// ════════════════════════════════════════════════════════════════════
+// STANDARD CONCEPT KING FORMULA BOOK — Chapter-wise, not question-wise
+// Like a proper textbook: read → understand → apply to any question
+// ════════════════════════════════════════════════════════════════════
 
-    Object.values(db).forEach(quiz => {
-        if (!TARGET_SUBJECTS.includes(quiz.subject) || !quiz.questions) return;
-        quiz.questions.forEach(q => {
-            const tags = Array.isArray(q.tags) ? q.tags : [];
-            const topic = tags[1] || "Miscellaneous";
-            const concept = tags[2] || "";
-            const trap = tags[3] || "";
-            
-            // Get formula — try formulaUsed first, then formula field
-            let formula = (q.formulaUsed || q.formula || "").trim();
-            if (!formula) return;
-            
-            // Clean HTML tags from formula
-            formula = formula.replace(/<\/?b>/gi, "").replace(/<br\s*\/?>/gi, " | ").trim();
-            if (formula.length < 3) return;
-            
-            if (!chapters[topic]) chapters[topic] = new Map();
-            
-            if (!chapters[topic].has(formula)) {
-                // Determine block type
-                let blockType = "concept";
-                if (trap && (trap.includes("Trap") || trap.includes("Error") || trap.includes("Bouncer"))) {
-                    blockType = "trap";
-                } else if (concept && (concept.toLowerCase().includes("trick") || concept.toLowerCase().includes("shortcut"))) {
-                    blockType = "trick";
-                }
-                
-                chapters[topic].set(formula, { concept, trap, blockType });
-                totalFound++;
-            }
-        });
+const CHAPTERS = [
+
+// ─────────────────────────────────────────────────────
+{id:'num_sys', title:'Number System', emoji:'🔢', color:'#ef4444', dark:'#1a0505',
+sections:[
+  { type:'formula', head:'Types of Numbers',
+    body:`<b>Natural Numbers (N):</b> 1, 2, 3, 4... (counting numbers)<br>
+<b>Whole Numbers (W):</b> 0, 1, 2, 3... (natural + zero)<br>
+<b>Integers (Z):</b> ...−3, −2, −1, 0, 1, 2, 3... (negative + whole)<br>
+<b>Rational Numbers:</b> p/q form where q≠0 (includes fractions, terminating & recurring decimals)<br>
+<b>Irrational Numbers:</b> Non-terminating non-recurring (√2, π, e)<br>
+<b>Real Numbers:</b> All rational + irrational numbers` },
+  { type:'formula', head:'Divisibility Rules',
+    body:`<b>By 2:</b> Last digit even (0,2,4,6,8)<br>
+<b>By 3:</b> Sum of digits divisible by 3<br>
+<b>By 4:</b> Last 2 digits divisible by 4<br>
+<b>By 5:</b> Last digit 0 or 5<br>
+<b>By 6:</b> Divisible by both 2 and 3<br>
+<b>By 8:</b> Last 3 digits divisible by 8<br>
+<b>By 9:</b> Sum of digits divisible by 9<br>
+<b>By 11:</b> (Sum of odd-position digits) − (Sum of even-position digits) = 0 or multiple of 11<br>
+<b>By 12:</b> Divisible by both 3 and 4` },
+  { type:'shortcut', head:'Unit Digit Patterns',
+    body:`<b>Cyclicity of unit digits in powers:</b><br>
+2: cycle 2,4,8,6 (period 4) | 3: cycle 3,9,7,1 (period 4)<br>
+4: cycle 4,6 (period 2) | 7: cycle 7,9,3,1 (period 4)<br>
+8: cycle 8,4,2,6 (period 4) | 9: cycle 9,1 (period 2)<br>
+0,1,5,6 → always end in same digit<br><br>
+<b>Trick:</b> Find remainder when power ÷ cycle length. Use that position.` },
+  { type:'formula', head:'LCM & HCF',
+    body:`<b>HCF × LCM = Product of two numbers</b> (only for exactly 2 numbers)<br>
+<b>HCF</b> divides all numbers | <b>LCM</b> is divisible by all numbers<br><br>
+<b>For fractions:</b><br>
+LCM = LCM of numerators / HCF of denominators<br>
+HCF = HCF of numerators / LCM of denominators<br><br>
+<b>Application:</b> Largest number that divides a,b,c leaving remainder r = HCF(a−r, b−r, c−r)` },
+  { type:'trap', head:'Common Traps',
+    body:`❌ HCF × LCM = product only works for 2 numbers, NOT 3 or more<br>
+❌ "Largest divisor" questions → use HCF, not LCM<br>
+❌ "Smallest number divisible by all" → use LCM, not HCF` }
+]},
+
+// ─────────────────────────────────────────────────────
+{id:'surds', title:'Surds & Indices', emoji:'√', color:'#dc2626', dark:'#1a0303',
+sections:[
+  { type:'formula', head:'Laws of Indices',
+    body:`aᵐ × aⁿ = aᵐ⁺ⁿ<br>
+aᵐ ÷ aⁿ = aᵐ⁻ⁿ<br>
+(aᵐ)ⁿ = aᵐⁿ<br>
+(ab)ⁿ = aⁿbⁿ<br>
+a⁰ = 1 (a ≠ 0)<br>
+a⁻ⁿ = 1/aⁿ<br>
+a^(1/n) = ⁿ√a<br>
+a^(m/n) = ⁿ√(aᵐ)` },
+  { type:'formula', head:'Surds — Rationalisation',
+    body:`<b>Conjugate of (a + √b) = (a − √b)</b><br><br>
+1/(√a + √b) = (√a − √b)/(a − b)<br>
+1/(√a − √b) = (√a + √b)/(a − b)<br><br>
+<b>Comparison of surds:</b> Convert to same power then compare<br>
+√2 = 2^(1/2), ∛3 = 3^(1/3) → convert to 6th power: 2³=8 vs 3²=9 → ∛3 > √2` },
+  { type:'shortcut', head:'Key Values to Memorise',
+    body:`√2 = 1.414 | √3 = 1.732 | √5 = 2.236 | √6 = 2.449<br>
+√7 = 2.646 | √10 = 3.162 | √11 = 3.317<br>
+∛2 = 1.26 | ∛3 = 1.44 | ∛4 = 1.587` }
+]},
+
+// ─────────────────────────────────────────────────────
+{id:'algebra', title:'Algebra', emoji:'📊', color:'#7c3aed', dark:'#150820',
+sections:[
+  { type:'formula', head:'Key Algebraic Identities',
+    body:`(a+b)² = a²+2ab+b²<br>
+(a−b)² = a²−2ab+b²<br>
+(a+b)(a−b) = a²−b²<br>
+(a+b)³ = a³+3a²b+3ab²+b³<br>
+(a−b)³ = a³−3a²b+3ab²−b³<br>
+a³+b³ = (a+b)(a²−ab+b²)<br>
+a³−b³ = (a−b)(a²+ab+b²)<br>
+<b>a³+b³+c³−3abc = (a+b+c)(a²+b²+c²−ab−bc−ca)</b><br>
+<b>If a+b+c=0 → a³+b³+c³ = 3abc</b>` },
+  { type:'shortcut', head:'x + 1/x Chain Formulas',
+    body:`If <b>x + 1/x = k</b>, then:<br>
+x² + 1/x² = k² − 2<br>
+x³ + 1/x³ = k³ − 3k = k(k²−3)<br>
+x⁴ + 1/x⁴ = (x²+1/x²)² − 2<br><br>
+If <b>x − 1/x = k</b>, then:<br>
+x² + 1/x² = k² + 2<br>
+x³ − 1/x³ = k³ + 3k` },
+  { type:'formula', head:'Quadratic Equations',
+    body:`ax²+bx+c = 0<br>
+Roots: x = [−b ± √(b²−4ac)] / 2a<br><br>
+<b>Sum of roots</b> α+β = −b/a<br>
+<b>Product of roots</b> αβ = c/a<br><br>
+<b>Nature of roots (Discriminant D = b²−4ac):</b><br>
+D > 0 → two distinct real roots<br>
+D = 0 → two equal real roots<br>
+D < 0 → no real roots (imaginary)` },
+  { type:'shortcut', head:'Remainder Theorem',
+    body:`When f(x) divided by (x−a), remainder = f(a)<br>
+When f(x) divided by (x+a), remainder = f(−a)<br><br>
+<b>Factor Theorem:</b> (x−a) is factor of f(x) if and only if f(a) = 0` }
+]},
+
+// ─────────────────────────────────────────────────────
+{id:'trig', title:'Trigonometry', emoji:'📐', color:'#0284c7', dark:'#001525',
+sections:[
+  { type:'formula', head:'Ratios & Basic Definitions',
+    body:`<b>SOHCAHTOA:</b> sin=P/H | cos=B/H | tan=P/B<br>
+cosec=H/P | sec=H/B | cot=B/P<br><br>
+tan θ = sin θ/cos θ | cot θ = cos θ/sin θ<br>
+cosec θ = 1/sin θ | sec θ = 1/cos θ | cot θ = 1/tan θ` },
+  { type:'formula', head:'Standard Values Table',
+    body:`<table style="width:100%;border-collapse:collapse;font-size:12px">
+<tr style="background:#1e3a5f;color:#7dd3fc"><td style="padding:4px 8px">θ</td><td>0°</td><td>30°</td><td>45°</td><td>60°</td><td>90°</td></tr>
+<tr style="background:#0d1117"><td style="padding:4px 8px;color:#94a3b8">sin</td><td>0</td><td>1/2</td><td>1/√2</td><td>√3/2</td><td>1</td></tr>
+<tr style="background:#0f172a"><td style="padding:4px 8px;color:#94a3b8">cos</td><td>1</td><td>√3/2</td><td>1/√2</td><td>1/2</td><td>0</td></tr>
+<tr style="background:#0d1117"><td style="padding:4px 8px;color:#94a3b8">tan</td><td>0</td><td>1/√3</td><td>1</td><td>√3</td><td>∞</td></tr>
+</table>
+<br><b>Memory trick:</b> sin values = √0/2, √1/2, √2/2, √3/2, √4/2 = 0, 1/2, 1/√2, √3/2, 1` },
+  { type:'formula', head:'Pythagorean Identities',
+    body:`<b>sin²θ + cos²θ = 1</b><br>
+1 + tan²θ = sec²θ  →  sec²θ − tan²θ = 1<br>
+1 + cot²θ = cosec²θ  →  cosec²θ − cot²θ = 1<br><br>
+<b>Derived:</b><br>
+(secθ + tanθ)(secθ − tanθ) = 1<br>
+(cosecθ + cotθ)(cosecθ − cotθ) = 1` },
+  { type:'formula', head:'Compound & Double Angle',
+    body:`sin(A±B) = sinA cosB ± cosA sinB<br>
+cos(A±B) = cosA cosB ∓ sinA sinB<br>
+tan(A+B) = (tanA+tanB)/(1−tanA tanB)<br><br>
+sin 2A = 2 sinA cosA<br>
+cos 2A = cos²A − sin²A = 1−2sin²A = 2cos²A−1<br>
+tan 2A = 2tanA/(1−tan²A)` },
+  { type:'shortcut', head:'ASTC Rule (Quadrants)',
+    body:`<b>All Students Take Calculus</b><br>
+Q1 (0°−90°): <b>All</b> positive<br>
+Q2 (90°−180°): <b>Sin</b> positive (cos,tan negative)<br>
+Q3 (180°−270°): <b>Tan</b> positive (sin,cos negative)<br>
+Q4 (270°−360°): <b>Cos</b> positive (sin,tan negative)` }
+]},
+
+// ─────────────────────────────────────────────────────
+{id:'height', title:'Height & Distance', emoji:'📏', color:'#0369a1', dark:'#001020',
+sections:[
+  { type:'formula', head:'Core Formulas',
+    body:`<b>Angle of Elevation:</b> Looking UP from horizontal to object<br>
+<b>Angle of Depression:</b> Looking DOWN from height to object<br><br>
+<b>tan(angle of elevation) = Height / Horizontal distance</b><br>
+Height = Distance × tan θ<br>
+Distance = Height / tan θ<br><br>
+<b>Angle of depression from top = Angle of elevation from bottom</b> (alternate angles)` },
+  { type:'shortcut', head:'Key Cases',
+    body:`<b>Two poles problem:</b> If two poles of heights h₁,h₂ separated by d, a wire makes angles α,β at base:<br>
+Point of intersection height = h₁h₂/(h₁+h₂)<br><br>
+<b>Same object from two positions:</b><br>
+Object height h, observed from A (angle α) and B (angle β), A and B separated by d:<br>
+h = d·tanα·tanβ/(tanα−tanβ)  [B closer to object]` },
+  { type:'trap', head:'Common Mistakes',
+    body:`❌ Angle of depression ≠ angle at which object is below you — it's measured from horizontal<br>
+❌ When angle doubles, height does NOT double (tan is nonlinear)<br>
+❌ Always draw the figure before solving — most errors are conceptual` }
+]},
+
+// ─────────────────────────────────────────────────────
+{id:'geometry', title:'Geometry', emoji:'📐', color:'#047857', dark:'#001a0a',
+sections:[
+  { type:'formula', head:'Triangle — Basics',
+    body:`<b>Angle sum = 180°</b><br>
+Area = ½ × base × height<br>
+<b>Heron's formula:</b> A = √(s(s−a)(s−b)(s−c)) where s = (a+b+c)/2<br><br>
+<b>Equilateral triangle (side a):</b><br>
+Height = (√3/2)a | Area = (√3/4)a²<br>
+Inradius = a/2√3 = a/(2√3) | Circumradius = a/√3<br><br>
+<b>Exterior angle</b> = sum of two non-adjacent interior angles` },
+  { type:'formula', head:'Triangle — Special Points',
+    body:`<b>Centroid (G):</b> Intersection of medians. Divides each median 2:1 from vertex<br>
+Centroid = ((x₁+x₂+x₃)/3, (y₁+y₂+y₃)/3)<br><br>
+<b>Incentre (I):</b> Intersection of angle bisectors. Centre of inscribed circle<br>
+Inradius r = Area/s (s = semi-perimeter)<br><br>
+<b>Circumcentre (O):</b> Intersection of perpendicular bisectors. Centre of circumscribed circle<br>
+Circumradius R = abc/(4×Area)<br><br>
+<b>Orthocentre (H):</b> Intersection of altitudes<br><br>
+In equilateral triangle: G = I = O = H` },
+  { type:'formula', head:'Circle Theorems',
+    body:`<b>Angle in semicircle = 90°</b> (Thales theorem)<br>
+Angle at centre = 2 × angle at circumference (same arc)<br>
+Angles in same segment are equal<br><br>
+<b>Tangent:</b> ⊥ to radius at point of contact<br>
+Two tangents from external point are equal in length<br><br>
+<b>Tangent lengths:</b><br>
+Direct Common Tangent (DCT) = √(d²−(r₁−r₂)²)<br>
+Transverse Common Tangent (TCT) = √(d²−(r₁+r₂)²)<br>
+(d = distance between centres)` },
+  { type:'formula', head:'Similar Triangles',
+    body:`If △ABC ~ △DEF, then:<br>
+Corresponding sides proportional: a/d = b/e = c/f = k<br>
+Ratio of areas = k² (square of side ratio)<br>
+Ratio of perimeters = k<br><br>
+<b>Basic Proportionality Theorem (BPT):</b><br>
+If DE ∥ BC in △ABC: AD/DB = AE/EC<br><br>
+<b>Mid-point theorem:</b> Line joining midpoints of two sides = ½ × third side and parallel to it` },
+  { type:'shortcut', head:'Pythagorean Triplets',
+    body:`(3,4,5) | (5,12,13) | (8,15,17) | (7,24,25)<br>
+(9,40,41) | (11,60,61) | (6,8,10) | (10,24,26)<br>
+(12,16,20) | (20,21,29) | (28,45,53)<br><br>
+<b>Generate:</b> For odd n: (n, (n²−1)/2, (n²+1)/2)<br>
+For even n: (n, n²/4−1, n²/4+1)` }
+]},
+
+// ─────────────────────────────────────────────────────
+{id:'2d', title:'2D Mensuration', emoji:'⬛', color:'#b45309', dark:'#1a0e00',
+sections:[
+  { type:'formula', head:'Area & Perimeter',
+    body:`<b>Square (side a):</b> Area=a² | Perimeter=4a | Diagonal=a√2<br>
+<b>Rectangle (L×B):</b> Area=L×B | Perimeter=2(L+B) | Diagonal=√(L²+B²)<br>
+<b>Parallelogram:</b> Area=base×height | Also=ab×sinθ<br>
+<b>Rhombus:</b> Area=½d₁d₂ | Side²=(d₁/2)²+(d₂/2)²<br>
+<b>Trapezium:</b> Area=½×(a+b)×h (a,b=parallel sides)<br>
+<b>Triangle:</b> Area=½bh | Heron's = √(s(s−a)(s−b)(s−c))<br>` },
+  { type:'formula', head:'Circle',
+    body:`<b>Circle (radius r):</b><br>
+Area = πr² | Circumference = 2πr<br>
+Sector area = (θ/360°) × πr²<br>
+Arc length = (θ/360°) × 2πr<br>
+Segment area = Sector area − Triangle area<br><br>
+<b>Ring (outer R, inner r):</b> Area = π(R²−r²)` },
+  { type:'formula', head:'Regular Polygon (n sides, side a)',
+    body:`Sum of interior angles = (n−2) × 180°<br>
+Each interior angle = (n−2)×180°/n<br>
+Each exterior angle = 360°/n<br>
+Number of diagonals = n(n−3)/2<br>
+Area = (na²/4) × cot(π/n)` },
+  { type:'shortcut', head:'Effect of % Change on Area',
+    body:`Side increases by x% → Area increases by: <b>(2x + x²/100)%</b><br>
+Side decreases by x% → Area decreases by: (2x − x²/100)%<br><br>
+<b>Rectangle:</b> L increases by a%, B increases by b% → Area change = (a+b+ab/100)%` }
+]},
+
+// ─────────────────────────────────────────────────────
+{id:'3d', title:'3D Mensuration', emoji:'🧊', color:'#d97706', dark:'#1a0f00',
+sections:[
+  { type:'formula', head:'Cube & Cuboid',
+    body:`<b>Cube (side a):</b><br>
+Volume=a³ | TSA=6a² | LSA=4a²<br>
+Face diagonal=a√2 | Main diagonal=a√3<br>
+Sum of all edges=12a<br><br>
+<b>Cuboid (L×B×H):</b><br>
+Volume=LBH | TSA=2(LB+BH+LH) | LSA=2H(L+B)<br>
+Main diagonal=√(L²+B²+H²)` },
+  { type:'formula', head:'Cylinder',
+    body:`<b>Cylinder (radius r, height h):</b><br>
+Volume = πr²h<br>
+CSA = 2πrh = Circumference × h<br>
+TSA = 2πr(r+h)<br>
+TSA/CSA = (r+h)/h<br><br>
+<b>Key relations:</b><br>
+r = 2V/CSA | h = CSA/(2πr)<br>
+Volume = Base Area × h` },
+  { type:'formula', head:'Cone',
+    body:`<b>Cone (radius r, height h, slant l):</b><br>
+l = √(r²+h²)<br>
+Volume = ⅓πr²h<br>
+CSA = πrl<br>
+TSA = πr(r+l)<br><br>
+<b>Key relations:</b><br>
+h from CSA: l = CSA/(πr), h = √(l²−r²)<br>
+V_cone : V_cylinder = 1:3 (same base and height)` },
+  { type:'formula', head:'Sphere & Hemisphere',
+    body:`<b>Sphere (radius r):</b><br>
+Volume = (4/3)πr³ | Surface Area = 4πr²<br><br>
+<b>Hemisphere (radius r):</b><br>
+Volume = (2/3)πr³<br>
+CSA = 2πr² | TSA = 3πr²<br><br>
+<b>Hollow sphere (R outer, r inner):</b><br>
+Volume of material = (4/3)π(R³−r³)` },
+  { type:'formula', head:'Frustum of Cone',
+    body:`<b>Frustum (R=big radius, r=small radius, h=height):</b><br>
+Slant height l = √(h²+(R−r)²)<br>
+Volume = πh/3 × (R²+r²+Rr)<br>
+CSA = π(R+r)l<br>
+TSA = π(R+r)l + π(R²+r²)<br><br>
+<b>When cut parallel to base:</b><br>
+r_small/r_big = h_small/H (similar triangles)<br>
+V_small/V_big = (h_small/H)³` },
+  { type:'shortcut', head:'Sector → Cone Conversion',
+    body:`When sector folded into cone:<br>
+<b>Sector radius = Slant height of cone</b><br>
+<b>Arc length = Base circumference of cone</b><br><br>
+Arc = (θ/360°) × 2πR = 2πr_cone<br>
+→ r_cone = θR/360<br>
+→ h_cone = √(R²−r_cone²)<br><br>
+CSA of cone = Area of sector = (θ/360°)πR²` },
+  { type:'shortcut', head:'Triangle Rotation → Cone',
+    body:`Right triangle rotated 360° about one leg:<br>
+<b>That leg = height of cone</b><br>
+<b>Other leg = radius of cone</b><br>
+<b>Hypotenuse = slant height</b><br><br>
+Key triplets: 3,4,5 | 5,12,13 | 8,15,17 | 7,24,25 | 9,40,41` },
+  { type:'formula', head:'Volume Equivalence (Melting & Recasting)',
+    body:`<b>Golden Rule: Volume never changes when melting</b><br><br>
+Sphere → n cones: (4/3)πR³ = n × ⅓πr²h<br>
+Cylinder → cone: πR²H = ⅓πr²h<br>
+n small = V_big / V_small<br><br>
+<b>Well + Embankment:</b><br>
+Volume dug = Volume of ring embankment<br>
+πr²h = π(R²−r²)×H` },
+  { type:'trap', head:'Top Traps in 3D Mensuration',
+    body:`⚠️ <b>Diameter given ≠ radius</b> — always halve<br>
+⚠️ <b>Units mismatch</b> — convert cm↔m BEFORE calculating<br>
+⚠️ <b>Volume ratio:</b> radius is SQUARED, height is linear<br>
+⚠️ <b>Open tank wet surface</b> = CSA + 1 base (not TSA)<br>
+⚠️ <b>Containers:</b> always round UP number of containers<br>
+⚠️ π = 22/7 when numbers are multiples of 7, else use 3.14` }
+]},
+
+// ─────────────────────────────────────────────────────
+{id:'coord', title:'Co-ordinate Geometry', emoji:'📍', color:'#0891b2', dark:'#001520',
+sections:[
+  { type:'formula', head:'Distance & Section Formulas',
+    body:`<b>Distance</b> between (x₁,y₁) and (x₂,y₂):<br>
+d = √((x₂−x₁)²+(y₂−y₁)²)<br><br>
+<b>Mid-point:</b> ((x₁+x₂)/2, (y₁+y₂)/2)<br><br>
+<b>Section formula</b> (divides in ratio m:n internally):<br>
+x = (mx₂+nx₁)/(m+n), y = (my₂+ny₁)/(m+n)<br><br>
+<b>Centroid of triangle:</b> ((x₁+x₂+x₃)/3, (y₁+y₂+y₃)/3)` },
+  { type:'formula', head:'Straight Line',
+    body:`<b>Slope</b> m = (y₂−y₁)/(x₂−x₁) = tan θ<br><br>
+<b>Forms of line:</b><br>
+Slope-intercept: y = mx + c (c = y-intercept)<br>
+Two-point: (y−y₁)/(y₂−y₁) = (x−x₁)/(x₂−x₁)<br>
+Intercept form: x/a + y/b = 1<br><br>
+<b>Parallel lines:</b> same slope (m₁ = m₂)<br>
+<b>Perpendicular lines:</b> m₁ × m₂ = −1<br><br>
+Distance from point (x₁,y₁) to line ax+by+c=0:<br>
+d = |ax₁+by₁+c|/√(a²+b²)` }
+]},
+
+// ─────────────────────────────────────────────────────
+{id:'polygon', title:'Polygon', emoji:'⬠', color:'#7c3aed', dark:'#0f0520',
+sections:[
+  { type:'formula', head:'Regular Polygon Properties',
+    body:`<b>n-sided regular polygon:</b><br>
+Sum of interior angles = (n−2)×180°<br>
+Each interior angle = (n−2)×180°/n<br>
+Each exterior angle = 360°/n<br>
+Sum of exterior angles = 360° (always)<br>
+Number of diagonals = n(n−3)/2<br><br>
+<b>Key polygons:</b><br>
+Triangle(3): 60° | Square(4): 90° | Pentagon(5): 108°<br>
+Hexagon(6): 120° | Octagon(8): 135° | Decagon(10): 144°` },
+  { type:'formula', head:'Regular Hexagon (side a)',
+    body:`Area = (3√3/2)a²<br>
+Perimeter = 6a<br>
+Short diagonal = a√3 (= diameter of inscribed circle×√3... no: = 2×apothem)<br>
+Long diagonal = 2a<br>
+Apothem (inradius) = (√3/2)a<br>
+Circumradius = a` }
+]},
+
+// ─────────────────────────────────────────────────────
+{id:'di', title:'Data Interpretation', emoji:'📊', color:'#0284c7', dark:'#001525',
+sections:[
+  { type:'formula', head:'Core DI Formulas',
+    body:`<b>% of total:</b> (part/total) × 100<br>
+<b>% change:</b> (new−old)/old × 100<br>
+<b>% increase:</b> positive value | <b>% decrease:</b> negative value<br><br>
+<b>Average:</b> Sum / Count<br>
+<b>Weighted average:</b> Σ(value×weight) / Σ(weights)<br><br>
+<b>Ratio comparison:</b> a:b vs c:d → cross multiply (ad vs bc)` },
+  { type:'shortcut', head:'Approximation Tricks',
+    body:`<b>Quick % calculations:</b><br>
+10% → divide by 10 | 5% → half of 10%<br>
+1% → divide by 100 | 33.33% → divide by 3<br>
+25% → divide by 4 | 12.5% → divide by 8<br><br>
+<b>For fractions > compare:</b> a/b vs c/d<br>
+If a/b > 1 and c/d > 1: whichever is closer to 1 is smaller` }
+]}
+
+]; // END CHAPTERS
+
+// ── Build HTML ──────────────────────────────────────────────────────
+let totalFormulas = 0;
+CHAPTERS.forEach(ch => { totalFormulas += ch.sections.length; });
+
+let navHTML = '';
+let bodyHTML = '';
+
+CHAPTERS.forEach(ch => {
+    navHTML += `<a onclick="document.getElementById('ck-${ch.id}').scrollIntoView({behavior:'smooth'})" style="display:inline-flex;align-items:center;gap:6px;background:${ch.dark};color:${ch.color};border:1.5px solid ${ch.color}50;padding:5px 14px;border-radius:999px;font-size:10px;font-weight:800;text-decoration:none;white-space:nowrap;cursor:pointer;transition:all 0.2s;font-family:'Open Sans',sans-serif" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">${ch.emoji} ${ch.title}</a>`;
+
+    bodyHTML += `<div id="ck-${ch.id}" style="margin-bottom:40px;border-radius:20px;overflow:hidden;border:1px solid #1e293b;box-shadow:0 4px 24px rgba(0,0,0,0.3)">
+    <div style="padding:20px 28px;background:linear-gradient(135deg,${ch.dark},${ch.dark}cc);border-bottom:2.5px solid ${ch.color}60;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden">
+        <div style="position:absolute;right:16px;top:-10px;font-size:90px;opacity:0.06;pointer-events:none">${ch.emoji}</div>
+        <div style="font-size:32px">${ch.emoji}</div>
+        <div>
+            <div style="font-family:'Open Sans',sans-serif;font-size:22px;font-weight:900;color:${ch.color};letter-spacing:0.02em">${ch.title}</div>
+            <div style="font-size:11px;color:${ch.color}70;font-family:'Open Sans',sans-serif;font-weight:700;margin-top:2px">${ch.sections.length} concepts</div>
+        </div>
+    </div>`;
+
+    ch.sections.forEach(sec => {
+        const isTrap = sec.type === 'trap';
+        const isShortcut = sec.type === 'shortcut';
+        const borderCol = isTrap ? '#ef4444' : isShortcut ? '#f59e0b' : ch.color;
+        const bgCol = isTrap ? '#1a0505' : isShortcut ? '#1a1000' : '#0d1117';
+        const labelCol = isTrap ? '#ef4444' : isShortcut ? '#f59e0b' : ch.color;
+        const labelText = isTrap ? '⚠️ TRAP / WARNING' : isShortcut ? '⚡ SHORTCUT / TRICK' : '📌 FORMULA';
+
+        bodyHTML += `<div style="border-bottom:1px solid #1e293b;padding:20px 28px;background:${bgCol};border-left:4px solid ${borderCol}">
+        <div style="font-family:'Open Sans',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;color:${labelCol};margin-bottom:10px">${labelText}</div>
+        <div style="font-family:'Open Sans',sans-serif;font-size:12px;font-weight:900;color:#e2e8f0;margin-bottom:10px;letter-spacing:0.03em">${sec.head}</div>
+        <div style="font-family:'Merriweather',serif;font-size:13.5px;color:#cbd5e1;line-height:1.85">${sec.body}</div>
+    </div>`;
     });
 
-    if (totalFound === 0) {
-        alert("No formulas found in Advanced Maths! Make sure your quiz JSONs have the 'formulaUsed' field filled.");
-        return;
-    }
+    bodyHTML += `</div>`;
+});
 
-    // Sort topics by preferred order
-    const sortedTopics = Object.keys(chapters).sort((a, b) => {
-        const ia = TOPIC_ORDER.indexOf(a), ib = TOPIC_ORDER.indexOf(b);
-        if (ia === -1 && ib === -1) return a.localeCompare(b);
-        if (ia === -1) return 1;
-        if (ib === -1) return -1;
-        return ia - ib;
-    });
-
-    // Build HTML
-    let contentHTML = '';
-    sortedTopics.forEach(topic => {
-        const formulaMap = chapters[topic];
-        if (formulaMap.size === 0) return;
-        
-        const colors = TOPIC_COLORS[topic] || TOPIC_COLORS["DEFAULT"];
-        
-        contentHTML += `
-        <div class="chapter-block">
-            <div class="chapter-header" style="background:${colors.h}">
-                <span class="chapter-icon">📐</span>
-                <span>${topic}</span>
-                <span class="chapter-count">${formulaMap.size} formulas</span>
-            </div>
-            <div class="formulas-grid">`;
-        
-        formulaMap.forEach((meta, formula) => {
-            const isTrick = meta.blockType === "trick";
-            const isTrap  = meta.blockType === "trap";
-            const blockClass = isTrap ? "formula-block trap-block" : isTrick ? "formula-block trick-block" : "formula-block concept-block";
-            const icon = isTrap ? "⚠️" : isTrick ? "⚡" : "📌";
-            const label = isTrap ? "TRAP" : isTrick ? "TRICK" : "FORMULA";
-            const labelColor = isTrap ? "#dc2626" : isTrick ? "#d97706" : colors.h;
-            
-            let extra = '';
-            if (meta.concept) extra += `<div class="meta-tag concept-tag">${meta.concept}</div>`;
-            if (meta.trap)    extra += `<div class="meta-tag trap-tag">${meta.trap}</div>`;
-            
-            contentHTML += `
-            <div class="${blockClass}" style="border-left-color:${labelColor}">
-                <div class="block-label" style="color:${labelColor}">${icon} ${label}</div>
-                <div class="formula-text">${formula}</div>
-                ${extra ? `<div class="meta-row">${extra}</div>` : ''}
-            </div>`;
-        });
-        
-        contentHTML += `</div></div>`;
-    });
-
-    // Build full HTML document — Concept King style
-    const html = `<!DOCTYPE html>
+const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Advanced Maths — Concept King Formula Book</title>
-<script>
-window.MathJax = {
-    tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
-    startup: { pageReady: () => MathJax.startup.defaultPageReady() }
-};
-<\/script>
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async><\/script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Open+Sans:wght@600;700;800;900&display=swap" rel="stylesheet">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;1,400&family=Open+Sans:wght@600;700;800&display=swap');
-
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Merriweather',serif;background:#f0f9ff;color:#111;line-height:1.65;padding:0}
-
-/* ── TOP HEADER ── */
-.book-header{background:linear-gradient(135deg,#0e7490,#0369a1,#1d4ed8);color:#fff;padding:36px 48px;text-align:center;position:relative;overflow:hidden}
-.book-header::before{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")}
-.header-crown{font-size:52px;margin-bottom:8px;display:block;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.3))}
-.header-title{font-family:'Open Sans',sans-serif;font-size:2.6em;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;text-shadow:0 2px 8px rgba(0,0,0,0.2)}
-.header-sub{font-size:1.1em;opacity:0.85;margin-top:6px;font-style:italic}
-.header-pills{display:flex;justify-content:center;gap:10px;margin-top:16px;flex-wrap:wrap}
-.header-pill{background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4);padding:4px 16px;border-radius:999px;font-family:'Open Sans',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase}
-.header-stats{margin-top:18px;font-size:13px;opacity:0.75;font-family:'Open Sans',sans-serif}
-.print-btn{display:inline-block;margin-top:18px;padding:10px 28px;background:#fff;color:#0369a1;font-family:'Open Sans',sans-serif;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;border:none;border-radius:8px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.2);transition:all 0.2s}
-.print-btn:hover{transform:translateY(-2px);box-shadow:0 4px 20px rgba(0,0,0,0.3)}
-
-/* ── BODY ── */
-.book-body{padding:32px 40px;max-width:1300px;margin:0 auto}
-
-/* ── CHAPTER BLOCK ── */
-.chapter-block{margin-bottom:36px;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.07);break-inside:avoid}
-.chapter-header{color:#fff;padding:13px 22px;display:flex;align-items:center;gap:10px;font-family:'Open Sans',sans-serif;font-weight:800;font-size:15px;letter-spacing:0.04em;text-transform:uppercase}
-.chapter-icon{font-size:18px}
-.chapter-count{margin-left:auto;background:rgba(255,255,255,0.25);padding:2px 10px;border-radius:999px;font-size:11px;font-weight:700}
-.formulas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));background:#fff;border:1px solid #e2e8f0;border-top:none}
-
-/* ── FORMULA BLOCK ── */
-.formula-block{padding:14px 16px;border-left:4px solid;border-bottom:1px solid #f1f5f9;background:#fff;transition:background 0.15s}
-.formula-block:hover{background:#f8fafc}
-.concept-block{border-left-color:#0284c7;background:#f0f9ff}
-.trap-block{border-left-color:#dc2626;background:#fef2f2}
-.trick-block{border-left-color:#d97706;background:#fffbeb}
-.block-label{font-family:'Open Sans',sans-serif;font-size:9px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px}
-.formula-text{font-family:'Merriweather',serif;font-size:13px;color:#1e293b;line-height:1.7;font-weight:400}
-.formula-text b,.formula-text strong{color:#0369a1;font-weight:700}
-.trap-block .formula-text b,.trap-block .formula-text strong{color:#dc2626}
-.trick-block .formula-text b,.trick-block .formula-text strong{color:#d97706}
-.meta-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
-.meta-tag{font-family:'Open Sans',sans-serif;font-size:9px;font-weight:700;padding:2px 8px;border-radius:999px}
-.concept-tag{background:#dbeafe;color:#1d4ed8}
-.trap-tag{background:#fee2e2;color:#b91c1c}
-
-/* ── LEGEND ── */
-.legend{display:flex;gap:16px;padding:14px 40px;background:#fff;border-bottom:1px solid #e2e8f0;font-family:'Open Sans',sans-serif;font-size:11px;font-weight:700}
-.legend-item{display:flex;align-items:center;gap:6px}
-.legend-dot{width:12px;height:12px;border-radius:2px}
-
-/* ── PRINT ── */
+body{background:#080d1a;color:#e2e8f0;font-family:'Open Sans',sans-serif}
+table{border-collapse:collapse}
+td{padding:5px 10px;border:1px solid #1e3a5f}
 @media print{
-    .print-btn{display:none}
-    body{background:#fff}
-    .book-header{background:linear-gradient(135deg,#0e7490,#0369a1) !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .chapter-header{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .concept-block,.trap-block,.trick-block{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .formulas-grid{grid-template-columns:repeat(2,1fr)}
+  .no-print{display:none!important}
+  body{background:#fff;color:#111}
+  div[style*="background:#0d1117"]{background:#f8fafc!important;color:#111!important}
+  div[style*="background:#1a0505"]{background:#fff5f5!important}
+  div[style*="background:#1a1000"]{background:#fffbeb!important}
 }
-@media(max-width:700px){.formulas-grid{grid-template-columns:1fr}.book-body{padding:16px}}
+@media(max-width:600px){
+  div[style*="padding:20px 28px"]{padding:14px 16px!important}
+}
 </style>
 </head>
 <body>
 
-<div class="book-header">
-    <span class="header-crown">👑</span>
-    <div class="header-title">Advanced Maths — Concept King</div>
-    <div class="header-sub">All Formulas · Smart Tricks · SSC CGL Traps</div>
-    <div class="header-pills">
-        <span class="header-pill">Auto-Generated from Your Questions</span>
-        <span class="header-pill">${totalFound} Formulas</span>
-        <span class="header-pill">${sortedTopics.length} Topics</span>
+<!-- HEADER -->
+<div style="background:linear-gradient(135deg,#0e7490,#1d4ed8,#7c3aed);padding:36px 40px;text-align:center;position:relative;overflow:hidden">
+  <div style="position:absolute;inset:0;background-image:radial-gradient(circle at 20% 50%,rgba(99,102,241,0.2),transparent 60%),radial-gradient(circle at 80% 50%,rgba(14,116,144,0.2),transparent 60%)"></div>
+  <div style="position:relative">
+    <div style="font-size:48px;margin-bottom:8px">👑</div>
+    <div style="font-family:'Open Sans',sans-serif;font-size:28px;font-weight:900;letter-spacing:0.06em;text-transform:uppercase;color:#fff">Advanced Maths</div>
+    <div style="font-family:'Open Sans',sans-serif;font-size:20px;font-weight:900;color:#7dd3fc;margin-top:4px">Concept King — Formula Book</div>
+    <div style="color:rgba(255,255,255,0.6);font-size:13px;margin-top:10px">Complete chapter-wise formulas · Shortcuts · Traps · SSC CGL Ready</div>
+    <div style="display:flex;justify-content:center;gap:10px;margin-top:16px;flex-wrap:wrap">
+      <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);padding:4px 14px;border-radius:999px;font-size:11px;font-weight:700">${CHAPTERS.length} Chapters</span>
+      <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);padding:4px 14px;border-radius:999px;font-size:11px;font-weight:700">${totalFormulas} Formula Blocks</span>
+      <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);padding:4px 14px;border-radius:999px;font-size:11px;font-weight:700">SSC CGL · CHSL · CPO · RRB</span>
     </div>
-    <div class="header-stats">SSC CGL · CHSL · CPO · RRB NTPC · All Competitive Exams</div>
-    <button class="print-btn no-print" onclick="window.print()">🖨️ Save as PDF</button>
+    <button class="no-print" onclick="window.print()" style="margin-top:18px;padding:10px 28px;background:#fff;color:#1d4ed8;font-family:'Open Sans',sans-serif;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;border:none;border-radius:8px;cursor:pointer">🖨️ Save as PDF</button>
+  </div>
 </div>
 
-<div class="legend no-print">
-    <div class="legend-item"><div class="legend-dot" style="background:#0284c7"></div> Formula / Concept</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#d97706"></div> Smart Trick / Shortcut</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#dc2626"></div> SSC Trap / Warning</div>
+<!-- LEGEND -->
+<div class="no-print" style="display:flex;gap:20px;padding:12px 40px;background:#0d1117;border-bottom:1px solid #1e293b;flex-wrap:wrap">
+  <div style="display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700"><span style="width:14px;height:14px;border-radius:3px;background:#0284c7;display:inline-block"></span>📌 Formula</div>
+  <div style="display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700"><span style="width:14px;height:14px;border-radius:3px;background:#f59e0b;display:inline-block"></span>⚡ Shortcut / Trick</div>
+  <div style="display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700"><span style="width:14px;height:14px;border-radius:3px;background:#ef4444;display:inline-block"></span>⚠️ Trap / Warning</div>
 </div>
 
-<div class="book-body">
-    ${contentHTML}
+<!-- NAV -->
+<div class="no-print" style="display:flex;flex-wrap:wrap;gap:7px;padding:14px 40px;background:#0d1117;border-bottom:1px solid #1e293b;position:sticky;top:0;z-index:10">
+  ${navHTML}
+</div>
+
+<!-- BODY -->
+<div style="padding:28px 40px;max-width:1400px;margin:0 auto">
+  ${bodyHTML}
 </div>
 
 </body>
 </html>`;
 
-    // Open in new tab
-    const blob = new Blob([html], { type: 'text/html' });
+    const blob = new Blob([html], {type:'text/html'});
     const url = URL.createObjectURL(blob);
-    const win = window.open(url, '_blank');
-    if (!win) alert('Pop-up blocked! Please allow pop-ups for this site.');
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    const win = window.open(url,'_blank');
+    if(!win) alert('Pop-up blocked! Please allow pop-ups for this site.');
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
 };
+;
 ;    window.exportBackup = () => {
         let fcCards = []; let fcProgress = {};
         try { fcCards    = JSON.parse(localStorage.getItem('yogesh_fc_cards_v2') || '[]'); } catch{}
