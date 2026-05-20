@@ -2437,6 +2437,9 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                     ${subject === "QUANT MOCK QUESTIONS" ? `
                     <button onclick="generateQuantNotes()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm" title="Generate PDF Cheat Sheet">📝 Formula Notes</button>
                     ` : ''}
+                    ${subject === "Advanced Maths" ? `
+                    <button onclick="generateAdvMathsNotes()" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm" title="Generate Concept King Formula Book">📐 Concept King Notes</button>
+                    ` : ''}
                 </div>
             `;
             // SRS Health Bar — due/upcoming/mastered segments for this subject
@@ -4189,7 +4192,239 @@ window.generateQuantNotes = () => {
         const _notesUrl = URL.createObjectURL(blob);
         window.open(_notesUrl, '_blank');
         setTimeout(() => URL.revokeObjectURL(_notesUrl), 5000);
-    };    window.exportBackup = () => {
+    }
+
+// ================================================================
+// ADVANCED MATHS — CONCEPT KING FORMULA BOOK GENERATOR
+// Reads formulaUsed field from all Advanced Maths questions
+// Groups by Tag 2 (topic), deduplicates, renders Concept King style
+// ================================================================
+window.generateAdvMathsNotes = () => {
+    const TARGET_SUBJECTS = ["Advanced Maths"];
+    
+    // Tag 2 → display order & category color
+    const TOPIC_ORDER = [
+        "Number System", "Simplification", "Surds & Indices", "LCM & HCF",
+        "Algebra", "Trigonometry", "Height & Distance", "Geometry",
+        "Co-ordinate Geometry", "Polygon", "2D-Mensuration", "3D-Mensuration",
+        "Data Interpretation", "Miscellaneous"
+    ];
+    
+    const TOPIC_COLORS = {
+        "Algebra":           { h: "#7c3aed", bg: "#f5f3ff", border: "#7c3aed" },
+        "Trigonometry":      { h: "#0369a1", bg: "#e0f2fe", border: "#0369a1" },
+        "Height & Distance": { h: "#0369a1", bg: "#e0f2fe", border: "#0369a1" },
+        "Geometry":          { h: "#047857", bg: "#ecfdf5", border: "#047857" },
+        "2D-Mensuration":    { h: "#b45309", bg: "#fffbeb", border: "#b45309" },
+        "3D-Mensuration":    { h: "#b45309", bg: "#fffbeb", border: "#b45309" },
+        "Number System":     { h: "#dc2626", bg: "#fef2f2", border: "#dc2626" },
+        "Surds & Indices":   { h: "#dc2626", bg: "#fef2f2", border: "#dc2626" },
+        "LCM & HCF":         { h: "#dc2626", bg: "#fef2f2", border: "#dc2626" },
+        "DEFAULT":           { h: "#1d4ed8", bg: "#eff6ff", border: "#1d4ed8" },
+    };
+
+    // Collect formulaUsed per topic, deduplicate
+    let chapters = {}; // { topic: Map(formula -> {tag3, tag4, type}) }
+    let totalFound = 0;
+
+    Object.values(db).forEach(quiz => {
+        if (!TARGET_SUBJECTS.includes(quiz.subject) || !quiz.questions) return;
+        quiz.questions.forEach(q => {
+            const tags = Array.isArray(q.tags) ? q.tags : [];
+            const topic = tags[1] || "Miscellaneous";
+            const concept = tags[2] || "";
+            const trap = tags[3] || "";
+            
+            // Get formula — try formulaUsed first, then formula field
+            let formula = (q.formulaUsed || q.formula || "").trim();
+            if (!formula) return;
+            
+            // Clean HTML tags from formula
+            formula = formula.replace(/<\/?b>/gi, "").replace(/<br\s*\/?>/gi, " | ").trim();
+            if (formula.length < 3) return;
+            
+            if (!chapters[topic]) chapters[topic] = new Map();
+            
+            if (!chapters[topic].has(formula)) {
+                // Determine block type
+                let blockType = "concept";
+                if (trap && (trap.includes("Trap") || trap.includes("Error") || trap.includes("Bouncer"))) {
+                    blockType = "trap";
+                } else if (concept && (concept.toLowerCase().includes("trick") || concept.toLowerCase().includes("shortcut"))) {
+                    blockType = "trick";
+                }
+                
+                chapters[topic].set(formula, { concept, trap, blockType });
+                totalFound++;
+            }
+        });
+    });
+
+    if (totalFound === 0) {
+        alert("No formulas found in Advanced Maths! Make sure your quiz JSONs have the 'formulaUsed' field filled.");
+        return;
+    }
+
+    // Sort topics by preferred order
+    const sortedTopics = Object.keys(chapters).sort((a, b) => {
+        const ia = TOPIC_ORDER.indexOf(a), ib = TOPIC_ORDER.indexOf(b);
+        if (ia === -1 && ib === -1) return a.localeCompare(b);
+        if (ia === -1) return 1;
+        if (ib === -1) return -1;
+        return ia - ib;
+    });
+
+    // Build HTML
+    let contentHTML = '';
+    sortedTopics.forEach(topic => {
+        const formulaMap = chapters[topic];
+        if (formulaMap.size === 0) return;
+        
+        const colors = TOPIC_COLORS[topic] || TOPIC_COLORS["DEFAULT"];
+        
+        contentHTML += `
+        <div class="chapter-block">
+            <div class="chapter-header" style="background:${colors.h}">
+                <span class="chapter-icon">📐</span>
+                <span>${topic}</span>
+                <span class="chapter-count">${formulaMap.size} formulas</span>
+            </div>
+            <div class="formulas-grid">`;
+        
+        formulaMap.forEach((meta, formula) => {
+            const isTrick = meta.blockType === "trick";
+            const isTrap  = meta.blockType === "trap";
+            const blockClass = isTrap ? "formula-block trap-block" : isTrick ? "formula-block trick-block" : "formula-block concept-block";
+            const icon = isTrap ? "⚠️" : isTrick ? "⚡" : "📌";
+            const label = isTrap ? "TRAP" : isTrick ? "TRICK" : "FORMULA";
+            const labelColor = isTrap ? "#dc2626" : isTrick ? "#d97706" : colors.h;
+            
+            let extra = '';
+            if (meta.concept) extra += `<div class="meta-tag concept-tag">${meta.concept}</div>`;
+            if (meta.trap)    extra += `<div class="meta-tag trap-tag">${meta.trap}</div>`;
+            
+            contentHTML += `
+            <div class="${blockClass}" style="border-left-color:${labelColor}">
+                <div class="block-label" style="color:${labelColor}">${icon} ${label}</div>
+                <div class="formula-text">${formula}</div>
+                ${extra ? `<div class="meta-row">${extra}</div>` : ''}
+            </div>`;
+        });
+        
+        contentHTML += `</div></div>`;
+    });
+
+    // Build full HTML document — Concept King style
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Maths — Concept King Formula Book</title>
+<script>
+window.MathJax = {
+    tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+    startup: { pageReady: () => MathJax.startup.defaultPageReady() }
+};
+<\/script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async><\/script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;1,400&family=Open+Sans:wght@600;700;800&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Merriweather',serif;background:#f0f9ff;color:#111;line-height:1.65;padding:0}
+
+/* ── TOP HEADER ── */
+.book-header{background:linear-gradient(135deg,#0e7490,#0369a1,#1d4ed8);color:#fff;padding:36px 48px;text-align:center;position:relative;overflow:hidden}
+.book-header::before{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")}
+.header-crown{font-size:52px;margin-bottom:8px;display:block;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.3))}
+.header-title{font-family:'Open Sans',sans-serif;font-size:2.6em;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;text-shadow:0 2px 8px rgba(0,0,0,0.2)}
+.header-sub{font-size:1.1em;opacity:0.85;margin-top:6px;font-style:italic}
+.header-pills{display:flex;justify-content:center;gap:10px;margin-top:16px;flex-wrap:wrap}
+.header-pill{background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4);padding:4px 16px;border-radius:999px;font-family:'Open Sans',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase}
+.header-stats{margin-top:18px;font-size:13px;opacity:0.75;font-family:'Open Sans',sans-serif}
+.print-btn{display:inline-block;margin-top:18px;padding:10px 28px;background:#fff;color:#0369a1;font-family:'Open Sans',sans-serif;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;border:none;border-radius:8px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.2);transition:all 0.2s}
+.print-btn:hover{transform:translateY(-2px);box-shadow:0 4px 20px rgba(0,0,0,0.3)}
+
+/* ── BODY ── */
+.book-body{padding:32px 40px;max-width:1300px;margin:0 auto}
+
+/* ── CHAPTER BLOCK ── */
+.chapter-block{margin-bottom:36px;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.07);break-inside:avoid}
+.chapter-header{color:#fff;padding:13px 22px;display:flex;align-items:center;gap:10px;font-family:'Open Sans',sans-serif;font-weight:800;font-size:15px;letter-spacing:0.04em;text-transform:uppercase}
+.chapter-icon{font-size:18px}
+.chapter-count{margin-left:auto;background:rgba(255,255,255,0.25);padding:2px 10px;border-radius:999px;font-size:11px;font-weight:700}
+.formulas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));background:#fff;border:1px solid #e2e8f0;border-top:none}
+
+/* ── FORMULA BLOCK ── */
+.formula-block{padding:14px 16px;border-left:4px solid;border-bottom:1px solid #f1f5f9;background:#fff;transition:background 0.15s}
+.formula-block:hover{background:#f8fafc}
+.concept-block{border-left-color:#0284c7;background:#f0f9ff}
+.trap-block{border-left-color:#dc2626;background:#fef2f2}
+.trick-block{border-left-color:#d97706;background:#fffbeb}
+.block-label{font-family:'Open Sans',sans-serif;font-size:9px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px}
+.formula-text{font-family:'Merriweather',serif;font-size:13px;color:#1e293b;line-height:1.7;font-weight:400}
+.formula-text b,.formula-text strong{color:#0369a1;font-weight:700}
+.trap-block .formula-text b,.trap-block .formula-text strong{color:#dc2626}
+.trick-block .formula-text b,.trick-block .formula-text strong{color:#d97706}
+.meta-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.meta-tag{font-family:'Open Sans',sans-serif;font-size:9px;font-weight:700;padding:2px 8px;border-radius:999px}
+.concept-tag{background:#dbeafe;color:#1d4ed8}
+.trap-tag{background:#fee2e2;color:#b91c1c}
+
+/* ── LEGEND ── */
+.legend{display:flex;gap:16px;padding:14px 40px;background:#fff;border-bottom:1px solid #e2e8f0;font-family:'Open Sans',sans-serif;font-size:11px;font-weight:700}
+.legend-item{display:flex;align-items:center;gap:6px}
+.legend-dot{width:12px;height:12px;border-radius:2px}
+
+/* ── PRINT ── */
+@media print{
+    .print-btn{display:none}
+    body{background:#fff}
+    .book-header{background:linear-gradient(135deg,#0e7490,#0369a1) !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .chapter-header{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .concept-block,.trap-block,.trick-block{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .formulas-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:700px){.formulas-grid{grid-template-columns:1fr}.book-body{padding:16px}}
+</style>
+</head>
+<body>
+
+<div class="book-header">
+    <span class="header-crown">👑</span>
+    <div class="header-title">Advanced Maths — Concept King</div>
+    <div class="header-sub">All Formulas · Smart Tricks · SSC CGL Traps</div>
+    <div class="header-pills">
+        <span class="header-pill">Auto-Generated from Your Questions</span>
+        <span class="header-pill">${totalFound} Formulas</span>
+        <span class="header-pill">${sortedTopics.length} Topics</span>
+    </div>
+    <div class="header-stats">SSC CGL · CHSL · CPO · RRB NTPC · All Competitive Exams</div>
+    <button class="print-btn no-print" onclick="window.print()">🖨️ Save as PDF</button>
+</div>
+
+<div class="legend no-print">
+    <div class="legend-item"><div class="legend-dot" style="background:#0284c7"></div> Formula / Concept</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#d97706"></div> Smart Trick / Shortcut</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#dc2626"></div> SSC Trap / Warning</div>
+</div>
+
+<div class="book-body">
+    ${contentHTML}
+</div>
+
+</body>
+</html>`;
+
+    // Open in new tab
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank');
+    if (!win) alert('Pop-up blocked! Please allow pop-ups for this site.');
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+};
+;    window.exportBackup = () => {
         let fcCards = []; let fcProgress = {};
         try { fcCards    = JSON.parse(localStorage.getItem('yogesh_fc_cards_v2') || '[]'); } catch{}
         try { fcProgress = JSON.parse(localStorage.getItem('yogesh_fc_prog_v2')  || '{}'); } catch{}
@@ -5058,20 +5293,49 @@ Rules:
 
 
 <!-- ===== FACT SHEET MODAL ===== -->
-<div id="fs-modal" style="display:none;position:fixed;inset:0;z-index:500;background:#0f172a;overflow-y:auto;flex-direction:column">
-  <div style="background:linear-gradient(135deg,#1e1b4b,#0f172a);padding:16px 24px;border-bottom:2px solid #6366f1;position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;align-items:center">
-    <div>
-      <div style="font-size:17px;font-weight:900;color:#fff;letter-spacing:0.04em">⚡ SSC CGL Live Fact Sheet</div>
-      <div style="font-size:10px;color:#94a3b8;margin-top:2px">Facts from your questions · Updates with new quizzes</div>
+<style>
+#fs-modal { font-family: 'Nunito Sans', 'Segoe UI', sans-serif; }
+#fs-modal *::-webkit-scrollbar { width: 6px; }
+#fs-modal *::-webkit-scrollbar-track { background: transparent; }
+#fs-modal *::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+.fs-card-inner { transition: all 0.2s ease; }
+.fs-card-inner:hover { background: #1a2744 !important; transform: translateX(3px); }
+.fs-ch-header { transition: background 0.2s; }
+.fs-ch-header:hover { background: #111827 !important; }
+.fs-nav-pill { transition: all 0.2s; }
+.fs-nav-pill:hover { transform: translateY(-2px); filter: brightness(1.2); box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+@keyframes fs-fade-in { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+.fs-sb { animation: fs-fade-in 0.3s ease forwards; }
+</style>
+<div id="fs-modal" style="display:none;position:fixed;inset:0;z-index:500;background:#080d1a;overflow-y:auto;flex-direction:column">
+
+  <!-- TOP BAR -->
+  <div style="background:linear-gradient(135deg,#1e1b4b 0%,#0f172a 100%);padding:18px 28px;border-bottom:2px solid #6366f1;position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;align-items:center;box-shadow:0 4px 24px rgba(0,0,0,0.4)">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div style="width:40px;height:40px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 20px rgba(99,102,241,0.4)">⚡</div>
+      <div>
+        <div style="font-size:18px;font-weight:900;color:#fff;letter-spacing:0.04em">SSC CGL Master Fact Sheet</div>
+        <div style="font-size:10px;color:#6366f1;margin-top:1px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase">Live · From Your Questions · Auto-Updates</div>
+      </div>
     </div>
-    <button onclick="closeFactSheet()" style="color:#94a3b8;font-size:13px;font-weight:800;background:#1e293b;border:1px solid #334155;padding:7px 16px;border-radius:8px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.color='#e2e8f0'" onmouseout="this.style.color='#94a3b8'">✕ Close</button>
+    <button onclick="closeFactSheet()" style="color:#64748b;font-size:12px;font-weight:800;background:#1e293b;border:1px solid #334155;padding:8px 18px;border-radius:10px;cursor:pointer;letter-spacing:0.05em;text-transform:uppercase;transition:all 0.2s" onmouseover="this.style.borderColor='#ef4444';this.style.color='#ef4444'" onmouseout="this.style.borderColor='#334155';this.style.color='#64748b'">✕ Close</button>
   </div>
-  <div style="padding:10px 24px;background:#1e293b;border-bottom:1px solid #334155;position:sticky;top:57px;z-index:9">
-    <input id="fs-search" type="text" placeholder="🔍 Search facts, articles, formulas..." oninput="fsDoSearch(this.value)"
-      style="width:100%;max-width:650px;padding:9px 16px;border-radius:10px;border:1.5px solid #334155;background:#0f172a;color:#e2e8f0;font-size:13px;outline:none">
+
+  <!-- SEARCH -->
+  <div style="padding:12px 28px;background:#0d1117;border-bottom:1px solid #1e293b;position:sticky;top:68px;z-index:9">
+    <div style="position:relative;max-width:680px">
+      <div style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#475569;font-size:16px;pointer-events:none">🔍</div>
+      <input id="fs-search" type="text" placeholder="Search facts, articles, formulas, concepts..." oninput="fsDoSearch(this.value)"
+        style="width:100%;padding:11px 16px 11px 42px;border-radius:12px;border:1.5px solid #1e293b;background:#0f172a;color:#e2e8f0;font-size:13px;outline:none;font-weight:600;transition:border 0.2s"
+        onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#1e293b'">
+    </div>
   </div>
-  <div id="fs-nav" style="display:flex;flex-wrap:wrap;gap:6px;padding:10px 24px;background:#1e293b;border-bottom:1px solid #334155;position:sticky;top:109px;z-index:8"></div>
-  <div id="fs-body" style="padding:20px 24px;max-width:1400px;margin:0 auto"></div>
+
+  <!-- NAV PILLS -->
+  <div id="fs-nav" style="display:flex;flex-wrap:wrap;gap:7px;padding:12px 28px;background:#0d1117;border-bottom:1px solid #1e293b;position:sticky;top:120px;z-index:8"></div>
+
+  <!-- BODY -->
+  <div id="fs-body" style="padding:24px 28px;max-width:1440px;margin:0 auto;width:100%"></div>
 </div>
 <!-- ===== END FACT SHEET MODAL ===== -->
 
@@ -5521,25 +5785,35 @@ function _fsBuild() {
   let navHtml = '', bodyHtml = '';
   FS_DATA.forEach(s => {
     const total = s.chapters.reduce((a,c)=>a+c.f.length,0);
-    navHtml += `<a href="#fsid-${s.id}" onclick="document.getElementById('fsid-${s.id}').scrollIntoView({behavior:'smooth'});return false;" style="background:${s.bg};color:${s.color};border:1.5px solid ${s.color}50;padding:4px 12px;border-radius:999px;font-size:10px;font-weight:800;text-decoration:none;white-space:nowrap;cursor:pointer">${s.emoji} ${s.title} <span style="opacity:0.45;font-size:9px;margin-left:2px">${total}</span></a>`;
+    navHtml += `<a href="#fsid-${s.id}" class="fs-nav-pill" onclick="document.getElementById('fsid-${s.id}').scrollIntoView({behavior:'smooth'});return false;" style="background:${s.bg};color:${s.color};border:1.5px solid ${s.color}60;padding:5px 14px;border-radius:999px;font-size:10px;font-weight:800;text-decoration:none;white-space:nowrap;cursor:pointer;display:inline-flex;align-items:center;gap:5px">${s.emoji} ${s.title}<span style="background:${s.color}25;color:${s.color};font-size:9px;font-weight:900;padding:1px 6px;border-radius:999px;margin-left:2px">${total}</span></a>`;
     const topicTotal = s.chapters.reduce((a,c)=>a+c.f.length,0);
-    bodyHtml += `<div class="fs-sb" id="fsid-${s.id}" style="margin-bottom:28px;border-radius:16px;overflow:hidden;border:1px solid #334155">
-      <div style="padding:14px 22px;background:${s.bg};border-bottom:2px solid ${s.color};display:flex;justify-content:space-between;align-items:center">
-        <div><div style="font-size:18px;font-weight:900;color:${s.color}">${s.emoji} ${s.title}</div>
-        <div style="font-size:10px;opacity:0.6;margin-top:2px">${topicTotal} facts · ${s.chapters.length} topics</div></div>
-        <div style="font-size:28px;opacity:0.2">${s.emoji}</div>
+    bodyHtml += `<div class="fs-sb" id="fsid-${s.id}" style="margin-bottom:32px;border-radius:20px;overflow:hidden;border:1px solid #1e293b;box-shadow:0 8px 32px rgba(0,0,0,0.3)">
+      <div style="padding:20px 24px;background:linear-gradient(135deg,${s.bg} 0%,${s.bg}cc 100%);border-bottom:2px solid ${s.color}60;display:flex;justify-content:space-between;align-items:center;position:relative;overflow:hidden">
+        <div style="position:absolute;right:-10px;top:-10px;font-size:80px;opacity:0.06;filter:blur(1px);pointer-events:none">${s.emoji}</div>
+        <div>
+          <div style="font-size:20px;font-weight:900;color:${s.color};text-shadow:0 0 20px ${s.color}40">${s.emoji} ${s.title}</div>
+          <div style="display:flex;gap:12px;margin-top:6px">
+            <span style="font-size:10px;color:${s.color}90;font-weight:700;background:${s.color}15;padding:2px 10px;border-radius:999px;border:1px solid ${s.color}30">${topicTotal} facts</span>
+            <span style="font-size:10px;color:${s.color}90;font-weight:700;background:${s.color}15;padding:2px 10px;border-radius:999px;border:1px solid ${s.color}30">${s.chapters.length} chapters</span>
+          </div>
+        </div>
       </div>`;
     s.chapters.forEach((ch, ci) => {
-      bodyHtml += `<div class="fs-ch" style="border-bottom:1px solid #334155">
-        <div onclick="fsTog(this)" style="padding:9px 22px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;background:#0f172a;display:flex;justify-content:space-between;cursor:pointer;color:${s.color};user-select:none">
-          <span>📌 ${ch.t}</span><span style="font-size:10px;opacity:0.4">${ch.f.length} ▾</span>
+      bodyHtml += `<div class="fs-ch" style="border-bottom:1px solid #0f172a">
+        <div class="fs-ch-header" onclick="fsTog(this)" style="padding:11px 24px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;background:#0d1117;display:flex;justify-content:space-between;align-items:center;cursor:pointer;color:${s.color};user-select:none;border-left:3px solid ${s.color}40">
+          <span style="display:flex;align-items:center;gap:8px"><span style="font-size:14px">📌</span>${ch.t}</span>
+          <span style="background:${s.color}20;color:${s.color};font-size:9px;font-weight:900;padding:2px 10px;border-radius:999px;min-width:32px;text-align:center">${ch.f.length} ▾</span>
         </div>
-        <div class="fs-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));background:#1e293b">`;
+        <div class="fs-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));background:#080d1a">`;
       ch.f.forEach((fact, fi) => {
         const s_text = fact.replace(/<[^>]+>/g,' ').toLowerCase().replace(/"/g,'').substring(0,300);
-        bodyHtml += `<div class="fs-card" data-s="${s_text}" style="padding:12px 18px;border-right:1px solid #2d3748;border-bottom:1px solid #2d3748">
-          <div style="display:inline-block;background:#334155;color:#94a3b8;font-size:9px;font-weight:900;padding:1px 6px;border-radius:4px;margin-bottom:6px">${fi+1}</div>
-          <div style="font-size:13px;color:#cbd5e1;line-height:1.7">${fact}</div>
+        bodyHtml += `<div class="fs-card" data-s="${s_text}" style="border-right:1px solid #0f172a;border-bottom:1px solid #0f172a">
+          <div class="fs-card-inner" style="padding:14px 18px 14px 16px;border-left:3px solid ${s.color}50;margin:8px 8px 8px 0;border-radius:0 10px 10px 0;background:#0d1117;height:calc(100% - 16px);box-sizing:border-box">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px">
+              <span style="background:${s.color}20;color:${s.color};font-size:9px;font-weight:900;padding:1px 7px;border-radius:999px;min-width:20px;text-align:center">${fi+1}</span>
+            </div>
+            <div style="font-size:13px;color:#cbd5e1;line-height:1.75;font-weight:500">${fact}</div>
+          </div>
         </div>`;
       });
       bodyHtml += `</div></div>`;
