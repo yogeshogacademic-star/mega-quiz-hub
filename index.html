@@ -1196,7 +1196,7 @@
 
     const SYLLABUS_MAP = {
         "Arithmetic": ["Percentage", "Ratio & Proportion", "Profit & Loss", "Discount & Dishonest Shopkeeper", "Time & Work", "Pipe & Cistern", "Simple Interest", "Compound Interest", "Installment", "Average", "Time, Speed & Distance", "Problems on Train", "Boat & Stream", "Circular and Linear Race", "Problems on Ages", "Partnership", "Mixture & Alligation"],
-        "Advanced Maths": ["Number System", "Simplification", "Surds & Indices", "LCM & HCF", "Algebra", "Trigonometry", "Statistics", "Height & Distance", "Geometry", "Permutation & Combination", "Co-ordinate Geometry", "Polygon", "2D-Mensuration", "3D-Mensuration", "Miscellaneous", "Data Interpretation"],
+        "Advanced Maths": ["Number System", "Simplification", "Surds & Indices", "LCM & HCF", "Algebra", "Trigonometry", "Height & Distance", "Geometry", "Co-ordinate Geometry", "Polygon", "2D-Mensuration", "3D-Mensuration", "Miscellaneous", "Data Interpretation"],
         "Calculation": ["Tables", "Squares & Square Roots", "Cubes & Cube Roots", "Fraction-to-Percentage", "Pythagorean Triplets", "Digital Sum & Unit Digit", "Approximation & Simplification", "Multiplication & Division Rules", "Surds & Indices"],
         "Reasoning": ["Analogy & Classification", "Number & Letter Series", "Coding-Decoding", "Blood Relations", "Direction & Distance", "Syllogism", "Order & Ranking", "Clock & Calendar", "Venn Diagrams", "Missing Number & Matrix", "Non-Verbal Reasoning", "Logical Reasoning"],
         "English": ["Active & Passive Voice", "Cloze Test", "Direct & Indirect Speech", "Figures of Speech", "Grammar & Error Spotting", "HOMONYMS", "Idioms & Phrases", "One Word Substitution", "Para Jumbles", "PREPOSITION", "Phrasal Verbs", "Reading Comprehension", "Sentence Improvement", "Spelling Errors", "Synonyms & Antonyms"],
@@ -2438,7 +2438,10 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                     <button onclick="generateQuantNotes()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm" title="Generate PDF Cheat Sheet">📝 Formula Notes</button>
                     ` : ''}
                     ${subject === "Advanced Maths" ? `
-                    <button onclick="generateAdvMathsNotes()" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm" title="Generate Concept King Formula Book">📐 Concept King Notes</button>
+                    <button onclick="generateSubjectNotes('Advanced Maths')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm" title="Generate Formula Notes">📝 Formula Notes</button>
+                    ` : ''}
+                    ${subject === "Arithmetic" ? `
+                    <button onclick="generateSubjectNotes('Arithmetic')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm" title="Generate Formula Notes">📝 Formula Notes</button>
                     ` : ''}
                 </div>
             `;
@@ -4195,249 +4198,373 @@ window.generateQuantNotes = () => {
     }
 
 // ================================================================
+// SHARED FORMULA NOTES — works for Advanced Maths AND Arithmetic
+// Identical logic to generateQuantNotes, just parameterised by subject
+// ================================================================
+window.generateSubjectNotes = (targetSubject) => {
+    let chapters = {};
+    let foundAny = false;
+
+    Object.values(db).forEach(quiz => {
+        if (quiz.subject === targetSubject && quiz.questions) {
+            quiz.questions.forEach(q => {
+                let chapter = (q.tags && q.tags.length > 1) ? q.tags[1] : "Mixed Concepts";
+                if (!chapters[chapter]) chapters[chapter] = new Map();
+                let itemText = q.formula ? q.formula : "";
+                if (itemText) {
+                    itemText = itemText.replace(/<\/?b>/g, "").trim();
+                    if (!chapters[chapter].has(itemText)) {
+                        chapters[chapter].set(itemText, q.diagram || "");
+                        foundAny = true;
+                    }
+                }
+            });
+        }
+    });
+
+    if (!foundAny) {
+        alert(`No formulas found in ${targetSubject}!\n\nMake sure your imported JSON files have a "formula" field filled in.`);
+        return;
+    }
+
+    let notesHTML = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>${targetSubject} — Formula Notes</title>
+        <script>
+            window.MathJax = {
+                tex: { inlineMath: [['$', '$'], ['\\\\(', '\\\\)']], displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']] },
+                startup: { pageReady: () => { return MathJax.startup.defaultPageReady().then(() => {}); } }
+            };
+        <\/script>
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"><\/script>
+        <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"><\/script>
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;1,400&family=Open+Sans:wght@600;800&display=swap');
+            body { font-family: 'Merriweather', serif; padding: 30px; color: #111; background: #fff; line-height: 1.6; }
+            .container { max-width: 1050px; margin: 0 auto; }
+            .book-header { text-align: center; margin-bottom: 40px; border-bottom: 5px solid #1e3a8a; padding-bottom: 20px; }
+            .book-title { font-family: 'Open Sans', sans-serif; font-size: 2.8em; font-weight: 800; color: #1e3a8a; text-transform: uppercase; margin: 0; letter-spacing: 1px; }
+            .book-subtitle { font-size: 1.2em; color: #64748b; font-style: italic; margin-top: 5px; }
+            .book-content { column-count: 2; column-gap: 50px; column-rule: 1px solid #e2e8f0; }
+            h2.chapter-title { font-family: 'Open Sans', sans-serif; color: #b91c1c; font-size: 1.5em; text-transform: uppercase; border-bottom: 2px solid #b91c1c; padding-bottom: 5px; margin-top: 0; break-after: avoid; }
+            .concept-block { break-inside: avoid; margin-bottom: 25px; padding: 15px 20px; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+            .type-trick { background: #fef2f2; border-left: 6px solid #dc2626; }
+            .type-concept { background: #f0f9ff; border-left: 6px solid #0284c7; }
+            .block-title { font-family: 'Open Sans', sans-serif; font-weight: 800; font-size: 0.85em; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 0.5px; }
+            .type-trick .block-title { color: #dc2626; }
+            .type-concept .block-title { color: #0284c7; }
+            .math-text { font-size: 0.95em; }
+            .diagram-container { text-align: center; margin-top: 15px; background: #fff; padding: 10px; border-radius: 4px; border: 1px dashed #cbd5e1; }
+            .diagram-container svg { max-width: 100%; height: auto; }
+            .print-btn { display: block; margin: 0 auto 30px auto; padding: 12px 30px; background: #1e3a8a; color: white; font-family: 'Open Sans', sans-serif; border: none; border-radius: 6px; cursor: pointer; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+            .print-btn:hover { background: #1e40af; }
+            @media print {
+                .no-print { display: none; }
+                body { padding: 0; }
+                .book-content { column-count: 2; }
+                .concept-block { border: 1px solid #e5e7eb; border-left-width: 6px; }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <button class="no-print print-btn" onclick="window.print()">🖨️ Save Book as PDF</button>
+            <div class="book-header">
+                <h1 class="book-title">${targetSubject}</h1>
+                <p class="book-subtitle">Master Formulas, Theorems & Smart Tricks</p>
+            </div>
+            <div class="book-content">
+    `;
+
+    for (const [chapter, itemsMap] of Object.entries(chapters)) {
+        notesHTML += `<h2 class="chapter-title">${chapter}</h2>`;
+        itemsMap.forEach((diagram, text) => {
+            let blockClass = "type-concept";
+            let title = "📐 Theorem / Formula";
+            if (text.includes("Trick:")) {
+                blockClass = "type-trick";
+                title = "⚡ Smart Trick";
+                text = text.replace("Trick:", "").trim();
+            } else if (text.includes("Concept:")) {
+                text = text.replace("Concept:", "").trim();
+            }
+            notesHTML += `
+            <div class="concept-block ${blockClass}">
+                <div class="block-title">${title}</div>
+                <div class="math-text">${text}</div>
+                ${diagram ? `<div class="diagram-container">${diagram}</div>` : ''}
+            </div>`;
+        });
+    }
+
+    notesHTML += `</div></div></body></html>`;
+    const blob = new Blob([notesHTML], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+};
+
+// ================================================================
 // ADVANCED MATHS — CONCEPT KING FORMULA BOOK GENERATOR
 // Reads formulaUsed field from all Advanced Maths questions
 // Groups by Tag 2 (topic), deduplicates, renders Concept King style
 // ================================================================
-window.generateAdvMathsNotes = () => {
+window.generateAdvMathsNotes = async () => {
 
-// ════════════════════════════════════════════════════
-// CONCEPT KING — Built from YOUR flashcards + questions
-// Same style as your flashcards: Scenario → Formula
-// Auto-grows as you add more questions to the hub
-// ════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+// CONCEPT KING — Auto-generates from your Advanced Maths questions
+// Uses Claude API to extract formulas, same content style as your
+// Cube & Cuboid flashcards (Title / Front / Back / Hint)
+// ════════════════════════════════════════════════════════════
 
-// ── STEP 1: Read fcCards (your manually made flashcards) ──
-const fcByCategory = {};
-(window.fcCards || []).forEach(card => {
-    const cat = (card.category || 'General').trim();
-    if (!fcByCategory[cat]) fcByCategory[cat] = [];
-    fcByCategory[cat].push(card);
-});
+// ── Collect all Advanced Maths questions grouped by Tag2 → Tag3 ──
+const groups = {}; // { "Tag2||Tag3": [questions] }
 
-// ── STEP 2: Read formulaUsed from ALL questions in hub ──
-const qByChapter = {}; // { "tag2||tag3": Set(formulaUsed) }
 Object.values(window.db || {}).forEach(quiz => {
-    if (!quiz || !Array.isArray(quiz.questions)) return;
-    quiz.questions.forEach(q => {
+    if (!quiz || quiz.subject !== 'Advanced Maths') return;
+    (quiz.questions || []).forEach(q => {
         const tags = Array.isArray(q.tags) ? q.tags : [];
         const tag2 = tags[1] || '';
         const tag3 = tags[2] || '';
-        const formula = (q.formulaUsed || q.formula || '').trim();
-        if (!tag2 || !formula) return;
+        if (!tag2) return;
         const key = tag2 + '||' + (tag3 || tag2);
-        if (!qByChapter[key]) qByChapter[key] = new Set();
-        qByChapter[key].add(formula);
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(q);
     });
 });
 
-// ── STEP 3: Merge — fc categories take priority, then question formulas ──
-// Build final chapter list
-const chapters = [];
-
-// From fcCards — grouped by category
-Object.entries(fcByCategory).forEach(([cat, cards]) => {
-    chapters.push({ source: 'fc', title: cat, cards, formulas: [] });
-});
-
-// From question formulaUsed — only chapters NOT already covered by fcCards
-Object.entries(qByChapter).forEach(([key, formulaSet]) => {
-    const [tag2, tag3] = key.split('||');
-    const title = tag3 && tag3 !== tag2 ? `${tag2} — ${tag3}` : tag2;
-    // Check if any fcCard category already covers this
-    const alreadyCovered = Object.keys(fcByCategory).some(cat =>
-        cat.toLowerCase().includes(tag2.toLowerCase()) ||
-        cat.toLowerCase().includes((tag3||'').toLowerCase())
-    );
-    if (!alreadyCovered) {
-        chapters.push({ source: 'q', title, cards: [], formulas: [...formulaSet] });
-    } else {
-        // Add formulas to existing fc chapter
-        const existing = chapters.find(ch =>
-            ch.source === 'fc' && (
-                ch.title.toLowerCase().includes(tag2.toLowerCase()) ||
-                ch.title.toLowerCase().includes((tag3||'').toLowerCase())
-            )
-        );
-        if (existing) {
-            formulaSet.forEach(f => {
-                if (!existing.formulas.includes(f)) existing.formulas.push(f);
-            });
-        }
-    }
-});
-
-if (chapters.length === 0) {
-    alert('No flashcards or formula notes found yet!\n\nTo build this book:\n1. Add flashcards in the Mastery Vault\n2. Import quiz JSONs with formulaUsed field filled\n\nThen click Concept King Notes again.');
+const groupKeys = Object.keys(groups);
+if (groupKeys.length === 0) {
+    alert('No Advanced Maths questions found in hub!\n\nImport your cylinder/cone JSON files first under Advanced Maths subject, then click this button.');
     return;
 }
 
-// ── STEP 4: Assign colors per chapter ──
+// ── Open result window immediately with loading state ──
+const win = window.open('', '_blank');
+if (!win) { alert('Please allow pop-ups for this site!'); return; }
+
+// Color palette per chapter
 const PALETTE = [
-    { h:'#fbbf24', dark:'#1a1200', border:'#fbbf24' },
-    { h:'#34d399', dark:'#00140a', border:'#34d399' },
-    { h:'#60a5fa', dark:'#001428', border:'#60a5fa' },
-    { h:'#f472b6', dark:'#1a0015', border:'#f472b6' },
-    { h:'#a78bfa', dark:'#100020', border:'#a78bfa' },
-    { h:'#fb923c', dark:'#1a0800', border:'#fb923c' },
-    { h:'#22d3ee', dark:'#001820', border:'#22d3ee' },
-    { h:'#e879f9', dark:'#1a0020', border:'#e879f9' },
-    { h:'#4ade80', dark:'#00140a', border:'#4ade80' },
-    { h:'#f87171', dark:'#1a0000', border:'#f87171' },
-    { h:'#38bdf8', dark:'#001525', border:'#38bdf8' },
-    { h:'#fde68a', dark:'#1a1500', border:'#fde68a' },
+    '#fbbf24','#34d399','#60a5fa','#f472b6','#a78bfa',
+    '#fb923c','#22d3ee','#e879f9','#4ade80','#f87171',
+    '#38bdf8','#fde68a','#86efac','#c4b5fd'
 ];
 
-// ── STEP 5: Render ──
-// MathJax text → HTML (wrap in spans)
-function mathify(text) {
-    if (!text) return '';
-    // Convert \n to <br>
-    text = text.replace(/\n/g, '<br>');
-    // Wrap LaTeX in spans for MathJax
-    text = text.replace(/\$\$([\s\S]+?)\$\$/g, '<span>$$$$1$$</span>');
-    text = text.replace(/\\\[([\s\S]+?)\\\]/g, '<span>\\[$1\\]</span>');
-    text = text.replace(/\$([\s\S]+?)\$/g, '<span>\\($1\\)</span>');
-    text = text.replace(/\\\(([\s\S]+?)\\\)/g, '<span>\\($1\\)</span>');
-    return text;
+// Write initial loading page
+win.document.write(`<!DOCTYPE html><html><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Concept King — Generating...</title>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Open+Sans:wght@600;700;800;900&display=swap" rel="stylesheet">
+<script>MathJax={tex:{inlineMath:[['\\\\(','\\\\)']],displayMath:[['$$','$$']]}};<\/script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async><\/script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#080d1a;color:#e2e8f0;font-family:'Open Sans',sans-serif;min-height:100vh}
+.card{background:#0d1117;border:1px solid #1e293b;border-radius:16px;padding:20px 24px;margin-bottom:2px}
+.card-front{border-left:4px solid var(--col)}
+.card-back{border-left:4px solid var(--col);background:#0f172a;display:none}
+.card:hover .card-front{background:#111827}
+.chapter{margin-bottom:36px;border-radius:20px;overflow:hidden;border:1px solid #1e293b;box-shadow:0 4px 24px rgba(0,0,0,0.4)}
+.ch-header{padding:18px 28px;border-bottom:2.5px solid var(--col2);display:flex;align-items:center;gap:12px}
+.ch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));background:#080d1a;gap:1px}
+.label{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:8px}
+.title{font-size:13px;font-weight:900;color:#e2e8f0;margin-bottom:10px;font-family:'Open Sans',sans-serif}
+.body{font-family:'Merriweather',serif;font-size:13px;color:#cbd5e1;line-height:1.85}
+.hint{margin-top:10px;display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:10px;font-weight:700;font-family:'Open Sans',sans-serif}
+.flip-hint{margin-top:10px;text-align:center;font-size:10px;color:#334155;font-family:'Open Sans',sans-serif;font-weight:700}
+.loading-card{background:#0d1117;border:1px solid #1e293b;border-radius:12px;padding:24px;display:flex;align-items:center;gap:12px;margin-bottom:2px;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:0.6}50%{opacity:1}}
+@media print{.no-print{display:none!important}body{background:#fff}}
+@media(max-width:600px){.ch-grid{grid-template-columns:1fr!important}}
+</style>
+</head><body>
+
+<div style="background:linear-gradient(135deg,#0e7490,#1d4ed8,#7c3aed);padding:32px 40px;text-align:center">
+  <div style="font-size:44px;margin-bottom:6px">👑</div>
+  <div style="font-family:'Open Sans',sans-serif;font-size:26px;font-weight:900;letter-spacing:0.05em;color:#fff;text-transform:uppercase">Concept King</div>
+  <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:6px">Auto-generated from your Advanced Maths questions · Tap any card to flip</div>
+  <div id="stats" style="display:flex;justify-content:center;gap:10px;margin-top:14px;flex-wrap:wrap"></div>
+  <button class="no-print" onclick="window.print()" style="margin-top:14px;padding:9px 24px;background:#fff;color:#1d4ed8;font-family:'Open Sans',sans-serif;font-weight:800;font-size:12px;border:none;border-radius:8px;cursor:pointer;text-transform:uppercase">🖨️ Save as PDF</button>
+</div>
+
+<div id="nav" class="no-print" style="display:flex;flex-wrap:wrap;gap:6px;padding:12px 36px;background:#0d1117;border-bottom:1px solid #1e293b;position:sticky;top:0;z-index:10"></div>
+
+<div id="body" style="padding:24px 36px;max-width:1400px;margin:0 auto">
+  <div style="text-align:center;padding:60px 20px;color:#475569">
+    <div style="font-size:36px;margin-bottom:16px">⚡</div>
+    <div style="font-size:16px;font-weight:800;color:#64748b;margin-bottom:8px">Generating your Concept King book...</div>
+    <div style="font-size:13px" id="progress">Reading ${groupKeys.length} concept groups from your hub</div>
+  </div>
+</div>
+
+<script>
+function ckFlip(el) {
+    const front = el.querySelector('.card-front');
+    const back = el.querySelector('.card-back');
+    const showFront = front.style.display !== 'none';
+    front.style.display = showFront ? 'none' : 'block';
+    back.style.display = showFront ? 'block' : 'none';
+    if (!showFront && window.MathJax) MathJax.typesetPromise([el]).catch(()=>{});
 }
+window.addEventListener('load',()=>{ if(window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise().catch(()=>{}); });
+<\/script>
+</body></html>`);
+win.document.close();
+
+// ── Helper: call Claude API ──
+async function callClaude(prompt) {
+    const resp = await fetch('/api/claude', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 2000,
+            messages: [{ role: 'user', content: prompt }]
+        })
+    });
+    const data = await resp.json();
+    const text = data.content?.map(c => c.text || '').join('') || '';
+    // Strip json fences
+    const clean = text.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+    return JSON.parse(clean);
+}
+
+// ── Process each group ──
+const results = []; // { tag2, tag3, color, cards: [{title,front,back,hint}] }
+
+for (let gi = 0; gi < groupKeys.length; gi++) {
+    const key = groupKeys[gi];
+    const [tag2, tag3] = key.split('||');
+    const qs = groups[key];
+    const color = PALETTE[gi % PALETTE.length];
+
+    // Update progress
+    try {
+        const prog = win.document.getElementById('progress');
+        if (prog) prog.textContent = `Generating: ${tag2} → ${tag3} (${gi+1}/${groupKeys.length})`;
+    } catch(e) {}
+
+    // Build prompt — show sample questions + solutions
+    const samples = qs.slice(0, 8).map((q, i) =>
+        `Q${i+1}: ${q.question}\nSolution: ${(q.solution||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().substring(0,300)}`
+    ).join('\n\n');
+
+    const prompt = `You are building a Concept King formula book for SSC CGL exam prep. 
+I have ${qs.length} questions from the chapter: ${tag2} → Concept: ${tag3}
+
+Here are sample questions and solutions:
+${samples}
+
+Based on these questions, generate a JSON array of formula cards. Each card should be like a flashcard:
+- "title": Short scenario name (e.g. "Basic CSA", "Ratio Based Volume", "Earth Dug & Spread")
+- "front": The scenario/question type description — what kind of problem is this? What's given, what's asked? (2-4 lines)
+- "back": The exact formula(s) needed to solve this type — use LaTeX notation like \\(V = \\frac{1}{3}\\pi r^2 h\\). Include variable definitions.
+- "hint": One-line memory trick or warning (optional, can be empty string)
+
+Group similar question types together. Generate 3-8 cards covering all the different formula patterns in these questions.
+
+IMPORTANT: 
+- back should have clean mathematical formulas, not sentences
+- Use \\( and \\) for inline math
+- Return ONLY valid JSON array, no other text
+
+Example card:
+{"title":"Basic Volume","front":"Given radius r and height h of a cone. Find its volume.","back":"\\\\(V = \\\\frac{1}{3}\\\\pi r^2 h\\\\)\\n\\nWhere:\\n• r = base radius\\n• h = perpendicular height\\n• \\\\(\\\\pi = \\\\frac{22}{7}\\\\) or 3.14","hint":"Cone = ⅓ of cylinder with same base and height"}`;
+
+    try {
+        const cards = await callClaude(prompt);
+        if (Array.isArray(cards) && cards.length > 0) {
+            results.push({ tag2, tag3, color, cards });
+        }
+    } catch(e) {
+        console.warn('Failed for', key, e);
+        // Add placeholder
+        results.push({ tag2, tag3, color, cards: [{
+            title: tag3 || tag2,
+            front: `${qs.length} questions in this concept`,
+            back: 'Formula extraction failed. Check console.',
+            hint: ''
+        }]});
+    }
+
+    // Small delay to avoid rate limits
+    if (gi < groupKeys.length - 1) await new Promise(r => setTimeout(r, 800));
+}
+
+// ── Build final HTML into the window ──
+if (win.closed) return;
 
 let navHTML = '';
 let bodyHTML = '';
 let totalCards = 0;
 
-chapters.forEach((ch, idx) => {
-    const pal = PALETTE[idx % PALETTE.length];
-    const chId = 'ck_' + idx;
-    const cardCount = ch.cards.length + ch.formulas.length;
-    totalCards += cardCount;
-    if (cardCount === 0) return;
+results.forEach((ch, idx) => {
+    if (!ch.cards || ch.cards.length === 0) return;
+    totalCards += ch.cards.length;
+    const chId = 'ch_' + idx;
+    const chTitle = ch.tag3 && ch.tag3 !== ch.tag2 ? `${ch.tag2} — ${ch.tag3}` : ch.tag2;
+    const darkBg = '#0d1117';
 
-    // NAV pill
-    navHTML += `<span onclick="document.getElementById('${chId}').scrollIntoView({behavior:'smooth'})" style="display:inline-flex;align-items:center;gap:5px;background:${pal.dark};color:${pal.h};border:1.5px solid ${pal.h}50;padding:5px 14px;border-radius:999px;font-size:10px;font-weight:800;white-space:nowrap;cursor:pointer;font-family:'Open Sans',sans-serif;transition:transform 0.2s" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">📌 ${ch.title} <span style="background:${pal.h}20;color:${pal.h};padding:1px 7px;border-radius:999px;font-size:9px;margin-left:2px">${cardCount}</span></span>`;
+    navHTML += `<span onclick="document.getElementById('${chId}').scrollIntoView({behavior:'smooth'})" style="display:inline-flex;align-items:center;gap:5px;background:#0f172a;color:${ch.color};border:1.5px solid ${ch.color}50;padding:5px 14px;border-radius:999px;font-size:10px;font-weight:800;white-space:nowrap;cursor:pointer;font-family:'Open Sans',sans-serif" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">📌 ${chTitle} <span style="background:${ch.color}20;color:${ch.color};padding:1px 7px;border-radius:999px;font-size:9px;margin-left:2px">${ch.cards.length}</span></span>`;
 
-    // CHAPTER HEADER
-    bodyHTML += `<div id="${chId}" style="margin-bottom:36px;border-radius:20px;overflow:hidden;border:1px solid #1e293b;box-shadow:0 4px 32px rgba(0,0,0,0.4)">
-    <div style="padding:18px 28px;background:linear-gradient(135deg,${pal.dark},${pal.dark}ee);border-bottom:2.5px solid ${pal.h}60;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden">
-        <div style="position:absolute;right:20px;top:-8px;font-size:80px;opacity:0.05;pointer-events:none;font-family:serif">∑</div>
+    bodyHTML += `<div id="${chId}" class="chapter" style="--col:${ch.color};--col2:${ch.color}60">
+    <div class="ch-header" style="background:linear-gradient(135deg,#0d1117,#111827);border-bottom:2.5px solid ${ch.color}60">
         <div>
-            <div style="font-family:'Open Sans',sans-serif;font-size:19px;font-weight:900;color:${pal.h};letter-spacing:0.02em">${ch.title}</div>
-            <div style="font-size:10px;color:${pal.h}70;font-family:'Open Sans',sans-serif;font-weight:700;margin-top:3px;text-transform:uppercase;letter-spacing:0.08em">${cardCount} formula card${cardCount!==1?'s':''} · Click any card to flip</div>
+            <div style="font-size:19px;font-weight:900;color:${ch.color};font-family:'Open Sans',sans-serif">${chTitle}</div>
+            <div style="font-size:10px;color:${ch.color}70;font-family:'Open Sans',sans-serif;font-weight:700;margin-top:3px;text-transform:uppercase;letter-spacing:0.08em">${ch.cards.length} formula cards · Tap to flip</div>
         </div>
-    </div>`;
+    </div>
+    <div class="ch-grid">`;
 
-    // FLASHCARD GRID
-    bodyHTML += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));background:#080d1a;gap:1px">`;
+    ch.cards.forEach(card => {
+        const front = (card.front||'').replace(/\n/g,'<br>');
+        const back = (card.back||'').replace(/\n/g,'<br>');
+        const hint = card.hint ? `<div class="hint" style="background:${ch.color}15;color:${ch.color};border:1px solid ${ch.color}30">💡 ${card.hint}</div>` : '';
 
-    // From fcCards
-    ch.cards.forEach((card, ci) => {
-        const front = mathify(card.front || '');
-        const back = mathify(card.back || '');
-        const hint = card.hint ? `<div style="margin-top:10px;display:inline-flex;align-items:center;gap:5px;background:${pal.h}15;color:${pal.h};border:1px solid ${pal.h}30;padding:3px 10px;border-radius:999px;font-size:10px;font-weight:700;font-family:'Open Sans',sans-serif">💡 ${card.hint}</div>` : '';
-        const example = card.example ? `<div style="margin-top:8px;font-size:11px;color:#64748b;font-family:'Open Sans',sans-serif;border-top:1px solid #1e293b;padding-top:8px"><b style="color:#475569">Example:</b> ${card.example.substring(0,120)}${card.example.length>120?'...':''}</div>` : '';
-
-        bodyHTML += `<div onclick="ckFlip(this)" style="cursor:pointer;border:1px solid #0f172a;min-height:220px;position:relative;background:#0d1117;border-left:4px solid ${pal.h}60;transition:background 0.2s" onmouseover="this.style.background='#111827'" onmouseout="this.style.background='#0d1117'">
-            <!-- FRONT -->
-            <div class="ck-front" style="padding:18px 20px;display:flex;flex-direction:column;height:100%">
-                <div style="font-family:'Open Sans',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;color:${pal.h};margin-bottom:8px">🎯 SCENARIO / QUESTION TYPE</div>
-                <div style="font-family:'Open Sans',sans-serif;font-size:12px;font-weight:900;color:#e2e8f0;margin-bottom:10px">${card.title || ''}</div>
-                <div style="font-family:'Merriweather',serif;font-size:13px;color:#94a3b8;line-height:1.75;flex:1">${front}</div>
-                <div style="margin-top:12px;text-align:center;font-size:10px;color:#334155;font-family:'Open Sans',sans-serif;font-weight:700">TAP TO SEE FORMULA →</div>
+        bodyHTML += `<div onclick="ckFlip(this)" style="cursor:pointer;padding:18px 20px;border:1px solid #0f172a;min-height:200px;display:flex;flex-direction:column">
+            <div class="card-front" style="--col:${ch.color};display:flex;flex-direction:column;flex:1;border-left:4px solid ${ch.color}60;padding-left:12px">
+                <div class="label" style="color:${ch.color}">🎯 Scenario / Question Type</div>
+                <div class="title">${card.title||''}</div>
+                <div class="body" style="flex:1;color:#94a3b8">${front}</div>
+                <div class="flip-hint">Tap to see formula →</div>
             </div>
-            <!-- BACK (hidden) -->
-            <div class="ck-back" style="padding:18px 20px;display:none;flex-direction:column;height:100%;background:#0f172a">
-                <div style="font-family:'Open Sans',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;color:${pal.h};margin-bottom:8px">✅ FORMULA / ANSWER</div>
-                <div style="font-family:'Merriweather',serif;font-size:13px;color:#e2e8f0;line-height:1.85;flex:1">${back}</div>
+            <div class="card-back" style="--col:${ch.color};flex-direction:column;flex:1;border-left:4px solid ${ch.color};padding-left:12px;background:#0f172a;margin:-18px -20px;padding:18px 20px 18px 32px">
+                <div class="label" style="color:${ch.color}">✅ Formula / Answer</div>
+                <div class="body" style="flex:1;color:#e2e8f0">${back}</div>
                 ${hint}
-                ${example}
-                <div style="margin-top:12px;text-align:center;font-size:10px;color:#334155;font-family:'Open Sans',sans-serif;font-weight:700">TAP TO FLIP BACK ←</div>
+                <div class="flip-hint" style="margin-top:12px">← Tap to flip back</div>
             </div>
         </div>`;
     });
 
-    // From question formulaUsed — shown as formula-only cards
-    ch.formulas.forEach((formula, fi) => {
-        const fHTML = mathify(formula);
-        bodyHTML += `<div style="padding:18px 20px;border:1px solid #0f172a;background:#0d1117;border-left:4px solid ${pal.h}40;min-height:100px">
-            <div style="font-family:'Open Sans',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;color:${pal.h}80;margin-bottom:8px">📌 FORMULA USED IN HUB</div>
-            <div style="font-family:'Merriweather',serif;font-size:13px;color:#cbd5e1;line-height:1.85">${fHTML}</div>
-        </div>`;
-    });
-
-    bodyHTML += `</div></div>`; // close grid + chapter
+    bodyHTML += `</div></div>`;
 });
 
-if (bodyHTML === '') {
-    alert('No content to display yet. Add flashcards or import quiz JSONs with formulaUsed field.');
-    return;
-}
+// Update the window content
+try {
+    const navEl = win.document.getElementById('nav');
+    const bodyEl = win.document.getElementById('body');
+    const statsEl = win.document.getElementById('stats');
 
-// ── STEP 6: Build full HTML ──
-const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Concept King — Formula Book</title>
-<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Open+Sans:wght@600;700;800;900&display=swap" rel="stylesheet">
-<script>MathJax={tex:{inlineMath:[['\\\\(','\\\\)'],['$','$']],displayMath:[['$$','$$'],['\\\\[','\\\\]']]},startup:{pageReady:()=>MathJax.startup.defaultPageReady()}};<\/script>
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async><\/script>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:#080d1a;color:#e2e8f0;font-family:'Open Sans',sans-serif}
-@media(max-width:600px){div[style*="minmax(360px"]{grid-template-columns:1fr!important}}
-@media print{.no-print{display:none!important}body{background:#fff}}
-</style>
-</head>
-<body>
+    if (navEl) navEl.innerHTML = navHTML;
+    if (bodyEl) bodyEl.innerHTML = bodyHTML;
+    if (statsEl) statsEl.innerHTML = `
+        <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);padding:4px 14px;border-radius:999px;font-size:11px;font-weight:700">${results.length} Chapters</span>
+        <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);padding:4px 14px;border-radius:999px;font-size:11px;font-weight:700">${totalCards} Formula Cards</span>`;
 
-<div style="background:linear-gradient(135deg,#0e7490,#1d4ed8,#7c3aed);padding:32px 40px;text-align:center;position:relative;overflow:hidden">
-  <div style="font-size:44px;margin-bottom:6px">👑</div>
-  <div style="font-family:'Open Sans',sans-serif;font-size:26px;font-weight:900;letter-spacing:0.05em;color:#fff;text-transform:uppercase">Concept King</div>
-  <div style="font-size:14px;color:rgba(255,255,255,0.7);margin-top:6px">Your Flashcards + Hub Questions → Formula Book · Auto-updates as you add more</div>
-  <div style="display:flex;justify-content:center;gap:10px;margin-top:14px;flex-wrap:wrap">
-    <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);padding:4px 14px;border-radius:999px;font-size:11px;font-weight:700">${chapters.filter(ch=>ch.cards.length+ch.formulas.length>0).length} Chapters</span>
-    <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);padding:4px 14px;border-radius:999px;font-size:11px;font-weight:700">${totalCards} Formula Cards</span>
-    <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);padding:4px 14px;border-radius:999px;font-size:11px;font-weight:700">Tap card to flip</span>
-  </div>
-  <button class="no-print" onclick="window.print()" style="margin-top:14px;padding:9px 24px;background:#fff;color:#1d4ed8;font-family:'Open Sans',sans-serif;font-weight:800;font-size:12px;border:none;border-radius:8px;cursor:pointer;text-transform:uppercase;letter-spacing:0.08em">🖨️ Save as PDF</button>
-</div>
-
-<div class="no-print" style="display:flex;flex-wrap:wrap;gap:6px;padding:12px 36px;background:#0d1117;border-bottom:1px solid #1e293b;position:sticky;top:0;z-index:10">
-  ${navHTML}
-</div>
-
-<div style="padding:24px 36px;max-width:1400px;margin:0 auto">
-  ${bodyHTML}
-</div>
-
-<script>
-function ckFlip(el) {
-    const front = el.querySelector('.ck-front');
-    const back = el.querySelector('.ck-back');
-    const showingFront = front.style.display !== 'none';
-    front.style.display = showingFront ? 'none' : 'flex';
-    back.style.display = showingFront ? 'flex' : 'none';
-    if (!showingFront && window.MathJax && MathJax.typesetPromise) {
-        MathJax.typesetPromise([el]).catch(()=>{});
+    // Typeset math
+    if (win.MathJax && win.MathJax.typesetPromise) {
+        win.MathJax.typesetPromise().catch(()=>{});
     }
+} catch(e) {
+    console.error('Failed to update window:', e);
 }
-// Typeset all visible math on load
-window.addEventListener('load', () => {
-    if (window.MathJax && MathJax.typesetPromise) {
-        MathJax.typesetPromise().catch(()=>{});
-    }
-});
-<\/script>
-</body>
-</html>`;
-
-    const blob = new Blob([html], {type:'text/html'});
-    const url = URL.createObjectURL(blob);
-    const win = window.open(url,'_blank');
-    if(!win) alert('Pop-up blocked! Please allow pop-ups.');
-    setTimeout(()=>URL.revokeObjectURL(url), 8000);
 };
+;
 ;
 ;
 ;    window.exportBackup = () => {
