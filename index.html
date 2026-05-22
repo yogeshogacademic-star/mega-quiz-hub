@@ -1878,7 +1878,15 @@
             return;
         }
 
-        const payload = { subjects: SUBJECTS, db: cleanDb, history: historyDb, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, savedAt: nowTs };
+        // Strip formulaNotes from cloud payload (too large) — kept only in local IndexedDB
+        const cloudDb = {};
+        Object.keys(cleanDb).forEach(k => {
+            if (!cleanDb[k] || typeof cleanDb[k] !== 'object') { cloudDb[k] = cleanDb[k]; return; }
+            const q = Object.assign({}, cleanDb[k]);
+            delete q.formulaNotes;
+            cloudDb[k] = q;
+        });
+        const payload = { subjects: SUBJECTS, db: cloudDb, history: historyDb, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, savedAt: nowTs };
         try {
             // Use no-cors for POST to avoid CORS block on Google's redirect
             await fetch(CLOUD_URL, {
