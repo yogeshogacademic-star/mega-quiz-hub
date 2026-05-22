@@ -4238,17 +4238,13 @@ window.generateSubjectNotes = (targetSubject) => {
     }
 
     // ── Build the wrapper page ──
-    let innerContent = '<div class="notes-grid">';
+    let innerContent = '';
 
     if (craftedBlocks.length > 0) {
-        // Stitch all hand-crafted blocks, stripping their page-header and outer grid wrapper
-        // so all cards flow into the single outer notes-grid
         craftedBlocks.forEach(block => {
-            let stripped = block.html
-                .replace(/<div class="page-header"[\s\S]*?<\/div>/i, '')  // remove header
-                .replace(/<div class="grid">/g, '')                         // remove inner grid openers
-                .replace(/<\/div>\s*(?=\s*<div class="section-title")/g, '') // remove grid closers before section titles
-                .replace(/<\/div>\s*$/, '');                                // remove last closing grid div
+            // Just strip the page-header div, keep everything else intact
+            // The .grid class inside will be styled via CSS override to be 2-column
+            const stripped = block.html.replace(/<div class="page-header"[^>]*>[\s\S]*?<\/div>/i, '');
             innerContent += stripped;
         });
     }
@@ -4278,7 +4274,7 @@ window.generateSubjectNotes = (targetSubject) => {
         }
     }
 
-    innerContent += '</div>'; // close notes-grid
+    innerContent += ''; // end of content
 
     const notesHTML = `<!DOCTYPE html>
 <html lang="en">
@@ -4303,14 +4299,12 @@ body { font-family:'Segoe UI',sans-serif; background:#f4f4f0; color:#1a1a1a; fon
     color:#888; padding:14px 20px 5px; border-bottom:1px solid #ddd; margin-bottom:0;
     grid-column: 1 / -1;
 }
+.card-full { grid-column: 1 / -1 !important; }
 
-/* ── THE KEY FIX: outer wrapper is the 2-col grid ── */
-.crafted-block { display:contents; }
-
-/* Everything inside crafted-block flows into the outer grid */
-.notes-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+/* ── THE KEY FIX: cylinder HTML uses class="grid" — make it 2-column ── */
+.grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
     gap: 0;
     width: 100%;
 }
@@ -4339,7 +4333,6 @@ body { font-family:'Segoe UI',sans-serif; background:#f4f4f0; color:#1a1a1a; fon
 .card-formula .katex-display { margin:0; overflow-x:auto; overflow-y:hidden; }
 .card-formula .katex { font-size:1em; }
 .card-warn { font-size:10.5px; color:#c0392b; font-weight:600; margin-top:4px; }
-.card-full { grid-column:1 / -1; }
 
 /* ── fallback card styles ── */
 .fb-grid { display:grid; grid-template-columns:1fr 1fr; gap:0; }
