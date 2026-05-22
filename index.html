@@ -6800,6 +6800,48 @@ window.retryWrong = function() {
         else topicStats[key].skipped++;
       });
     });
+    // Render results
+    const topics=Object.entries(topicStats).map(([k,v])=>({k,...v,acc:v.total>0?Math.round((v.correct/v.total)*100):0})).sort((a,b)=>a.acc-b.acc);
+    if(!topics.length){ el.innerHTML='<div class="mt-empty">No question data found. Attempt some quizzes first.</div>'; return; }
+    const totalQ=topics.reduce((a,t)=>a+t.total,0);
+    const totalCor=topics.reduce((a,t)=>a+t.correct,0);
+    const overallAcc=Math.round((totalCor/totalQ)*100);
+    const neverCracked=topics.filter(t=>t.total>=3&&t.acc<50);
+    const weak=topics.filter(t=>t.acc<60);
+    const strong=topics.filter(t=>t.acc>=80);
+    el.innerHTML=`
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
+        <div class="mt-metric"><div class="mt-metric-val" style="color:#6366f1">${entries.length}</div><div class="mt-metric-lbl">Attempts</div></div>
+        <div class="mt-metric"><div class="mt-metric-val" style="color:#6366f1">${totalQ}</div><div class="mt-metric-lbl">Total Qs</div></div>
+        <div class="mt-metric"><div class="mt-metric-val" style="color:${overallAcc>=70?'#16a34a':overallAcc>=50?'#f59e0b':'#ef4444'}">${overallAcc}%</div><div class="mt-metric-lbl">Overall Acc.</div></div>
+        <div class="mt-metric"><div class="mt-metric-val" style="color:#ef4444">${neverCracked.length}</div><div class="mt-metric-lbl">Never Cracked</div></div>
+      </div>
+      ${neverCracked.length?`<div class="mt-chart-wrap" style="border-color:#fecaca">
+        <div class="mt-chart-title" style="color:#ef4444">🚨 Never Cracked — 3+ attempts below 50%</div>
+        ${neverCracked.map(t=>`<div class="wz-never-cracked"><span style="color:#b91c1c;font-weight:900">${t.k}</span> <span style="color:#94a3b8;font-size:11px">${t.correct}/${t.total} · ${t.acc}%</span></div>`).join('')}
+      </div>`:''}
+      <div class="mt-chart-wrap">
+        <div class="mt-chart-title">📊 All Topics — worst to best</div>
+        ${topics.slice(0,40).map(t=>{
+          const bc=t.acc<50?'#ef4444':t.acc<70?'#f59e0b':'#16a34a';
+          return `<div class="wz-topic-bar">
+            <span style="width:200px;font-size:11px;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0" class="dark:text-slate-200" title="${t.k}">${t.k}</span>
+            <div class="wz-bar-wrap"><div class="wz-bar-fill" style="width:${t.acc}%;background:${bc}"></div></div>
+            <span style="font-size:11px;font-weight:900;color:${bc};min-width:36px;text-align:right">${t.acc}%</span>
+            <span style="font-size:10px;color:#94a3b8;min-width:50px;text-align:right">${t.correct}/${t.total}</span>
+          </div>`;
+        }).join('')}
+        ${topics.length>40?`<div style="font-size:11px;color:#94a3b8;font-weight:700;margin-top:6px">+${topics.length-40} more topics</div>`:''}
+      </div>
+      ${weak.length?`<div class="mt-chart-wrap" style="border-color:#fecaca">
+        <div class="mt-chart-title" style="color:#ef4444">⚠ Weak Topics (below 60%) — ${weak.length} to fix</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">${weak.map(t=>`<span style="background:#fee2e2;color:#b91c1c;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700">${t.k} ${t.acc}%</span>`).join('')}</div>
+      </div>`:''}
+      ${strong.length?`<div class="mt-chart-wrap" style="border-color:#bbf7d0">
+        <div class="mt-chart-title" style="color:#16a34a">✅ Strong Topics (80%+) — ${strong.length}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">${strong.map(t=>`<span style="background:#dcfce7;color:#15803d;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700">${t.k} ${t.acc}%</span>`).join('')}</div>
+      </div>`:''}`;
+  }
 
   /* ── TAB SWITCH ── */
   window.mtSwitchTab=function(name){
