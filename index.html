@@ -6758,69 +6758,104 @@ window.retryWrong = function() {
   /* STREAK - MONTHLY CALENDAR */
   window.mtRenderStreak=function(){
     const el=document.getElementById('mt-streak-content'); if(!el) return;
-    const mockDates=new Set(mtMocks.map(m=>m.date));
     const today=new Date(); today.setHours(0,0,0,0);
+    const todayStr=today.toISOString().split('T')[0];
+    // Build date->mocks map
+    const dateMap={};
+    mtMocks.filter(m=>m.platform!=='Manual').forEach(m=>{ if(!dateMap[m.date]) dateMap[m.date]=[]; dateMap[m.date].push(m); });
+    const mockDates=new Set(Object.keys(dateMap));
+    // Streak calc
     let streak=0; let dd=new Date(today);
     while(true){ const ds=dd.toISOString().split('T')[0]; if(mockDates.has(ds)){ streak++; dd.setDate(dd.getDate()-1); } else break; }
     let maxStreak=0,cur=0; const sorted=[...mockDates].sort();
-    sorted.forEach((ds,i)=>{ if(i===0){ cur=1; } else { const diff=(new Date(ds)-new Date(sorted[i-1]))/86400000; cur=diff===1?cur+1:1; } maxStreak=Math.max(maxStreak,cur); });
-
-    // Get current display month from state or default to today
-    if(!window.mtStreakMonth) window.mtStreakMonth={ y:today.getFullYear(), m:today.getMonth() };
-    const { y, m } = window.mtStreakMonth;
+    sorted.forEach((ds,i)=>{ if(i===0){cur=1;}else{const diff=(new Date(ds)-new Date(sorted[i-1]))/86400000;cur=diff===1?cur+1:1;} maxStreak=Math.max(maxStreak,cur); });
+    if(!window.mtStreakMonth) window.mtStreakMonth={y:today.getFullYear(),m:today.getMonth()};
+    const {y,m}=window.mtStreakMonth;
     const monthName=new Date(y,m,1).toLocaleString('default',{month:'long',year:'numeric'});
     const firstDay=new Date(y,m,1).getDay();
     const daysInMonth=new Date(y,m+1,0).getDate();
-
+    const monthMocks=Object.entries(dateMap).filter(([d])=>d.startsWith(`${y}-${String(m+1).padStart(2,'0')}`));
+    const monthMockCount=monthMocks.reduce((a,[,v])=>a+v.length,0);
+    const monthDays=monthMocks.length;
+    // Past days without mock (only up to today)
+    const todayInMonth=y===today.getFullYear()&&m===today.getMonth();
+    let missedDays=0;
+    if(todayInMonth){ for(let d=1;d<=today.getDate();d++){ const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; if(!mockDates.has(ds)) missedDays++; } }
     el.innerHTML=`
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">
-        <div class="mt-metric"><div class="mt-metric-val" style="color:#f59e0b">${streak}🔥</div><div class="mt-metric-lbl">Current Streak</div></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
+        <div class="mt-metric"><div class="mt-metric-val" style="color:#f59e0b">${streak}🔥</div><div class="mt-metric-lbl">Streak</div></div>
         <div class="mt-metric"><div class="mt-metric-val" style="color:#6366f1">${maxStreak}</div><div class="mt-metric-lbl">Best Streak</div></div>
-        <div class="mt-metric"><div class="mt-metric-val" style="color:#16a34a">${mockDates.size}</div><div class="mt-metric-lbl">Total Mock Days</div></div>
+        <div class="mt-metric"><div class="mt-metric-val" style="color:#16a34a">${monthDays}</div><div class="mt-metric-lbl">Days This Month</div></div>
+        <div class="mt-metric"><div class="mt-metric-val" style="color:#ef4444">${missedDays}</div><div class="mt-metric-lbl">Missed Days</div></div>
       </div>
       <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:16px" class="dark:bg-slate-800 dark:border-slate-700">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-          <button onclick="mtStreakNav(-1)" style="padding:6px 14px;border:1px solid #e2e8f0;border-radius:8px;background:transparent;font-weight:900;cursor:pointer;font-size:14px;color:#64748b" class="dark:border-slate-600 dark:text-slate-400">‹</button>
-          <span style="font-size:15px;font-weight:900;color:#1e293b" class="dark:text-slate-100">${monthName}</span>
-          <button onclick="mtStreakNav(1)" style="padding:6px 14px;border:1px solid #e2e8f0;border-radius:8px;background:transparent;font-weight:900;cursor:pointer;font-size:14px;color:#64748b" class="dark:border-slate-600 dark:text-slate-400">›</button>
+          <button onclick="mtStreakNav(-1)" style="padding:6px 16px;border:1px solid #e2e8f0;border-radius:8px;background:transparent;font-weight:900;cursor:pointer;font-size:16px;color:#64748b" class="dark:border-slate-600">‹</button>
+          <div style="text-align:center"><div style="font-size:15px;font-weight:900;color:#1e293b" class="dark:text-slate-100">${monthName}</div><div style="font-size:11px;font-weight:700;color:#94a3b8">${monthMockCount} mock${monthMockCount!==1?'s':''} · ${monthDays} active day${monthDays!==1?'s':''}</div></div>
+          <button onclick="mtStreakNav(1)" style="padding:6px 16px;border:1px solid #e2e8f0;border-radius:8px;background:transparent;font-weight:900;cursor:pointer;font-size:16px;color:#64748b" class="dark:border-slate-600">›</button>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px">
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:6px">
           ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div style="text-align:center;font-size:9px;font-weight:900;color:#94a3b8;padding:2px 0">${d}</div>`).join('')}
         </div>
-        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px" id="mt-cal-grid"></div>
-        <div style="display:flex;align-items:center;gap:10px;margin-top:12px;font-size:11px;font-weight:700;color:#94a3b8">
-          <div style="width:12px;height:12px;border-radius:3px;background:#f1f5f9"></div>No mock
-          <div style="width:12px;height:12px;border-radius:3px;background:#6366f1"></div>Mock done
-          <div style="width:12px;height:12px;border-radius:3px;border:2px solid #f59e0b"></div>Today
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px" id="mt-cal-grid"></div>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:12px;font-size:11px;font-weight:700;color:#94a3b8;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:4px"><div style="width:12px;height:12px;border-radius:3px;background:#16a34a"></div>Mock done</div>
+          <div style="display:flex;align-items:center;gap:4px"><div style="width:12px;height:12px;border-radius:3px;background:#ef4444"></div>Missed</div>
+          <div style="display:flex;align-items:center;gap:4px"><div style="width:12px;height:12px;border-radius:3px;background:#f8fafc;border:1px solid #e2e8f0"></div>Future</div>
+          <div style="display:flex;align-items:center;gap:4px"><div style="width:12px;height:12px;border-radius:3px;border:2px solid #f59e0b"></div>Today</div>
         </div>
-      </div>`;
-
+      </div>
+      <div id="mt-day-detail" style="margin-top:14px"></div>`;
     const grid=document.getElementById('mt-cal-grid'); if(!grid) return;
-    // Empty cells before first day
     for(let i=0;i<firstDay;i++) grid.innerHTML+=`<div></div>`;
     for(let d=1;d<=daysInMonth;d++){
       const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      const isToday=ds===today.toISOString().split('T')[0];
+      const isToday=ds===todayStr;
+      const isPast=ds<todayStr;
       const hasMock=mockDates.has(ds);
-      const mockCount=mtMocks.filter(x=>x.date===ds).length;
-      grid.innerHTML+=`<button onclick="mtToggleStreakDay('${ds}')"
-        style="aspect-ratio:1;border-radius:6px;border:${isToday?'2px solid #f59e0b':'1px solid transparent'};background:${hasMock?'#6366f1':'#f8fafc'};color:${hasMock?'#fff':'#94a3b8'};font-size:11px;font-weight:900;cursor:pointer;position:relative;transition:all 0.15s"
-        title="${ds}${mockCount>1?' · '+mockCount+' mocks':''}"
-        class="${hasMock?'':'dark:bg-slate-700'}">${d}${mockCount>1?`<span style="position:absolute;top:1px;right:2px;font-size:8px">${mockCount}</span>`:''}</button>`;
+      const isFuture=ds>todayStr;
+      let bg,color,border;
+      if(isToday&&hasMock){ bg='#16a34a'; color='#fff'; border='2px solid #f59e0b'; }
+      else if(isToday&&!hasMock){ bg='#fef3c7'; color='#92400e'; border='2px solid #f59e0b'; }
+      else if(hasMock){ bg='#16a34a'; color='#fff'; border='1px solid transparent'; }
+      else if(isPast){ bg='#fee2e2'; color='#b91c1c'; border='1px solid #fecaca'; }
+      else{ bg='#f8fafc'; color='#cbd5e1'; border='1px solid #f1f5f9'; }
+      const mks=dateMap[ds]||[];
+      const cnt=mks.length;
+      grid.innerHTML+=`<button onclick="mtShowDayDetail('${ds}')"
+        style="aspect-ratio:1;border-radius:6px;border:${border};background:${bg};color:${color};font-size:11px;font-weight:900;cursor:pointer;position:relative;transition:all 0.15s;display:flex;align-items:center;justify-content:center"
+        title="${hasMock?mks.map(x=>x.platform+' '+x.mockno+(x.net?' ('+x.net.toFixed(1)+'pts)':'')).join(' | '):isPast?'No mock':'Future'}"
+        >${d}${cnt>1?`<span style="position:absolute;top:1px;right:2px;font-size:7px;font-weight:900">${cnt}</span>`:''}</button>`;
     }
   };
-  window.mtStreakNav=function(dir){
-    if(!window.mtStreakMonth){ const t=new Date(); window.mtStreakMonth={y:t.getFullYear(),m:t.getMonth()}; }
-    window.mtStreakMonth.m+=dir;
-    if(window.mtStreakMonth.m>11){ window.mtStreakMonth.m=0; window.mtStreakMonth.y++; }
-    if(window.mtStreakMonth.m<0){ window.mtStreakMonth.m=11; window.mtStreakMonth.y--; }
-    mtRenderStreak();
+  window.mtShowDayDetail=function(ds){
+    const el=document.getElementById('mt-day-detail'); if(!el) return;
+    const mocks=mtMocks.filter(m=>m.date===ds&&m.platform!=='Manual');
+    if(!mocks.length){ el.innerHTML=`<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:12px 16px;font-size:13px;font-weight:700;color:#b91c1c">❌ No mock on ${ds}</div>`; return; }
+    const feelEmoji={'Confident':'😎','Neutral':'😐','Felt Bad':'😟'};
+    el.innerHTML=`<div style="font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:0.07em;color:#64748b;margin-bottom:8px">${ds} — ${mocks.length} mock${mocks.length>1?'s':''}</div>`+
+    mocks.map(m=>`<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px 16px;margin-bottom:8px" class="dark:bg-green-900/10 dark:border-green-900/30">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:14px;font-weight:900;color:#15803d">${m.platform} — ${m.mockno}</span>
+          ${m.tag?`<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:900">${m.tag}</span>`:''}
+          ${m.feeling?`<span style="font-size:16px">${feelEmoji[m.feeling]||''}</span>`:''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:18px;font-weight:900;color:${m.net>=0?'#16a34a':'#ef4444'}">${m.net.toFixed(1)}</span>
+          <button onclick="mtOpenEdit(${m.id})" style="padding:3px 10px;border:1px solid #bbf7d0;border-radius:8px;background:transparent;color:#16a34a;font-size:11px;font-weight:900;cursor:pointer">Edit</button>
+        </div>
+      </div>
+      ${m.takeaway?`<div style="font-size:12px;font-weight:700;color:#166534;margin-top:6px">💡 ${m.takeaway}</div>`:''}
+      ${m.percentile!=null?`<div style="font-size:11px;font-weight:700;color:#64748b;margin-top:3px">Rank ${m.rank||'—'} · ${m.percentile}%ile</div>`:''}
+    </div>`).join('');
   };
-  window.mtToggleStreakDay=function(ds){
-    const existing=mtMocks.find(m=>m.date===ds);
-    if(existing){ if(confirm(`Remove mock entries for ${ds}?`)){ mtMocks=mtMocks.filter(m=>m.date!==ds); mtSave(); } }
-    else{ mtMocks.push({id:Date.now(),type:'full',subject:'',platform:'Manual',mockno:'Day Mark',date:ds,tag:'',difficulty:'Medium',focus:0,feeling:'',rank:null,rankTotal:null,percentile:null,takeaway:'',sections:{Quant:{total:0,attempted:0,correct:0,wrong:0},English:{total:0,attempted:0,correct:0,wrong:0},Reasoning:{total:0,attempted:0,correct:0,wrong:0},GK:{total:0,attempted:0,correct:0,wrong:0}},wrongs:'',net:0}); mtSave(); }
-    mtRenderStreak(); mtUpdateHeaderStats();
+  window.mtStreakNav=function(dir){
+    if(!window.mtStreakMonth){const t=new Date();window.mtStreakMonth={y:t.getFullYear(),m:t.getMonth()};}
+    window.mtStreakMonth.m+=dir;
+    if(window.mtStreakMonth.m>11){window.mtStreakMonth.m=0;window.mtStreakMonth.y++;}
+    if(window.mtStreakMonth.m<0){window.mtStreakMonth.m=11;window.mtStreakMonth.y--;}
+    mtRenderStreak();
   };
 
   /* WRONG SHEET */
@@ -6887,44 +6922,127 @@ window.retryWrong = function() {
       });
     });
     const topics=Object.entries(topicStats).map(([k,v])=>({k,...v,acc:v.total>0?Math.round((v.correct/v.total)*100):0})).sort((a,b)=>a.acc-b.acc);
-    if(!topics.length){ el.innerHTML='<div class="mt-empty">No question data found. Make sure quizzes have tags set.</div>'; return; }
+    if(!topics.length){ el.innerHTML='<div class="mt-empty">No question data found. Make sure your quiz JSONs have tags set.</div>'; return; }
     const totalQ=topics.reduce((a,t)=>a+t.total,0);
     const totalCor=topics.reduce((a,t)=>a+t.correct,0);
     const overallAcc=Math.round((totalCor/totalQ)*100);
     const neverCracked=topics.filter(t=>t.total>=3&&t.acc<50);
     const weak=topics.filter(t=>t.acc<60);
     const strong=topics.filter(t=>t.acc>=80);
+
+    // ── REPEAT OFFENDERS: questions wrong across multiple quiz JSONs ──
+    // For each question text, track which quiz files it appeared wrong in
+    const qWrongIn={};
+    entries.forEach(h=>{
+      if(!Array.isArray(h.reviewData)) return;
+      h.reviewData.forEach(rd=>{
+        if(rd.status!=='wrong') return;
+        const qText=(rd.question||'').slice(0,80);
+        if(!qText) return;
+        if(!qWrongIn[qText]) qWrongIn[qText]={count:0,mocks:new Set(),tag:((rd.tags&&rd.tags[1])||rd.tags&&rd.tags[0])||'Unknown'};
+        qWrongIn[qText].count++;
+        qWrongIn[qText].mocks.add(h.title||h.date);
+      });
+    });
+    const repeatOffenders=Object.entries(qWrongIn)
+      .filter(([,v])=>v.mocks.size>=2)
+      .map(([q,v])=>({q,count:v.count,mocks:v.mocks.size,tag:v.tag}))
+      .sort((a,b)=>b.mocks-a.mocks)
+      .slice(0,15);
+
+    // ── MOCK-WISE WRONG COUNT TABLE ──
+    // Sort entries by title
+    const sortedEntries=[...entries].sort((a,b)=>(a.title||'').localeCompare(b.title||''));
+    // Get all unique tags
+    const allTags=[...new Set(entries.flatMap(h=>(h.reviewData||[]).map(rd=>(rd.tags&&rd.tags[1])||rd.tags&&rd.tags[0]||'Unknown')))].sort();
+    // Build table: rows=tags, cols=quiz JSONs
+    const tableData={};
+    allTags.forEach(tag=>{ tableData[tag]={}; sortedEntries.forEach(h=>{ tableData[tag][h.title||h.date]=0; }); });
+    entries.forEach(h=>{
+      (h.reviewData||[]).forEach(rd=>{
+        if(rd.status!=='wrong') return;
+        const tag=(rd.tags&&rd.tags[1])||rd.tags&&rd.tags[0]||'Unknown';
+        const key=h.title||h.date;
+        if(tableData[tag]) tableData[tag][key]=(tableData[tag][key]||0)+1;
+      });
+    });
+    // Sort tags by total wrong count
+    const tagTotals=allTags.map(tag=>({tag,total:Object.values(tableData[tag]).reduce((a,b)=>a+b,0)})).sort((a,b)=>b.total-a.total);
+
+    // ── TOPIC IMPROVEMENT TREND ──
+    // For each topic, show accuracy per quiz attempt in chronological order
+    const topicTrend={};
+    sortedEntries.forEach(h=>{
+      (h.reviewData||[]).forEach(rd=>{
+        const tag=(rd.tags&&rd.tags[1])||rd.tags&&rd.tags[0]||'Unknown';
+        if(!topicTrend[tag]) topicTrend[tag]=[];
+        const existing=topicTrend[tag].find(e=>e.title===h.title);
+        if(existing){ existing.total++; if(rd.status==='correct') existing.correct++; }
+        else topicTrend[tag].push({title:h.title||h.date,total:1,correct:rd.status==='correct'?1:0});
+      });
+    });
+    // Find improving vs stagnant topics (3+ attempts)
+    const improvingTopics=[],stagnantTopics=[];
+    Object.entries(topicTrend).forEach(([tag,arr])=>{
+      if(arr.length<2) return;
+      const accs=arr.map(a=>a.total>0?Math.round((a.correct/a.total)*100):0);
+      const first=accs[0], last=accs[accs.length-1];
+      if(last>first+10) improvingTopics.push({tag,first,last,gain:last-first});
+      else if(last<first-5||last<40) stagnantTopics.push({tag,first,last,diff:last-first});
+    });
+    improvingTopics.sort((a,b)=>b.gain-a.gain);
+    stagnantTopics.sort((a,b)=>a.last-b.last);
     el.innerHTML=`
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
-        <div class="mt-metric"><div class="mt-metric-val" style="color:#6366f1">${entries.length}</div><div class="mt-metric-lbl">Attempts</div></div>
+        <div class="mt-metric"><div class="mt-metric-val" style="color:#6366f1">${entries.length}</div><div class="mt-metric-lbl">Quiz Files</div></div>
         <div class="mt-metric"><div class="mt-metric-val" style="color:#6366f1">${totalQ}</div><div class="mt-metric-lbl">Total Qs</div></div>
         <div class="mt-metric"><div class="mt-metric-val" style="color:${overallAcc>=70?'#16a34a':overallAcc>=50?'#f59e0b':'#ef4444'}">${overallAcc}%</div><div class="mt-metric-lbl">Overall Acc.</div></div>
-        <div class="mt-metric"><div class="mt-metric-val" style="color:#ef4444">${neverCracked.length}</div><div class="mt-metric-lbl">Never Cracked</div></div>
+        <div class="mt-metric"><div class="mt-metric-val" style="color:#ef4444">${repeatOffenders.length}</div><div class="mt-metric-lbl">Repeat Offenders</div></div>
       </div>
-      ${neverCracked.length?`<div class="mt-chart-wrap" style="border-color:#fecaca">
-        <div class="mt-chart-title" style="color:#ef4444">🚨 Never Cracked — 3+ attempts below 50%</div>
-        ${neverCracked.map(t=>`<div class="wz-never-cracked"><span style="color:#b91c1c;font-weight:900">${t.k}</span> <span style="color:#94a3b8;font-size:11px">${t.correct}/${t.total} · ${t.acc}%</span></div>`).join('')}
+      ${repeatOffenders.length?`<div class="mt-chart-wrap" style="border-color:#fecaca;background:#fff5f5">
+        <div class="mt-chart-title" style="color:#ef4444">🔁 Repeat Offenders — wrong in 2+ mock files · priority revision</div>
+        ${repeatOffenders.map(r=>`<div style="background:#fff;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+          <div style="font-size:12px;font-weight:700;color:#1e293b;flex:1;min-width:200px" class="dark:text-slate-200">${r.q}...</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <span style="background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:900">${r.tag}</span>
+            <span style="font-size:12px;font-weight:900;color:#ef4444">${r.mocks} files · ${r.count}× wrong</span>
+          </div>
+        </div>`).join('')}
+      </div>`:''}
+      ${stagnantTopics.length?`<div class="mt-chart-wrap" style="border-color:#fde68a">
+        <div class="mt-chart-title" style="color:#d97706">⚠ Stagnant Topics — not improving</div>
+        ${stagnantTopics.slice(0,10).map(t=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;flex-wrap:wrap">
+          <span style="font-weight:900;color:#1e293b;min-width:160px" class="dark:text-slate-200">${t.tag}</span>
+          <span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:900">${t.first}% → ${t.last}%</span>
+          <span style="font-size:11px;font-weight:700;color:${t.diff>=0?'#94a3b8':'#ef4444'}">${t.diff>0?'+':''}${t.diff}%</span>
+        </div>`).join('')}
+      </div>`:''}
+      ${improvingTopics.length?`<div class="mt-chart-wrap" style="border-color:#bbf7d0">
+        <div class="mt-chart-title" style="color:#16a34a">📈 Improving Topics — keep going!</div>
+        ${improvingTopics.slice(0,8).map(t=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;flex-wrap:wrap">
+          <span style="font-weight:900;color:#1e293b;min-width:160px" class="dark:text-slate-200">${t.tag}</span>
+          <span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:900">${t.first}% → ${t.last}%</span>
+          <span style="font-size:11px;font-weight:700;color:#16a34a">+${t.gain}% 🎯</span>
+        </div>`).join('')}
       </div>`:''}
       <div class="mt-chart-wrap">
-        <div class="mt-chart-title">📊 All Topics — worst → best</div>
-        ${topics.slice(0,40).map(t=>{
-          const bc=t.acc<50?'#ef4444':t.acc<70?'#f59e0b':'#16a34a';
-          return `<div class="wz-topic-bar">
-            <span style="width:200px;font-size:11px;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0" class="dark:text-slate-200" title="${t.k}">${t.k}</span>
-            <div class="wz-bar-wrap"><div class="wz-bar-fill" style="width:${t.acc}%;background:${bc}"></div></div>
-            <span style="font-size:11px;font-weight:900;color:${bc};min-width:36px;text-align:right">${t.acc}%</span>
-            <span style="font-size:10px;color:#94a3b8;min-width:50px;text-align:right">${t.correct}/${t.total}</span>
-          </div>`;
-        }).join('')}
+        <div class="mt-chart-title">📊 Topic Accuracy — worst to best</div>
+        ${topics.slice(0,40).map(t=>{const bc=t.acc<50?'#ef4444':t.acc<70?'#f59e0b':'#16a34a';return `<div class="wz-topic-bar"><span style="width:190px;font-size:11px;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0" class="dark:text-slate-200" title="${t.k}">${t.k}</span><div class="wz-bar-wrap"><div class="wz-bar-fill" style="width:${t.acc}%;background:${bc}"></div></div><span style="font-size:11px;font-weight:900;color:${bc};min-width:36px;text-align:right">${t.acc}%</span><span style="font-size:10px;color:#94a3b8;min-width:46px;text-align:right">${t.correct}/${t.total}</span></div>`;}).join('')}
         ${topics.length>40?`<div style="font-size:11px;color:#94a3b8;font-weight:700;margin-top:6px">+${topics.length-40} more topics</div>`:''}
       </div>
-      ${weak.length?`<div class="mt-chart-wrap" style="border-color:#fecaca">
-        <div class="mt-chart-title" style="color:#ef4444">⚠ Weak Topics (below 60%)</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">${weak.map(t=>`<span style="background:#fee2e2;color:#b91c1c;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700">${t.k} ${t.acc}%</span>`).join('')}</div>
-      </div>`:''}
-      ${strong.length?`<div class="mt-chart-wrap" style="border-color:#bbf7d0">
-        <div class="mt-chart-title" style="color:#16a34a">✅ Strong Topics (80%+)</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">${strong.map(t=>`<span style="background:#dcfce7;color:#15803d;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700">${t.k} ${t.acc}%</span>`).join('')}</div>
+      ${tagTotals.length&&sortedEntries.length>1?`<div class="mt-chart-wrap"><div class="mt-chart-title">📋 Mock-wise Wrong Count per Chapter</div>
+        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead><tr>
+            <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #e2e8f0;font-weight:900;color:#64748b;min-width:130px" class="dark:border-slate-700">Chapter</th>
+            ${sortedEntries.map(h=>`<th style="text-align:center;padding:6px 8px;border-bottom:1px solid #e2e8f0;font-weight:900;color:#6366f1;white-space:nowrap" class="dark:border-slate-700">${(h.title||h.date).replace(/QUANT MOCK /i,'Q').replace(/GS MOCK /i,'GS').replace(/ENGLISH MOCK /i,'EN').replace(/REASONING MOCK /i,'R')}</th>`).join('')}
+            <th style="text-align:center;padding:6px 8px;border-bottom:1px solid #e2e8f0;font-weight:900;color:#ef4444" class="dark:border-slate-700">Total</th>
+          </tr></thead>
+          <tbody>${tagTotals.slice(0,20).map(({tag,total})=>`<tr>
+            <td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;font-weight:700;color:#1e293b" class="dark:border-slate-800 dark:text-slate-200">${tag}</td>
+            ${sortedEntries.map(h=>{const c=tableData[tag][h.title||h.date]||0;return `<td style="text-align:center;padding:5px 8px;border-bottom:1px solid #f1f5f9;font-weight:900;color:${c===0?'#94a3b8':c<=2?'#f59e0b':'#ef4444'}" class="dark:border-slate-800">${c||'·'}</td>`;}).join('')}
+            <td style="text-align:center;padding:5px 8px;font-weight:900;color:#ef4444;background:#fff5f5" class="dark:bg-red-900/10">${total}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>
       </div>`:''}`;
   }
 
