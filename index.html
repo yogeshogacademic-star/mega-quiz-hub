@@ -4199,112 +4199,165 @@ window.generateQuantNotes = () => {
 
 // ================================================================
 // SHARED FORMULA NOTES — works for Advanced Maths AND Arithmetic
-// Identical logic to generateQuantNotes, just parameterised by subject
+// generateSubjectNotes — Smart version
+// Priority 1: If any quiz has a hand-crafted formulaNotes field, stitch them all together and open.
+// Priority 2: Fall back to extracting formula fields (old behaviour) for quizzes without formulaNotes.
 // ================================================================
 window.generateSubjectNotes = (targetSubject) => {
-    let chapters = {};
-    let foundAny = false;
+
+    // ── PASS 1: collect hand-crafted formulaNotes HTML blocks ──
+    const craftedBlocks = []; // { quizTitle, html }
+    const fallbackChapters = {}; // chapter -> Map(text -> diagram)
+    let fallbackAny = false;
 
     Object.values(db).forEach(quiz => {
-        if (quiz.subject === targetSubject && quiz.questions) {
+        if (!quiz || quiz.subject !== targetSubject) return;
+
+        if (quiz.formulaNotes && typeof quiz.formulaNotes === 'string' && quiz.formulaNotes.trim().length > 100) {
+            // Hand-crafted notes exist — extract just the <body> content
+            const bodyMatch = quiz.formulaNotes.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+            const inner = bodyMatch ? bodyMatch[1] : quiz.formulaNotes;
+            craftedBlocks.push({ quizTitle: quiz.title || 'Untitled', html: inner });
+        } else if (quiz.questions) {
+            // Fall back: extract formula fields
             quiz.questions.forEach(q => {
-                let chapter = (q.tags && q.tags.length > 1) ? q.tags[1] : "Mixed Concepts";
-                if (!chapters[chapter]) chapters[chapter] = new Map();
-                let itemText = q.formula ? q.formula : "";
-                if (itemText) {
-                    itemText = itemText.replace(/<\/?b>/g, "").trim();
-                    if (!chapters[chapter].has(itemText)) {
-                        chapters[chapter].set(itemText, q.diagram || "");
-                        foundAny = true;
-                    }
+                const chapter = (q.tags && q.tags.length > 1) ? q.tags[1] : 'Mixed Concepts';
+                if (!fallbackChapters[chapter]) fallbackChapters[chapter] = new Map();
+                let itemText = q.formula ? q.formula.replace(/<\/?b>/g, '').trim() : '';
+                if (itemText && !fallbackChapters[chapter].has(itemText)) {
+                    fallbackChapters[chapter].set(itemText, q.diagram || '');
+                    fallbackAny = true;
                 }
             });
         }
     });
 
-    if (!foundAny) {
-        alert(`No formulas found in ${targetSubject}!\n\nMake sure your imported JSON files have a "formula" field filled in.`);
+    if (craftedBlocks.length === 0 && !fallbackAny) {
+        alert(`No formula notes found for ${targetSubject}!\n\nImport JSON files with a "formula" field first.`);
         return;
     }
 
-    let notesHTML = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <title>${targetSubject} — Formula Notes</title>
-        <script>
-            window.MathJax = {
-                tex: { inlineMath: [['$', '$'], ['\\\\(', '\\\\)']], displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']] },
-                startup: { pageReady: () => { return MathJax.startup.defaultPageReady().then(() => {}); } }
-            };
-        <\/script>
-        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"><\/script>
-        <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"><\/script>
-        <style>
-            @import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;1,400&family=Open+Sans:wght@600;800&display=swap');
-            body { font-family: 'Merriweather', serif; padding: 30px; color: #111; background: #fff; line-height: 1.6; }
-            .container { max-width: 1050px; margin: 0 auto; }
-            .book-header { text-align: center; margin-bottom: 40px; border-bottom: 5px solid #1e3a8a; padding-bottom: 20px; }
-            .book-title { font-family: 'Open Sans', sans-serif; font-size: 2.8em; font-weight: 800; color: #1e3a8a; text-transform: uppercase; margin: 0; letter-spacing: 1px; }
-            .book-subtitle { font-size: 1.2em; color: #64748b; font-style: italic; margin-top: 5px; }
-            .book-content { column-count: 2; column-gap: 50px; column-rule: 1px solid #e2e8f0; }
-            h2.chapter-title { font-family: 'Open Sans', sans-serif; color: #b91c1c; font-size: 1.5em; text-transform: uppercase; border-bottom: 2px solid #b91c1c; padding-bottom: 5px; margin-top: 0; break-after: avoid; }
-            .concept-block { break-inside: avoid; margin-bottom: 25px; padding: 15px 20px; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-            .type-trick { background: #fef2f2; border-left: 6px solid #dc2626; }
-            .type-concept { background: #f0f9ff; border-left: 6px solid #0284c7; }
-            .block-title { font-family: 'Open Sans', sans-serif; font-weight: 800; font-size: 0.85em; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 0.5px; }
-            .type-trick .block-title { color: #dc2626; }
-            .type-concept .block-title { color: #0284c7; }
-            .math-text { font-size: 0.95em; }
-            .diagram-container { text-align: center; margin-top: 15px; background: #fff; padding: 10px; border-radius: 4px; border: 1px dashed #cbd5e1; }
-            .diagram-container svg { max-width: 100%; height: auto; }
-            .print-btn { display: block; margin: 0 auto 30px auto; padding: 12px 30px; background: #1e3a8a; color: white; font-family: 'Open Sans', sans-serif; border: none; border-radius: 6px; cursor: pointer; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
-            .print-btn:hover { background: #1e40af; }
-            @media print {
-                .no-print { display: none; }
-                body { padding: 0; }
-                .book-content { column-count: 2; }
-                .concept-block { border: 1px solid #e5e7eb; border-left-width: 6px; }
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <button class="no-print print-btn" onclick="window.print()">🖨️ Save Book as PDF</button>
-            <div class="book-header">
-                <h1 class="book-title">${targetSubject}</h1>
-                <p class="book-subtitle">Master Formulas, Theorems & Smart Tricks</p>
-            </div>
-            <div class="book-content">
-    `;
+    // ── Build the wrapper page ──
+    let innerContent = '';
 
-    for (const [chapter, itemsMap] of Object.entries(chapters)) {
-        notesHTML += `<h2 class="chapter-title">${chapter}</h2>`;
-        itemsMap.forEach((diagram, text) => {
-            let blockClass = "type-concept";
-            let title = "📐 Theorem / Formula";
-            if (text.includes("Trick:")) {
-                blockClass = "type-trick";
-                title = "⚡ Smart Trick";
-                text = text.replace("Trick:", "").trim();
-            } else if (text.includes("Concept:")) {
-                text = text.replace("Concept:", "").trim();
-            }
-            notesHTML += `
-            <div class="concept-block ${blockClass}">
-                <div class="block-title">${title}</div>
-                <div class="math-text">${text}</div>
-                ${diagram ? `<div class="diagram-container">${diagram}</div>` : ''}
-            </div>`;
+    if (craftedBlocks.length > 0) {
+        // Stitch all hand-crafted blocks together, stripping their individual headers
+        craftedBlocks.forEach(block => {
+            // Remove the page-header div from each block so we show one unified header
+            const stripped = block.html.replace(/<div class="page-header"[\s\S]*?<\/div>\s*/i, '');
+            innerContent += `<div class="crafted-block">${stripped}</div>`;
         });
     }
 
-    notesHTML += `</div></div></body></html>`;
+    if (fallbackAny) {
+        // Append fallback formula cards for quizzes that don't have formulaNotes yet
+        innerContent += `<div class="section-title" style="margin-top:24px">Other Topics (Auto-extracted)</div>`;
+        for (const [chapter, itemsMap] of Object.entries(fallbackChapters)) {
+            innerContent += `<div class="fb-chapter-title">${chapter}</div><div class="fb-grid">`;
+            itemsMap.forEach((diagram, text) => {
+                let blockClass = 'fb-concept';
+                let badge = '📐 THEOREM / FORMULA';
+                if (text.includes('Trick:')) {
+                    blockClass = 'fb-trick';
+                    badge = '⚡ SMART TRICK';
+                    text = text.replace('Trick:', '').trim();
+                } else if (text.includes('Concept:')) {
+                    text = text.replace('Concept:', '').trim();
+                }
+                innerContent += `<div class="fb-card ${blockClass}">
+                    <div class="fb-badge">${badge}</div>
+                    <div class="fb-text">${text}</div>
+                    ${diagram ? `<div class="fb-diagram">${diagram}</div>` : ''}
+                </div>`;
+            });
+            innerContent += `</div>`;
+        }
+    }
+
+    const notesHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>${targetSubject} — Formula Notes</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"><\/script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"><\/script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',sans-serif; background:#f4f4f0; color:#1a1a1a; font-size:13px; line-height:1.5; }
+
+/* ── unified page header ── */
+.main-header { background:#1a1a2e; color:white; padding:18px 28px 14px; display:flex; align-items:baseline; gap:16px; border-bottom:4px solid #e63946; }
+.main-header h1 { font-size:22px; font-weight:800; letter-spacing:-0.5px; }
+.main-header .sub { font-size:12px; color:#aaa; font-weight:400; letter-spacing:1.5px; text-transform:uppercase; }
+
+/* ── section / chapter titles ── */
+.section-title, .fb-chapter-title {
+    font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase;
+    color:#888; padding:18px 20px 6px; border-bottom:1px solid #ddd; margin-bottom:4px;
+}
+
+/* ── crafted block strips its own header, shows cleanly ── */
+.crafted-block { margin-bottom:0; }
+
+/* ── grids from crafted notes ── */
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:0; }
+
+/* ── crafted card styles (same as hand-built notes) ── */
+.card-trick { border-left:4px solid #e07b00; background:#fff9f2; padding:12px 14px; border-bottom:1px solid #f0e0d0; border-right:1px solid #f0e0d0; }
+.card-trick .badge { display:inline-block; background:#e07b00; color:white; font-size:9.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:2px 7px; border-radius:3px; margin-bottom:6px; }
+.card-concept { border-left:4px solid #1565c0; background:#f2f6ff; padding:12px 14px; border-bottom:1px solid #d0d8f0; border-right:1px solid #d0d8f0; }
+.card-concept .badge { display:inline-block; background:#1565c0; color:white; font-size:9.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:2px 7px; border-radius:3px; margin-bottom:6px; }
+.card-title { font-size:13px; font-weight:700; color:#111; margin-bottom:4px; }
+.card-trick-text { font-size:12px; color:#333; margin-bottom:8px; line-height:1.55; }
+.card-formula { background:rgba(0,0,0,0.04); border-radius:4px; padding:7px 10px; font-size:12px; margin-top:4px; }
+.card-warn { font-size:11px; color:#c0392b; font-weight:600; margin-top:5px; }
+.card-full { grid-column:1 / -1; }
+
+/* ── fallback card styles ── */
+.fb-grid { display:grid; grid-template-columns:1fr 1fr; gap:0; }
+.fb-card { padding:12px 14px; border-bottom:1px solid #e8e8e0; border-right:1px solid #e8e8e0; }
+.fb-trick { border-left:4px solid #e07b00; background:#fff9f2; }
+.fb-concept { border-left:4px solid #1565c0; background:#f2f6ff; }
+.fb-badge { font-size:9.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; }
+.fb-trick .fb-badge { color:#e07b00; }
+.fb-concept .fb-badge { color:#1565c0; }
+.fb-text { font-size:12px; color:#333; line-height:1.55; }
+.fb-diagram { margin-top:8px; }
+
+/* ── print ── */
+.no-print-btn { display:block; text-align:center; padding:10px; background:#1a1a2e; color:white; font-weight:700; font-size:12px; cursor:pointer; letter-spacing:1px; border:none; width:100%; }
+@media print {
+    .no-print-btn { display:none; }
+    body { background:white; }
+    .card-trick, .card-concept, .fb-trick, .fb-concept { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+}
+</style>
+</head>
+<body>
+<button class="no-print-btn" onclick="window.print()">🖨️ SAVE AS PDF</button>
+<div class="main-header">
+    <h1>${targetSubject}</h1>
+    <span class="sub">Master Formulas &amp; Smart Tricks</span>
+</div>
+${innerContent}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    renderMathInElement(document.body, {
+        delimiters: [
+            {left:"$$",right:"$$",display:true},
+            {left:"$",right:"$",display:false}
+        ],
+        throwOnError: false
+    });
+});
+<\/script>
+</body></html>`;
+
     const blob = new Blob([notesHTML], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    setTimeout(() => URL.revokeObjectURL(url), 8000);
 };
 
 // ================================================================
