@@ -6849,11 +6849,14 @@ window.retryWrong = function() {
     if(btn) btn.classList.add('active');
     const el=document.getElementById('mt-radar-content'); if(!el) return;
     el.innerHTML='<div class="mt-empty" style="padding:1rem">⏳ Reading your quiz data...</div>';
-    setTimeout(()=>mtRadarRender(quizTitleKey,el),80);
+    // historyDb lives inside main app closure — read from IndexedDB directly
+    if(!window.idbKeyval){ el.innerHTML='<div class="mt-empty">❌ Storage not available.</div>'; return; }
+    window.idbKeyval.get('megaQuizHistory_v5').then(hDb=>{
+      mtRadarRender(quizTitleKey, el, hDb||[]);
+    }).catch(e=>{ el.innerHTML=`<div class="mt-empty">❌ Could not load history: ${e.message}</div>`; });
   };
 
-  function mtRadarRender(quizTitleKey,el){
-    const hDb=window.historyDb;
+  function mtRadarRender(quizTitleKey,el,hDb){
     if(!hDb||!Array.isArray(hDb)||!hDb.length){
       el.innerHTML=`<div class="mt-empty">📭 No quiz history found.<br><br>Attempt some quizzes from <strong>${quizTitleKey}</strong> in the quiz hub first.</div>`;
       return;
