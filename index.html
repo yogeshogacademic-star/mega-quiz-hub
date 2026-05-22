@@ -6147,12 +6147,10 @@ window.retryWrong = function() {
 .wz-bar-wrap{flex:1;height:10px;background:#f1f5f9;border-radius:5px;overflow:hidden}
 .dark .wz-bar-wrap{background:#0f172a}
 .wz-bar-fill{height:100%;border-radius:5px;transition:width 0.7s}
-.mt-view-radar,.mt-view-radar *{--wz-text:#1e293b}
-.dark .mt-view-radar,.dark .mt-view-radar *{--wz-text:#f1f5f9}
+.wz-lbl{color:#1e293b;font-weight:700}
+.dark .wz-lbl{color:#f1f5f9}
 .wz-never-cracked{background:#fff5f5;border:1px solid #fecaca;border-radius:10px;padding:8px 12px;margin-bottom:6px;font-size:12px;font-weight:700}
-.dark .mt-view-radar,.mt-view-radar *{--wz-text:#1e293b}
-.dark .mt-view-radar,.dark .mt-view-radar *{--wz-text:#f1f5f9}
-.wz-never-cracked{background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.3)}
+.dark .wz-never-cracked{background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.3)}
 .mt-edit-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:none;align-items:center;justify-content:center;padding:16px}
 .mt-edit-box{background:#fff;border-radius:20px;padding:24px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto}
 .dark .mt-edit-box{background:#1e293b}
@@ -6628,7 +6626,7 @@ window.retryWrong = function() {
             ${m.focus?`<span style="font-size:11px;color:#f59e0b">${'★'.repeat(m.focus)}</span>`:''}
             <span style="font-size:17px;font-weight:900;color:${netColor}">${m.net.toFixed(1)}</span>
             <span class="mt-badge mt-badge-${(m.difficulty||'medium').toLowerCase()}">${m.difficulty||'Medium'}</span>
-                 <button onclick="event.stopPropagation();mtOpenEdit(${m.id})" style="padding:4px 10px;background:transparent;color:#6366f1;border:1px solid #c7d2fe;border-radius:8px;font-size:11px;font-weight:900;cursor:pointer">✏ Edit</button>
+            <button onclick="event.stopPropagation();mtOpenEdit(${m.id})" style="padding:4px 10px;background:transparent;color:#6366f1;border:1px solid #c7d2fe;border-radius:8px;font-size:11px;font-weight:900;cursor:pointer">Edit</button>
             <button class="mt-del-btn" onclick="mtDeleteMock(event,${m.id})">Delete</button>
           </div>
         </div>
@@ -6913,9 +6911,10 @@ window.retryWrong = function() {
     entries.forEach(h=>{
       if(!Array.isArray(h.reviewData)) return;
       h.reviewData.forEach(rd=>{
-        const t0=rd.tags&&rd.tags.length>0?rd.tags[0]:'General';
-        const t1=rd.tags&&rd.tags.length>1?rd.tags[1]:t0;
-        const topicKey=t0===t1?t0:`${t0} : ${t1}`;
+        let t0=rd.tags&&rd.tags.length>0?rd.tags[0]:'General';
+        let t1=rd.tags&&rd.tags.length>1?rd.tags[1]:t0;
+        if(!rd.tags||rd.tags.length===0){ t0='Miscellaneous'; t1='Miscellaneous'; }
+        const topicKey=`${t0} : ${t1}`;
         if(!topicStats[topicKey]) topicStats[topicKey]={correct:0,wrong:0,skipped:0,total:0};
         topicStats[topicKey].total++;
         if(rd.status==='correct') topicStats[topicKey].correct++;
@@ -6941,7 +6940,7 @@ window.retryWrong = function() {
         if(rd.status!=='wrong') return;
         const qText=(rd.question||'').slice(0,80);
         if(!qText) return;
-        if(!qWrongIn[qText]) qWrongIn[qText]={count:0,mocks:new Set(),tag:((rd.tags&&rd.tags[1])||rd.tags&&rd.tags[0])||'Unknown'};
+        if(!qWrongIn[qText]) qWrongIn[qText]={count:0,mocks:new Set(),tag:rd.tags&&rd.tags.length>1?rd.tags[1]:rd.tags&&rd.tags.length>0?rd.tags[0]:'Unknown'};
         qWrongIn[qText].count++;
         qWrongIn[qText].mocks.add(h.title||h.date);
       });
@@ -7004,7 +7003,7 @@ window.retryWrong = function() {
       ${repeatOffenders.length?`<div class="mt-chart-wrap" style="border-color:#fecaca;background:#fff5f5">
         <div class="mt-chart-title" style="color:#ef4444">🔁 Repeat Offenders — wrong in 2+ mock files · priority revision</div>
         ${repeatOffenders.map(r=>`<div style="background:#fff;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-          <div style="font-size:12px;font-weight:700;flex:1;min-width:200px;color:var(--wz-text,#1e293b)">${r.q}...</div>
+          <div class="wz-lbl" style="font-size:12px;font-weight:700;flex:1;min-width:200px">${r.q}...</div>
           <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
             <span style="background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:900">${r.tag}</span>
             <span style="font-size:12px;font-weight:900;color:#ef4444">${r.mocks} files · ${r.count}× wrong</span>
@@ -7014,7 +7013,7 @@ window.retryWrong = function() {
       ${stagnantTopics.length?`<div class="mt-chart-wrap" style="border-color:#fde68a">
         <div class="mt-chart-title" style="color:#d97706">⚠ Stagnant Topics — not improving</div>
         ${stagnantTopics.slice(0,10).map(t=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;flex-wrap:wrap">
-          <span style="font-weight:900;min-width:160px;color:var(--wz-text,#1e293b)">${t.tag}</span>
+          <span class="wz-lbl" style="min-width:160px">${t.tag}</span>
           <span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:900">${t.first}% → ${t.last}%</span>
           <span style="font-size:11px;font-weight:700;color:${t.diff>=0?'#94a3b8':'#ef4444'}">${t.diff>0?'+':''}${t.diff}%</span>
         </div>`).join('')}
@@ -7022,14 +7021,14 @@ window.retryWrong = function() {
       ${improvingTopics.length?`<div class="mt-chart-wrap" style="border-color:#bbf7d0">
         <div class="mt-chart-title" style="color:#16a34a">📈 Improving Topics — keep going!</div>
         ${improvingTopics.slice(0,8).map(t=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;flex-wrap:wrap">
-          <span style="font-weight:900;min-width:160px;color:var(--wz-text,#1e293b)">${t.tag}</span>
+          <span class="wz-lbl" style="min-width:160px">${t.tag}</span>
           <span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:900">${t.first}% → ${t.last}%</span>
           <span style="font-size:11px;font-weight:700;color:#16a34a">+${t.gain}% 🎯</span>
         </div>`).join('')}
       </div>`:''}
       <div class="mt-chart-wrap">
         <div class="mt-chart-title">📊 Topic Accuracy — worst to best</div>
-        ${topics.slice(0,40).map(t=>{const bc=t.acc<50?'#ef4444':t.acc<70?'#f59e0b':'#16a34a';return `<div class="wz-topic-bar"><span style="width:190px;font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;color:var(--wz-text,#1e293b)" title="${t.k}">${t.k}</span><div class="wz-bar-wrap"><div class="wz-bar-fill" style="width:${t.acc}%;background:${bc}"></div></div><span style="font-size:11px;font-weight:900;color:${bc};min-width:36px;text-align:right">${t.acc}%</span><span style="font-size:10px;color:#94a3b8;min-width:46px;text-align:right">${t.correct}/${t.total}</span></div>`;}).join('')}
+        ${topics.slice(0,40).map(t=>{const bc=t.acc<50?'#ef4444':t.acc<70?'#f59e0b':'#16a34a';return `<div class="wz-topic-bar"><span class="wz-lbl" title="${t.k}">${t.k}</span><div class="wz-bar-wrap"><div class="wz-bar-fill" style="width:${t.acc}%;background:${bc}"></div></div><span style="font-size:11px;font-weight:900;color:${bc};min-width:36px;text-align:right">${t.acc}%</span><span style="font-size:10px;color:#94a3b8;min-width:46px;text-align:right">${t.correct}/${t.total}</span></div>`;}).join('')}
         ${topics.length>40?`<div style="font-size:11px;color:#94a3b8;font-weight:700;margin-top:6px">+${topics.length-40} more topics</div>`:''}
       </div>
       ${tagTotals.length&&sortedEntries.length>1?`<div class="mt-chart-wrap"><div class="mt-chart-title">📋 Mock-wise Wrong Count per Chapter</div>
@@ -7040,7 +7039,7 @@ window.retryWrong = function() {
             <th style="text-align:center;padding:6px 8px;border-bottom:1px solid #e2e8f0;font-weight:900;color:#ef4444" class="dark:border-slate-700">Total</th>
           </tr></thead>
           <tbody>${tagTotals.slice(0,20).map(({tag,total})=>`<tr>
-            <td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;font-weight:700;color:var(--wz-text,#1e293b)" class="dark:border-slate-800">${tag}</td>
+            <td class="wz-lbl dark:border-slate-800" style="padding:5px 8px;border-bottom:1px solid #f1f5f9;font-weight:700">${tag}</td>
             ${sortedEntries.map(h=>{const c=tableData[tag][h.title||h.date]||0;return `<td style="text-align:center;padding:5px 8px;border-bottom:1px solid #f1f5f9;font-weight:900;color:${c===0?'#94a3b8':c<=2?'#f59e0b':'#ef4444'}" class="dark:border-slate-800">${c||'·'}</td>`;}).join('')}
             <td style="text-align:center;padding:5px 8px;font-weight:900;color:#ef4444;background:#fff5f5" class="dark:bg-red-900/10">${total}</td>
           </tr>`).join('')}</tbody>
