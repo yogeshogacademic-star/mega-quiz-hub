@@ -6624,8 +6624,7 @@ window.retryWrong = function() {
             ${m.focus?`<span style="font-size:11px;color:#f59e0b">${'★'.repeat(m.focus)}</span>`:''}
             <span style="font-size:17px;font-weight:900;color:${netColor}">${m.net.toFixed(1)}</span>
             <span class="mt-badge mt-badge-${(m.difficulty||'medium').toLowerCase()}">${m.difficulty||'Medium'}</span>
-            <button class="mt-del-btn" onclick="event.stopPropagation();mtEditMock(${m.id})" style="color:#6366f1;border-color:#c7d2fe">✏ Edit</button>
-            <button onclick="event.stopPropagation();mtOpenEdit(${m.id})" style="padding:4px 10px;background:transparent;color:#6366f1;border:1px solid #c7d2fe;border-radius:8px;font-size:11px;font-weight:900;cursor:pointer">Edit</button>
+                 <button onclick="event.stopPropagation();mtOpenEdit(${m.id})" style="padding:4px 10px;background:transparent;color:#6366f1;border:1px solid #c7d2fe;border-radius:8px;font-size:11px;font-weight:900;cursor:pointer">✏ Edit</button>
             <button class="mt-del-btn" onclick="mtDeleteMock(event,${m.id})">Delete</button>
           </div>
         </div>
@@ -6910,10 +6909,9 @@ window.retryWrong = function() {
     entries.forEach(h=>{
       if(!Array.isArray(h.reviewData)) return;
       h.reviewData.forEach(rd=>{
-        let t0=rd.tags&&rd.tags.length>0?rd.tags[0]:'General';
-        let t1=rd.tags&&rd.tags.length>1?rd.tags[1]:t0;
-        if(!rd.tags||rd.tags.length===0){ t0='Miscellaneous'; t1='Miscellaneous'; }
-        const topicKey=`${t0} : ${t1}`;
+        const t0=rd.tags&&rd.tags.length>0?rd.tags[0]:'General';
+        const t1=rd.tags&&rd.tags.length>1?rd.tags[1]:t0;
+        const topicKey=t0===t1?t0:`${t0} : ${t1}`;
         if(!topicStats[topicKey]) topicStats[topicKey]={correct:0,wrong:0,skipped:0,total:0};
         topicStats[topicKey].total++;
         if(rd.status==='correct') topicStats[topicKey].correct++;
@@ -6939,7 +6937,7 @@ window.retryWrong = function() {
         if(rd.status!=='wrong') return;
         const qText=(rd.question||'').slice(0,80);
         if(!qText) return;
-        if(!qWrongIn[qText]) qWrongIn[qText]={count:0,mocks:new Set(),tag:((rd.tags&&rd.tags[1])||rd.tags&&rd.tags[0])||'Unknown'};
+        if(!qWrongIn[qText]) qWrongIn[qText]={count:0,mocks:new Set(),tag:getTag(rd)};
         qWrongIn[qText].count++;
         qWrongIn[qText].mocks.add(h.title||h.date);
       });
@@ -6953,17 +6951,17 @@ window.retryWrong = function() {
     // ── MOCK-WISE WRONG COUNT TABLE ──
     // Sort entries by title
     const sortedEntries=[...entries].sort((a,b)=>(a.title||'').localeCompare(b.title||''));
-    // Get all unique tags
-    const allTags=[...new Set(entries.flatMap(h=>(h.reviewData||[]).map(rd=>(rd.tags&&rd.tags[1])||rd.tags&&rd.tags[0]||'Unknown')))].sort();
+    const getTag=rd=>rd.tags&&rd.tags.length>1?rd.tags[1]:rd.tags&&rd.tags.length>0?rd.tags[0]:'Unknown';
+    const allTags=[...new Set(entries.flatMap(h=>(h.reviewData||[]).map(getTag)))].sort();
     // Build table: rows=tags, cols=quiz JSONs
     const tableData={};
     allTags.forEach(tag=>{ tableData[tag]={}; sortedEntries.forEach(h=>{ tableData[tag][h.title||h.date]=0; }); });
     entries.forEach(h=>{
       (h.reviewData||[]).forEach(rd=>{
         if(rd.status!=='wrong') return;
-        const tag=(rd.tags&&rd.tags[1])||rd.tags&&rd.tags[0]||'Unknown';
+        const tag=getTag(rd);
         const key=h.title||h.date;
-        if(tableData[tag]) tableData[tag][key]=(tableData[tag][key]||0)+1;
+        if(tableData[tag]!==undefined) tableData[tag][key]=(tableData[tag][key]||0)+1;
       });
     });
     // Sort tags by total wrong count
@@ -6974,7 +6972,7 @@ window.retryWrong = function() {
     const topicTrend={};
     sortedEntries.forEach(h=>{
       (h.reviewData||[]).forEach(rd=>{
-        const tag=(rd.tags&&rd.tags[1])||rd.tags&&rd.tags[0]||'Unknown';
+        const tag=getTag(rd);
         if(!topicTrend[tag]) topicTrend[tag]=[];
         const existing=topicTrend[tag].find(e=>e.title===h.title);
         if(existing){ existing.total++; if(rd.status==='correct') existing.correct++; }
@@ -6999,9 +6997,9 @@ window.retryWrong = function() {
         <div class="mt-metric"><div class="mt-metric-val" style="color:${overallAcc>=70?'#16a34a':overallAcc>=50?'#f59e0b':'#ef4444'}">${overallAcc}%</div><div class="mt-metric-lbl">Overall Acc.</div></div>
         <div class="mt-metric"><div class="mt-metric-val" style="color:#ef4444">${repeatOffenders.length}</div><div class="mt-metric-lbl">Repeat Offenders</div></div>
       </div>
-      ${repeatOffenders.length?`<div class="mt-chart-wrap" style="border-color:#fecaca;background:#fff5f5">
+      ${repeatOffenders.length?`<div class="mt-chart-wrap" style="border-color:#fecaca;background:#fff5f5" class="dark:!bg-red-900/20">
         <div class="mt-chart-title" style="color:#ef4444">🔁 Repeat Offenders — wrong in 2+ mock files · priority revision</div>
-        ${repeatOffenders.map(r=>`<div style="background:#fff;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        ${repeatOffenders.map(r=>`<div style="border:1px solid #fecaca;border-radius:8px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
           <div style="font-size:12px;font-weight:700;color:#1e293b;flex:1;min-width:200px" class="dark:text-slate-200">${r.q}...</div>
           <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
             <span style="background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:900">${r.tag}</span>
@@ -7040,7 +7038,7 @@ window.retryWrong = function() {
           <tbody>${tagTotals.slice(0,20).map(({tag,total})=>`<tr>
             <td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;font-weight:700;color:#1e293b" class="dark:border-slate-800 dark:text-slate-200">${tag}</td>
             ${sortedEntries.map(h=>{const c=tableData[tag][h.title||h.date]||0;return `<td style="text-align:center;padding:5px 8px;border-bottom:1px solid #f1f5f9;font-weight:900;color:${c===0?'#94a3b8':c<=2?'#f59e0b':'#ef4444'}" class="dark:border-slate-800">${c||'·'}</td>`;}).join('')}
-            <td style="text-align:center;padding:5px 8px;font-weight:900;color:#ef4444;background:#fff5f5" class="dark:bg-red-900/10">${total}</td>
+            <td style="text-align:center;padding:5px 8px;font-weight:900;color:#ef4444" class="dark:bg-red-900/10">${total}</td>
           </tr>`).join('')}</tbody>
         </table></div>
       </div>`:''}`;
