@@ -1809,6 +1809,14 @@
         localStorage.setItem('megaQuizSubCats_v1', JSON.stringify(SUBJECT_CATEGORIES));
     }
 
+    // ── PHONE SAFETY: flush to IndexedDB any time page is closed/navigated away ──
+    window.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') updateLocalCache().catch(() => {});
+    });
+    window.addEventListener('pagehide', () => {
+        updateLocalCache().catch(() => {});
+    });
+
     async function loadLocalFallback() {
         if (localStorage.getItem('megaQuizSubjects_v5')) SUBJECTS = JSON.parse(localStorage.getItem('megaQuizSubjects_v5'));
         if (localStorage.getItem('megaQuizSubCats_v1')) SUBJECT_CATEGORIES = JSON.parse(localStorage.getItem('megaQuizSubCats_v1'));
@@ -2940,7 +2948,16 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         historyDb.unshift({ date: new Date().toLocaleDateString(), title: displayTitle, subject: db[currentQuizId] ? db[currentQuizId].subject : "Mixed", score: parseFloat(score.toFixed(2)), accuracy: Math.round((correct / activeQuestions.length) * 100) || 0, candidateName: candName, attemptNumber: currentAttemptNum, totalCorrect: correct, totalWrong: wrong, totalSkipped: skipped, reviewData: historicalReviewData });
         if (historyDb.length > 500) historyDb.length = 500;
         
-        saveData(); updateSRSBadge(); showScreen('results'); window.scrollTo(0,0); filterReview('all'); _afterSubmit(correct, wrong, skipped, activeQuestions.length); 
+        saveData(); updateSRSBadge(); showScreen('results'); window.scrollTo(0,0); filterReview('all'); _afterSubmit(correct, wrong, skipped, activeQuestions.length);
+
+        // ── AUTO-SAVE SAFETY NET: immediately flush to IndexedDB so phone can't lose this attempt ──
+        updateLocalCache().then(() => {
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;background:#065f46;color:#a7f3d0;font-weight:900;font-size:12px;padding:10px 22px;border-radius:12px;border:1px solid #10b981;box-shadow:0 4px 16px rgba(0,0,0,0.4);pointer-events:none;';
+            toast.textContent = '✅ Attempt saved locally — safe to close';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        });
     }
 
     function genDeepReviewCard(q, status, uText, cText, term = "", index = 0, safeId = null) { 
