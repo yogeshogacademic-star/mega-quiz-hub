@@ -4238,14 +4238,18 @@ window.generateSubjectNotes = (targetSubject) => {
     }
 
     // ── Build the wrapper page ──
-    let innerContent = '';
+    let innerContent = '<div class="notes-grid">';
 
     if (craftedBlocks.length > 0) {
-        // Stitch all hand-crafted blocks together, stripping their individual headers
+        // Stitch all hand-crafted blocks, stripping their page-header and outer grid wrapper
+        // so all cards flow into the single outer notes-grid
         craftedBlocks.forEach(block => {
-            // Remove the page-header div from each block so we show one unified header
-            const stripped = block.html.replace(/<div class="page-header"[\s\S]*?<\/div>\s*/i, '');
-            innerContent += `<div class="crafted-block">${stripped}</div>`;
+            let stripped = block.html
+                .replace(/<div class="page-header"[\s\S]*?<\/div>/i, '')  // remove header
+                .replace(/<div class="grid">/g, '')                         // remove inner grid openers
+                .replace(/<\/div>\s*(?=\s*<div class="section-title")/g, '') // remove grid closers before section titles
+                .replace(/<\/div>\s*$/, '');                                // remove last closing grid div
+            innerContent += stripped;
         });
     }
 
@@ -4274,6 +4278,8 @@ window.generateSubjectNotes = (targetSubject) => {
         }
     }
 
+    innerContent += '</div>'; // close notes-grid
+
     const notesHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -4284,53 +4290,78 @@ window.generateSubjectNotes = (targetSubject) => {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"><\/script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:'Segoe UI',sans-serif; background:#f4f4f0; color:#1a1a1a; font-size:13px; line-height:1.5; }
+body { font-family:'Segoe UI',sans-serif; background:#f4f4f0; color:#1a1a1a; font-size:12.5px; line-height:1.5; }
 
 /* ── unified page header ── */
-.main-header { background:#1a1a2e; color:white; padding:18px 28px 14px; display:flex; align-items:baseline; gap:16px; border-bottom:4px solid #e63946; }
-.main-header h1 { font-size:22px; font-weight:800; letter-spacing:-0.5px; }
-.main-header .sub { font-size:12px; color:#aaa; font-weight:400; letter-spacing:1.5px; text-transform:uppercase; }
+.main-header { background:#1a1a2e; color:white; padding:16px 28px 12px; display:flex; align-items:baseline; gap:16px; border-bottom:4px solid #e63946; }
+.main-header h1 { font-size:20px; font-weight:800; letter-spacing:-0.5px; }
+.main-header .sub { font-size:11px; color:#aaa; font-weight:400; letter-spacing:1.5px; text-transform:uppercase; }
 
-/* ── section / chapter titles ── */
+/* ── section / chapter titles — full width ── */
 .section-title, .fb-chapter-title {
-    font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase;
-    color:#888; padding:18px 20px 6px; border-bottom:1px solid #ddd; margin-bottom:4px;
+    font-size:10px; font-weight:700; letter-spacing:2px; text-transform:uppercase;
+    color:#888; padding:14px 20px 5px; border-bottom:1px solid #ddd; margin-bottom:0;
+    grid-column: 1 / -1;
 }
 
-/* ── crafted block strips its own header, shows cleanly ── */
-.crafted-block { margin-bottom:0; }
+/* ── THE KEY FIX: outer wrapper is the 2-col grid ── */
+.crafted-block { display:contents; }
 
-/* ── grids from crafted notes ── */
-.grid { display:grid; grid-template-columns:1fr 1fr; gap:0; }
+/* Everything inside crafted-block flows into the outer grid */
+.notes-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    width: 100%;
+}
 
-/* ── crafted card styles (same as hand-built notes) ── */
-.card-trick { border-left:4px solid #e07b00; background:#fff9f2; padding:12px 14px; border-bottom:1px solid #f0e0d0; border-right:1px solid #f0e0d0; }
-.card-trick .badge { display:inline-block; background:#e07b00; color:white; font-size:9.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:2px 7px; border-radius:3px; margin-bottom:6px; }
-.card-concept { border-left:4px solid #1565c0; background:#f2f6ff; padding:12px 14px; border-bottom:1px solid #d0d8f0; border-right:1px solid #d0d8f0; }
-.card-concept .badge { display:inline-block; background:#1565c0; color:white; font-size:9.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:2px 7px; border-radius:3px; margin-bottom:6px; }
-.card-title { font-size:13px; font-weight:700; color:#111; margin-bottom:4px; }
-.card-trick-text { font-size:12px; color:#333; margin-bottom:8px; line-height:1.55; }
-.card-formula { background:rgba(0,0,0,0.04); border-radius:4px; padding:7px 10px; font-size:12px; margin-top:4px; }
-.card-warn { font-size:11px; color:#c0392b; font-weight:600; margin-top:5px; }
+/* ── crafted card styles ── */
+.card-trick {
+    border-left:4px solid #e07b00; background:#fff9f2;
+    padding:11px 13px; border-bottom:1px solid #f0e0d0; border-right:1px solid #f0e0d0;
+    overflow:hidden; min-width:0;
+}
+.card-trick .badge { display:inline-block; background:#e07b00; color:white; font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:2px 7px; border-radius:3px; margin-bottom:5px; }
+.card-concept {
+    border-left:4px solid #1565c0; background:#f2f6ff;
+    padding:11px 13px; border-bottom:1px solid #d0d8f0; border-right:1px solid #d0d8f0;
+    overflow:hidden; min-width:0;
+}
+.card-concept .badge { display:inline-block; background:#1565c0; color:white; font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:2px 7px; border-radius:3px; margin-bottom:5px; }
+.card-title { font-size:12.5px; font-weight:700; color:#111; margin-bottom:4px; }
+.card-trick-text { font-size:11.5px; color:#333; margin-bottom:7px; line-height:1.5; }
+.card-formula {
+    background:rgba(0,0,0,0.04); border-radius:4px; padding:6px 8px;
+    font-size:11.5px; margin-top:4px;
+    overflow-x:auto; max-width:100%;
+}
+/* Force KaTeX display math to scale down inside cards */
+.card-formula .katex-display { margin:0; overflow-x:auto; overflow-y:hidden; }
+.card-formula .katex { font-size:1em; }
+.card-warn { font-size:10.5px; color:#c0392b; font-weight:600; margin-top:4px; }
 .card-full { grid-column:1 / -1; }
 
 /* ── fallback card styles ── */
 .fb-grid { display:grid; grid-template-columns:1fr 1fr; gap:0; }
-.fb-card { padding:12px 14px; border-bottom:1px solid #e8e8e0; border-right:1px solid #e8e8e0; }
+.fb-card { padding:11px 13px; border-bottom:1px solid #e8e8e0; border-right:1px solid #e8e8e0; overflow:hidden; min-width:0; }
 .fb-trick { border-left:4px solid #e07b00; background:#fff9f2; }
 .fb-concept { border-left:4px solid #1565c0; background:#f2f6ff; }
-.fb-badge { font-size:9.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; }
+.fb-badge { font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; margin-bottom:5px; }
 .fb-trick .fb-badge { color:#e07b00; }
 .fb-concept .fb-badge { color:#1565c0; }
-.fb-text { font-size:12px; color:#333; line-height:1.55; }
+.fb-text { font-size:11.5px; color:#333; line-height:1.5; overflow-x:auto; }
 .fb-diagram { margin-top:8px; }
 
 /* ── print ── */
-.no-print-btn { display:block; text-align:center; padding:10px; background:#1a1a2e; color:white; font-weight:700; font-size:12px; cursor:pointer; letter-spacing:1px; border:none; width:100%; }
+.no-print-btn { display:block; text-align:center; padding:9px; background:#1a1a2e; color:white; font-weight:700; font-size:11px; cursor:pointer; letter-spacing:1px; border:none; width:100%; }
 @media print {
+    @page { size: A4; margin: 10mm 8mm; }
     .no-print-btn { display:none; }
-    body { background:white; }
-    .card-trick, .card-concept, .fb-trick, .fb-concept { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    body { background:white; font-size:11px; }
+    .main-header { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .card-trick, .card-concept, .fb-trick, .fb-concept { -webkit-print-color-adjust:exact; print-color-adjust:exact; break-inside:avoid; }
+    .notes-grid { page-break-inside:auto; }
+    .section-title, .fb-chapter-title { break-after:avoid; }
 }
 </style>
 </head>
