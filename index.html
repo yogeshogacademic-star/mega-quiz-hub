@@ -616,6 +616,7 @@
                         🧮 Math Flashcards
                     </button>
                     <button onclick="openFactSheet()" class="bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-transform hover:-translate-y-1 border border-emerald-400 flex items-center gap-2">📋 Fact Sheet</button>
+                    <button onclick="showScreen('mock-tracker')" class="bg-gradient-to-br from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(14,165,233,0.5)] transition-transform hover:-translate-y-1 border border-sky-400 flex items-center gap-2">📝 Mock Tracker</button>
                 </div>
             </div>
 
@@ -6059,5 +6060,356 @@ window.retryWrong = function() {
 };
 </script>
 
-</body>
-</html>
+<!-- ===================== MOCK TRACKER SCREEN ===================== -->
+<div id="screen-mock-tracker" class="hidden max-w-[1200px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
+  <style>
+    .mt-tab { flex:1; padding:10px 8px; border:none; background:transparent; border-radius:12px; font-size:13px; font-weight:900; color:#94a3b8; cursor:pointer; transition:all 0.15s; text-transform:uppercase; letter-spacing:0.06em; }
+    .mt-tab.mt-active { background:#fff; color:#6366f1; box-shadow:0 1px 4px rgba(0,0,0,0.08); border:1px solid #e2e8f0; }
+    .dark .mt-tab.mt-active { background:#1e293b; color:#818cf8; border-color:#334155; }
+    .mt-view { display:none; } .mt-view.mt-active { display:block; }
+    .mt-field-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+    .mt-field-row.three { grid-template-columns:1fr 1fr 1fr; }
+    .mt-field-row.four { grid-template-columns:1fr 1fr 1fr 1fr; }
+    .mt-label { font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:0.07em; color:#64748b; display:block; margin-bottom:4px; }
+    .dark .mt-label { color:#94a3b8; }
+    .mt-input { width:100%; padding:8px 12px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:13px; font-weight:700; background:#fff; color:#1e293b; font-family:'Nunito Sans',sans-serif; transition:border-color 0.15s; }
+    .dark .mt-input { background:#1e293b; border-color:#334155; color:#f1f5f9; }
+    .mt-input:focus { outline:none; border-color:#6366f1; }
+    .mt-section-card { background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:14px; margin-bottom:12px; }
+    .dark .mt-section-card { background:#0f172a; border-color:#1e293b; }
+    .mt-section-title { font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:0.1em; color:#64748b; margin-bottom:10px; }
+    .dark .mt-section-title { color:#64748b; }
+    .mt-sect-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+    .mt-sect-item { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:10px 8px; }
+    .dark .mt-sect-item { background:#1e293b; border-color:#334155; }
+    .mt-sect-label { font-size:11px; font-weight:900; color:#6366f1; margin-bottom:6px; text-align:center; }
+    .mt-sect-item .mt-input { padding:5px 8px; font-size:12px; margin-top:4px; }
+    .mt-save-btn { width:100%; padding:12px; background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; border:none; border-radius:14px; font-size:14px; font-weight:900; cursor:pointer; margin-top:10px; letter-spacing:0.05em; transition:opacity 0.15s; }
+    .mt-save-btn:hover { opacity:0.9; }
+    .mt-metric-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:1.5rem; }
+    .mt-metric { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:14px 10px; text-align:center; }
+    .dark .mt-metric { background:#0f172a; border-color:#1e293b; }
+    .mt-metric-val { font-size:24px; font-weight:900; color:#1e293b; }
+    .dark .mt-metric-val { color:#f1f5f9; }
+    .mt-metric-lbl { font-size:10px; font-weight:700; color:#94a3b8; margin-top:2px; text-transform:uppercase; letter-spacing:0.07em; }
+    .mt-mock-row { background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:12px 16px; margin-bottom:8px; cursor:pointer; transition:border-color 0.15s; }
+    .dark .mt-mock-row { background:#1e293b; border-color:#334155; }
+    .mt-mock-row:hover { border-color:#6366f1; }
+    .mt-badge { padding:3px 10px; border-radius:999px; font-size:11px; font-weight:900; }
+    .mt-badge-easy { background:#dcfce7; color:#15803d; } .mt-badge-medium { background:#fef9c3; color:#a16207; } .mt-badge-hard { background:#fee2e2; color:#b91c1c; }
+    .dark .mt-badge-easy { background:rgba(22,163,74,0.2); color:#86efac; } .dark .mt-badge-medium { background:rgba(161,98,7,0.2); color:#fcd34d; } .dark .mt-badge-hard { background:rgba(185,28,28,0.2); color:#fca5a5; }
+    .mt-s-pill { padding:2px 10px; border-radius:999px; font-size:11px; border:1px solid #e2e8f0; color:#64748b; font-weight:700; }
+    .dark .mt-s-pill { border-color:#334155; color:#94a3b8; }
+    .mt-chart-wrap { background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:16px; margin-bottom:14px; }
+    .dark .mt-chart-wrap { background:#1e293b; border-color:#334155; }
+    .mt-chart-title { font-size:12px; font-weight:900; text-transform:uppercase; letter-spacing:0.07em; color:#64748b; margin-bottom:12px; }
+    .mt-two-col { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .mt-acc-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .mt-acc-table th { color:#94a3b8; font-weight:900; padding:6px 8px; border-bottom:1px solid #e2e8f0; text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.06em; }
+    .dark .mt-acc-table th { border-color:#334155; }
+    .mt-acc-table td { padding:7px 8px; border-bottom:1px solid #f1f5f9; color:#1e293b; font-weight:700; }
+    .dark .mt-acc-table td { border-color:#1e293b; color:#f1f5f9; }
+    .mt-wrong-entry { background:#f8fafc; border-radius:10px; padding:10px 14px; margin-bottom:8px; font-size:13px; }
+    .dark .mt-wrong-entry { background:#0f172a; }
+    .mt-wrong-subject { font-weight:900; color:#6366f1; font-size:10px; margin-bottom:2px; text-transform:uppercase; letter-spacing:0.08em; }
+    .mt-empty { text-align:center; padding:3rem 1rem; color:#94a3b8; font-size:14px; font-weight:700; }
+    .mt-diff-row { display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:13px; font-weight:700; }
+    .mt-diff-bar-wrap { flex:1; height:8px; background:#f1f5f9; border-radius:4px; overflow:hidden; }
+    .dark .mt-diff-bar-wrap { background:#0f172a; }
+    .mt-diff-bar { height:100%; border-radius:4px; transition:width 0.6s; }
+    .mt-del-btn { padding:5px 12px; background:transparent; color:#ef4444; border:1px solid #fecaca; border-radius:8px; font-size:11px; font-weight:900; cursor:pointer; }
+    .mt-toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#1e293b; color:#f8fafc; padding:10px 24px; border-radius:12px; font-size:13px; font-weight:700; z-index:9999; opacity:0; transition:opacity 0.3s; pointer-events:none; }
+    .mt-toast.show { opacity:1; }
+    .mt-filter-row { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+    .mt-filter-row .mt-input { width:auto; font-size:12px; padding:6px 10px; }
+  </style>
+
+  <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-sky-400 to-indigo-500"></div>
+
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-slate-100 dark:border-slate-800 pb-6">
+      <div>
+        <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-2 flex items-center gap-2 transition-colors">← Back to Hub</button>
+        <h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">📝 Mock Tracker</h2>
+        <p class="text-xs font-bold text-slate-500 mt-1 uppercase tracking-widest">SSC CGL Full Mock Analysis · War Room</p>
+      </div>
+      <div id="mt-header-stats" class="flex gap-3 flex-wrap"></div>
+    </div>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:4px;padding:4px;background:#f1f5f9;border-radius:14px;margin-bottom:1.5rem" class="dark:bg-slate-800/60">
+      <button class="mt-tab mt-active" onclick="mtSwitchTab('log')">➕ Log Mock</button>
+      <button class="mt-tab" onclick="mtSwitchTab('history')">📋 History</button>
+      <button class="mt-tab" onclick="mtSwitchTab('analysis')">📊 Analysis</button>
+      <button class="mt-tab" onclick="mtSwitchTab('wrongs')">❌ Wrong Sheet</button>
+    </div>
+
+    <!-- LOG TAB -->
+    <div id="mt-view-log" class="mt-view mt-active">
+      <div class="mt-field-row">
+        <div><label class="mt-label">Platform / Series</label><input class="mt-input" id="mt-platform" type="text" placeholder="e.g. Testbook, KD Campus, Vision" /></div>
+        <div><label class="mt-label">Mock Number</label><input class="mt-input" id="mt-mockno" type="text" placeholder="e.g. Mock 7 / Test 03" /></div>
+      </div>
+      <div class="mt-field-row three">
+        <div><label class="mt-label">Date</label><input class="mt-input" id="mt-date" type="date" /></div>
+        <div><label class="mt-label">Difficulty Felt</label>
+          <select class="mt-input" id="mt-diff"><option>Easy</option><option selected>Medium</option><option>Hard</option></select>
+        </div>
+        <div><label class="mt-label">Rank / Percentile</label><input class="mt-input" id="mt-rank" type="text" placeholder="e.g. 312 / 95th %ile" /></div>
+      </div>
+
+      <div class="mt-section-card">
+        <div class="mt-section-title">📐 Section-wise Data — Total | Attempted | Correct | Wrong</div>
+        <div class="mt-sect-grid" id="mt-sect-grid"></div>
+      </div>
+
+      <div class="mt-section-card">
+        <div class="mt-section-title">⏱ Time Spent per Section (minutes)</div>
+        <div class="mt-sect-grid" id="mt-time-grid"></div>
+      </div>
+
+      <div><label class="mt-label">Wrong Question Fact Sheet (subject: topic → mistake)</label>
+        <textarea class="mt-input" id="mt-wrongs" rows="5" style="resize:vertical" placeholder="GK: Mughal Empire → confused Humayun &amp; Akbar dates&#10;Quant: Boat &amp; Stream → wrong formula used&#10;English: Error Spotting → subject-verb agreement&#10;Reasoning: Coding-Decoding → missed pattern rule"></textarea>
+      </div>
+
+      <button class="mt-save-btn" onclick="mtSaveMock()">💾 Save This Mock</button>
+    </div>
+
+    <!-- HISTORY TAB -->
+    <div id="mt-view-history" class="mt-view">
+      <div class="mt-filter-row">
+        <select class="mt-input" id="mt-pf-filter" onchange="mtRenderHistory()"><option value="">All Platforms</option></select>
+        <select class="mt-input" id="mt-df-filter" onchange="mtRenderHistory()"><option value="">All Difficulties</option><option>Easy</option><option>Medium</option><option>Hard</option></select>
+      </div>
+      <div id="mt-history-list"></div>
+    </div>
+
+    <!-- ANALYSIS TAB -->
+    <div id="mt-view-analysis" class="mt-view">
+      <div class="mt-metric-grid" id="mt-metrics"></div>
+      <div class="mt-two-col">
+        <div class="mt-chart-wrap"><div class="mt-chart-title">📈 Score Trend</div><div style="position:relative;height:200px"><canvas id="mt-chart-trend" role="img" aria-label="Score trend across mocks"></canvas></div></div>
+        <div class="mt-chart-wrap"><div class="mt-chart-title">🎯 Net Score vs Cutoff</div><div style="position:relative;height:200px"><canvas id="mt-chart-cutoff" role="img" aria-label="Net score vs cutoff line"></canvas></div></div>
+      </div>
+      <div class="mt-chart-wrap">
+        <div class="mt-chart-title">🎯 Section Accuracy % (last 5 mocks avg)</div>
+        <div id="mt-acc-section"></div>
+      </div>
+      <div class="mt-chart-wrap">
+        <div class="mt-chart-title">🔢 Attempts · Correct · Wrong per Subject (all mocks)</div>
+        <div style="position:relative;height:220px"><canvas id="mt-chart-heat" role="img" aria-label="Grouped bar chart per subject"></canvas></div>
+      </div>
+      <div class="mt-chart-wrap">
+        <div class="mt-chart-title">🎲 Difficulty Distribution</div>
+        <div id="mt-diff-dist"></div>
+      </div>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-top:4px" class="dark:bg-slate-800/40 dark:border-slate-700">
+        <div class="mt-label" style="margin-bottom:8px">🎯 Set Target Cutoff (marks)</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="number" class="mt-input" id="mt-cutoff" placeholder="e.g. 160" style="width:130px" oninput="mtRenderAnalysis()" />
+          <span style="font-size:12px;font-weight:700;color:#94a3b8">Will show as red line on chart</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- WRONG SHEET TAB -->
+    <div id="mt-view-wrongs" class="mt-view">
+      <div class="mt-filter-row">
+        <select class="mt-input" id="mt-wpf-filter" onchange="mtRenderWrongs()"><option value="">All Platforms</option></select>
+        <input type="text" class="mt-input" id="mt-w-search" placeholder="Search topic, subject..." style="width:200px" oninput="mtRenderWrongs()" />
+      </div>
+      <div id="mt-wrongs-list"></div>
+    </div>
+  </div>
+</div>
+
+<div class="mt-toast" id="mt-toast"></div>
+
+<script>
+(function(){
+  const SECTS = ['Quant','English','Reasoning','GK'];
+  const COLORS = ['#6366f1','#16a34a','#f59e0b','#ef4444'];
+  let mtMocks = [];
+  let mtCharts = {};
+
+  function mtLoad(){ try{ mtMocks = JSON.parse(localStorage.getItem('ssc_mock_tracker')||'[]'); }catch(e){ mtMocks=[]; } }
+  function mtSave(){ localStorage.setItem('ssc_mock_tracker', JSON.stringify(mtMocks)); }
+
+  function mtToast(msg){ const t=document.getElementById('mt-toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
+
+  function mtBuildGrids(){
+    const g=document.getElementById('mt-sect-grid'), tg=document.getElementById('mt-time-grid');
+    if(!g||!tg) return;
+    g.innerHTML=''; tg.innerHTML='';
+    SECTS.forEach(s=>{
+      g.innerHTML+=`<div class="mt-sect-item"><div class="mt-sect-label">${s}</div>
+        <input type="number" class="mt-input" id="mts-tot-${s}" placeholder="Total" min="0"/>
+        <input type="number" class="mt-input" id="mts-att-${s}" placeholder="Attempted" min="0"/>
+        <input type="number" class="mt-input" id="mts-cor-${s}" placeholder="Correct" min="0"/>
+        <input type="number" class="mt-input" id="mts-wr-${s}" placeholder="Wrong" min="0"/>
+      </div>`;
+      tg.innerHTML+=`<div class="mt-sect-item"><div class="mt-sect-label">${s}</div>
+        <input type="number" class="mt-input" id="mtt-${s}" placeholder="mins" min="0"/>
+      </div>`;
+    });
+  }
+
+  function mtNet(sec){ let n=0; SECTS.forEach(s=>{ n+=(parseInt(sec[s]?.correct||0)*2)-(parseInt(sec[s]?.wrong||0)*0.5); }); return n; }
+
+  window.mtSaveMock = function(){
+    const platform=document.getElementById('mt-platform').value.trim();
+    const mockno=document.getElementById('mt-mockno').value.trim();
+    if(!platform||!mockno){ mtToast('Enter platform and mock number!'); return; }
+    const sections={};
+    SECTS.forEach(s=>{ sections[s]={ total:parseInt(document.getElementById(`mts-tot-${s}`).value)||0, attempted:parseInt(document.getElementById(`mts-att-${s}`).value)||0, correct:parseInt(document.getElementById(`mts-cor-${s}`).value)||0, wrong:parseInt(document.getElementById(`mts-wr-${s}`).value)||0, time:parseInt(document.getElementById(`mtt-${s}`).value)||0 }; });
+    const mock={ id:Date.now(), platform, mockno, date:document.getElementById('mt-date').value||new Date().toISOString().split('T')[0], difficulty:document.getElementById('mt-diff').value, rank:document.getElementById('mt-rank').value, sections, wrongs:document.getElementById('mt-wrongs').value.trim(), net:0 };
+    mock.net = mtNet(mock.sections);
+    mtMocks.push(mock);
+    mtMocks.sort((a,b)=>a.date.localeCompare(b.date));
+    mtSave(); mtResetForm(); mtUpdateFilters(); mtUpdateHeaderStats();
+    mtToast('✅ Mock saved!');
+  };
+
+  function mtResetForm(){
+    ['mt-platform','mt-mockno','mt-rank','mt-wrongs'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    const d=document.getElementById('mt-date'); if(d) d.value='';
+    const df=document.getElementById('mt-diff'); if(df) df.value='Medium';
+    SECTS.forEach(s=>{ ['mts-tot','mts-att','mts-cor','mts-wr'].forEach(p=>{ const el=document.getElementById(`${p}-${s}`); if(el) el.value=''; }); const t=document.getElementById(`mtt-${s}`); if(t) t.value=''; });
+  }
+
+  function mtUpdateFilters(){
+    const plats=[...new Set(mtMocks.map(m=>m.platform))];
+    ['mt-pf-filter','mt-wpf-filter'].forEach(id=>{
+      const sel=document.getElementById(id); if(!sel) return;
+      const cur=sel.value; sel.innerHTML='<option value="">All Platforms</option>';
+      plats.forEach(p=>sel.innerHTML+=`<option${cur===p?' selected':''}>${p}</option>`);
+    });
+  }
+
+  function mtUpdateHeaderStats(){
+    const el=document.getElementById('mt-header-stats'); if(!el) return;
+    if(!mtMocks.length){ el.innerHTML=''; return; }
+    const nets=mtMocks.map(m=>m.net);
+    const avg=(nets.reduce((a,b)=>a+b,0)/nets.length).toFixed(1);
+    const best=Math.max(...nets).toFixed(1);
+    el.innerHTML=`
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 16px;text-align:center" class="dark:bg-slate-800 dark:border-slate-700">
+        <div style="font-size:20px;font-weight:900;color:#6366f1">${mtMocks.length}</div><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase">Mocks</div>
+      </div>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 16px;text-align:center" class="dark:bg-slate-800 dark:border-slate-700">
+        <div style="font-size:20px;font-weight:900;color:#6366f1">${avg}</div><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase">Avg Score</div>
+      </div>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 16px;text-align:center" class="dark:bg-slate-800 dark:border-slate-700">
+        <div style="font-size:20px;font-weight:900;color:#10b981">${best}</div><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase">Best</div>
+      </div>`;
+  }
+
+  window.mtRenderHistory = function(){
+    const pf=document.getElementById('mt-pf-filter')?.value||'';
+    const df=document.getElementById('mt-df-filter')?.value||'';
+    const list=document.getElementById('mt-history-list'); if(!list) return;
+    const filtered=mtMocks.filter(m=>(!pf||m.platform===pf)&&(!df||m.difficulty===df)).slice().reverse();
+    if(!filtered.length){ list.innerHTML='<div class="mt-empty">📭 No mocks logged yet.<br>Go to Log Mock tab to add your first one!</div>'; return; }
+    list.innerHTML=filtered.map(m=>{
+      const bdg=`mt-badge-${m.difficulty.toLowerCase()}`;
+      const pills=SECTS.map(s=>`<span class="mt-s-pill">${s}: ${m.sections[s].correct}/${m.sections[s].attempted}</span>`).join(' ');
+      const netColor=m.net>=0?'#16a34a':'#ef4444';
+      return `<div class="mt-mock-row" onclick="mtToggleDetail(${m.id})">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><span style="font-weight:900;font-size:14px;color:#1e293b" class="dark:text-slate-100">${m.platform} — ${m.mockno}</span>
+            <span style="font-size:12px;font-weight:700;color:#94a3b8;margin-left:8px">${m.date}</span></div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:17px;font-weight:900;color:${netColor}">${m.net.toFixed(1)}</span>
+            <span class="mt-badge ${bdg}">${m.difficulty}</span>
+            <button class="mt-del-btn" onclick="mtDeleteMock(event,${m.id})">Delete</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${pills}</div>
+        ${m.rank?`<div style="font-size:11px;font-weight:700;color:#94a3b8;margin-top:4px">Rank/Percentile: ${m.rank}</div>`:''}
+        <div id="mt-detail-${m.id}" style="display:none;margin-top:8px;font-size:12px;font-weight:700;color:#64748b;background:#f8fafc;border-radius:8px;padding:10px;white-space:pre-wrap" class="dark:bg-slate-800 dark:text-slate-400">${m.wrongs||'No notes.'}</div>
+      </div>`;
+    }).join('');
+  };
+
+  window.mtToggleDetail = function(id){ const el=document.getElementById(`mt-detail-${id}`); if(el) el.style.display=el.style.display==='none'?'block':'none'; };
+  window.mtDeleteMock = function(e,id){ e.stopPropagation(); mtMocks=mtMocks.filter(m=>m.id!==id); mtSave(); mtRenderHistory(); mtUpdateFilters(); mtUpdateHeaderStats(); mtToast('Deleted'); };
+
+  window.mtRenderAnalysis = function(){
+    const metEl=document.getElementById('mt-metrics'); if(!metEl) return;
+    if(!mtMocks.length){ metEl.innerHTML='<div class="mt-empty" style="grid-column:1/-1">📭 No data yet. Log some mocks first!</div>'; return; }
+    const cutoff=parseFloat(document.getElementById('mt-cutoff')?.value)||0;
+    const nets=mtMocks.map(m=>m.net);
+    const avg=nets.reduce((a,b)=>a+b,0)/nets.length;
+    const best=Math.max(...nets); const last=nets[nets.length-1];
+    const aboveCutoff=cutoff>0?mtMocks.filter(m=>m.net>=cutoff).length:null;
+    metEl.innerHTML=`
+      <div class="mt-metric"><div class="mt-metric-val">${mtMocks.length}</div><div class="mt-metric-lbl">Mocks Taken</div></div>
+      <div class="mt-metric"><div class="mt-metric-val" style="color:#6366f1">${avg.toFixed(1)}</div><div class="mt-metric-lbl">Avg Net Score</div></div>
+      <div class="mt-metric"><div class="mt-metric-val" style="color:#16a34a">${best.toFixed(1)}</div><div class="mt-metric-lbl">Best Score</div></div>
+      <div class="mt-metric"><div class="mt-metric-val" style="color:${last>=avg?'#16a34a':'#ef4444'}">${last.toFixed(1)}</div><div class="mt-metric-lbl">Last Score ${last>=avg?'↑':'↓'}</div></div>
+      ${aboveCutoff!==null?`<div class="mt-metric" style="grid-column:span 4"><div class="mt-metric-val" style="color:#6366f1">${aboveCutoff}/${mtMocks.length}</div><div class="mt-metric-lbl">Mocks Above Cutoff (${cutoff})</div></div>`:''}`;
+    const labels=mtMocks.map(m=>`${m.mockno}`);
+    const isDark=document.documentElement.classList.contains('dark');
+    const gc=isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.05)';
+    const tc=isDark?'#64748b':'#94a3b8';
+    if(mtCharts.trend){ mtCharts.trend.destroy(); }
+    const ct=document.getElementById('mt-chart-trend'); if(!ct) return;
+    mtCharts.trend=new Chart(ct.getContext('2d'),{ type:'line', data:{labels,datasets:[{label:'Net',data:nets,borderColor:'#6366f1',backgroundColor:'rgba(99,102,241,0.1)',tension:0.35,fill:true,pointRadius:5,pointBackgroundColor:'#6366f1'}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:tc,font:{size:10}},grid:{color:gc}},y:{ticks:{color:tc,font:{size:10}},grid:{color:gc}}}} });
+    if(mtCharts.cutoff){ mtCharts.cutoff.destroy(); }
+    const cc=document.getElementById('mt-chart-cutoff'); if(!cc) return;
+    const cds=[{label:'Net',data:nets,borderColor:'#16a34a',backgroundColor:'rgba(22,163,74,0.1)',tension:0.35,fill:true,pointRadius:5,pointBackgroundColor:'#16a34a'}];
+    if(cutoff>0) cds.push({label:`Cutoff ${cutoff}`,data:mtMocks.map(()=>cutoff),borderColor:'#ef4444',borderDash:[6,3],pointRadius:0,borderWidth:2,fill:false});
+    mtCharts.cutoff=new Chart(cc.getContext('2d'),{ type:'line', data:{labels,datasets:cds}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:cutoff>0,labels:{font:{size:10},color:tc,boxWidth:10}}},scales:{x:{ticks:{color:tc,font:{size:10}},grid:{color:gc}},y:{ticks:{color:tc,font:{size:10}},grid:{color:gc}}}} });
+    const last5=mtMocks.slice(-5);
+    const accEl=document.getElementById('mt-acc-section'); if(!accEl) return;
+    const rows=SECTS.map((s,i)=>{ const att=last5.reduce((a,m)=>a+(m.sections[s].attempted||0),0); const cor=last5.reduce((a,m)=>a+(m.sections[s].correct||0),0); const acc=att>0?Math.round((cor/att)*100):0; return {s,acc,c:COLORS[i]}; }).sort((a,b)=>b.acc-a.acc);
+    accEl.innerHTML=`<table class="mt-acc-table"><thead><tr><th>Subject</th><th>Accuracy</th><th style="width:38%">Progress</th><th>Status</th></tr></thead><tbody>${rows.map(r=>`<tr><td style="font-weight:900">${r.s}</td><td>${r.acc}%</td><td><div style="background:#f1f5f9;border-radius:3px;height:7px"><div style="width:${r.acc}%;height:100%;border-radius:3px;background:${r.c};transition:width 0.6s"></div></div></td><td style="color:${r.acc<60?'#ef4444':'#16a34a'};font-size:11px;font-weight:900">${r.acc<60?'⚠ WEAK':'✅ OK'}</td></tr>`).join('')}</tbody></table>`;
+    if(mtCharts.heat){ mtCharts.heat.destroy(); }
+    const ch=document.getElementById('mt-chart-heat'); if(!ch) return;
+    mtCharts.heat=new Chart(ch.getContext('2d'),{ type:'bar', data:{labels:SECTS,datasets:[{label:'Attempted',data:SECTS.map(s=>mtMocks.reduce((a,m)=>a+(m.sections[s].attempted||0),0)),backgroundColor:'rgba(99,102,241,0.7)',borderRadius:3},{label:'Correct',data:SECTS.map(s=>mtMocks.reduce((a,m)=>a+(m.sections[s].correct||0),0)),backgroundColor:'rgba(22,163,74,0.7)',borderRadius:3},{label:'Wrong',data:SECTS.map(s=>mtMocks.reduce((a,m)=>a+(m.sections[s].wrong||0),0)),backgroundColor:'rgba(239,68,68,0.7)',borderRadius:3}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'top',labels:{font:{size:11},color:tc,boxWidth:10}}},scales:{x:{ticks:{color:tc,font:{size:11}},grid:{color:gc}},y:{ticks:{color:tc,font:{size:10}},grid:{color:gc}}}} });
+    const diffs={Easy:0,Medium:0,Hard:0}; mtMocks.forEach(m=>diffs[m.difficulty]=(diffs[m.difficulty]||0)+1);
+    const tot=mtMocks.length; const diffColors=['#16a34a','#f59e0b','#ef4444'];
+    document.getElementById('mt-diff-dist').innerHTML=['Easy','Medium','Hard'].map((d,i)=>{ const pct=tot>0?Math.round((diffs[d]/tot)*100):0; return `<div class="mt-diff-row"><span style="width:70px;color:${diffColors[i]}">${d}</span><div class="mt-diff-bar-wrap"><div class="mt-diff-bar" style="width:${pct}%;background:${diffColors[i]}"></div></div><span style="width:60px;text-align:right;font-size:12px;color:#94a3b8">${diffs[d]} (${pct}%)</span></div>`; }).join('');
+  };
+
+  window.mtRenderWrongs = function(){
+    const pf=document.getElementById('mt-wpf-filter')?.value||'';
+    const q=(document.getElementById('mt-w-search')?.value||'').toLowerCase();
+    const list=document.getElementById('mt-wrongs-list'); if(!list) return;
+    const filtered=mtMocks.filter(m=>m.wrongs&&(!pf||m.platform===pf)).slice().reverse();
+    if(!filtered.length){ list.innerHTML='<div class="mt-empty">✅ No wrong notes yet. Keep going!</div>'; return; }
+    list.innerHTML=filtered.map(m=>{
+      const lines=m.wrongs.split('\n').filter(l=>l.trim()&&(!q||l.toLowerCase().includes(q)));
+      if(!lines.length) return '';
+      return `<div class="mt-wrong-entry"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="font-size:13px;font-weight:900;color:#1e293b" class="dark:text-slate-100">${m.platform} — ${m.mockno} <span style="color:#94a3b8;font-weight:700">(${m.date})</span></span></div>${lines.map(l=>{ const c=l.indexOf(':'); if(c>0){ const sub=l.slice(0,c).trim(); const note=l.slice(c+1).trim(); return `<div style="margin-bottom:4px"><div class="mt-wrong-subject">${sub}</div><div style="color:#475569;font-weight:700" class="dark:text-slate-300">${note}</div></div>`; } return `<div style="color:#475569;font-weight:700;margin-bottom:4px" class="dark:text-slate-300">${l}</div>`; }).join('')}</div>`;
+    }).filter(Boolean).join('');
+    if(!list.innerHTML) list.innerHTML='<div class="mt-empty">No matches found.</div>';
+  };
+
+  window.mtSwitchTab = function(name){
+    document.querySelectorAll('.mt-tab').forEach((t,i)=>t.classList.toggle('mt-active',['log','history','analysis','wrongs'][i]===name));
+    document.querySelectorAll('.mt-view').forEach(v=>v.classList.remove('mt-active'));
+    const v=document.getElementById(`mt-view-${name}`); if(v) v.classList.add('mt-active');
+    if(name==='history') mtRenderHistory();
+    if(name==='analysis') mtRenderAnalysis();
+    if(name==='wrongs') mtRenderWrongs();
+  };
+
+  const _origShowScreen = window.showScreen;
+  window.showScreen = function(name){
+    if(_origShowScreen) _origShowScreen(name);
+    document.querySelectorAll('[id^="screen-"]').forEach(s=>s.classList.add('hidden'));
+    const target=document.getElementById(`screen-${name}`);
+    if(target){ target.classList.remove('hidden'); window.scrollTo(0,0); }
+    if(name==='mock-tracker'){
+      mtLoad(); mtBuildGrids();
+      document.getElementById('mt-date').value=new Date().toISOString().split('T')[0];
+      mtUpdateFilters(); mtUpdateHeaderStats();
+    }
+  };
+
+  mtLoad();
+})();
+</script>
+<!-- ===================== END MOCK TRACKER ===================== --></body></html>
