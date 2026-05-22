@@ -6161,10 +6161,6 @@ window.retryWrong = function() {
 .wz-bar-fill{height:100%;border-radius:5px;transition:width 0.7s}
 .wz-never-cracked{background:#fff5f5;border:1px solid #fecaca;border-radius:10px;padding:8px 12px;margin-bottom:6px;font-size:12px;font-weight:700}
 .dark .wz-never-cracked{background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.3)}
-.mt-gsync-btn{padding:8px 16px;border-radius:10px;font-size:12px;font-weight:900;cursor:pointer;border:1.5px solid #e2e8f0;background:#fff;color:#1e293b;transition:all 0.15s;display:flex;align-items:center;gap:6px}
-.dark .mt-gsync-btn{background:#1e293b;border-color:#334155;color:#f1f5f9}
-.mt-gsync-btn:hover{border-color:#6366f1}
-.mt-gsync-btn.connected{border-color:#16a34a;color:#16a34a}
 </style>
 
 <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
@@ -6179,14 +6175,7 @@ window.retryWrong = function() {
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
       <div id="mt-header-stats" class="flex gap-3 flex-wrap justify-end"></div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button class="mt-gsync-btn" id="mt-gsync-btn" onclick="mtGoogleSync()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-          <span id="mt-gsync-label">Sync with Google Sheets</span>
-        </button>
-        <button class="mt-gsync-btn" onclick="mtExportJSON()" title="Export all data as JSON backup">⬇ Export</button>
-        <label class="mt-gsync-btn" style="cursor:pointer" title="Import JSON backup">⬆ Import<input type="file" accept=".json" style="display:none" onchange="mtImportJSON(this)"/></label>
-      </div>
+
     </div>
   </div>
 
@@ -6402,52 +6391,7 @@ window.retryWrong = function() {
   function mtSave(){ localStorage.setItem('ssc_mock_tracker',JSON.stringify(mtMocks)); }
   function mtToast(msg,dur){ const t=document.getElementById('mt-toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),dur||2300); }
 
-  /* ── GOOGLE SHEETS SYNC ── */
-  const GSHEET_KEY='mt_gsheet_url';
-  window.mtGoogleSync=function(){
-    let url=localStorage.getItem(GSHEET_KEY)||'';
-    const newUrl=prompt('Paste your Google Apps Script Web App URL.\n\n(Setup: Extensions → Apps Script → paste the sync script → Deploy as web app → copy URL)\n\nLeave blank to clear.', url);
-    if(newUrl===null) return;
-    if(!newUrl.trim()){ localStorage.removeItem(GSHEET_KEY); mtUpdateSyncBtn(); mtToast('Google Sync disconnected'); return; }
-    localStorage.setItem(GSHEET_KEY,newUrl.trim());
-    mtUpdateSyncBtn();
-    mtPushToSheet();
-  };
-  function mtUpdateSyncBtn(){
-    const url=localStorage.getItem(GSHEET_KEY)||'';
-    const btn=document.getElementById('mt-gsync-btn');
-    const lbl=document.getElementById('mt-gsync-label');
-    if(!btn||!lbl) return;
-    if(url){ btn.classList.add('connected'); lbl.textContent='✅ Synced with Google Sheets'; }
-    else { btn.classList.remove('connected'); lbl.textContent='Sync with Google Sheets'; }
-  }
-  async function mtPushToSheet(){
-    const url=localStorage.getItem(GSHEET_KEY); if(!url) return;
-    try{
-      await fetch(url,{method:'POST',body:JSON.stringify({action:'sync',mocks:mtMocks}),headers:{'Content-Type':'text/plain'}});
-      mtToast('✅ Synced to Google Sheets!');
-    }catch(e){ mtToast('⚠ Sync failed — check your Apps Script URL'); }
-  }
-  async function mtPullFromSheet(){
-    const url=localStorage.getItem(GSHEET_KEY); if(!url) return;
-    try{
-      const r=await fetch(url+'?action=get'); const d=await r.json();
-      if(d.mocks&&Array.isArray(d.mocks)){ mtMocks=d.mocks; mtSave(); mtUpdateFilters(); mtUpdateHeaderStats(); mtToast('✅ Pulled latest data from Google Sheets!'); }
-    }catch(e){ mtToast('⚠ Pull failed'); }
-  }
 
-  /* ── EXPORT / IMPORT ── */
-  window.mtExportJSON=function(){
-    const blob=new Blob([JSON.stringify(mtMocks,null,2)],{type:'application/json'});
-    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-    a.download=`mock_tracker_${new Date().toISOString().split('T')[0]}.json`; a.click();
-  };
-  window.mtImportJSON=function(input){
-    const file=input.files[0]; if(!file) return;
-    const reader=new FileReader();
-    reader.onload=e=>{ try{ const d=JSON.parse(e.target.result); if(Array.isArray(d)){ mtMocks=[...mtMocks,...d.filter(n=>!mtMocks.find(o=>o.id===n.id))]; mtSave(); mtUpdateFilters(); mtUpdateHeaderStats(); mtToast(`✅ Imported ${d.length} mocks`); } }catch(err){ mtToast('Import failed — invalid file'); } };
-    reader.readAsText(file); input.value='';
-  };
 
   /* ── TAG CHIP SELECT ── */
   window.mtSelectTag=function(btn,tag){
@@ -6556,7 +6500,6 @@ window.retryWrong = function() {
     mtMocks.push(mock);
     mtMocks.sort((a,b)=>a.date.localeCompare(b.date));
     mtSave(); mtResetForm(); mtUpdateFilters(); mtUpdateHeaderStats();
-    mtPushToSheet();
     mtToast(`✅ ${mtCurrentType==='full'?'Full Mock':'Sectional ('+mock.subject+')'} saved!`);
     mtResetToStep1();
   };
@@ -6876,7 +6819,7 @@ window.retryWrong = function() {
     document.querySelectorAll('[id^="screen-"]').forEach(s=>s.classList.add('hidden'));
     const target=document.getElementById(`screen-${name}`);
     if(target){ target.classList.remove('hidden'); window.scrollTo(0,0); }
-    if(name==='mock-tracker'){ mtLoad(); mtUpdateFilters(); mtUpdateHeaderStats(); mtUpdateSyncBtn(); }
+    if(name==='mock-tracker'){ mtLoad(); mtUpdateFilters(); mtUpdateHeaderStats(); }
   };
 
   mtLoad();
