@@ -6953,24 +6953,57 @@ window.retryWrong = function() {
       .sort((a,b)=>b.mocks-a.mocks)
       .slice(0,15);
 
-    // ── MOCK-WISE WRONG COUNT TABLE ──
-    // Sort entries by title
-    const sortedEntries=[...entries].sort((a,b)=>(a.title||'').localeCompare(b.title||''));
-    // Get all unique tags
-    const allTags=[...new Set(entries.flatMap(h=>(h.reviewData||[]).filter(rd=>rd.status==='wrong').map(T)))].sort();
-    // Build table: rows=tags, cols=quiz JSONs
-    const tableData={};
-    allTags.forEach(tag=>{ tableData[tag]={}; sortedEntries.forEach(h=>{ tableData[tag][h.title||h.date]=0; }); });
-    entries.forEach(h=>{
-      (h.reviewData||[]).forEach(rd=>{
-        if(rd.status!=='wrong') return;
-        const tag=T(rd);
-        const key=h.title||h.date;
-        if(tableData[tag]!==undefined) tableData[tag][key]=(tableData[tag][key]||0)+1;
+    // ── MOCK-WISE WRONG COUNT TABLE (SEPARATE BY SUBJECT) ──
+    const subjectTables = {};
+    const subjects = ['QUANT', 'GS', 'ENGLISH', 'REASONING'];
+    
+    subjects.forEach(subj => {
+      // Filter entries for this subject
+      const subjEntries = entries.filter(h => {
+        const title = (h.title || '').toUpperCase();
+        return title.includes(subj + ' MOCK');
       });
+      
+      if (subjEntries.length === 0) return;
+      
+      // Extract mock numbers and sort
+      const mocksData = subjEntries.map(h => {
+        const title = h.title || h.date || '';
+        const match = title.match(/MOCK\s+(\d+)/i);
+        const mockNum = match ? match[1] : title;
+        return { entry: h, mockNum, title };
+      }).sort((a, b) => {
+        const numA = parseInt(a.mockNum);
+        const numB = parseInt(b.mockNum);
+        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+        return a.title.localeCompare(b.title);
+      });
+      
+      // Build chapter × mock matrix
+      const tableData = {};
+      const allChapters = new Set();
+      
+      mocksData.forEach(({ entry, mockNum }) => {
+        if (!Array.isArray(entry.reviewData)) return;
+        entry.reviewData.forEach(rd => {
+          if (rd.status !== 'wrong') return;
+          // Get chapter (tags[1] or tags[0] as fallback)
+          const chapter = rd.tags && rd.tags.length > 1 ? rd.tags[1] : 
+                         rd.tags && rd.tags.length > 0 ? rd.tags[0] : 'Unknown';
+          allChapters.add(chapter);
+          if (!tableData[chapter]) tableData[chapter] = {};
+          tableData[chapter][mockNum] = (tableData[chapter][mockNum] || 0) + 1;
+        });
+      });
+      
+      // Calculate totals per chapter
+      const chapterTotals = Array.from(allChapters).map(chapter => ({
+        chapter,
+        total: Object.values(tableData[chapter] || {}).reduce((a, b) => a + b, 0)
+      })).sort((a, b) => b.total - a.total);
+      
+      subjectTables[subj] = { mocksData, tableData, chapterTotals };
     });
-    // Sort tags by total wrong count
-    const tagTotals=allTags.map(tag=>({tag,total:Object.values(tableData[tag]).reduce((a,b)=>a+b,0)})).sort((a,b)=>b.total-a.total);
 
     // ── TOPIC IMPROVEMENT TREND ──
     // For each topic, show accuracy per quiz attempt in chronological order
@@ -7033,20 +7066,30 @@ window.retryWrong = function() {
         ${topics.slice(0,40).map(t=>{const bc=t.acc<50?'#ef4444':t.acc<70?'#f59e0b':'#16a34a';return `<div class="wz-topic-bar"><span class="wz-lbl" style="width:190px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0" title="${t.k}">${t.k}</span><div class="wz-bar-wrap"><div class="wz-bar-fill" style="width:${t.acc}%;background:${bc}"></div></div><span style="font-size:11px;font-weight:900;color:${bc};min-width:36px;text-align:right">${t.acc}%</span><span style="font-size:10px;color:#94a3b8;min-width:46px;text-align:right">${t.correct}/${t.total}</span></div>`;}).join('')}
         ${topics.length>40?`<div style="font-size:11px;color:#94a3b8;font-weight:700;margin-top:6px">+${topics.length-40} more topics</div>`:''}
       </div>
-      ${tagTotals.length&&sortedEntries.length>1?`<div class="mt-chart-wrap"><div class="mt-chart-title">📋 Mock-wise Wrong Count per Chapter</div>
-        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">
-          <thead><tr>
-            <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #e2e8f0;font-weight:900;color:#64748b;min-width:130px" class="dark:border-slate-700">Chapter</th>
-            ${sortedEntries.map(h=>`<th style="text-align:center;padding:6px 8px;border-bottom:1px solid #e2e8f0;font-weight:900;color:#6366f1;white-space:nowrap" class="dark:border-slate-700">${(h.title||h.date).replace(/QUANT MOCK /i,'Q').replace(/GS MOCK /i,'GS').replace(/ENGLISH MOCK /i,'EN').replace(/REASONING MOCK /i,'R')}</th>`).join('')}
-            <th style="text-align:center;padding:6px 8px;border-bottom:1px solid #e2e8f0;font-weight:900;color:#ef4444" class="dark:border-slate-700">Total</th>
-          </tr></thead>
-          <tbody>${tagTotals.slice(0,20).map(({tag,total})=>`<tr>
-            <td class="wz-lbl dark:border-slate-800" style="padding:5px 8px;border-bottom:1px solid #f1f5f9">${tag}</td>
-            ${sortedEntries.map(h=>{const c=tableData[tag][h.title||h.date]||0;return `<td style="text-align:center;padding:5px 8px;border-bottom:1px solid #f1f5f9;font-weight:900;color:${c===0?'#94a3b8':c<=2?'#f59e0b':'#ef4444'}" class="dark:border-slate-800">${c||'·'}</td>`;}).join('')}
-            <td style="text-align:center;padding:5px 8px;font-weight:900;color:#ef4444" class="dark:border-slate-800">${total}</td>
-          </tr>`).join('')}</tbody>
-        </table></div>
-      </div>`:''}`;
+      ${Object.keys(subjectTables).length ? subjects.map(subj => {
+        const data = subjectTables[subj];
+        if (!data) return '';
+        const { mocksData, tableData, chapterTotals } = data;
+        if (chapterTotals.length === 0) return '';
+        
+        return `<div class="mt-chart-wrap"><div class="mt-chart-title">📋 ${subj} — Mock-wise Wrong Count per Chapter</div>
+          <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">
+            <thead><tr>
+              <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #e2e8f0;font-weight:900;color:#64748b;min-width:130px" class="dark:border-slate-700">Chapter</th>
+              ${mocksData.map(m => `<th style="text-align:center;padding:6px 8px;border-bottom:1px solid #e2e8f0;font-weight:900;color:#6366f1;white-space:nowrap" class="dark:border-slate-700">M${m.mockNum}</th>`).join('')}
+              <th style="text-align:center;padding:6px 8px;border-bottom:1px solid #e2e8f0;font-weight:900;color:#ef4444" class="dark:border-slate-700">Total</th>
+            </tr></thead>
+            <tbody>${chapterTotals.slice(0, 20).map(({ chapter, total }) => `<tr>
+              <td class="wz-lbl dark:border-slate-800" style="padding:5px 8px;border-bottom:1px solid #f1f5f9">${chapter}</td>
+              ${mocksData.map(m => {
+                const c = tableData[chapter][m.mockNum] || 0;
+                return `<td style="text-align:center;padding:5px 8px;border-bottom:1px solid #f1f5f9;font-weight:900;color:${c === 0 ? '#94a3b8' : c <= 2 ? '#f59e0b' : '#ef4444'}" class="dark:border-slate-800">${c || '·'}</td>`;
+              }).join('')}
+              <td style="text-align:center;padding:5px 8px;font-weight:900;color:#ef4444;border-bottom:1px solid #f1f5f9" class="dark:border-slate-800">${total}</td>
+            </tr>`).join('')}</tbody>
+          </table></div>
+        </div>`;
+      }).join('') : ''}`;
   }
 
   /* EDIT MOCK */
