@@ -6966,28 +6966,25 @@ window.retryWrong = function() {
       
       if (subjEntries.length === 0) return;
       
-      // Extract mock numbers and sort
-      const mocksData = subjEntries.map(h => {
+      // Helper: extract mock number from title
+      const getMockNum = (h) => {
         const title = h.title || h.date || '';
         const match = title.match(/MOCK\s+(\d+)/i);
-        const mockNum = match ? match[1] : title;
-        return { entry: h, mockNum, title };
-      }).sort((a, b) => {
-        const numA = parseInt(a.mockNum);
-        const numB = parseInt(b.mockNum);
-        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
-        return a.title.localeCompare(b.title);
-      });
+        return match ? match[1] : title;
+      };
       
-      // Build chapter × mock matrix
+      // Build chapter × mock matrix - aggregate ALL attempts of same mock
       const tableData = {};
       const allChapters = new Set();
+      const mockSet = new Set();
       
-      mocksData.forEach(({ entry, mockNum }) => {
+      subjEntries.forEach(entry => {
         if (!Array.isArray(entry.reviewData)) return;
+        const mockNum = getMockNum(entry);
+        mockSet.add(mockNum);
+        
         entry.reviewData.forEach(rd => {
           if (rd.status !== 'wrong') return;
-          // Get chapter (tags[1] or tags[0] as fallback)
           const chapter = rd.tags && rd.tags.length > 1 ? rd.tags[1] : 
                          rd.tags && rd.tags.length > 0 ? rd.tags[0] : 'Unknown';
           allChapters.add(chapter);
@@ -6996,13 +6993,21 @@ window.retryWrong = function() {
         });
       });
       
+      // Get UNIQUE mock numbers, sorted numerically (no duplicates!)
+      const uniqueMocks = Array.from(mockSet).sort((a, b) => {
+        const numA = parseInt(a);
+        const numB = parseInt(b);
+        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+        return String(a).localeCompare(String(b));
+      });
+      
       // Calculate totals per chapter
       const chapterTotals = Array.from(allChapters).map(chapter => ({
         chapter,
         total: Object.values(tableData[chapter] || {}).reduce((a, b) => a + b, 0)
       })).sort((a, b) => b.total - a.total);
       
-      subjectTables[subj] = { mocksData, tableData, chapterTotals };
+      subjectTables[subj] = { uniqueMocks, tableData, chapterTotals };
     });
 
     // ── TOPIC IMPROVEMENT TREND ──
@@ -7070,20 +7075,20 @@ window.retryWrong = function() {
       ${Object.keys(subjectTables).length ? subjects.map(subj => {
         const data = subjectTables[subj];
         if (!data) return '';
-        const { mocksData, tableData, chapterTotals } = data;
+        const { uniqueMocks, tableData, chapterTotals } = data;
         if (chapterTotals.length === 0) return '';
         
         return `<div class="mt-chart-wrap"><div class="mt-chart-title">📋 ${subj} — Mock-wise Wrong Count per Chapter</div>
           <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">
             <thead><tr>
               <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #e2e8f0;font-weight:900;color:#64748b;min-width:130px" class="dark:border-slate-700">Chapter</th>
-              ${mocksData.map(m => `<th style="text-align:center;padding:6px 8px;border-bottom:1px solid #e2e8f0;font-weight:900;color:#6366f1;white-space:nowrap" class="dark:border-slate-700">M${m.mockNum}</th>`).join('')}
+              ${uniqueMocks.map(m => `<th style="text-align:center;padding:6px 8px;border-bottom:1px solid #e2e8f0;font-weight:900;color:#6366f1;white-space:nowrap" class="dark:border-slate-700">M${m}</th>`).join('')}
               <th style="text-align:center;padding:6px 8px;border-bottom:1px solid #e2e8f0;font-weight:900;color:#ef4444" class="dark:border-slate-700">Total</th>
             </tr></thead>
             <tbody>${chapterTotals.slice(0, 20).map(({ chapter, total }) => `<tr>
               <td class="wz-lbl dark:border-slate-800" style="padding:5px 8px;border-bottom:1px solid #f1f5f9">${chapter}</td>
-              ${mocksData.map(m => {
-                const c = tableData[chapter][m.mockNum] || 0;
+              ${uniqueMocks.map(m => {
+                const c = (tableData[chapter] && tableData[chapter][m]) || 0;
                 return `<td style="text-align:center;padding:5px 8px;border-bottom:1px solid #f1f5f9;font-weight:900;color:${c === 0 ? '#94a3b8' : c <= 2 ? '#f59e0b' : '#ef4444'}" class="dark:border-slate-800">${c || '·'}</td>`;
               }).join('')}
               <td style="text-align:center;padding:5px 8px;font-weight:900;color:#ef4444;border-bottom:1px solid #f1f5f9" class="dark:border-slate-800">${total}</td>
