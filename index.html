@@ -6889,12 +6889,15 @@ window.retryWrong = function() {
     el.innerHTML='<div class="mt-empty" style="padding:1rem">⏳ Reading your quiz data...</div>';
     // historyDb lives inside main app closure — read from IndexedDB directly
     if(!window.idbKeyval){ el.innerHTML='<div class="mt-empty">❌ Storage not available.</div>'; return; }
-    window.idbKeyval.get('megaQuizHistory_v5').then(hDb=>{
-      mtRadarRender(quizTitleKey, el, hDb||[]);
-    }).catch(e=>{ el.innerHTML=`<div class="mt-empty">❌ Could not load history: ${e.message}</div>`; });
+    Promise.all([
+      window.idbKeyval.get('megaQuizHistory_v5'),
+      window.idbKeyval.get('megaQuizDB_v5')
+    ]).then(([hDb, quizDb])=>{
+      mtRadarRender(quizTitleKey, el, hDb||[], quizDb||{});
+    }).catch(e=>{ el.innerHTML=`<div class="mt-empty">❌ Could not load data: ${e.message}</div>`; });
   };
 
-  function mtRadarRender(quizTitleKey,el,hDb){
+  function mtRadarRender(quizTitleKey,el,hDb,quizDb){
     if(!hDb||!Array.isArray(hDb)||!hDb.length){
       el.innerHTML=`<div class="mt-empty">📭 No quiz history found. Attempt some quizzes first.</div>`;
       return;
@@ -6953,47 +6956,44 @@ window.retryWrong = function() {
       .sort((a,b)=>b.mocks-a.mocks)
       .slice(0,15);
 
-    // ── MOCK-WISE WRONG COUNT TABLE (SEPARATE BY SUBJECT) ──
+    // ── MOCK-WISE WRONG COUNT TABLE (FROM RAW QUIZ JSONs — NOT ATTEMPTS) ──
+    // The JSON files imported ARE collections of wrong questions.
+    // Just count questions per chapter (tags[1]) directly from quizDb.
     const subjectTables = {};
     const subjects = ['QUANT', 'GS', 'ENGLISH', 'REASONING'];
+    const allQuizzes = Object.values(quizDb || {}).filter(q => q && q.title);
     
     subjects.forEach(subj => {
-      // Filter entries for this subject
-      const subjEntries = entries.filter(h => {
-        const title = (h.title || '').toUpperCase();
+      // Filter raw quizzes for this subject by title
+      const subjQuizzes = allQuizzes.filter(q => {
+        const title = (q.title || '').toUpperCase();
         return title.includes(subj + ' MOCK');
       });
       
-      if (subjEntries.length === 0) return;
+      if (subjQuizzes.length === 0) return;
       
-      // Helper: extract mock number from title
-      const getMockNum = (h) => {
-        const title = h.title || h.date || '';
-        const match = title.match(/MOCK\s+(\d+)/i);
-        return match ? match[1] : title;
-      };
-      
-      // Build chapter × mock matrix - aggregate ALL attempts of same mock
       const tableData = {};
       const allChapters = new Set();
       const mockSet = new Set();
       
-      subjEntries.forEach(entry => {
-        if (!Array.isArray(entry.reviewData)) return;
-        const mockNum = getMockNum(entry);
+      subjQuizzes.forEach(quiz => {
+        if (!Array.isArray(quiz.questions)) return;
+        const title = quiz.title || '';
+        const match = title.match(/MOCK\s+(\d+)/i);
+        const mockNum = match ? match[1] : title;
         mockSet.add(mockNum);
         
-        entry.reviewData.forEach(rd => {
-          if (rd.status !== 'wrong') return;
-          const chapter = rd.tags && rd.tags.length > 1 ? rd.tags[1] : 
-                         rd.tags && rd.tags.length > 0 ? rd.tags[0] : 'Unknown';
+        // Count each question by its chapter tag (tags[1])
+        quiz.questions.forEach(q => {
+          const tags = Array.isArray(q.tags) ? q.tags : [];
+          const chapter = tags[1] || tags[0] || 'Unknown';
           allChapters.add(chapter);
           if (!tableData[chapter]) tableData[chapter] = {};
           tableData[chapter][mockNum] = (tableData[chapter][mockNum] || 0) + 1;
         });
       });
       
-      // Get UNIQUE mock numbers, sorted numerically (no duplicates!)
+      // Sort mock numbers numerically (no duplicates)
       const uniqueMocks = Array.from(mockSet).sort((a, b) => {
         const numA = parseInt(a);
         const numB = parseInt(b);
@@ -7001,7 +7001,6 @@ window.retryWrong = function() {
         return String(a).localeCompare(String(b));
       });
       
-      // Calculate totals per chapter
       const chapterTotals = Array.from(allChapters).map(chapter => ({
         chapter,
         total: Object.values(tableData[chapter] || {}).reduce((a, b) => a + b, 0)
