@@ -4227,89 +4227,62 @@ window.generateQuantNotes = () => {
 
 // ================================================================
 // SHARED FORMULA NOTES — works for Advanced Maths AND Arithmetic
-// generateSubjectNotes — Claude API reads questions, extracts standard formulas
-// Reads question text only, forgets everything else, outputs clean formula cards
+// generateSubjectNotes — Pure JS, reads db, renders clean formula cards
+// No API. Groups by topic+concept, deduplicates, renders with KaTeX.
 // ================================================================
-window.generateSubjectNotes = async (targetSubject) => {
+window.generateSubjectNotes = (targetSubject) => {
 
     const quizzes = Object.values(db).filter(q => q && q.subject === targetSubject);
     if (!quizzes.length) { alert('No quizzes found for ' + targetSubject); return; }
 
-    // Collect questions grouped by topic
-    const topicMap = {};
+    // section -> Map(conceptTitle -> formula)
+    const sections = {};
+
     quizzes.forEach(quiz => {
         if (!quiz.questions) return;
         quiz.questions.forEach(q => {
-            const topic = (q.tags && q.tags[1]) ? q.tags[1] : 'General';
-            if (!topicMap[topic]) topicMap[topic] = [];
-            if (q.question) topicMap[topic].push(q.question.replace(/<[^>]+>/g,'').trim());
+            if (!q.formula || !q.formula.trim()) return;
+
+            const topic    = (q.tags && q.tags[1]) ? q.tags[1] : 'General';
+            const subtopic = (q.tags && q.tags[2]) ? q.tags[2] : '';
+            const concept  = (q.tags && q.tags[3]) ? q.tags[3] : '';
+            const secKey   = subtopic ? topic + ' — ' + subtopic : topic;
+
+            if (!sections[secKey]) sections[secKey] = new Map();
+
+            // Clean formula — strip Trick:/Concept: prefix
+            let f = q.formula.trim()
+                .replace(/^Trick:\s*/i,'')
+                .replace(/^Concept:\s*/i,'')
+                .trim();
+
+            // Deduplicate by concept title; if no title use first 80 chars of formula
+            const key = concept || f.slice(0,80);
+            if (!sections[secKey].has(key)) {
+                sections[secKey].set(key, { title: concept, formula: f });
+            }
         });
     });
 
-    if (!Object.keys(topicMap).length) { alert('No questions found.'); return; }
-
-    // Show loading
-    const win = window.open('', '_blank');
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
-    <style>body{font-family:'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;background:#1a1a2e;color:#fff;flex-direction:column;gap:16px}
-    .spinner{width:40px;height:40px;border:4px solid #333;border-top-color:#e63946;border-radius:50%;animation:spin 0.8s linear infinite}
-    @keyframes spin{to{transform:rotate(360deg)}}
-    p{font-size:14px;color:#aaa;letter-spacing:1px}</style></head>
-    <body><div class="spinner"></div><p>READING QUESTIONS & EXTRACTING FORMULAS...</p></body></html>`);
-
-    // Build prompt — just question text, grouped by topic
-    const topicSummaries = Object.entries(topicMap).map(([topic, qs]) => {
-        const sample = qs.slice(0,15).join(' | ');
-        return `TOPIC: ${topic}\nQUESTIONS: ${sample}`;
-    }).join('\n\n');
-
-    const prompt = `You are a maths formula extractor for SSC CGL exam preparation.
-
-I will give you questions from the topic "${targetSubject}". Read them, understand what standard mathematical concepts and formulas are being tested, then output ONLY the standard formulas — clean, general, reusable.
-
-DO NOT output question-specific numbers. DO NOT output tricks or tips. ONLY standard formulas a student must memorise.
-
-Output format — respond with ONLY valid JSON, no markdown, no explanation:
-{
-  "sections": [
-    {
-      "topic": "Topic Name",
-      "cards": [
-        { "title": "Short Concept Name", "formula": "LaTeX formula using $$ for display math" },
-        ...
-      ]
+    if (!Object.keys(sections).length) {
+        alert('No formulas found. Make sure your JSON files have a "formula" field.');
+        return;
     }
-  ]
-}
 
-Rules:
-- title: short (2-5 words), e.g. "Basic Volume", "CSA Formula", "TSA Ratio"  
-- formula: LaTeX only, use $$ for display equations. Can have 1-3 lines of related formulas
-- Group related formulas into ONE card (e.g. all cylinder volume variants in one card)
-- Maximum 8 cards per topic
-- Only include formulas that apply universally to the topic
-
-QUESTIONS BY TOPIC:
-${topicSummaries}`;
-
-    try {
-        const parsed = await callClaude(prompt);
-
-        // Build HTML
-        let body = '';
-        parsed.sections.forEach(sec => {
-            if (!sec.cards || !sec.cards.length) return;
-            body += `<div class="sec-title">${sec.topic}</div><div class="grid">`;
-            sec.cards.forEach(card => {
-                body += `<div class="card">`;
-                body += `<div class="card-title">${card.title}</div>`;
-                body += `<div class="formula-box">${card.formula}</div>`;
-                body += `</div>`;
-            });
+    let body = '';
+    for (const [sec, cards] of Object.entries(sections)) {
+        if (!cards.size) continue;
+        body += `<div class="sec">${sec}</div><div class="grid">`;
+        cards.forEach(({title, formula}) => {
+            body += `<div class="card">`;
+            if (title) body += `<div class="ctitle">${title}</div>`;
+            body += `<div class="fbox">${formula}</div>`;
             body += `</div>`;
         });
+        body += `</div>`;
+    }
 
-        const html = `<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -4321,23 +4294,23 @@ ${topicSummaries}`;
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Segoe UI',sans-serif;background:#f0f0eb;color:#111;font-size:12px}
 .hdr{background:#1a1a2e;color:#fff;padding:14px 24px 12px;border-bottom:4px solid #e63946}
-.hdr h1{font-size:21px;font-weight:800;letter-spacing:-0.3px}
+.hdr h1{font-size:21px;font-weight:800}
 .hdr p{font-size:10px;color:#aaa;letter-spacing:2px;text-transform:uppercase;margin-top:3px}
-.sec-title{font-size:9.5px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:#fff;background:#1a3a6e;padding:6px 18px;margin-top:2px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#d0d0c8;margin-bottom:2px}
-.card{background:#fff;padding:12px 14px;display:flex;flex-direction:column;gap:7px;overflow:hidden;min-width:0}
-.card-title{font-size:10.5px;font-weight:700;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #eee;padding-bottom:5px}
-.formula-box{background:#f4f7ff;border:1px solid #dde4f5;border-radius:4px;padding:8px 10px;font-size:12px;color:#111;line-height:1.7;overflow-x:auto}
-.formula-box .katex-display{margin:3px 0!important;overflow-x:auto}
-.formula-box .katex{font-size:0.97em!important}
+.sec{font-size:9.5px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:#fff;background:#1a3a6e;padding:6px 18px;margin-top:2px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#ccc;margin-bottom:2px}
+.card{background:#fff;padding:12px 14px;display:flex;flex-direction:column;gap:6px;min-width:0;overflow:hidden}
+.ctitle{font-size:10.5px;font-weight:700;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.8px;padding-bottom:5px;border-bottom:1px solid #eee}
+.fbox{background:#f4f7ff;border:1px solid #dde4f5;border-radius:4px;padding:8px 10px;font-size:12px;line-height:1.7;overflow-x:auto}
+.fbox .katex-display{margin:3px 0!important;overflow-x:auto}
+.fbox .katex{font-size:0.97em!important}
 .pbtn{display:block;width:100%;padding:9px;background:#1a1a2e;color:#fff;font-weight:700;font-size:11px;letter-spacing:1px;border:none;cursor:pointer;text-align:center}
 @media print{
   @page{size:A4;margin:8mm 7mm}
   .pbtn{display:none}
   body{background:#fff}
-  .hdr,.sec-title{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .hdr,.sec{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .card{break-inside:avoid}
-  .sec-title{break-after:avoid}
+  .sec{break-after:avoid}
   .grid{background:#bbb}
 }
 </style>
@@ -4356,18 +4329,11 @@ document.addEventListener("DOMContentLoaded",function(){
 <\/script>
 </body></html>`;
 
-        win.document.open();
-        win.document.write(html);
-        win.document.close();
-
-    } catch(err) {
-        win.document.open();
-        win.document.write(`<html><body style="font-family:sans-serif;padding:40px;color:red">
-        <h2>Error generating notes</h2><pre>${err.message}</pre></body></html>`);
-        win.document.close();
-    }
+    const blob = new Blob([html],{type:'text/html'});
+    const url = URL.createObjectURL(blob);
+    window.open(url,'_blank');
+    setTimeout(()=>URL.revokeObjectURL(url),15000);
 };
-
 // ================================================================
 // ADVANCED MATHS — CONCEPT KING FORMULA BOOK GENERATOR
 // Reads formulaUsed field from all Advanced Maths questions
