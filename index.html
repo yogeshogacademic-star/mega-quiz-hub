@@ -2452,7 +2452,6 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                     <div class="flex gap-2">
                         <button onclick="triggerImport('${subject.replace(/'/g, "\\'")}')" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 text-slate-600 dark:text-slate-300 hover:text-emerald-700 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm">➕ Add 🔒</button>
                         <button onclick="generateSubjectMock('${subject.replace(/'/g, "\\'")}')" class="flex-1 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-400 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm border border-indigo-100 dark:border-indigo-800/30" title="Combine all questions in this subject into one massive test">🧠 Master</button>
-                        <button onclick="autoGenerateFlashcards('${subject.replace(/'/g, "\\'")}')" class="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm border border-amber-200 dark:border-amber-800/30" title="Auto-convert all questions into Flashcards">🧮 Auto-Cards</button>
                     </div>
                     ${subject === "QUANT MOCK QUESTIONS" ? `
                     <button onclick="generateQuantNotes()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm" title="Generate PDF Cheat Sheet">📝 Formula Notes</button>
@@ -7169,61 +7168,59 @@ window.retryWrong = function() {
 
 // ── Auto-Generate Flashcards from Subject Questions ──
 window.autoGenerateFlashcards = (subjectName) => {
-    requireAuth(() => {
-        let addedCount = 0;
-        let existingQuestions = new Set(fcCards.map(c => c.front));
+    let addedCount = 0;
+    let existingFronts = new Set((fcCards || []).map(c => c.front));
 
-        Object.keys(db).forEach(quizId => {
-            const quiz = db[quizId];
-            if (quiz && quiz.subject === subjectName && Array.isArray(quiz.questions) &&
-                !quiz.title.includes("🎯") && !quiz.title.includes("Master Mock") && !quiz.title.includes("SRS")) {
+    Object.keys(db).forEach(quizId => {
+        const quiz = db[quizId];
+        if (!quiz || quiz.subject !== subjectName) return;
+        if (!Array.isArray(quiz.questions)) return;
+        if (quiz.title && (quiz.title.includes('🎯') || quiz.title.includes('Master Mock') || quiz.title.includes('SRS'))) return;
 
-                quiz.questions.forEach((q) => {
-                    if (existingQuestions.has(q.question)) return;
+        quiz.questions.forEach((q) => {
+            const qText = (q.question || '').replace(/<[^>]+>/g,'').trim();
+            if (!qText || existingFronts.has(qText)) return;
 
-                    let correctText = "N/A";
-                    if (q.type === 'typing') {
-                        correctText = q.exactAnswer || "N/A";
-                    } else if (q.options && Array.isArray(q.options)) {
-                        let correctOpt = q.options.find(o => o.correct);
-                        if (correctOpt) correctText = correctOpt.text;
-                    }
-
-                    let backContent = `Answer: ${correctText}`;
-                    if (q.solution) {
-                        let cleanSolution = q.solution.replace(/<\/?b>/g, "").replace(/<[^>]+>/g,"");
-                        backContent += `\n\n${cleanSolution}`;
-                    }
-
-                    let newCard = {
-                        id: 'fc_auto_' + Date.now() + Math.random().toString(36).substr(2, 5),
-                        category: (q.tags && q.tags[1]) ? q.tags[1] : subjectName,
-                        difficulty: 'medium',
-                        title: (q.tags && q.tags[3]) ? q.tags[3] : `${subjectName} Concept`,
-                        front: q.question.replace(/<[^>]+>/g,'').trim(),
-                        back: backContent,
-                        hint: q.tags ? q.tags.slice(1).join(' | ') : ''
-                    };
-
-                    fcCards.push(newCard);
-                    existingQuestions.add(q.question);
-                    addedCount++;
-                });
+            let correctText = 'N/A';
+            if (q.type === 'typing') {
+                correctText = q.exactAnswer || 'N/A';
+            } else if (Array.isArray(q.options)) {
+                const correct = q.options.find(o => o.correct);
+                if (correct) correctText = (correct.text || '').replace(/<[^>]+>/g,'').trim();
             }
-        });
 
-        if (addedCount > 0) {
-            fcSave();
-            fcUpdateStats();
-            fcBuildCatFilters();
-            fcRender();
-            alert(`✅ Done! Added ${addedCount} flashcards for ${subjectName}.`);
-        } else {
-            alert(`No new questions found for ${subjectName}. Vault already up to date!`);
-        }
+            let back = 'Answer: ' + correctText;
+            if (q.solution) {
+                const cleanSol = q.solution.replace(/<[^>]+>/g,'').trim();
+                if (cleanSol) back += '\n\n' + cleanSol;
+            }
+
+            const card = {
+                id: 'fc_auto_' + Date.now() + '_' + Math.random().toString(36).substr(2,5),
+                category: (q.tags && q.tags[1]) ? q.tags[1] : subjectName,
+                difficulty: 'medium',
+                title: (q.tags && q.tags[3]) ? q.tags[3] : 'Concept',
+                front: qText,
+                back: back,
+                hint: q.tags ? q.tags.slice(1).join(' | ') : ''
+            };
+
+            fcCards.push(card);
+            existingFronts.add(qText);
+            addedCount++;
+        });
     });
-};
-</script>
+
+    if (addedCount > 0) {
+        fcSave();
+        fcUpdateStats();
+        fcBuildCatFilters();
+        fcRender();
+        alert('✅ Added ' + addedCount + ' flashcards for ' + subjectName + '!\nGo to 🧮 Math Flashcards to review them.');
+    } else {
+        alert('No new questions found for ' + subjectName + '. Vault is already up to date!');
+    }
+};</script>
 
 <!-- ===================== END MOCK TRACKER ===================== -->
 
