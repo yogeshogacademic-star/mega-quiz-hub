@@ -4227,16 +4227,14 @@ window.generateQuantNotes = () => {
 
 // ================================================================
 // SHARED FORMULA NOTES — works for Advanced Maths AND Arithmetic
-// generateSubjectNotes — Auto Concept King style from formula fields
-// Reads formula + tags from every question, groups by topic/subtopic,
-// deduplicates, renders clean 2-column notes. No manual HTML needed.
+// generateSubjectNotes — Concept King style, auto from formula fields
 // ================================================================
 window.generateSubjectNotes = (targetSubject) => {
 
     const quizzes = Object.values(db).filter(q => q && q.subject === targetSubject);
     if (!quizzes.length) { alert('No quizzes found for ' + targetSubject); return; }
 
-    // topic -> subtopic -> Set of formula strings (deduped)
+    // topic+subtopic -> Set of clean formula strings (deduped)
     const topics = {};
 
     quizzes.forEach(quiz => {
@@ -4246,39 +4244,28 @@ window.generateSubjectNotes = (targetSubject) => {
             const topic    = (q.tags && q.tags[1]) ? q.tags[1] : 'General';
             const subtopic = (q.tags && q.tags[2]) ? q.tags[2] : '';
             const key      = subtopic ? topic + ' — ' + subtopic : topic;
-            if (!topics[key]) topics[key] = { tricks: new Set(), concepts: new Set() };
-
-            let f = q.formula.trim();
-            if (f.startsWith('Trick:')) {
-                topics[key].tricks.add(f.replace(/^Trick:\s*/,'').trim());
-            } else {
-                topics[key].concepts.add(f.replace(/^Concept:\s*/,'').trim());
-            }
+            if (!topics[key]) topics[key] = new Set();
+            // Strip Trick: / Concept: prefix — just keep the formula
+            let f = q.formula.trim()
+                .replace(/^Trick:\s*/i, '')
+                .replace(/^Concept:\s*/i, '')
+                .trim();
+            if (f) topics[key].add(f);
         });
     });
 
     if (!Object.keys(topics).length) {
-        alert('No formula fields found in ' + targetSubject + ' questions.');
+        alert('No formula fields found for ' + targetSubject);
         return;
     }
 
-    // Build HTML
     let body = '';
-    for (const [sectionName, {tricks, concepts}] of Object.entries(topics)) {
-        const allCards = [
-            ...[...concepts].map(f => ({cls:'concept', badge:'📐 Theorem', f})),
-            ...[...tricks ].map(f => ({cls:'trick',   badge:'⚡ Smart Trick', f}))
-        ];
-        if (!allCards.length) continue;
-
-        body += `<div class="section-title">${sectionName}</div><div class="grid">`;
-        allCards.forEach(({cls, badge, f}) => {
-            // Detect if formula spans full width (very long)
-            const full = f.length > 300 ? ' full' : '';
-            body += `<div class="${cls}${full}">`;
-            body += `<div class="badge">${badge}</div>`;
-            body += `<div class="text">${f}</div>`;
-            body += `</div>`;
+    for (const [section, formulaSet] of Object.entries(topics)) {
+        if (!formulaSet.size) continue;
+        body += `<div class="sec">${section}</div><div class="grid">`;
+        formulaSet.forEach(f => {
+            const full = f.length > 280 ? ' full' : '';
+            body += `<div class="card${full}">${f}</div>`;
         });
         body += `</div>`;
     }
@@ -4293,37 +4280,33 @@ window.generateSubjectNotes = (targetSubject) => {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"><\/script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI',sans-serif;background:#f4f4f0;color:#1a1a1a;font-size:13px;line-height:1.5}
-.header{background:#1a1a2e;color:white;padding:16px 24px 12px;display:flex;align-items:baseline;gap:14px;border-bottom:4px solid #e63946}
-.header h1{font-size:20px;font-weight:800;letter-spacing:-0.5px}
-.header span{font-size:11px;color:#aaa;letter-spacing:1.5px;text-transform:uppercase}
-.section-title{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#888;padding:14px 20px 5px;border-bottom:1px solid #ddd}
+body{font-family:'Segoe UI',sans-serif;background:#f5f5f0;color:#111;font-size:12.5px;line-height:1.6}
+.hdr{background:#1a1a2e;color:#fff;padding:14px 24px;border-bottom:4px solid #e63946}
+.hdr h1{font-size:20px;font-weight:800;letter-spacing:-0.5px}
+.hdr p{font-size:10px;color:#aaa;letter-spacing:2px;text-transform:uppercase;margin-top:2px}
+.sec{font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#fff;background:#1565c0;padding:7px 16px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
-.concept{border-left:4px solid #1565c0;background:#f2f6ff;padding:11px 13px;border-bottom:1px solid #d0d8f0;border-right:1px solid #d0d8f0;overflow:hidden;min-width:0}
-.trick{border-left:4px solid #e07b00;background:#fff9f2;padding:11px 13px;border-bottom:1px solid #f0e0d0;border-right:1px solid #f0e0d0;overflow:hidden;min-width:0}
-.full{grid-column:1/-1}
-.badge{display:inline-block;color:white;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:3px;margin-bottom:5px}
-.concept .badge{background:#1565c0}
-.trick .badge{background:#e07b00}
-.text{font-size:11.5px;color:#333;line-height:1.55;overflow-x:auto}
-.text .katex-display{margin:4px 0!important;overflow-x:auto}
-.text .katex{font-size:1em!important}
-.print-btn{display:block;width:100%;padding:9px;background:#1a1a2e;color:white;font-weight:700;font-size:11px;letter-spacing:1px;border:none;cursor:pointer;text-align:center}
+.card{padding:10px 14px;border-bottom:1px solid #e0e0d8;border-right:1px solid #e0e0d8;background:#fff;overflow:hidden;min-width:0;font-size:11.5px;color:#222;line-height:1.6}
+.card:nth-child(odd){background:#fafaf7}
+.full{grid-column:1/-1;background:#fffef5!important;border-left:3px solid #e07b00}
+.card .katex-display{margin:3px 0!important;overflow-x:auto}
+.card .katex{font-size:0.97em!important}
+.pbtn{display:block;width:100%;padding:8px;background:#1a1a2e;color:#fff;font-weight:700;font-size:11px;letter-spacing:1px;border:none;cursor:pointer}
 @media print{
-  @page{size:A4;margin:10mm 8mm}
-  .print-btn{display:none}
-  body{background:white;font-size:11px}
-  .header,.concept,.trick{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .concept,.trick{break-inside:avoid}
-  .section-title{break-after:avoid}
+  @page{size:A4;margin:8mm 7mm}
+  .pbtn{display:none}
+  body{background:#fff;font-size:10.5px}
+  .hdr,.sec{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .card{break-inside:avoid}
+  .sec{break-after:avoid}
 }
 </style>
 </head>
 <body>
-<button class="print-btn" onclick="window.print()">🖨️ SAVE AS PDF</button>
-<div class="header">
+<button class="pbtn" onclick="window.print()">🖨️ SAVE AS PDF</button>
+<div class="hdr">
   <h1>${targetSubject}</h1>
-  <span>Master Formulas &amp; Smart Tricks</span>
+  <p>Formula &amp; Concept Vault</p>
 </div>
 ${body}
 <script>
@@ -4334,13 +4317,12 @@ document.addEventListener("DOMContentLoaded",function(){
   });
 });
 <\/script>
-</body>
-</html>`;
+</body></html>`;
 
-    const blob = new Blob([html], { type: 'text/html' });
+    const blob = new Blob([html], {type:'text/html'});
     const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    window.open(url,'_blank');
+    setTimeout(()=>URL.revokeObjectURL(url),10000);
 };
 
 // ================================================================
