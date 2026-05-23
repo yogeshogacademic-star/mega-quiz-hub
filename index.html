@@ -7043,29 +7043,10 @@ const SC_KEY = 'sc_syllabus_v1';
 const SC_STREAK_KEY = 'sc_streak_v1';
 
 // Default syllabus
-// SC_DEFAULT built from SYLLABUS_MAP
-// tags[0]=subject, tags[1]=chapter, tags[2]=topic, tags[3]=concept
-// Tracker level: Subject > Chapter/Topic (tags[2])
-const SC_DEFAULT = {
-  "Arithmetic": ["Percentage","Ratio & Proportion","Profit & Loss","Discount & Dishonest Shopkeeper","Time & Work","Pipe & Cistern","Simple Interest","Compound Interest","Installment","Average","Time, Speed & Distance","Problems on Train","Boat & Stream","Circular and Linear Race","Problems on Ages","Partnership","Mixture & Alligation"],
-  "Advanced Maths": ["Number System","Simplification","Surds & Indices","LCM & HCF","Algebra","Trigonometry","Height & Distance","Geometry","Co-ordinate Geometry","Polygon","2D-Mensuration","3D-Mensuration","Data Interpretation"],
-  "Reasoning": ["Analogy & Classification","Number & Letter Series","Coding-Decoding","Blood Relations","Direction & Distance","Syllogism","Order & Ranking","Clock & Calendar","Venn Diagrams","Missing Number & Matrix","Non-Verbal Reasoning","Logical Reasoning"],
-  "English": ["Active & Passive Voice","Cloze Test","Direct & Indirect Speech","Grammar & Error Spotting","Idioms & Phrases","One Word Substitution","Para Jumbles","Reading Comprehension","Sentence Improvement","Synonyms & Antonyms","Spelling Errors"],
-  "Polity": ["Making, Preamble & Sources","Union, Territory & Citizenship","Fundamental Rights","DPSP & Fundamental Duties","Union Executive","Parliament","State Govt & Legislature","Judiciary","Local Govt (Panchayats & Municipalities)","Emergency Provisions","Constitutional & Non-Constitutional Bodies","Elections, Amendments,Parts & Schedules","Special Provisions & Anti-Defection","Bharatiya Nyaya Sanhita (BNS)"],
-  "Ancient History": ["Prehistoric & Indus Valley","Vedic Age","Buddhism & Jainism","Mahajanapadas & Magadha","Mauryan Empire","Post-Mauryan Period","Gupta Empire","Post-Gupta & Harsha"],
-  "Medieval History": ["Early Medieval India","Delhi Sultanate","Provincial Kingdoms","Mughal Empire","Maratha Empire","Bhakti & Sufi Movements","Books & Authors"],
-  "Modern History": ["Advent of Europeans","British Expansion & Policies","Revolt of 1857","Socio-Religious Reform Movements","Indian National Congress","Gandhian Era","Revolutionary Nationalism","Partition & Independence","Post-Independence Consolidation"],
-  "Geography": ["Geomorphology","Mapping","Census 2011","Climatology","Oceanography","Indian Physical Geography","Indian Drainage System","Indian Climate, Soil & Vegetation","Economic Geography","Human & Demographic Geography"],
-  "Economics": ["Pillar 1: Money, Banking, Finance & Insurance","Pillar 2: Budget, Taxes & Public Finance","Pillar 3: International Trade & BoP","Pillar 4: Sectors of Economy, GDP & Inflation","Pillar 5: Infrastructure","Pillar 6: Human Resource Development (HRD)","Pillar 7: Microeconomics"],
-  "Physics": ["Units & Measurements","Mechanics","Gravitation","Properties of Matter","Heat & Thermodynamics","Waves & Sound","Optics","Electricity & Magnetism","Modern Physics"],
-  "Chemistry": ["Matter & Its States","Atomic Structure & Periodic Table","Chemical Bonding & Reactions","Acids, Bases & Salts","Metals, Non-Metals & Metallurgy","Carbon & Organic Compounds","Chemistry in Everyday Life"],
-  "Biology": ["Cell Biology","Classification of Organisms","Human Anatomy & Physiology","Plant Morphology & Physiology","Genetics & Evolution","Human Diseases & Defense Mechanisms","Nutrition & Vitamins"],
-  "Environment & Ecology": ["Ecology Concepts & Ecosystems","Biodiversity & Conservation","Environmental Pollution & Degradation","Climate Change","Environmental Acts & Policies","International Treaties & Conventions"],
-  "Science & Technology": ["Space Technology","Defense Technology","Biotechnology","IT, Telecom & Emerging Tech","Nuclear Technology"],
-  "Static GK": ["Firsts in India & World","Classical Dances","Folk Dances","Festivals & Fairs","International Organisations","Superlatives","Important Dates & Days","National Parks & Wildlife Sanctuaries","UNESCO World Heritage Sites","Capitals & Currencies","Books & Authors","Sports Terminologies & Trophies"],
-  "Current Affairs": ["National News & Governance","International News","Economy & Banking Updates","Sports News","Awards & Honors","Appointments & Resignations","Defense Exercises","Government Schemes & Yojanas"],
-  "Art & Culture": ["Architecture & Sculpture","Paintings","Music & Dance","Puppetry & Theatre","Languages & Literature","Fairs, Festivals & Handicrafts","Indian Philosophy"]
-};
+// SC_DEFAULT mirrors SYLLABUS_MAP exactly
+// Subject > Topic (tags[2]) level tracking
+// User can add more subjects/topics manually
+const SC_DEFAULT = SYLLABUS_MAP;
 
 // Revision intervals in days
 const SC_INTERVALS = { lec: 3, r1: 7, r2: 14, r3: 30 };
@@ -7104,13 +7085,21 @@ function scDaysUntil(date) { if(!date) return 9999; return Math.ceil((new Date(d
 
 function scGetStatus(t) {
   if (!t.lec) return 'not_started';
-  if (t.r4) return 'done';
+  if (t.r4) {
+    // Check for new questions added after completion
+    if (scHasNewQuestions(t)) return 'new_qs';
+    return 'done';
+  }
   const nextDue = scGetNextDue(t);
   if (nextDue && scDaysUntil(nextDue) < 0) return 'overdue';
-  if (t.r3) return 'learning';
-  if (t.r2) return 'learning';
-  if (t.r1) return 'learning';
+  if (t.r1 || t.r2 || t.r3) return 'learning';
   return 'learning';
+}
+
+function scHasNewQuestions(t) {
+  if (!t.r4QsTotal) return false;
+  const current = scGetTopicQsCount(t.isSubTopic ? t.parentName : t.name);
+  return typeof current === 'number' && current > t.r4QsTotal;
 }
 
 function scGetNextDue(t) {
@@ -7185,6 +7174,11 @@ function scRenderTodayBanner() {
     if (!due) return;
     const daysUntil = scDaysUntil(due);
     const label = scGetNextRevLabel(t);
+    // New questions flag
+    if (t.r4 && scHasNewQuestions(t)) {
+      const newCount = scGetTopicQsCount(t.name) - (t.r4QsTotal||0);
+      items.push(`<span class="bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 text-[10px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap">⚡ ${t.name} — ${newCount} new Qs added</span>`);
+    }
     if (daysUntil <= 0) {
       const overdueDays = Math.abs(daysUntil);
       const cls = overdueDays > 0 ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200' : 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200';
@@ -7226,6 +7220,85 @@ function scGetHWCount(topicName) {
   const pct = Math.round(done/total*100);
   const color = pct >= 80 ? 'text-emerald-500' : pct >= 40 ? 'text-amber-500' : 'text-red-400';
   return `<span class="${color}">${done}/${total}</span>`;
+}
+
+
+function scGetSubTopics(topicName) {
+  // Returns array of {name, total, done, correct} for each tags[3] concept under this tags[2] topic
+  const concepts = {};
+  
+  // Get from db (total questions per concept)
+  Object.values(db).forEach(quiz => {
+    if (!quiz || !quiz.questions) return;
+    quiz.questions.forEach(q => {
+      const t2 = (q.tags && q.tags[2]) ? q.tags[2] : '';
+      const t3 = (q.tags && q.tags[3]) ? q.tags[3] : '';
+      if (t2.toLowerCase() === topicName.toLowerCase() && t3) {
+        if (!concepts[t3]) concepts[t3] = { name: t3, total: 0, done: 0, correct: 0 };
+        concepts[t3].total++;
+      }
+    });
+  });
+
+  // Get done/correct from historyDb
+  historyDb.forEach(h => {
+    if (!h.reviewData) return;
+    h.reviewData.forEach(q => {
+      const t2 = (q.tags && q.tags[2]) ? q.tags[2] : '';
+      const t3 = (q.tags && q.tags[3]) ? q.tags[3] : '';
+      if (t2.toLowerCase() === topicName.toLowerCase() && t3 && concepts[t3]) {
+        concepts[t3].done++;
+        if (q.status === 'correct') concepts[t3].correct++;
+      }
+    });
+  });
+
+  return Object.values(concepts);
+}
+
+function scRenderSubTopics(topicName, containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  
+  // Toggle
+  if (!el.classList.contains('hidden')) {
+    el.classList.add('hidden');
+    return;
+  }
+
+  const subs = scGetSubTopics(topicName);
+  
+  // Also get from CONCEPT_MAP if available
+  const mapped = (typeof CONCEPT_MAP !== 'undefined' && CONCEPT_MAP[topicName]) ? CONCEPT_MAP[topicName] : [];
+  
+  // Merge — show concept map entries + any from db
+  const allConcepts = new Set([...mapped, ...subs.map(s => s.name)]);
+  
+  if (allConcepts.size === 0) {
+    el.innerHTML = '<div class="text-[10px] text-slate-400 py-2 px-4 italic">No sub-topics found. Add JSON files with tags[3] for this topic.</div>';
+    el.classList.remove('hidden');
+    return;
+  }
+
+  let html = '';
+  allConcepts.forEach(concept => {
+    const sub = subs.find(s => s.name === concept);
+    const total = sub ? sub.total : 0;
+    const done = sub ? sub.done : 0;
+    const correct = sub ? sub.correct : 0;
+    const acc = done > 0 ? Math.round(correct/done*100) : null;
+    const accColor = acc === null ? 'text-slate-300' : acc >= 75 ? 'text-emerald-500' : acc >= 50 ? 'text-amber-500' : 'text-red-400';
+    
+    html += `<div class="flex items-center gap-2 px-4 py-1.5 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800">
+      <span class="text-slate-300 dark:text-slate-600 text-[10px]">└</span>
+      <span class="text-[11.5px] text-slate-600 dark:text-slate-400 flex-1">${concept}</span>
+      ${total > 0 ? `<span class="text-[10px] font-bold text-slate-400">${done}/${total} Qs</span>` : '<span class="text-[10px] text-slate-300 dark:text-slate-600">No Qs yet</span>'}
+      ${acc !== null ? `<span class="text-[10px] font-bold ${accColor}">${acc}%</span>` : ''}
+    </div>`;
+  });
+
+  el.innerHTML = html;
+  el.classList.remove('hidden');
 }
 
 function scRenderTracker() {
@@ -7272,8 +7345,8 @@ function scRenderTracker() {
       const qsDone = scGetQsDone(t.name);
       const acc = scGetAccuracy(t.name);
 
-      const statusClass = { done:'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400', learning:'bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400', overdue:'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400', not_started:'bg-slate-100 dark:bg-slate-800 text-slate-400' }[status];
-      const statusLabel = { done:'Done ✓', learning:'Learning', overdue:'Revision!', not_started:'Not Started' }[status];
+      const statusClass = { done:'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400', learning:'bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400', overdue:'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400', not_started:'bg-slate-100 dark:bg-slate-800 text-slate-400', new_qs:'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400' }[status];
+      const statusLabel = { done:'Done ✓', learning:'Learning', overdue:'Revision!', not_started:'Not Started', new_qs:'New Qs! ⚡' }[status];
 
       let dueHtml = '<span class="text-slate-300 dark:text-slate-600 text-[10px]">—</span>';
       if (due) {
@@ -7295,7 +7368,10 @@ function scRenderTracker() {
       html += `
         <div class="grid items-center gap-0 px-2 py-0 min-h-[42px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" style="grid-template-columns:20px 1fr 90px 36px 36px 36px 36px 36px 70px 90px 90px 32px">
           <div class="text-slate-300 dark:text-slate-600 text-[10px] text-center">${t.priority ? '⭐' : ''}</div>
-          <div class="text-[12px] font-semibold pl-2 ${status === 'done' ? 'line-through text-slate-400' : ''}">${t.name}</div>
+          <div class="flex items-center gap-1 pl-2">
+            <span class="text-[12px] font-semibold ${status === 'done' ? 'line-through text-slate-400' : ''}">${t.name}</span>
+            <button onclick="event.stopPropagation();scRenderSubTopics('${t.name.replace(/'/g,"\'")}','sc-sub-${t.key.replace(/[^a-zA-Z0-9]/g,'-')}')" class="text-[9px] text-slate-300 hover:text-violet-500 dark:text-slate-600 dark:hover:text-violet-400 transition-colors ml-1" title="Show sub-topics">▾</button>
+          </div>
           <div class="flex justify-center"><span class="text-[8.5px] font-black px-2 py-0.5 rounded-full ${statusClass}">${statusLabel}</span></div>
           <div class="flex justify-center"><div onclick="scTickLec('${t.key}')" class="w-[22px] h-[22px] rounded-[5px] border flex items-center justify-center text-[11px] transition-all ${t.lec ? 'bg-violet-500 border-violet-500 text-white' : 'border-slate-200 dark:border-slate-700 hover:border-violet-400 cursor-pointer'}">${t.lec ? '✓' : ''}</div></div>
           <div class="flex flex-col items-center">${scRevTick(t, 'r1', t.r1, daysUntil, revLabel)}</div>
@@ -7306,7 +7382,34 @@ function scRenderTracker() {
           <div class="text-center text-[10px] font-bold text-slate-500">${qsDone > 0 ? qsDone + ' Qs' + (acc ? '<br><span class="text-[9px] text-emerald-500">' + acc + '%</span>' : '') : '<span class="text-slate-300 dark:text-slate-600">—</span>'}</div>
           <div class="text-center text-[10px] font-bold">${scGetHWCount(t.name)}</div>
           <div class="flex justify-center"><button onclick="scOpenTopicMenu('${t.key}')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg font-black w-6 h-6 flex items-center justify-center rounded transition-colors">⋮</button></div>
-        </div>`;
+        </div>
+        ${t.trackingMode === 'subtopics' && t.subTopicKeys && t.subTopicKeys.length > 0 ?
+          t.subTopicKeys.map(sk => {
+            const st = scDb[sk]; if(!st) return '';
+            const stSt = scGetStatus(st);
+            const stDue = scGetNextDue(st);
+            const stDU = stDue ? scDaysUntil(stDue) : null;
+            const stRL = scGetNextRevLabel(st);
+            const stSC = {done:'bg-emerald-100 text-emerald-700',learning:'bg-amber-100 text-amber-700',overdue:'bg-red-100 text-red-700',not_started:'bg-slate-100 text-slate-400',new_qs:'bg-blue-100 text-blue-700'}[stSt]||'';
+            const stSL = {done:'Done ✓',learning:'Learning',overdue:'Rev!',not_started:'Not Started',new_qs:'New Qs!'}[stSt]||'';
+            let stDH = '<span class="text-slate-300">—</span>';
+            if(stDue){if(stDU<0)stDH=`<span class="text-red-500 font-bold">${Math.abs(stDU)}d ago</span>`;else if(stDU===0)stDH='<span class="text-amber-500 font-bold">Today</span>';else stDH=`<span class="text-emerald-500">${stDue}</span>`;}
+            return `<div class="grid items-center gap-0 px-2 min-h-[38px] bg-violet-50/40 dark:bg-violet-900/5 border border-violet-100 dark:border-violet-900/20 border-t-0" style="grid-template-columns:20px 1fr 90px 36px 36px 36px 36px 36px 70px 90px 90px 32px">
+              <div class="text-violet-300 text-[10px] text-center">└</div>
+              <div class="pl-3 text-[11px] font-medium text-slate-600 dark:text-slate-400">${st.name}</div>
+              <div class="flex justify-center"><span class="text-[8px] font-black px-1.5 py-0.5 rounded-full ${stSC}">${stSL}</span></div>
+              <div class="flex justify-center"><div onclick="scTickLec('${sk}')" class="w-[20px] h-[20px] rounded-[4px] border flex items-center justify-center text-[10px] cursor-pointer transition-all ${st.lec?'bg-violet-500 border-violet-500 text-white':'border-slate-200 hover:border-violet-400'}">${st.lec?'✓':''}</div></div>
+              <div class="flex justify-center">${scRevTick(st,'r1',st.r1,stDU,stRL)}</div>
+              <div class="flex justify-center">${scRevTick(st,'r2',st.r2,stDU,stRL)}</div>
+              <div class="flex justify-center">${scRevTick(st,'r3',st.r3,stDU,stRL)}</div>
+              <div class="flex justify-center">${scRevTick(st,'r4',st.r4,stDU,stRL)}</div>
+              <div class="text-center text-[10px]">${stDH}</div>
+              <div class="text-center text-[10px] text-slate-400">${scGetQsDone(st.name)} Qs</div>
+              <div></div><div></div>
+            </div>`;
+          }).join('')
+        : `<div id="sc-sub-${t.key.replace(/[^a-zA-Z0-9]/g,'-')}" class="hidden border-l border-r border-b border-slate-100 dark:border-slate-800"></div>`
+        }`;
     });
 
     html += `</div></div>`;
@@ -7350,17 +7453,102 @@ function scToggleChapter(chapter) {
   if (el) el.classList.toggle('hidden');
 }
 
-// ── TICK LECTURE ──
+// ── TICK LECTURE — asks tracking mode on first tick ──
 window.scTickLec = (key) => {
   const t = scDb[key];
   if (!t) return;
+
   if (t.lec) {
     if (!confirm('Unmark lecture for ' + t.name + '? This will reset all revision progress.')) return;
-    t.lec = false; t.lecDate = ''; t.r1 = false; t.r1Date = ''; t.r2 = false; t.r2Date = ''; t.r3 = false; t.r3Date = ''; t.r4 = false; t.r4Date = '';
+    t.lec = false; t.lecDate = ''; t.r1 = false; t.r1Date = '';
+    t.r2 = false; t.r2Date = ''; t.r3 = false; t.r3Date = ''; t.r4 = false; t.r4Date = '';
+    t.trackingMode = null; t.subTopicKeys = [];
+    scSave(); scRender(); return;
+  }
+
+  // Check if sub-topics exist in db for this topic
+  const subTopics = scGetAvailableSubTopics(t.name);
+
+  if (subTopics.length > 0 && !t.trackingMode) {
+    // Ask tracking mode
+    scShowTrackingModeModal(key, subTopics);
   } else {
     t.lec = true; t.lecDate = scToday();
+    t.trackingMode = t.trackingMode || 'unit';
+    scSave(); scRender();
   }
-  scSave(); scRender();
+};
+
+function scGetAvailableSubTopics(topicName) {
+  const subs = new Set();
+  Object.values(db).forEach(quiz => {
+    if (!quiz || !quiz.questions) return;
+    quiz.questions.forEach(q => {
+      const t2 = (q.tags && q.tags[2]) ? q.tags[2] : '';
+      const t3 = (q.tags && q.tags[3]) ? q.tags[3] : '';
+      if (t2.toLowerCase() === topicName.toLowerCase() && t3) subs.add(t3);
+    });
+  });
+  return [...subs];
+}
+
+function scShowTrackingModeModal(key, subTopics) {
+  const t = scDb[key];
+  const subList = subTopics.slice(0,6).map(s => `<span class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-lg">${s}</span>`).join(' ');
+  const more = subTopics.length > 6 ? `<span class="text-[10px] text-slate-400">+${subTopics.length-6} more</span>` : '';
+
+  document.getElementById('sc-modal-content').innerHTML = `
+    <div>
+      <div class="text-lg font-black text-slate-800 dark:text-slate-100 mb-1">${t.name}</div>
+      <div class="text-xs text-slate-500 mb-4">How do you want to track this topic?</div>
+      
+      <div class="space-y-3 mb-6">
+        <div onclick="scSetTrackingMode('${key}','unit')" class="cursor-pointer p-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-violet-400 transition-all group">
+          <div class="font-black text-sm text-slate-800 dark:text-slate-100 group-hover:text-violet-600">📦 As one unit</div>
+          <div class="text-[11px] text-slate-500 mt-1">All ${scGetTopicQsCount(t.name)} questions together in R1, R2, R3, R4</div>
+        </div>
+        <div onclick="scSetTrackingMode('${key}','subtopics')" class="cursor-pointer p-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-violet-400 transition-all group">
+          <div class="font-black text-sm text-slate-800 dark:text-slate-100 group-hover:text-violet-600">🔀 By sub-topics</div>
+          <div class="text-[11px] text-slate-500 mt-1 mb-2">Each sub-topic tracked separately with own Lec → R4</div>
+          <div class="flex flex-wrap gap-1">${subList}${more}</div>
+        </div>
+      </div>
+      <button onclick="scCloseModal()" class="w-full py-2 text-xs text-slate-400 hover:text-slate-600 font-bold">Cancel</button>
+    </div>`;
+  document.getElementById('sc-modal').classList.remove('hidden');
+}
+
+window.scSetTrackingMode = (key, mode) => {
+  const t = scDb[key];
+  if (!t) return;
+  t.trackingMode = mode;
+  t.lec = true;
+  t.lecDate = scToday();
+
+  if (mode === 'subtopics') {
+    // Create sub-topic entries in scDb
+    const subs = scGetAvailableSubTopics(t.name);
+    t.subTopicKeys = [];
+    subs.forEach(sub => {
+      const subKey = key + '>>>>' + sub;
+      t.subTopicKeys.push(subKey);
+      if (!scDb[subKey]) {
+        scDb[subKey] = {
+          subject: t.subject, chapter: t.chapter,
+          name: sub, parentKey: key, parentName: t.name,
+          isSubTopic: true, priority: false, notes: '',
+          lec: false, r1: false, r2: false, r3: false, r4: false,
+          lecDate: '', r1Date: '', r2Date: '', r3Date: '', r4Date: '',
+          r1Wrong: [], r2Wrong: [], r3Wrong: [],
+          r1Progress: 0, r2Progress: 0, r3Progress: 0, r4Progress: 0,
+          r1QsTotal: 0, r2QsTotal: 0, r3QsTotal: 0, r4QsTotal: 0,
+          confidence: '', trackingMode: 'unit'
+        };
+      }
+    });
+  }
+
+  scSave(); scCloseModal(); scRender();
 };
 
 // ── START REVISION ──
@@ -7368,16 +7556,31 @@ window.scStartRevision = (key, rev) => {
   const t = scDb[key];
   if (!t) return;
 
-  // Get questions for this topic
+  // Get questions — match tags[2] for normal topics, tags[3] for sub-topics
   let questions = [];
+  const isSubTopic = t.isSubTopic;
   Object.values(db).forEach(quiz => {
     if (!quiz || !quiz.questions) return;
     quiz.questions.forEach(q => {
-      if (q.tags && q.tags[2] && q.tags[2].toLowerCase().includes(t.name.toLowerCase())) {
-        questions.push(q);
+      if (isSubTopic) {
+        // Sub-topic: match tags[2]=parentName AND tags[3]=name
+        const t2 = (q.tags && q.tags[2]) ? q.tags[2] : '';
+        const t3 = (q.tags && q.tags[3]) ? q.tags[3] : '';
+        if (t2.toLowerCase() === t.parentName.toLowerCase() &&
+            t3.toLowerCase() === t.name.toLowerCase()) questions.push(q);
+      } else {
+        // Normal topic: exact match tags[2]
+        const t2 = (q.tags && q.tags[2]) ? q.tags[2] : '';
+        if (t2.toLowerCase() === t.name.toLowerCase()) questions.push(q);
       }
     });
   });
+
+  // No questions in db — offer manual tick
+  if (questions.length === 0) {
+    scShowManualRevModal(key, rev);
+    return;
+  }
 
   // For R2+ filter to wrong/skipped from previous round
   if (rev === 'r2' && t.r1Wrong && t.r1Wrong.length > 0) {
@@ -7482,12 +7685,32 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
   showScreen('lobby');
 }
 
+
+function scShowManualRevModal(key, rev) {
+  const t = scDb[key];
+  document.getElementById('sc-modal-content').innerHTML = `
+    <div class="text-center">
+      <div class="text-3xl mb-3">📚</div>
+      <div class="text-lg font-black text-slate-800 dark:text-slate-100 mb-1">${t.name} — ${rev.toUpperCase()}</div>
+      <div class="text-sm text-slate-500 mb-6">No questions found in your hub for this topic yet.<br>Have you revised from notes/flashcards?</div>
+      <div class="flex flex-col gap-3">
+        <button onclick="scMarkRevDone('${key}','${rev}','manual');scCloseModal()" class="bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">✅ Yes, mark ${rev.toUpperCase()} as done</button>
+        <button onclick="scCloseModal()" class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black py-2.5 rounded-xl text-sm">Not yet, remind me later</button>
+      </div>
+      <div class="mt-3 text-[10px] text-slate-400">Upload JSON questions for this topic to enable automatic quiz-based revision</div>
+    </div>`;
+  document.getElementById('sc-modal').classList.remove('hidden');
+}
+
 window.scMarkRevDone = (key, rev, type) => {
   const t = scDb[key];
   if (!t) return;
   t[rev] = true;
   t[rev + 'Date'] = scToday();
   t[rev + 'Progress'] = 0;
+  // Store question count at time of completion for new-question detection
+  const qCount = scGetTopicQsCount(t.isSubTopic ? t.parentName : t.name);
+  t[rev + 'QsTotal'] = typeof qCount === 'number' ? qCount : 0;
   scUpdateStreak();
   scSave();
   scRender();
