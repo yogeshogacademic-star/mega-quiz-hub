@@ -4293,21 +4293,7 @@ QUESTIONS BY TOPIC:
 ${topicSummaries}`;
 
     try {
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: 'claude-sonnet-4-20250514',
-                max_tokens: 4000,
-                messages: [{ role: 'user', content: prompt }]
-            })
-        });
-
-        const data = await res.json();
-        const raw = data.content.map(c => c.text || '').join('').trim()
-            .replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/```\s*$/,'').trim();
-
-        const parsed = JSON.parse(raw);
+        const parsed = await callClaude(prompt);
 
         // Build HTML
         let body = '';
