@@ -2452,15 +2452,16 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                     <div class="flex gap-2">
                         <button onclick="triggerImport('${subject.replace(/'/g, "\\'")}')" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 text-slate-600 dark:text-slate-300 hover:text-emerald-700 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm">➕ Add 🔒</button>
                         <button onclick="generateSubjectMock('${subject.replace(/'/g, "\\'")}')" class="flex-1 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-400 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm border border-indigo-100 dark:border-indigo-800/30" title="Combine all questions in this subject into one massive test">🧠 Master</button>
+                        <button onclick="autoGenerateFlashcards('${subject.replace(/'/g, "\\'")}')" class="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm border border-amber-200 dark:border-amber-800/30" title="Auto-convert all questions into Flashcards">🧮 Auto-Cards</button>
                     </div>
                     ${subject === "QUANT MOCK QUESTIONS" ? `
                     <button onclick="generateQuantNotes()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm" title="Generate PDF Cheat Sheet">📝 Formula Notes</button>
                     ` : ''}
                     ${subject === "Advanced Maths" ? `
-                    <button onclick="generateSubjectNotes('Advanced Maths')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm" title="Generate Formula Notes">📝 Formula Notes</button>
+                    <button onclick="autoGenerateFlashcards('Advanced Maths')" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm" title="Auto-generate flashcards from Advanced Maths only">🧮 Advanced Maths → Flashcards</button>
                     ` : ''}
                     ${subject === "Arithmetic" ? `
-                    <button onclick="generateSubjectNotes('Arithmetic')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm" title="Generate Formula Notes">📝 Formula Notes</button>
+                    <button onclick="autoGenerateFlashcards('Arithmetic')" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] uppercase py-3 rounded-xl transition-colors tracking-widest shadow-sm" title="Auto-generate flashcards from Arithmetic only">🧮 Arithmetic → Flashcards</button>
                     ` : ''}
                 </div>
             `;
@@ -4227,126 +4228,82 @@ window.generateQuantNotes = () => {
 
 // ================================================================
 // SHARED FORMULA NOTES — works for Advanced Maths AND Arithmetic
-// generateSubjectNotes — Plain text, clean cards, always works, no LaTeX issues
+// generateSubjectNotes — open formulaNotes HTML directly if present, else fallback
+// ================================================================
 window.generateSubjectNotes = (targetSubject) => {
 
+    // Collect all quizzes for this subject
     const quizzes = Object.values(db).filter(q => q && q.subject === targetSubject);
-    if (!quizzes.length) { alert('No quizzes found for ' + targetSubject); return; }
 
-    // section -> Map(conceptKey -> {title, formula})
-    const sections = {};
+    // PRIORITY: if ANY quiz has formulaNotes, open each one directly as-is
+    const withNotes = quizzes.filter(q => q.formulaNotes && q.formulaNotes.trim().length > 100);
+    if (withNotes.length > 0) {
+        withNotes.forEach(quiz => {
+            const blob = new Blob([quiz.formulaNotes], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
+        });
+        return;
+    }
 
+    // FALLBACK: extract formula fields from questions (old behaviour)
+    let chapters = {};
+    let foundAny = false;
     quizzes.forEach(quiz => {
         if (!quiz.questions) return;
         quiz.questions.forEach(q => {
-            if (!q.formula || !q.formula.trim()) return;
-            const topic    = (q.tags && q.tags[1]) ? q.tags[1] : 'General';
-            const subtopic = (q.tags && q.tags[2]) ? q.tags[2] : '';
-            const concept  = (q.tags && q.tags[3]) ? q.tags[3] : '';
-            const sec      = subtopic ? topic + ' — ' + subtopic : topic;
-            if (!sections[sec]) sections[sec] = new Map();
-
-            // Strip prefix, strip LaTeX delimiters, keep readable content
-            let f = q.formula.trim()
-                .replace(/^Trick:\s*/i,'')
-                .replace(/^Concept:\s*/i,'')
-                // Convert LaTeX to plain readable text
-                .replace(/\$\$/g,'')
-                .replace(/\$/g,'')
-                .replace(/\frac\{([^}]+)\}\{([^}]+)\}/g,'($1)/($2)')
-                .replace(/\sqrt\{([^}]+)\}/g,'√($1)')
-                .replace(/\sqrt/g,'√')
-                .replace(/\pi/g,'π')
-                .replace(/\times/g,'×')
-                .replace(/\cdot/g,'·')
-                .replace(/\implies/g,'⟹')
-                .replace(/\leq/g,'≤')
-                .replace(/\geq/g,'≥')
-                .replace(/\neq/g,'≠')
-                .replace(/\alpha/g,'α')
-                .replace(/\beta/g,'β')
-                .replace(/\theta/g,'θ')
-                .replace(/\Delta/g,'Δ')
-                .replace(/\delta/g,'δ')
-                .replace(/\rho/g,'ρ')
-                .replace(/\text\{([^}]+)\}/g,'$1')
-                .replace(/\left/g,'').replace(/\right/g,'')
-                .replace(/\{/g,'').replace(/\}/g,'')
-                .replace(/\_/g,'_').replace(/_/g,'')
-                .replace(/\\/g,' ')
-                .replace(/\^2/g,'²').replace(/\^3/g,'³')
-                .replace(/\^n/g,'ⁿ')
-                .replace(/\s+/g,' ')
-                .trim();
-
-            const key = concept || f.slice(0,60);
-            if (f && !sections[sec].has(key)) {
-                sections[sec].set(key, { title: concept, formula: f });
+            const chapter = (q.tags && q.tags.length > 1) ? q.tags[1] : 'Mixed Concepts';
+            if (!chapters[chapter]) chapters[chapter] = new Map();
+            let itemText = q.formula ? q.formula.replace(/<\/?b>/g, '').trim() : '';
+            if (itemText && !chapters[chapter].has(itemText)) {
+                chapters[chapter].set(itemText, q.diagram || '');
+                foundAny = true;
             }
         });
     });
 
-    if (!Object.keys(sections).length) {
-        alert('No formulas found. Check your JSON files have a "formula" field.');
+    if (!foundAny) {
+        alert(`No formula notes found for ${targetSubject}!\n\nImport JSON files with a "formula" field first.`);
         return;
     }
 
-    let body = '';
-    for (const [sec, cards] of Object.entries(sections)) {
-        if (!cards.size) continue;
-        body += `<div class="sec">${sec}</div><div class="grid">`;
-        cards.forEach(({title, formula}) => {
-            body += `<div class="card">`;
-            if (title) body += `<div class="ctitle">${title}</div>`;
-            body += `<div class="fbox">${formula}</div>`;
-            body += `</div>`;
-        });
-        body += `</div>`;
-    }
-
-    const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
+    let notesHTML = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 <title>${targetSubject} — Formula Notes</title>
+<script>window.MathJax={tex:{inlineMath:[['$','$'],['\\\\(','\\\\)']],displayMath:[['$$','$$']]}};<\/script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async><\/script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI',sans-serif;background:#f0f0eb;color:#111;font-size:12px}
-.hdr{background:#1a1a2e;color:#fff;padding:14px 24px 12px;border-bottom:4px solid #e63946}
-.hdr h1{font-size:21px;font-weight:800}
-.hdr p{font-size:10px;color:#aaa;letter-spacing:2px;text-transform:uppercase;margin-top:3px}
-.sec{font-size:9.5px;font-weight:800;letter-spacing:3px;text-transform:uppercase;
-     color:#fff;background:#1a3a6e;padding:6px 18px;margin-top:2px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#ccc;margin-bottom:2px}
-.card{background:#fff;padding:12px 14px;display:flex;flex-direction:column;gap:6px;min-width:0}
-.ctitle{font-size:10.5px;font-weight:700;color:#1a3a6e;text-transform:uppercase;
-        letter-spacing:0.8px;padding-bottom:5px;border-bottom:1px solid #eee}
-.fbox{background:#f4f7ff;border:1px solid #dde4f5;border-radius:4px;
-      padding:8px 10px;font-size:12px;line-height:1.8;color:#111;white-space:pre-wrap;word-break:break-word}
-.pbtn{display:block;width:100%;padding:9px;background:#1a1a2e;color:#fff;
-      font-weight:700;font-size:11px;letter-spacing:1px;border:none;cursor:pointer;text-align:center}
-@media print{
-  @page{size:A4;margin:8mm 7mm}
-  .pbtn{display:none}
-  body{background:#fff}
-  .hdr,.sec{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .card{break-inside:avoid}
-  .sec{break-after:avoid}
-  .grid{background:#bbb}
-}
-</style>
-</head>
-<body>
-<button class="pbtn" onclick="window.print()">🖨️ SAVE AS PDF</button>
-<div class="hdr"><h1>${targetSubject}</h1><p>Formula &amp; Concept Vault</p></div>
-${body}
-</body></html>`;
+body{font-family:'Segoe UI',sans-serif;background:#f4f4f0;font-size:13px;line-height:1.5}
+h2{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#888;padding:16px 20px 5px;border-bottom:1px solid #ddd}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.trick{border-left:4px solid #e07b00;background:#fff9f2;padding:12px 14px;border-bottom:1px solid #f0e0d0;border-right:1px solid #f0e0d0}
+.concept{border-left:4px solid #1565c0;background:#f2f6ff;padding:12px 14px;border-bottom:1px solid #d0d8f0;border-right:1px solid #d0d8f0}
+.badge{display:inline-block;color:white;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:3px;margin-bottom:5px}
+.trick .badge{background:#e07b00}.concept .badge{background:#1565c0}
+.text{font-size:12px;color:#333;line-height:1.55}
+@media print{@page{size:A4;margin:10mm 8mm}body{background:white}.trick,.concept{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style></head><body>`;
 
-    const blob = new Blob([html],{type:'text/html'});
+    for (const [chapter, itemsMap] of Object.entries(chapters)) {
+        notesHTML += `<h2>${chapter}</h2><div class="grid">`;
+        itemsMap.forEach((diagram, text) => {
+            let cls = 'concept', badge = '📐 THEOREM';
+            if (text.includes('Trick:')) { cls = 'trick'; badge = '⚡ SMART TRICK'; text = text.replace('Trick:','').trim(); }
+            else if (text.includes('Concept:')) { text = text.replace('Concept:','').trim(); }
+            notesHTML += `<div class="${cls}"><div class="badge">${badge}</div><div class="text">${text}</div>${diagram?`<div>${diagram}</div>`:''}</div>`;
+        });
+        notesHTML += `</div>`;
+    }
+    notesHTML += `</body></html>`;
+
+    const blob = new Blob([notesHTML], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
-    window.open(url,'_blank');
-    setTimeout(()=>URL.revokeObjectURL(url),15000);
-};// ================================================================
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 8000);
+};
+
+// ================================================================
 // ADVANCED MATHS — CONCEPT KING FORMULA BOOK GENERATOR
 // Reads formulaUsed field from all Advanced Maths questions
 // Groups by Tag 2 (topic), deduplicates, renders Concept King style
@@ -7209,6 +7166,63 @@ window.retryWrong = function() {
 
   mtLoad();
 })();
+
+// ── Auto-Generate Flashcards from Subject Questions ──
+window.autoGenerateFlashcards = (subjectName) => {
+    requireAuth(() => {
+        let addedCount = 0;
+        let existingQuestions = new Set(fcCards.map(c => c.front));
+
+        Object.keys(db).forEach(quizId => {
+            const quiz = db[quizId];
+            if (quiz && quiz.subject === subjectName && Array.isArray(quiz.questions) &&
+                !quiz.title.includes("🎯") && !quiz.title.includes("Master Mock") && !quiz.title.includes("SRS")) {
+
+                quiz.questions.forEach((q) => {
+                    if (existingQuestions.has(q.question)) return;
+
+                    let correctText = "N/A";
+                    if (q.type === 'typing') {
+                        correctText = q.exactAnswer || "N/A";
+                    } else if (q.options && Array.isArray(q.options)) {
+                        let correctOpt = q.options.find(o => o.correct);
+                        if (correctOpt) correctText = correctOpt.text;
+                    }
+
+                    let backContent = `Answer: ${correctText}`;
+                    if (q.solution) {
+                        let cleanSolution = q.solution.replace(/<\/?b>/g, "").replace(/<[^>]+>/g,"");
+                        backContent += `\n\n${cleanSolution}`;
+                    }
+
+                    let newCard = {
+                        id: 'fc_auto_' + Date.now() + Math.random().toString(36).substr(2, 5),
+                        category: (q.tags && q.tags[1]) ? q.tags[1] : subjectName,
+                        difficulty: 'medium',
+                        title: (q.tags && q.tags[3]) ? q.tags[3] : `${subjectName} Concept`,
+                        front: q.question.replace(/<[^>]+>/g,'').trim(),
+                        back: backContent,
+                        hint: q.tags ? q.tags.slice(1).join(' | ') : ''
+                    };
+
+                    fcCards.push(newCard);
+                    existingQuestions.add(q.question);
+                    addedCount++;
+                });
+            }
+        });
+
+        if (addedCount > 0) {
+            fcSave();
+            fcUpdateStats();
+            fcBuildCatFilters();
+            fcRender();
+            alert(`✅ Done! Added ${addedCount} flashcards for ${subjectName}.`);
+        } else {
+            alert(`No new questions found for ${subjectName}. Vault already up to date!`);
+        }
+    });
+};
 </script>
 
 <!-- ===================== END MOCK TRACKER ===================== -->
