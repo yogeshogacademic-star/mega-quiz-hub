@@ -816,7 +816,7 @@
       <!-- TRACKER TAB -->
       <div id="sc-view-tracker">
         <!-- Column headers -->
-        <div class="grid gap-0 mb-2 px-2" style="grid-template-columns:1fr 90px 36px 36px 36px 36px 36px 70px 90px 32px">
+        <div class="grid gap-0 mb-2 px-2" style="grid-template-columns:1fr 90px 36px 36px 36px 36px 36px 70px 90px 90px 32px">
           <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 pl-6">Topic</div>
           <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Status</div>
           <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Lec</div>
@@ -826,6 +826,7 @@
           <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">R4</div>
           <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Due</div>
           <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Qs Done</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">HW</div>
           <div></div>
         </div>
         <div id="sc-tracker-body" class="space-y-1"></div>
@@ -5860,6 +5861,7 @@ window.retryWrong = function() {
 .mt-field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
 .mt-field-row.three{grid-template-columns:1fr 1fr 1fr}
 .mt-field-row.four{grid-template-columns:1fr 1fr 1fr 1fr}
+.mt-field-row.four{grid-template-columns:1fr 1fr 1fr 1fr}
 .mt-section-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin-bottom:12px}
 .dark .mt-section-card{background:#0f172a;border-color:#1e293b}
 .mt-section-title{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;margin-bottom:10px}
@@ -6108,74 +6110,65 @@ window.retryWrong = function() {
 </div>
 
 <!-- EDIT MODAL -->
-<div class="mt-edit-overlay" id="mt-edit-modal" onclick="if(event.target===this)mtCloseEdit()">
-  <div class="mt-edit-box">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <span style="font-size:16px;font-weight:900;color:#1e293b" class="dark:text-slate-100">✏ Edit Mock</span>
-      <button onclick="mtCloseEdit()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8">✕</button>
-    </div>
-    <input type="hidden" id="mt-edit-id"/>
-    <div class="mt-field-row">
-      <div><label class="mt-label">Platform</label><input class="mt-input" id="mt-edit-platform" type="text"/></div>
-      <div><label class="mt-label">Mock Number</label><input class="mt-input" id="mt-edit-mockno" type="text"/></div>
-    </div>
-    <div class="mt-field-row three">
-      <div><label class="mt-label">Date</label><input class="mt-input" id="mt-edit-date" type="date"/></div>
-      <div><label class="mt-label">Tag</label><input class="mt-input" id="mt-edit-tag" type="text" placeholder="e.g. Live, Paid..."/></div>
-      <div><label class="mt-label">Difficulty</label><select class="mt-input" id="mt-edit-difficulty"><option>Easy</option><option>Medium</option><option>Hard</option></select></div>
-    </div>
-    <div class="mt-field-row">
-      <div><label class="mt-label">Your Rank</label><input class="mt-input" id="mt-edit-rank" type="number" placeholder="e.g. 423" oninput="mtCalcEditPercentile()"/></div>
-      <div><label class="mt-label">Total Candidates</label><input class="mt-input" id="mt-edit-ranktotal" type="number" placeholder="e.g. 85000" oninput="mtCalcEditPercentile()"/></div>
-    </div>
-    <div id="mt-edit-pct-display" style="background:#e0e7ff;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:900;color:#4338ca;margin-bottom:10px;min-height:28px"></div>
-    <div style="margin-bottom:10px"><label class="mt-label">Feeling</label>
-      <select class="mt-input" id="mt-edit-feeling"><option value="">--</option><option>Confident</option><option>Neutral</option><option>Felt Bad</option></select>
-    </div>
-    <div style="margin-bottom:10px"><label class="mt-label">Key Takeaway</label><input class="mt-input" id="mt-edit-takeaway" type="text"/></div>
-    <div style="margin-bottom:16px"><label class="mt-label">Wrong Notes</label><textarea class="mt-input" id="mt-edit-wrongs" rows="3" style="resize:vertical"></textarea></div>
-    <div style="display:flex;gap:10px">
-      <button onclick="mtSaveEdit()" class="mt-save-btn" style="margin-top:0">💾 Save Changes</button>
-      <button onclick="mtCloseEdit()" style="padding:12px 16px;background:transparent;border:1.5px solid #e2e8f0;border-radius:14px;font-size:13px;font-weight:900;cursor:pointer;color:#94a3b8">Cancel</button>
-    </div>
-  </div>
-</div>
-
 <!-- EDIT MOCK MODAL -->
-<div id="mt-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;padding:16px">
-  <div style="background:#fff;border-radius:20px;padding:24px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto" class="dark:bg-slate-900">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+<div id="mt-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;padding:16px;overflow-y:auto">
+  <div style="background:#fff;border-radius:20px;padding:24px;max-width:640px;width:100%;max-height:90vh;overflow-y:auto" class="dark:bg-slate-900">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
       <span style="font-size:16px;font-weight:900;color:#1e293b" class="dark:text-slate-100">✏️ Edit Mock</span>
       <button onclick="mtCloseEdit()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8">×</button>
     </div>
+
+    <!-- Basic Info -->
     <div class="mt-field-row">
-      <div><label class="mt-label">Platform</label><input class="mt-input" id="mt-edit-platform"/></div>
-      <div><label class="mt-label">Mock No.</label><input class="mt-input" id="mt-edit-mockno"/></div>
+      <div><label class="mt-label">Platform</label><input class="mt-input" id="mt-edit-platform" placeholder="e.g. Adda247, Testbook"/></div>
+      <div><label class="mt-label">Mock No.</label><input class="mt-input" id="mt-edit-mockno" placeholder="e.g. 5"/></div>
     </div>
     <div class="mt-field-row three">
       <div><label class="mt-label">Date</label><input class="mt-input" id="mt-edit-date" type="date"/></div>
-      <div><label class="mt-label">Tag</label><input class="mt-input" id="mt-edit-tag" placeholder="e.g. Free / Live"/></div>
+      <div><label class="mt-label">Tag</label><input class="mt-input" id="mt-edit-tag" placeholder="Free / Live / Paid"/></div>
       <div><label class="mt-label">Difficulty</label>
         <select class="mt-input" id="mt-edit-diff"><option>Easy</option><option>Medium</option><option>Hard</option></select>
       </div>
     </div>
-    <div class="mt-field-row">
-      <div><label class="mt-label">Your Rank</label><input class="mt-input" id="mt-edit-rank" type="number" oninput="mtEditCalcPct()"/></div>
-      <div><label class="mt-label">Total Candidates</label><input class="mt-input" id="mt-edit-ranktotal" type="number" oninput="mtEditCalcPct()"/></div>
+
+    <!-- Scores -->
+    <div style="margin-bottom:8px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1.5px;color:#94a3b8">Scores</div>
+    <div class="mt-field-row four">
+      <div><label class="mt-label">Total Marks</label><input class="mt-input" id="mt-edit-total-marks" type="number" step="0.01" placeholder="e.g. 142.5"/></div>
+      <div><label class="mt-label">Quant</label><input class="mt-input" id="mt-edit-quant" type="number" step="0.01" placeholder=""/></div>
+      <div><label class="mt-label">English</label><input class="mt-input" id="mt-edit-english" type="number" step="0.01" placeholder=""/></div>
+      <div><label class="mt-label">Reasoning</label><input class="mt-input" id="mt-edit-reasoning" type="number" step="0.01" placeholder=""/></div>
     </div>
-    <div id="mt-edit-pct-display" style="display:none;background:#e0e7ff;border-radius:8px;padding:6px 12px;margin-bottom:10px;font-size:13px;font-weight:900;color:#4338ca">Percentile: <span id="mt-edit-pct-val">—</span></div>
     <div class="mt-field-row">
+      <div><label class="mt-label">GK / GS</label><input class="mt-input" id="mt-edit-gk" type="number" step="0.01" placeholder=""/></div>
+      <div><label class="mt-label">Attempts</label><input class="mt-input" id="mt-edit-attempts" type="number" placeholder="e.g. 185"/></div>
+    </div>
+
+    <!-- Rank & Percentile -->
+    <div style="margin-bottom:8px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1.5px;color:#94a3b8;margin-top:4px">Rank & Percentile</div>
+    <div class="mt-field-row">
+      <div><label class="mt-label">Your Rank</label><input class="mt-input" id="mt-edit-rank" type="number" placeholder="e.g. 423" oninput="mtEditCalcPct()"/></div>
+      <div><label class="mt-label">Total Candidates</label><input class="mt-input" id="mt-edit-ranktotal" type="number" placeholder="e.g. 85000" oninput="mtEditCalcPct()"/></div>
+    </div>
+    <div class="mt-field-row">
+      <div><label class="mt-label">Percentile (manual)</label><input class="mt-input" id="mt-edit-percentile-manual" type="number" step="0.01" placeholder="e.g. 98.5" oninput="mtEditManualPct()"/></div>
+      <div id="mt-edit-pct-display" style="display:none;background:#e0e7ff;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:900;color:#4338ca;align-self:flex-end">Percentile: <span id="mt-edit-pct-val">—</span></div>
+    </div>
+
+    <!-- Feeling & Notes -->
+    <div class="mt-field-row" style="margin-top:4px">
       <div><label class="mt-label">Post-mock Feeling</label>
         <select class="mt-input" id="mt-edit-feeling"><option value="">--</option><option>Confident</option><option>Neutral</option><option>Felt Bad</option></select>
       </div>
-      <div><label class="mt-label">Key Takeaway</label><input class="mt-input" id="mt-edit-takeaway"/></div>
+      <div><label class="mt-label">Key Takeaway</label><input class="mt-input" id="mt-edit-takeaway" placeholder="One line summary"/></div>
     </div>
-    <div><label class="mt-label">Wrong Notes</label>
-      <textarea class="mt-input" id="mt-edit-wrongs" rows="4" style="resize:vertical"></textarea>
+    <div><label class="mt-label">Wrong Notes / Areas to improve</label>
+      <textarea class="mt-input" id="mt-edit-wrongs" rows="4" style="resize:vertical" placeholder="Topics that need work..."></textarea>
     </div>
-    <div style="display:flex;gap:10px;margin-top:14px">
-      <button onclick="mtSaveEdit()" style="flex:1;padding:10px;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:900;cursor:pointer">💾 Save Changes</button>
-      <button onclick="mtCloseEdit()" style="padding:10px 20px;border:1.5px solid #e2e8f0;border-radius:12px;background:transparent;font-size:13px;font-weight:900;cursor:pointer;color:#94a3b8">Cancel</button>
+
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button onclick="mtSaveEdit()" style="flex:1;padding:12px;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:900;cursor:pointer">💾 Save Changes</button>
+      <button onclick="mtCloseEdit()" style="padding:12px 20px;border:1.5px solid #e2e8f0;border-radius:12px;background:transparent;font-size:13px;font-weight:900;cursor:pointer;color:#94a3b8">Cancel</button>
     </div>
   </div>
 </div>
@@ -6885,12 +6878,19 @@ window.retryWrong = function() {
   window.mtOpenEdit=function(id){
     const m=mtMocks.find(x=>x.id===id); if(!m) return;
     mtEditId=id;
-    const set=(elId,val)=>{ const el=document.getElementById(elId); if(el) el.value=val||''; };
+    const set=(elId,val)=>{ const el=document.getElementById(elId); if(el) el.value=(val!==null&&val!==undefined)?val:''; };
     set('mt-edit-platform',m.platform); set('mt-edit-mockno',m.mockno);
     set('mt-edit-date',m.date); set('mt-edit-tag',m.tag);
     set('mt-edit-feeling',m.feeling); set('mt-edit-takeaway',m.takeaway);
     set('mt-edit-wrongs',m.wrongs);
     set('mt-edit-rank',m.rank||''); set('mt-edit-ranktotal',m.rankTotal||'');
+    set('mt-edit-total-marks',m.totalMarks||'');
+    set('mt-edit-quant',m.quantScore||'');
+    set('mt-edit-english',m.englishScore||'');
+    set('mt-edit-reasoning',m.reasoningScore||'');
+    set('mt-edit-gk',m.gkScore||'');
+    set('mt-edit-attempts',m.attempts||'');
+    set('mt-edit-percentile-manual',m.percentileManual||'');
     const df=document.getElementById('mt-edit-diff'); if(df) df.value=m.difficulty||'Medium';
     mtEditCalcPct();
     document.getElementById('mt-edit-modal').style.display='flex';
@@ -6909,6 +6909,9 @@ window.retryWrong = function() {
     const idx=mtMocks.findIndex(x=>x.id===mtEditId); if(idx===-1) return;
     const r=parseInt(document.getElementById('mt-edit-rank')?.value)||0;
     const t=parseInt(document.getElementById('mt-edit-ranktotal')?.value)||0;
+    const manualPct=parseFloat(document.getElementById('mt-edit-percentile-manual')?.value)||null;
+    const calcPct=r>0&&t>0&&r<=t?parseFloat(((t-r)/t*100).toFixed(2)):null;
+    const getNum=(id)=>{ const v=parseFloat(document.getElementById(id)?.value); return isNaN(v)?null:v; };
     mtMocks[idx]={...mtMocks[idx],
       platform:document.getElementById('mt-edit-platform').value.trim(),
       mockno:document.getElementById('mt-edit-mockno').value.trim(),
@@ -6916,13 +6919,26 @@ window.retryWrong = function() {
       tag:document.getElementById('mt-edit-tag').value.trim(),
       difficulty:document.getElementById('mt-edit-diff').value,
       rank:r||null, rankTotal:t||null,
-      percentile:r>0&&t>0&&r<=t?parseFloat(((t-r)/t*100).toFixed(2)):null,
+      percentile:manualPct||calcPct,
+      percentileManual:manualPct,
+      totalMarks:getNum('mt-edit-total-marks'),
+      quantScore:getNum('mt-edit-quant'),
+      englishScore:getNum('mt-edit-english'),
+      reasoningScore:getNum('mt-edit-reasoning'),
+      gkScore:getNum('mt-edit-gk'),
+      attempts:getNum('mt-edit-attempts'),
       feeling:document.getElementById('mt-edit-feeling').value,
       takeaway:document.getElementById('mt-edit-takeaway').value.trim(),
       wrongs:document.getElementById('mt-edit-wrongs').value.trim(),
     };
     mtMocks.sort((a,b)=>a.date.localeCompare(b.date));
     mtSave(); mtCloseEdit(); mtRenderHistory(); mtUpdateHeaderStats(); mtToast('✅ Mock updated!');
+  };
+  window.mtEditManualPct=function(){
+    const v=parseFloat(document.getElementById('mt-edit-percentile-manual')?.value);
+    const disp=document.getElementById('mt-edit-pct-display');
+    const val=document.getElementById('mt-edit-pct-val');
+    if(!isNaN(v)&&v>0){ if(val) val.textContent=v.toFixed(2)+'%'; if(disp) disp.style.display='block'; }
   };
 
   /* TAB SWITCH */
@@ -7027,10 +7043,28 @@ const SC_KEY = 'sc_syllabus_v1';
 const SC_STREAK_KEY = 'sc_streak_v1';
 
 // Default syllabus
+// SC_DEFAULT built from SYLLABUS_MAP
+// tags[0]=subject, tags[1]=chapter, tags[2]=topic, tags[3]=concept
+// Tracker level: Subject > Chapter/Topic (tags[2])
 const SC_DEFAULT = {
-  "Maths — Arithmetic": ["Simplification","Percentage","Profit & Loss","Discount","Simple Interest","Compound Interest","SI Installment","CI Installment","Ratio & Proportion","Partnership","Time & Work","Pipe & Cistern","Mixture Alligation","Average","Work & Wages","Time Speed Distance","Boat & Stream","Race","LCM HCF","Sequence & Series","Number System","DI"],
-  "Maths — Advanced": ["Mensuration 2D","Mensuration 3D — Cube & Cuboid","Mensuration 3D — Cylinder","Mensuration 3D — Cone","Mensuration 3D — Sphere & Hemisphere","Mensuration 3D — Prism","Polygon","Height & Distance","Trigonometry","Geometry","Coordinate Geometry","Algebra"],
-  "Reasoning": ["Statement - Conclusion","Decision Making","Machine Input-Output","Statement - Argument","Statement - Assumptions","Syllogism","Data Sufficiency","Course of Action","Inequalities","Cause - Effect","Order - Ranking","Blood Relation","Figure Series","Mathematical Operations","Paper Unfolding/Cutting","Dice","Word Arrangement","Direction","Venn Diagram","Seating Arrangement","Number Series","Alphabetical Series","Coding-Decoding","Analogy","Odd One Out","Floor Arrangement","Calendar","Clock","Figure Counting"]
+  "Arithmetic": ["Percentage","Ratio & Proportion","Profit & Loss","Discount & Dishonest Shopkeeper","Time & Work","Pipe & Cistern","Simple Interest","Compound Interest","Installment","Average","Time, Speed & Distance","Problems on Train","Boat & Stream","Circular and Linear Race","Problems on Ages","Partnership","Mixture & Alligation"],
+  "Advanced Maths": ["Number System","Simplification","Surds & Indices","LCM & HCF","Algebra","Trigonometry","Height & Distance","Geometry","Co-ordinate Geometry","Polygon","2D-Mensuration","3D-Mensuration","Data Interpretation"],
+  "Reasoning": ["Analogy & Classification","Number & Letter Series","Coding-Decoding","Blood Relations","Direction & Distance","Syllogism","Order & Ranking","Clock & Calendar","Venn Diagrams","Missing Number & Matrix","Non-Verbal Reasoning","Logical Reasoning"],
+  "English": ["Active & Passive Voice","Cloze Test","Direct & Indirect Speech","Grammar & Error Spotting","Idioms & Phrases","One Word Substitution","Para Jumbles","Reading Comprehension","Sentence Improvement","Synonyms & Antonyms","Spelling Errors"],
+  "Polity": ["Making, Preamble & Sources","Union, Territory & Citizenship","Fundamental Rights","DPSP & Fundamental Duties","Union Executive","Parliament","State Govt & Legislature","Judiciary","Local Govt (Panchayats & Municipalities)","Emergency Provisions","Constitutional & Non-Constitutional Bodies","Elections, Amendments,Parts & Schedules","Special Provisions & Anti-Defection","Bharatiya Nyaya Sanhita (BNS)"],
+  "Ancient History": ["Prehistoric & Indus Valley","Vedic Age","Buddhism & Jainism","Mahajanapadas & Magadha","Mauryan Empire","Post-Mauryan Period","Gupta Empire","Post-Gupta & Harsha"],
+  "Medieval History": ["Early Medieval India","Delhi Sultanate","Provincial Kingdoms","Mughal Empire","Maratha Empire","Bhakti & Sufi Movements","Books & Authors"],
+  "Modern History": ["Advent of Europeans","British Expansion & Policies","Revolt of 1857","Socio-Religious Reform Movements","Indian National Congress","Gandhian Era","Revolutionary Nationalism","Partition & Independence","Post-Independence Consolidation"],
+  "Geography": ["Geomorphology","Mapping","Census 2011","Climatology","Oceanography","Indian Physical Geography","Indian Drainage System","Indian Climate, Soil & Vegetation","Economic Geography","Human & Demographic Geography"],
+  "Economics": ["Pillar 1: Money, Banking, Finance & Insurance","Pillar 2: Budget, Taxes & Public Finance","Pillar 3: International Trade & BoP","Pillar 4: Sectors of Economy, GDP & Inflation","Pillar 5: Infrastructure","Pillar 6: Human Resource Development (HRD)","Pillar 7: Microeconomics"],
+  "Physics": ["Units & Measurements","Mechanics","Gravitation","Properties of Matter","Heat & Thermodynamics","Waves & Sound","Optics","Electricity & Magnetism","Modern Physics"],
+  "Chemistry": ["Matter & Its States","Atomic Structure & Periodic Table","Chemical Bonding & Reactions","Acids, Bases & Salts","Metals, Non-Metals & Metallurgy","Carbon & Organic Compounds","Chemistry in Everyday Life"],
+  "Biology": ["Cell Biology","Classification of Organisms","Human Anatomy & Physiology","Plant Morphology & Physiology","Genetics & Evolution","Human Diseases & Defense Mechanisms","Nutrition & Vitamins"],
+  "Environment & Ecology": ["Ecology Concepts & Ecosystems","Biodiversity & Conservation","Environmental Pollution & Degradation","Climate Change","Environmental Acts & Policies","International Treaties & Conventions"],
+  "Science & Technology": ["Space Technology","Defense Technology","Biotechnology","IT, Telecom & Emerging Tech","Nuclear Technology"],
+  "Static GK": ["Firsts in India & World","Classical Dances","Folk Dances","Festivals & Fairs","International Organisations","Superlatives","Important Dates & Days","National Parks & Wildlife Sanctuaries","UNESCO World Heritage Sites","Capitals & Currencies","Books & Authors","Sports Terminologies & Trophies"],
+  "Current Affairs": ["National News & Governance","International News","Economy & Banking Updates","Sports News","Awards & Honors","Appointments & Resignations","Defense Exercises","Government Schemes & Yojanas"],
+  "Art & Culture": ["Architecture & Sculpture","Paintings","Music & Dance","Puppetry & Theatre","Languages & Literature","Fairs, Festivals & Handicrafts","Indian Philosophy"]
 };
 
 // Revision intervals in days
@@ -7051,11 +7085,13 @@ function scSave() {
 }
 
 function scInitDefault() {
-  Object.entries(SC_DEFAULT).forEach(([chapter, topics]) => {
-    const [subject] = chapter.split(' — ');
+  // SC_DEFAULT: { subject: [topics] }
+  // key = subject + '|||' + topic
+  // subject = tags[0], topic = tags[2]
+  Object.entries(SC_DEFAULT).forEach(([subject, topics]) => {
     topics.forEach(name => {
-      const key = chapter + '|||' + name;
-      if (!scDb[key]) scDb[key] = { subject, chapter, name, priority: false, notes: '', lec:false, r1:false, r2:false, r3:false, r4:false, lecDate:'', r1Date:'', r2Date:'', r3Date:'', r4Date:'', r1Wrong:[], r2Wrong:[], r3Wrong:[], r1Progress:0, r2Progress:0, r3Progress:0, r4Progress:0, confidence:'' };
+      const key = subject + '|||' + name;
+      if (!scDb[key]) scDb[key] = { subject, chapter: subject, name, priority: false, notes: '', lec:false, r1:false, r2:false, r3:false, r4:false, lecDate:'', r1Date:'', r2Date:'', r3Date:'', r4Date:'', r1Wrong:[], r2Wrong:[], r3Wrong:[], r1Progress:0, r2Progress:0, r3Progress:0, r4Progress:0, confidence:'' };
     });
   });
   scSave();
@@ -7095,11 +7131,13 @@ function scGetNextRevLabel(t) {
 }
 
 function scGetQsDone(topicName) {
+  // topicName matches tags[2] (topic level)
   let count = 0;
   historyDb.forEach(h => {
     if (!h.reviewData) return;
     h.reviewData.forEach(q => {
-      if (q.tags && q.tags[2] && q.tags[2].toLowerCase().includes(topicName.toLowerCase())) count++;
+      const t2 = (q.tags && q.tags[2]) ? q.tags[2] : '';
+      if (t2.toLowerCase() === topicName.toLowerCase()) count++;
     });
   });
   return count;
@@ -7110,7 +7148,8 @@ function scGetAccuracy(topicName) {
   historyDb.forEach(h => {
     if (!h.reviewData) return;
     h.reviewData.forEach(q => {
-      if (q.tags && q.tags[2] && q.tags[2].toLowerCase().includes(topicName.toLowerCase())) {
+      const t2 = (q.tags && q.tags[2]) ? q.tags[2] : '';
+      if (t2.toLowerCase() === topicName.toLowerCase()) {
         total++;
         if (q.status === 'correct') correct++;
       }
@@ -7161,6 +7200,32 @@ function scRenderTodayBanner() {
   } else {
     banner.classList.add('hidden');
   }
+}
+
+
+function scGetHWCount(topicName) {
+  // Count questions attempted in historyDb where tags[2] matches this topic
+  // This is the same as qsDone - showing tag1 (subject) wise breakdown
+  let done = 0, total = 0;
+  Object.values(db).forEach(quiz => {
+    if (!quiz || !quiz.questions) return;
+    quiz.questions.forEach(q => {
+      if (q.tags && q.tags[2] && q.tags[2].toLowerCase().includes(topicName.toLowerCase())) {
+        total++;
+      }
+    });
+  });
+  // Check how many of those have been attempted
+  historyDb.forEach(h => {
+    if (!h.reviewData) return;
+    h.reviewData.forEach(q => {
+      if (q.tags && q.tags[2] && q.tags[2].toLowerCase().includes(topicName.toLowerCase())) done++;
+    });
+  });
+  if (total === 0) return '<span class="text-slate-300 dark:text-slate-600">—</span>';
+  const pct = Math.round(done/total*100);
+  const color = pct >= 80 ? 'text-emerald-500' : pct >= 40 ? 'text-amber-500' : 'text-red-400';
+  return `<span class="${color}">${done}/${total}</span>`;
 }
 
 function scRenderTracker() {
@@ -7228,7 +7293,7 @@ function scRenderTracker() {
       }
 
       html += `
-        <div class="grid items-center gap-0 px-2 py-0 min-h-[42px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" style="grid-template-columns:20px 1fr 90px 36px 36px 36px 36px 36px 70px 90px 32px">
+        <div class="grid items-center gap-0 px-2 py-0 min-h-[42px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" style="grid-template-columns:20px 1fr 90px 36px 36px 36px 36px 36px 70px 90px 90px 32px">
           <div class="text-slate-300 dark:text-slate-600 text-[10px] text-center">${t.priority ? '⭐' : ''}</div>
           <div class="text-[12px] font-semibold pl-2 ${status === 'done' ? 'line-through text-slate-400' : ''}">${t.name}</div>
           <div class="flex justify-center"><span class="text-[8.5px] font-black px-2 py-0.5 rounded-full ${statusClass}">${statusLabel}</span></div>
@@ -7239,6 +7304,7 @@ function scRenderTracker() {
           <div class="flex flex-col items-center">${scRevTick(t, 'r4', t.r4, daysUntil, revLabel)}</div>
           <div class="text-center">${dueHtml}</div>
           <div class="text-center text-[10px] font-bold text-slate-500">${qsDone > 0 ? qsDone + ' Qs' + (acc ? '<br><span class="text-[9px] text-emerald-500">' + acc + '%</span>' : '') : '<span class="text-slate-300 dark:text-slate-600">—</span>'}</div>
+          <div class="text-center text-[10px] font-bold">${scGetHWCount(t.name)}</div>
           <div class="flex justify-center"><button onclick="scOpenTopicMenu('${t.key}')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg font-black w-6 h-6 flex items-center justify-center rounded transition-colors">⋮</button></div>
         </div>`;
     });
@@ -7266,11 +7332,13 @@ function scRevTick(t, rev, checked, daysUntil, revLabel) {
 function prev(rev) { return { r2:'r1', r3:'r2', r4:'r3' }[rev]; }
 
 function scGetTopicQsCount(topicName) {
+  // Count total questions in db where tags[2] = topicName
   let count = 0;
   Object.values(db).forEach(quiz => {
     if (!quiz || !quiz.questions) return;
     quiz.questions.forEach(q => {
-      if (q.tags && q.tags[2] && q.tags[2].toLowerCase().includes(topicName.toLowerCase())) count++;
+      const t2 = (q.tags && q.tags[2]) ? q.tags[2] : '';
+      if (t2.toLowerCase() === topicName.toLowerCase()) count++;
     });
   });
   return count || '?';
@@ -7528,16 +7596,42 @@ window.scAddTopic = (chapter, subject) => {
 };
 
 window.scEditChapter = (chapter, subject) => {
+  const safeChapter = chapter.replace(/'/g,"\'");
   document.getElementById('sc-modal-content').innerHTML = `
     <div>
       <div class="font-black text-slate-800 dark:text-slate-100 mb-4">${chapter}</div>
       <div class="space-y-2">
-        <button onclick="scAddTopic('${chapter.replace(/'/g,"\'")}','${subject}');'' " class="w-full text-left px-4 py-3 rounded-xl bg-violet-50 dark:bg-violet-900/10 hover:bg-violet-100 text-violet-700 dark:text-violet-400 font-bold text-sm">+ Add Topic</button>
-        <button onclick="if(confirm('Delete entire chapter \'${chapter}\'?')){Object.keys(scDb).filter(k=>k.startsWith('${chapter.replace(/'/g,"\'")}|||')).forEach(k=>delete scDb[k]);scSave();scCloseModal();scRender();}" class="w-full text-left px-4 py-3 rounded-xl bg-red-50 dark:bg-red-900/10 hover:bg-red-100 text-red-600 dark:text-red-400 font-bold text-sm">🗑️ Delete Chapter</button>
+        <button onclick="scAddTopic('${safeChapter}','${subject}')" class="w-full text-left px-4 py-3 rounded-xl bg-violet-50 dark:bg-violet-900/10 hover:bg-violet-100 text-violet-700 dark:text-violet-400 font-bold text-sm">+ Add Topic</button>
+        <button onclick="scRenameChapter('${safeChapter}','${subject}')" class="w-full text-left px-4 py-3 rounded-xl bg-blue-50 dark:bg-blue-900/10 hover:bg-blue-100 text-blue-700 dark:text-blue-400 font-bold text-sm">✏️ Rename Chapter</button>
+        <button onclick="if(confirm('Delete entire chapter \'${chapter}\'?')){Object.keys(scDb).filter(k=>k.startsWith('${safeChapter}|||')).forEach(k=>delete scDb[k]);scSave();scCloseModal();scRender();}" class="w-full text-left px-4 py-3 rounded-xl bg-red-50 dark:bg-red-900/10 hover:bg-red-100 text-red-600 dark:text-red-400 font-bold text-sm">🗑️ Delete Chapter</button>
         <button onclick="scCloseModal()" class="w-full text-left px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 text-slate-600 dark:text-slate-400 font-bold text-sm">Cancel</button>
       </div>
     </div>`;
   document.getElementById('sc-modal').classList.remove('hidden');
+};
+
+window.scRenameChapter = (chapter, subject) => {
+  document.getElementById('sc-modal-content').innerHTML = `
+    <div>
+      <div class="font-black text-slate-800 dark:text-slate-100 mb-4">Rename Chapter</div>
+      <input id="sc-rename-ch-input" type="text" value="${chapter}" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 mb-4">
+      <div class="flex gap-3">
+        <button onclick="
+          const newName = document.getElementById('sc-rename-ch-input').value.trim();
+          if (!newName || newName === '${chapter}') return;
+          const keys = Object.keys(scDb).filter(k => k.startsWith('${chapter}|||'));
+          keys.forEach(k => {
+            const topic = scDb[k];
+            const newKey = newName + '|||' + topic.name;
+            topic.chapter = newName;
+            scDb[newKey] = topic;
+            delete scDb[k];
+          });
+          scSave(); scCloseModal(); scRender();
+        " class="flex-1 bg-violet-600 text-white font-black py-2.5 rounded-xl text-sm">Rename</button>
+        <button onclick="scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black py-2.5 rounded-xl text-sm">Cancel</button>
+      </div>
+    </div>`;
 };
 
 // ── COVERAGE SUNBURST ──
