@@ -4227,79 +4227,120 @@ window.generateQuantNotes = () => {
 
 // ================================================================
 // SHARED FORMULA NOTES — works for Advanced Maths AND Arithmetic
-// generateSubjectNotes — open formulaNotes HTML directly if present, else fallback
+// generateSubjectNotes — Auto Concept King style from formula fields
+// Reads formula + tags from every question, groups by topic/subtopic,
+// deduplicates, renders clean 2-column notes. No manual HTML needed.
 // ================================================================
 window.generateSubjectNotes = (targetSubject) => {
 
-    // Collect all quizzes for this subject
     const quizzes = Object.values(db).filter(q => q && q.subject === targetSubject);
+    if (!quizzes.length) { alert('No quizzes found for ' + targetSubject); return; }
 
-    // PRIORITY: if ANY quiz has formulaNotes, open each one directly as-is
-    const withNotes = quizzes.filter(q => q.formulaNotes && q.formulaNotes.trim().length > 100);
-    if (withNotes.length > 0) {
-        withNotes.forEach(quiz => {
-            const blob = new Blob([quiz.formulaNotes], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            window.open(url, '_blank');
-            setTimeout(() => URL.revokeObjectURL(url), 10000);
-        });
-        return;
-    }
+    // topic -> subtopic -> Set of formula strings (deduped)
+    const topics = {};
 
-    // FALLBACK: extract formula fields from questions (old behaviour)
-    let chapters = {};
-    let foundAny = false;
     quizzes.forEach(quiz => {
         if (!quiz.questions) return;
         quiz.questions.forEach(q => {
-            const chapter = (q.tags && q.tags.length > 1) ? q.tags[1] : 'Mixed Concepts';
-            if (!chapters[chapter]) chapters[chapter] = new Map();
-            let itemText = q.formula ? q.formula.replace(/<\/?b>/g, '').trim() : '';
-            if (itemText && !chapters[chapter].has(itemText)) {
-                chapters[chapter].set(itemText, q.diagram || '');
-                foundAny = true;
+            if (!q.formula || !q.formula.trim()) return;
+            const topic    = (q.tags && q.tags[1]) ? q.tags[1] : 'General';
+            const subtopic = (q.tags && q.tags[2]) ? q.tags[2] : '';
+            const key      = subtopic ? topic + ' — ' + subtopic : topic;
+            if (!topics[key]) topics[key] = { tricks: new Set(), concepts: new Set() };
+
+            let f = q.formula.trim();
+            if (f.startsWith('Trick:')) {
+                topics[key].tricks.add(f.replace(/^Trick:\s*/,'').trim());
+            } else {
+                topics[key].concepts.add(f.replace(/^Concept:\s*/,'').trim());
             }
         });
     });
 
-    if (!foundAny) {
-        alert(`No formula notes found for ${targetSubject}!\n\nImport JSON files with a "formula" field first.`);
+    if (!Object.keys(topics).length) {
+        alert('No formula fields found in ' + targetSubject + ' questions.');
         return;
     }
 
-    let notesHTML = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+    // Build HTML
+    let body = '';
+    for (const [sectionName, {tricks, concepts}] of Object.entries(topics)) {
+        const allCards = [
+            ...[...concepts].map(f => ({cls:'concept', badge:'📐 Theorem', f})),
+            ...[...tricks ].map(f => ({cls:'trick',   badge:'⚡ Smart Trick', f}))
+        ];
+        if (!allCards.length) continue;
+
+        body += `<div class="section-title">${sectionName}</div><div class="grid">`;
+        allCards.forEach(({cls, badge, f}) => {
+            // Detect if formula spans full width (very long)
+            const full = f.length > 300 ? ' full' : '';
+            body += `<div class="${cls}${full}">`;
+            body += `<div class="badge">${badge}</div>`;
+            body += `<div class="text">${f}</div>`;
+            body += `</div>`;
+        });
+        body += `</div>`;
+    }
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
 <title>${targetSubject} — Formula Notes</title>
-<script>window.MathJax={tex:{inlineMath:[['$','$'],['\\\\(','\\\\)']],displayMath:[['$$','$$']]}};<\/script>
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async><\/script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"><\/script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"><\/script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI',sans-serif;background:#f4f4f0;font-size:13px;line-height:1.5}
-h2{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#888;padding:16px 20px 5px;border-bottom:1px solid #ddd}
+body{font-family:'Segoe UI',sans-serif;background:#f4f4f0;color:#1a1a1a;font-size:13px;line-height:1.5}
+.header{background:#1a1a2e;color:white;padding:16px 24px 12px;display:flex;align-items:baseline;gap:14px;border-bottom:4px solid #e63946}
+.header h1{font-size:20px;font-weight:800;letter-spacing:-0.5px}
+.header span{font-size:11px;color:#aaa;letter-spacing:1.5px;text-transform:uppercase}
+.section-title{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#888;padding:14px 20px 5px;border-bottom:1px solid #ddd}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
-.trick{border-left:4px solid #e07b00;background:#fff9f2;padding:12px 14px;border-bottom:1px solid #f0e0d0;border-right:1px solid #f0e0d0}
-.concept{border-left:4px solid #1565c0;background:#f2f6ff;padding:12px 14px;border-bottom:1px solid #d0d8f0;border-right:1px solid #d0d8f0}
+.concept{border-left:4px solid #1565c0;background:#f2f6ff;padding:11px 13px;border-bottom:1px solid #d0d8f0;border-right:1px solid #d0d8f0;overflow:hidden;min-width:0}
+.trick{border-left:4px solid #e07b00;background:#fff9f2;padding:11px 13px;border-bottom:1px solid #f0e0d0;border-right:1px solid #f0e0d0;overflow:hidden;min-width:0}
+.full{grid-column:1/-1}
 .badge{display:inline-block;color:white;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:3px;margin-bottom:5px}
-.trick .badge{background:#e07b00}.concept .badge{background:#1565c0}
-.text{font-size:12px;color:#333;line-height:1.55}
-@media print{@page{size:A4;margin:10mm 8mm}body{background:white}.trick,.concept{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-</style></head><body>`;
+.concept .badge{background:#1565c0}
+.trick .badge{background:#e07b00}
+.text{font-size:11.5px;color:#333;line-height:1.55;overflow-x:auto}
+.text .katex-display{margin:4px 0!important;overflow-x:auto}
+.text .katex{font-size:1em!important}
+.print-btn{display:block;width:100%;padding:9px;background:#1a1a2e;color:white;font-weight:700;font-size:11px;letter-spacing:1px;border:none;cursor:pointer;text-align:center}
+@media print{
+  @page{size:A4;margin:10mm 8mm}
+  .print-btn{display:none}
+  body{background:white;font-size:11px}
+  .header,.concept,.trick{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .concept,.trick{break-inside:avoid}
+  .section-title{break-after:avoid}
+}
+</style>
+</head>
+<body>
+<button class="print-btn" onclick="window.print()">🖨️ SAVE AS PDF</button>
+<div class="header">
+  <h1>${targetSubject}</h1>
+  <span>Master Formulas &amp; Smart Tricks</span>
+</div>
+${body}
+<script>
+document.addEventListener("DOMContentLoaded",function(){
+  renderMathInElement(document.body,{
+    delimiters:[{left:"$$",right:"$$",display:true},{left:"$",right:"$",display:false}],
+    throwOnError:false
+  });
+});
+<\/script>
+</body>
+</html>`;
 
-    for (const [chapter, itemsMap] of Object.entries(chapters)) {
-        notesHTML += `<h2>${chapter}</h2><div class="grid">`;
-        itemsMap.forEach((diagram, text) => {
-            let cls = 'concept', badge = '📐 THEOREM';
-            if (text.includes('Trick:')) { cls = 'trick'; badge = '⚡ SMART TRICK'; text = text.replace('Trick:','').trim(); }
-            else if (text.includes('Concept:')) { text = text.replace('Concept:','').trim(); }
-            notesHTML += `<div class="${cls}"><div class="badge">${badge}</div><div class="text">${text}</div>${diagram?`<div>${diagram}</div>`:''}</div>`;
-        });
-        notesHTML += `</div>`;
-    }
-    notesHTML += `</body></html>`;
-
-    const blob = new Blob([notesHTML], { type: 'text/html' });
+    const blob = new Blob([html], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
-    setTimeout(() => URL.revokeObjectURL(url), 8000);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
 };
 
 // ================================================================
