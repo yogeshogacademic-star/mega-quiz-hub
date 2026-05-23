@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -631,6 +632,7 @@
                     </button>
                     <button onclick="openFactSheet()" class="bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-transform hover:-translate-y-1 border border-emerald-400 flex items-center gap-2">📋 Fact Sheet</button>
                     <button onclick="showScreen('mock-tracker')" class="bg-gradient-to-br from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(14,165,233,0.5)] transition-transform hover:-translate-y-1 border border-sky-400 flex items-center gap-2">📝 Mock Tracker</button>
+                    <button onclick="openSyllabusCommand()" class="bg-gradient-to-br from-violet-500 to-purple-600 hover:from-violet-400 hover:to-purple-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(139,92,246,0.5)] transition-transform hover:-translate-y-1 border border-violet-400 flex items-center gap-2">📚 Syllabus</button>
                 </div>
             </div>
 
@@ -753,6 +755,112 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         SYLLABUS COMMAND CENTRE
+         ═══════════════════════════════════════════════════════ -->
+    <div id="screen-syllabus-command" class="hidden max-w-[1500px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
+
+      <!-- HEADER -->
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-4">
+          <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] transition-colors">← Hub</button>
+          <h1 class="text-2xl font-black uppercase tracking-tight text-slate-800 dark:text-slate-100">📚 Syllabus Command</h1>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="scAddSubject()" class="bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 text-violet-700 dark:text-violet-400 border border-violet-200 dark:border-violet-800/40 font-black text-[10px] uppercase tracking-widest px-4 py-2 rounded-xl transition-colors">+ Subject</button>
+          <button id="sc-sync-btn" class="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-black text-[10px] uppercase tracking-widest px-4 py-2 rounded-xl">☁️ Synced</button>
+        </div>
+      </div>
+
+      <!-- STATS BAR -->
+      <div class="grid grid-cols-5 gap-3 mb-6">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 text-center shadow-sm">
+          <div id="sc-stat-done" class="text-2xl font-black text-emerald-500">0</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1">Done</div>
+        </div>
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 text-center shadow-sm">
+          <div id="sc-stat-learning" class="text-2xl font-black text-amber-500">0</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1">Learning</div>
+        </div>
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 text-center shadow-sm">
+          <div id="sc-stat-overdue" class="text-2xl font-black text-red-500">0</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1">Overdue</div>
+        </div>
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 text-center shadow-sm">
+          <div id="sc-stat-today" class="text-2xl font-black text-blue-500">0</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1">Due Today</div>
+        </div>
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 text-center shadow-sm">
+          <div id="sc-stat-streak" class="text-2xl font-black text-violet-500">🔥0</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1">Day Streak</div>
+        </div>
+      </div>
+
+      <!-- TODAY BANNER -->
+      <div id="sc-today-banner" class="bg-gradient-to-r from-violet-50 to-indigo-50 dark:from-violet-900/20 dark:to-indigo-900/20 border border-violet-200 dark:border-violet-800/40 rounded-2xl p-4 mb-6 hidden">
+        <div class="flex items-center gap-3 flex-wrap">
+          <span class="bg-violet-600 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg whitespace-nowrap">📅 Today</span>
+          <div id="sc-today-items" class="flex gap-2 flex-wrap"></div>
+        </div>
+      </div>
+
+      <!-- TABS -->
+      <div class="flex gap-2 mb-6">
+        <button onclick="scSetTab('tracker')" id="sc-tab-tracker" class="sc-tab px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-violet-600 text-white transition-all">📋 Tracker</button>
+        <button onclick="scSetTab('coverage')" id="sc-tab-coverage" class="sc-tab px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all">🌐 Coverage</button>
+        <button onclick="scSetTab('weekly')" id="sc-tab-weekly" class="sc-tab px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all">📆 Weekly</button>
+      </div>
+
+      <!-- TRACKER TAB -->
+      <div id="sc-view-tracker">
+        <!-- Column headers -->
+        <div class="grid gap-0 mb-2 px-2" style="grid-template-columns:1fr 90px 36px 36px 36px 36px 36px 70px 90px 32px">
+          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 pl-6">Topic</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Status</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Lec</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">R1</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">R2</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">R3</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">R4</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Due</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Qs Done</div>
+          <div></div>
+        </div>
+        <div id="sc-tracker-body" class="space-y-1"></div>
+      </div>
+
+      <!-- COVERAGE TAB -->
+      <div id="sc-view-coverage" class="hidden">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+          <div class="text-center mb-4">
+            <div id="sc-coverage-pct" class="text-5xl font-black text-violet-600">0%</div>
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Overall Syllabus Complete</div>
+          </div>
+          <div id="sc-sunburst-container" style="width:100%;height:500px;position:relative"></div>
+          <div id="sc-sunburst-tooltip" class="hidden absolute bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-lg pointer-events-none z-50 shadow-xl"></div>
+        </div>
+      </div>
+
+      <!-- WEEKLY TAB -->
+      <div id="sc-view-weekly" class="hidden">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+          <div class="grid grid-cols-7 gap-2 mb-4" id="sc-weekly-grid"></div>
+          <div id="sc-weekly-detail" class="mt-4 hidden">
+            <div id="sc-weekly-detail-title" class="text-xs font-black uppercase tracking-widest text-slate-500 mb-3"></div>
+            <div id="sc-weekly-detail-items" class="space-y-2"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- TOPIC EDIT MODAL -->
+    <div id="sc-modal" class="hidden fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4">
+      <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-md border border-slate-200 dark:border-slate-800 shadow-2xl">
+        <div id="sc-modal-content"></div>
+      </div>
     </div>
     <div id="screen-target-radar" class="hidden max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
         <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
@@ -1902,7 +2010,8 @@
         }
 
         let mockTrackerCloud = []; try { mockTrackerCloud = JSON.parse(localStorage.getItem('ssc_mock_tracker')||'[]'); } catch{}
-        const payload = { subjects: SUBJECTS, db: cleanDb, history: historyDb, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, mockTracker: mockTrackerCloud, savedAt: nowTs };
+        let scDataCloud = {}; try { scDataCloud = JSON.parse(localStorage.getItem('sc_syllabus_v1')||'{}'); } catch{}
+        const payload = { subjects: SUBJECTS, db: cleanDb, syllabusData: scDataCloud, history: historyDb, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, mockTracker: mockTrackerCloud, savedAt: nowTs };
         try {
             // Use no-cors for POST to avoid CORS block on Google's redirect
             await fetch(CLOUD_URL, {
@@ -3661,7 +3770,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     window.closeSubjectAnalysis = () => document.getElementById('screen-subject-analysis').classList.add('hidden');
 
     function showScreen(s) { 
-        ['dashboard','lobby','quiz','results','db-manager','target-radar','notes'].forEach(x => {
+        ['dashboard','lobby','quiz','results','db-manager','target-radar','notes','syllabus-command'].forEach(x => {
             const el = document.getElementById('screen-'+x);
             if(el) el.classList.add('hidden');
         }); 
@@ -3997,7 +4106,8 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                     const data = JSON.parse(event.target.result);
                     if(data.db && data.subjects) {
                         db = data.db; SUBJECTS = data.subjects; historyDb = data.history || []; mistakesDb = data.mistakes || [];
-                        if (data.notes) notesDb = data.notes; 
+                        if (data.notes) notesDb = data.notes;
+        if (data.syllabusData) { try { localStorage.setItem('sc_syllabus_v1', JSON.stringify(data.syllabusData)); } catch{} } 
                         await saveData(); location.reload();
                     } else { alert("Invalid Backup File."); }
                 } catch(err) { alert("❌ Error reading backup file."); }
@@ -6907,6 +7017,801 @@ window.fcParsePastedCards = function(){
     } else {
         alert('Could not parse any cards. Make sure each card has at least a Front and Back field.');
     }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// SYLLABUS COMMAND CENTRE
+// ═══════════════════════════════════════════════════════════════
+
+const SC_KEY = 'sc_syllabus_v1';
+const SC_STREAK_KEY = 'sc_streak_v1';
+
+// Default syllabus
+const SC_DEFAULT = {
+  "Maths — Arithmetic": ["Simplification","Percentage","Profit & Loss","Discount","Simple Interest","Compound Interest","SI Installment","CI Installment","Ratio & Proportion","Partnership","Time & Work","Pipe & Cistern","Mixture Alligation","Average","Work & Wages","Time Speed Distance","Boat & Stream","Race","LCM HCF","Sequence & Series","Number System","DI"],
+  "Maths — Advanced": ["Mensuration 2D","Mensuration 3D — Cube & Cuboid","Mensuration 3D — Cylinder","Mensuration 3D — Cone","Mensuration 3D — Sphere & Hemisphere","Mensuration 3D — Prism","Polygon","Height & Distance","Trigonometry","Geometry","Coordinate Geometry","Algebra"],
+  "Reasoning": ["Statement - Conclusion","Decision Making","Machine Input-Output","Statement - Argument","Statement - Assumptions","Syllogism","Data Sufficiency","Course of Action","Inequalities","Cause - Effect","Order - Ranking","Blood Relation","Figure Series","Mathematical Operations","Paper Unfolding/Cutting","Dice","Word Arrangement","Direction","Venn Diagram","Seating Arrangement","Number Series","Alphabetical Series","Coding-Decoding","Analogy","Odd One Out","Floor Arrangement","Calendar","Clock","Figure Counting"]
+};
+
+// Revision intervals in days
+const SC_INTERVALS = { lec: 3, r1: 7, r2: 14, r3: 30 };
+
+let scDb = {}; // { "topicKey": { subject, chapter, name, priority, notes, lec, r1, r2, r3, r4, lecDate, r1Date, r2Date, r3Date, r4Date, r1Wrong, r2Wrong, r3Wrong, r1Progress, r2Progress, r3Progress, r4Progress, confidence } }
+let scStreak = { count: 0, lastDate: '' };
+
+function scLoad() {
+  try { scDb = JSON.parse(localStorage.getItem(SC_KEY) || 'null') || {}; } catch { scDb = {}; }
+  try { scStreak = JSON.parse(localStorage.getItem(SC_STREAK_KEY) || 'null') || { count:0, lastDate:'' }; } catch { scStreak = { count:0, lastDate:'' }; }
+  if (Object.keys(scDb).length === 0) scInitDefault();
+}
+
+function scSave() {
+  localStorage.setItem(SC_KEY, JSON.stringify(scDb));
+  localStorage.setItem(SC_STREAK_KEY, JSON.stringify(scStreak));
+}
+
+function scInitDefault() {
+  Object.entries(SC_DEFAULT).forEach(([chapter, topics]) => {
+    const [subject] = chapter.split(' — ');
+    topics.forEach(name => {
+      const key = chapter + '|||' + name;
+      if (!scDb[key]) scDb[key] = { subject, chapter, name, priority: false, notes: '', lec:false, r1:false, r2:false, r3:false, r4:false, lecDate:'', r1Date:'', r2Date:'', r3Date:'', r4Date:'', r1Wrong:[], r2Wrong:[], r3Wrong:[], r1Progress:0, r2Progress:0, r3Progress:0, r4Progress:0, confidence:'' };
+    });
+  });
+  scSave();
+}
+
+function scToday() { return new Date().toISOString().split('T')[0]; }
+function scAddDays(date, days) { const d = new Date(date); d.setDate(d.getDate()+days); return d.toISOString().split('T')[0]; }
+function scDaysAgo(date) { if(!date) return 9999; return Math.floor((Date.now() - new Date(date).getTime()) / 86400000); }
+function scDaysUntil(date) { if(!date) return 9999; return Math.ceil((new Date(date).getTime() - Date.now()) / 86400000); }
+
+function scGetStatus(t) {
+  if (!t.lec) return 'not_started';
+  if (t.r4) return 'done';
+  const nextDue = scGetNextDue(t);
+  if (nextDue && scDaysUntil(nextDue) < 0) return 'overdue';
+  if (t.r3) return 'learning';
+  if (t.r2) return 'learning';
+  if (t.r1) return 'learning';
+  return 'learning';
+}
+
+function scGetNextDue(t) {
+  if (!t.lec) return null;
+  if (!t.r1) return t.lecDate ? scAddDays(t.lecDate, SC_INTERVALS.lec) : null;
+  if (!t.r2) return t.r1Date ? scAddDays(t.r1Date, SC_INTERVALS.r1) : null;
+  if (!t.r3) return t.r2Date ? scAddDays(t.r2Date, SC_INTERVALS.r2) : null;
+  if (!t.r4) return t.r3Date ? scAddDays(t.r3Date, SC_INTERVALS.r3) : null;
+  return null;
+}
+
+function scGetNextRevLabel(t) {
+  if (!t.lec || t.r4) return null;
+  if (!t.r1) return 'R1';
+  if (!t.r2) return 'R2';
+  if (!t.r3) return 'R3';
+  return 'R4';
+}
+
+function scGetQsDone(topicName) {
+  let count = 0;
+  historyDb.forEach(h => {
+    if (!h.reviewData) return;
+    h.reviewData.forEach(q => {
+      if (q.tags && q.tags[2] && q.tags[2].toLowerCase().includes(topicName.toLowerCase())) count++;
+    });
+  });
+  return count;
+}
+
+function scGetAccuracy(topicName) {
+  let correct = 0, total = 0;
+  historyDb.forEach(h => {
+    if (!h.reviewData) return;
+    h.reviewData.forEach(q => {
+      if (q.tags && q.tags[2] && q.tags[2].toLowerCase().includes(topicName.toLowerCase())) {
+        total++;
+        if (q.status === 'correct') correct++;
+      }
+    });
+  });
+  return total > 0 ? Math.round(correct/total*100) : null;
+}
+
+function scRenderStats() {
+  let done=0, learning=0, overdue=0, today=0;
+  const todayStr = scToday();
+  Object.values(scDb).forEach(t => {
+    const s = scGetStatus(t);
+    if (s === 'done') done++;
+    else if (s === 'learning') learning++;
+    if (s === 'overdue') overdue++;
+    const due = scGetNextDue(t);
+    if (due && due <= todayStr) today++;
+  });
+  document.getElementById('sc-stat-done').textContent = done;
+  document.getElementById('sc-stat-learning').textContent = learning;
+  document.getElementById('sc-stat-overdue').textContent = overdue;
+  document.getElementById('sc-stat-today').textContent = today;
+  document.getElementById('sc-stat-streak').textContent = '🔥' + scStreak.count;
+}
+
+function scRenderTodayBanner() {
+  const todayStr = scToday();
+  const items = [];
+  Object.entries(scDb).forEach(([key, t]) => {
+    if (!t.lec || t.r4) return;
+    const due = scGetNextDue(t);
+    if (!due) return;
+    const daysUntil = scDaysUntil(due);
+    const label = scGetNextRevLabel(t);
+    if (daysUntil <= 0) {
+      const overdueDays = Math.abs(daysUntil);
+      const cls = overdueDays > 0 ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200' : 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200';
+      const txt = overdueDays > 0 ? `🔴 ${label} — ${t.name} (${overdueDays}d overdue)` : `🔵 ${label} — ${t.name}`;
+      items.push(`<span class="${cls} text-[10px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap">${txt}</span>`);
+    }
+  });
+  const banner = document.getElementById('sc-today-banner');
+  const itemsEl = document.getElementById('sc-today-items');
+  if (items.length > 0) {
+    itemsEl.innerHTML = items.join('');
+    banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
+  }
+}
+
+function scRenderTracker() {
+  const body = document.getElementById('sc-tracker-body');
+  if (!body) return;
+  const todayStr = scToday();
+
+  // Group by chapter
+  const chapters = {};
+  Object.entries(scDb).forEach(([key, t]) => {
+    if (!chapters[t.chapter]) chapters[t.chapter] = [];
+    chapters[t.chapter].push({ key, ...t });
+  });
+
+  let html = '';
+  Object.entries(chapters).forEach(([chapter, topics]) => {
+    const done = topics.filter(t => scGetStatus(t) === 'done').length;
+    const pct = Math.round(done/topics.length*100);
+
+    // Sort: priority first, then by status
+    topics.sort((a,b) => {
+      if (a.priority && !b.priority) return -1;
+      if (!a.priority && b.priority) return 1;
+      const sOrder = { overdue:0, learning:1, not_started:2, done:3 };
+      return (sOrder[scGetStatus(a)]||2) - (sOrder[scGetStatus(b)]||2);
+    });
+
+    html += `
+    <div class="mb-3">
+      <div class="flex items-center gap-3 px-4 py-2 bg-slate-100 dark:bg-slate-800/60 rounded-xl mb-1 cursor-pointer select-none" onclick="scToggleChapter('${chapter.replace(/'/g,"\'")}')">
+        <span class="text-[9px] font-black uppercase tracking-widest text-slate-500 flex-1">${chapter}</span>
+        <div class="h-1.5 w-20 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden"><div class="h-full bg-violet-500 rounded-full transition-all" style="width:${pct}%"></div></div>
+        <span class="text-[9px] font-bold text-slate-400">${done}/${topics.length}</span>
+        <button onclick="event.stopPropagation();scAddTopic('${chapter.replace(/'/g,"\'")}','${chapter.split(' — ')[0]}')" class="text-violet-500 text-[9px] font-black border border-violet-200 dark:border-violet-800 px-2 py-0.5 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-900/20">+ Topic</button>
+        <button onclick="event.stopPropagation();scEditChapter('${chapter.replace(/'/g,"\'")}','${chapter.split(' — ')[0]}')" class="text-slate-400 text-[9px] font-black border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">⋮</button>
+      </div>
+      <div class="sc-chapter-body" id="sc-ch-${chapter.replace(/[^a-zA-Z0-9]/g,'-')}">`;
+
+    topics.forEach(t => {
+      const status = scGetStatus(t);
+      const due = scGetNextDue(t);
+      const daysUntil = due ? scDaysUntil(due) : null;
+      const revLabel = scGetNextRevLabel(t);
+      const qsDone = scGetQsDone(t.name);
+      const acc = scGetAccuracy(t.name);
+
+      const statusClass = { done:'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400', learning:'bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400', overdue:'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400', not_started:'bg-slate-100 dark:bg-slate-800 text-slate-400' }[status];
+      const statusLabel = { done:'Done ✓', learning:'Learning', overdue:'Revision!', not_started:'Not Started' }[status];
+
+      let dueHtml = '<span class="text-slate-300 dark:text-slate-600 text-[10px]">—</span>';
+      if (due) {
+        if (daysUntil < 0) dueHtml = `<span class="text-red-500 font-bold text-[10px]">${Math.abs(daysUntil)}d ago</span>`;
+        else if (daysUntil === 0) dueHtml = `<span class="text-amber-500 font-bold text-[10px]">Today</span>`;
+        else if (daysUntil === 1) dueHtml = `<span class="text-amber-400 text-[10px]">Tomorrow</span>`;
+        else dueHtml = `<span class="text-emerald-500 text-[10px]">${due}</span>`;
+      }
+
+      const tickClass = (checked, color) => checked ? `bg-${color}-500 border-${color}-500 text-white` : (status === 'not_started' && color !== 'violet' ? 'opacity-30 cursor-not-allowed border-slate-200 dark:border-slate-700' : 'border-slate-200 dark:border-slate-700 hover:border-violet-400 cursor-pointer');
+
+      // R1 progress
+      let r1Extra = '';
+      if (t.lec && !t.r1 && t.r1Progress > 0) {
+        const total = scGetTopicQsCount(t.name);
+        r1Extra = `<div class="text-[9px] text-amber-500 font-bold">${t.r1Progress}/${total}</div>`;
+      }
+
+      html += `
+        <div class="grid items-center gap-0 px-2 py-0 min-h-[42px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" style="grid-template-columns:20px 1fr 90px 36px 36px 36px 36px 36px 70px 90px 32px">
+          <div class="text-slate-300 dark:text-slate-600 text-[10px] text-center">${t.priority ? '⭐' : ''}</div>
+          <div class="text-[12px] font-semibold pl-2 ${status === 'done' ? 'line-through text-slate-400' : ''}">${t.name}</div>
+          <div class="flex justify-center"><span class="text-[8.5px] font-black px-2 py-0.5 rounded-full ${statusClass}">${statusLabel}</span></div>
+          <div class="flex justify-center"><div onclick="scTickLec('${t.key}')" class="w-[22px] h-[22px] rounded-[5px] border flex items-center justify-center text-[11px] transition-all ${t.lec ? 'bg-violet-500 border-violet-500 text-white' : 'border-slate-200 dark:border-slate-700 hover:border-violet-400 cursor-pointer'}">${t.lec ? '✓' : ''}</div></div>
+          <div class="flex flex-col items-center">${scRevTick(t, 'r1', t.r1, daysUntil, revLabel)}</div>
+          <div class="flex flex-col items-center">${scRevTick(t, 'r2', t.r2, daysUntil, revLabel)}</div>
+          <div class="flex flex-col items-center">${scRevTick(t, 'r3', t.r3, daysUntil, revLabel)}</div>
+          <div class="flex flex-col items-center">${scRevTick(t, 'r4', t.r4, daysUntil, revLabel)}</div>
+          <div class="text-center">${dueHtml}</div>
+          <div class="text-center text-[10px] font-bold text-slate-500">${qsDone > 0 ? qsDone + ' Qs' + (acc ? '<br><span class="text-[9px] text-emerald-500">' + acc + '%</span>' : '') : '<span class="text-slate-300 dark:text-slate-600">—</span>'}</div>
+          <div class="flex justify-center"><button onclick="scOpenTopicMenu('${t.key}')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg font-black w-6 h-6 flex items-center justify-center rounded transition-colors">⋮</button></div>
+        </div>`;
+    });
+
+    html += `</div></div>`;
+  });
+
+  body.innerHTML = html;
+}
+
+function scRevTick(t, rev, checked, daysUntil, revLabel) {
+  const colors = { r1:'blue', r2:'emerald', r3:'amber', r4:'purple' };
+  const color = colors[rev];
+  const isDue = revLabel === rev.toUpperCase() && daysUntil !== null && daysUntil <= 0;
+  const isNext = revLabel === rev.toUpperCase();
+  const disabled = !t.lec || (rev !== 'r1' && !t[prev(rev)]);
+
+  if (checked) return `<div class="w-[22px] h-[22px] rounded-[5px] bg-${color}-500 border-${color}-500 border flex items-center justify-center text-white text-[11px]">✓</div>`;
+  if (disabled) return `<div class="w-[22px] h-[22px] rounded-[5px] border border-slate-200 dark:border-slate-700 opacity-20"></div>`;
+  if (isDue) return `<div onclick="scStartRevision('${t.key}','${rev}')" class="w-[22px] h-[22px] rounded-[5px] border-2 border-red-500 flex items-center justify-center text-red-500 text-[10px] font-black cursor-pointer animate-pulse">!</div>`;
+  if (isNext) return `<div onclick="scStartRevision('${t.key}','${rev}')" class="w-[22px] h-[22px] rounded-[5px] border border-${color}-300 dark:border-${color}-700 flex items-center justify-center text-${color}-400 text-[10px] cursor-pointer hover:bg-${color}-50 dark:hover:bg-${color}-900/20 transition-all">›</div>`;
+  return `<div class="w-[22px] h-[22px] rounded-[5px] border border-slate-100 dark:border-slate-800 opacity-30"></div>`;
+}
+
+function prev(rev) { return { r2:'r1', r3:'r2', r4:'r3' }[rev]; }
+
+function scGetTopicQsCount(topicName) {
+  let count = 0;
+  Object.values(db).forEach(quiz => {
+    if (!quiz || !quiz.questions) return;
+    quiz.questions.forEach(q => {
+      if (q.tags && q.tags[2] && q.tags[2].toLowerCase().includes(topicName.toLowerCase())) count++;
+    });
+  });
+  return count || '?';
+}
+
+function scToggleChapter(chapter) {
+  const id = 'sc-ch-' + chapter.replace(/[^a-zA-Z0-9]/g,'-');
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('hidden');
+}
+
+// ── TICK LECTURE ──
+window.scTickLec = (key) => {
+  const t = scDb[key];
+  if (!t) return;
+  if (t.lec) {
+    if (!confirm('Unmark lecture for ' + t.name + '? This will reset all revision progress.')) return;
+    t.lec = false; t.lecDate = ''; t.r1 = false; t.r1Date = ''; t.r2 = false; t.r2Date = ''; t.r3 = false; t.r3Date = ''; t.r4 = false; t.r4Date = '';
+  } else {
+    t.lec = true; t.lecDate = scToday();
+  }
+  scSave(); scRender();
+};
+
+// ── START REVISION ──
+window.scStartRevision = (key, rev) => {
+  const t = scDb[key];
+  if (!t) return;
+
+  // Get questions for this topic
+  let questions = [];
+  Object.values(db).forEach(quiz => {
+    if (!quiz || !quiz.questions) return;
+    quiz.questions.forEach(q => {
+      if (q.tags && q.tags[2] && q.tags[2].toLowerCase().includes(t.name.toLowerCase())) {
+        questions.push(q);
+      }
+    });
+  });
+
+  // For R2+ filter to wrong/skipped from previous round
+  if (rev === 'r2' && t.r1Wrong && t.r1Wrong.length > 0) {
+    const wrongSet = new Set(t.r1Wrong);
+    const filtered = questions.filter(q => wrongSet.has(q.question));
+    if (filtered.length > 0) questions = filtered;
+  } else if (rev === 'r3' && t.r2Wrong && t.r2Wrong.length > 0) {
+    const wrongSet = new Set(t.r2Wrong);
+    const filtered = questions.filter(q => wrongSet.has(q.question));
+    if (filtered.length > 0) questions = filtered;
+  } else if (rev === 'r4' && t.r3Wrong && t.r3Wrong.length > 0) {
+    const wrongSet = new Set(t.r3Wrong);
+    const filtered = questions.filter(q => wrongSet.has(q.question));
+    if (filtered.length > 0) questions = filtered;
+  }
+
+  if (questions.length === 0) {
+    // Perfect round - no wrong questions
+    scShowPerfectModal(key, rev);
+    return;
+  }
+
+  // Check progress - continue or fresh
+  const progressKey = rev + 'Progress';
+  const done = t[progressKey] || 0;
+
+  if (done > 0 && done < questions.length) {
+    scShowContinueModal(key, rev, done, questions.length, questions);
+  } else {
+    scLaunchRevQuiz(key, rev, questions, 0);
+  }
+};
+
+function scShowContinueModal(key, rev, done, total, questions) {
+  const t = scDb[key];
+  document.getElementById('sc-modal-content').innerHTML = `
+    <div class="text-center">
+      <div class="text-2xl font-black text-slate-800 dark:text-slate-100 mb-2">${t.name} — ${rev.toUpperCase()}</div>
+      <div class="text-sm text-slate-500 mb-6">${done} done · ${total - done} remaining</div>
+      <div class="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full mb-6 overflow-hidden">
+        <div class="h-full bg-violet-500 rounded-full" style="width:${Math.round(done/total*100)}%"></div>
+      </div>
+      <div class="flex gap-3">
+        <button onclick="scLaunchRevQuiz('${key}','${rev}',null,${done});scCloseModal()" class="flex-1 bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">▶ Continue (${total-done} Qs)</button>
+        <button onclick="scLaunchRevQuiz('${key}','${rev}',null,0);scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-black py-3 rounded-xl text-sm transition-colors">↺ Start Fresh</button>
+      </div>
+      <button onclick="scCloseModal()" class="mt-3 text-xs text-slate-400 hover:text-slate-600 font-bold">Cancel</button>
+    </div>`;
+  document.getElementById('sc-modal').classList.remove('hidden');
+}
+
+function scShowPerfectModal(key, rev) {
+  const t = scDb[key];
+  document.getElementById('sc-modal-content').innerHTML = `
+    <div class="text-center">
+      <div class="text-4xl mb-3">🎉</div>
+      <div class="text-xl font-black text-slate-800 dark:text-slate-100 mb-2">Perfect ${rev.toUpperCase()}!</div>
+      <div class="text-sm text-slate-500 mb-6">${t.name} — No wrong or skipped questions</div>
+      <div class="flex flex-col gap-3">
+        <button onclick="scMarkRevDone('${key}','${rev}','light');scCloseModal()" class="bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 text-blue-700 dark:text-blue-400 border border-blue-200 font-black py-3 rounded-xl text-sm transition-colors">📖 Light Review</button>
+        <button onclick="scOpenFlashcards('${t.name}');scCloseModal()" class="bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 text-violet-700 dark:text-violet-400 border border-violet-200 font-black py-3 rounded-xl text-sm transition-colors">📐 Check Formulas</button>
+        <button onclick="scMarkRevDone('${key}','${rev}','skip');scCloseModal()" class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-400 font-black py-3 rounded-xl text-sm transition-colors">✅ Skip to Next</button>
+      </div>
+    </div>`;
+  document.getElementById('sc-modal').classList.remove('hidden');
+}
+
+function scLaunchRevQuiz(key, rev, questions, startIdx) {
+  const t = scDb[key];
+  if (!questions) {
+    // Rebuild questions
+    questions = [];
+    Object.values(db).forEach(quiz => {
+      if (!quiz || !quiz.questions) return;
+      quiz.questions.forEach(q => {
+        if (q.tags && q.tags[2] && q.tags[2].toLowerCase().includes(t.name.toLowerCase())) questions.push(q);
+      });
+    });
+    if (rev === 'r2' && t.r1Wrong && t.r1Wrong.length > 0) {
+      const ws = new Set(t.r1Wrong);
+      const f = questions.filter(q => ws.has(q.question));
+      if (f.length > 0) questions = f;
+    }
+  }
+
+  const slice = questions.slice(startIdx);
+  if (slice.length === 0) { scMarkRevDone(key, rev, 'complete'); return; }
+
+  // Store context for post-quiz callback
+  window._scRevContext = { key, rev, allQuestions: questions, startIdx };
+
+  // Build temp quiz
+  const tempId = 'quiz_sc_rev_' + Date.now();
+  db[tempId] = {
+    id: tempId, title: t.name + ' — ' + rev.toUpperCase() + ' Revision',
+    subject: t.subject, questions: slice, isScRevision: true,
+    scKey: key, scRev: rev, scStartIdx: startIdx, scTotal: questions.length
+  };
+
+  currentQuizId = tempId;
+  setLobbyTime('default');
+  showScreen('lobby');
+}
+
+window.scMarkRevDone = (key, rev, type) => {
+  const t = scDb[key];
+  if (!t) return;
+  t[rev] = true;
+  t[rev + 'Date'] = scToday();
+  t[rev + 'Progress'] = 0;
+  scUpdateStreak();
+  scSave();
+  scRender();
+};
+
+function scUpdateStreak() {
+  const todayStr = scToday();
+  if (scStreak.lastDate === todayStr) return;
+  const yesterday = scAddDays(todayStr, -1);
+  if (scStreak.lastDate === yesterday) scStreak.count++;
+  else scStreak.count = 1;
+  scStreak.lastDate = todayStr;
+}
+
+window.scOpenFlashcards = (topicName) => {
+  showScreen('flashcards');
+};
+
+window.scCloseModal = () => {
+  document.getElementById('sc-modal').classList.add('hidden');
+};
+
+// ── TOPIC MENU ──
+window.scOpenTopicMenu = (key) => {
+  const t = scDb[key];
+  if (!t) return;
+  document.getElementById('sc-modal-content').innerHTML = `
+    <div>
+      <div class="flex items-center justify-between mb-4">
+        <div class="font-black text-slate-800 dark:text-slate-100 text-lg">${t.name}</div>
+        <button onclick="scCloseModal()" class="text-slate-400 hover:text-red-500 font-black text-xl">×</button>
+      </div>
+      <div class="space-y-2">
+        <button onclick="scTogglePriority('${key}')" class="w-full text-left px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 hover:bg-amber-100 text-amber-700 dark:text-amber-400 font-bold text-sm transition-colors">${t.priority ? '☆ Remove Priority' : '⭐ Mark as Priority'}</button>
+        <button onclick="scEditNotes('${key}')" class="w-full text-left px-4 py-3 rounded-xl bg-blue-50 dark:bg-blue-900/10 hover:bg-blue-100 text-blue-700 dark:text-blue-400 font-bold text-sm transition-colors">📝 ${t.notes ? 'Edit Notes' : 'Add Notes'}</button>
+        <button onclick="scRenameTopic('${key}')" class="w-full text-left px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-sm transition-colors">✏️ Rename Topic</button>
+        <button onclick="scDeleteTopic('${key}')" class="w-full text-left px-4 py-3 rounded-xl bg-red-50 dark:bg-red-900/10 hover:bg-red-100 text-red-600 dark:text-red-400 font-bold text-sm transition-colors">🗑️ Delete Topic</button>
+      </div>
+      ${t.notes ? '<div class="mt-4 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-xs text-slate-600 dark:text-slate-400">' + t.notes + '</div>' : ''}
+    </div>`;
+  document.getElementById('sc-modal').classList.remove('hidden');
+};
+
+window.scTogglePriority = (key) => { scDb[key].priority = !scDb[key].priority; scSave(); scCloseModal(); scRender(); };
+
+window.scEditNotes = (key) => {
+  const t = scDb[key];
+  document.getElementById('sc-modal-content').innerHTML = `
+    <div>
+      <div class="font-black text-slate-800 dark:text-slate-100 mb-4">${t.name} — Notes</div>
+      <textarea id="sc-notes-input" rows="4" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-400 resize-none" placeholder="Add your notes...">${t.notes || ''}</textarea>
+      <div class="flex gap-3 mt-4">
+        <button onclick="scDb['${key}'].notes=document.getElementById('sc-notes-input').value;scSave();scCloseModal();" class="flex-1 bg-violet-600 text-white font-black py-2.5 rounded-xl text-sm">Save</button>
+        <button onclick="scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black py-2.5 rounded-xl text-sm">Cancel</button>
+      </div>
+    </div>`;
+};
+
+window.scRenameTopic = (key) => {
+  const t = scDb[key];
+  document.getElementById('sc-modal-content').innerHTML = `
+    <div>
+      <div class="font-black text-slate-800 dark:text-slate-100 mb-4">Rename Topic</div>
+      <input id="sc-rename-input" type="text" value="${t.name}" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-400 mb-4">
+      <div class="flex gap-3">
+        <button onclick="const v=document.getElementById('sc-rename-input').value.trim();if(v){scDb['${key}'].name=v;scSave();scCloseModal();scRender();}" class="flex-1 bg-violet-600 text-white font-black py-2.5 rounded-xl text-sm">Rename</button>
+        <button onclick="scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black py-2.5 rounded-xl text-sm">Cancel</button>
+      </div>
+    </div>`;
+};
+
+window.scDeleteTopic = (key) => {
+  const t = scDb[key];
+  if (!confirm('Delete "' + t.name + '"? This cannot be undone.')) return;
+  delete scDb[key];
+  scSave(); scCloseModal(); scRender();
+};
+
+// ── ADD SUBJECT / CHAPTER / TOPIC ──
+window.scAddSubject = () => {
+  document.getElementById('sc-modal-content').innerHTML = `
+    <div>
+      <div class="font-black text-slate-800 dark:text-slate-100 mb-4">Add New Subject</div>
+      <input id="sc-new-subject" type="text" placeholder="e.g. GS" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 mb-2">
+      <input id="sc-new-chapter" type="text" placeholder="Chapter (e.g. GS — Polity)" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 mb-4">
+      <div class="flex gap-3">
+        <button onclick="const s=document.getElementById('sc-new-subject').value.trim();const c=document.getElementById('sc-new-chapter').value.trim();if(s&&c){scAddTopic(c,s);scCloseModal();}" class="flex-1 bg-violet-600 text-white font-black py-2.5 rounded-xl text-sm">Add</button>
+        <button onclick="scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black py-2.5 rounded-xl text-sm">Cancel</button>
+      </div>
+    </div>`;
+  document.getElementById('sc-modal').classList.remove('hidden');
+};
+
+window.scAddTopic = (chapter, subject) => {
+  document.getElementById('sc-modal-content').innerHTML = `
+    <div>
+      <div class="font-black text-slate-800 dark:text-slate-100 mb-1">Add Topic</div>
+      <div class="text-xs text-slate-400 mb-4">${chapter}</div>
+      <input id="sc-new-topic" type="text" placeholder="Topic name" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 mb-4">
+      <div class="flex gap-3">
+        <button onclick="const n=document.getElementById('sc-new-topic').value.trim();if(n){const k='${chapter.replace(/'/g,"\'")}|||'+n;scDb[k]={subject:'${subject}',chapter:'${chapter.replace(/'/g,"\'")}',name:n,priority:false,notes:'',lec:false,r1:false,r2:false,r3:false,r4:false,lecDate:'',r1Date:'',r2Date:'',r3Date:'',r4Date:'',r1Wrong:[],r2Wrong:[],r3Wrong:[],r1Progress:0,r2Progress:0,r3Progress:0,r4Progress:0,confidence:''};scSave();scCloseModal();scRender();}" class="flex-1 bg-violet-600 text-white font-black py-2.5 rounded-xl text-sm">Add Topic</button>
+        <button onclick="scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black py-2.5 rounded-xl text-sm">Cancel</button>
+      </div>
+    </div>`;
+  document.getElementById('sc-modal').classList.remove('hidden');
+};
+
+window.scEditChapter = (chapter, subject) => {
+  document.getElementById('sc-modal-content').innerHTML = `
+    <div>
+      <div class="font-black text-slate-800 dark:text-slate-100 mb-4">${chapter}</div>
+      <div class="space-y-2">
+        <button onclick="scAddTopic('${chapter.replace(/'/g,"\'")}','${subject}');'' " class="w-full text-left px-4 py-3 rounded-xl bg-violet-50 dark:bg-violet-900/10 hover:bg-violet-100 text-violet-700 dark:text-violet-400 font-bold text-sm">+ Add Topic</button>
+        <button onclick="if(confirm('Delete entire chapter \'${chapter}\'?')){Object.keys(scDb).filter(k=>k.startsWith('${chapter.replace(/'/g,"\'")}|||')).forEach(k=>delete scDb[k]);scSave();scCloseModal();scRender();}" class="w-full text-left px-4 py-3 rounded-xl bg-red-50 dark:bg-red-900/10 hover:bg-red-100 text-red-600 dark:text-red-400 font-bold text-sm">🗑️ Delete Chapter</button>
+        <button onclick="scCloseModal()" class="w-full text-left px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 text-slate-600 dark:text-slate-400 font-bold text-sm">Cancel</button>
+      </div>
+    </div>`;
+  document.getElementById('sc-modal').classList.remove('hidden');
+};
+
+// ── COVERAGE SUNBURST ──
+function scRenderCoverage() {
+  const container = document.getElementById('sc-sunburst-container');
+  if (!container) return;
+
+  const total = Object.keys(scDb).length;
+  const done = Object.values(scDb).filter(t => scGetStatus(t) === 'done').length;
+  const pctEl = document.getElementById('sc-coverage-pct');
+  if (pctEl) pctEl.textContent = total > 0 ? Math.round(done/total*100) + '%' : '0%';
+
+  // Build hierarchy
+  const chapters = {};
+  Object.values(scDb).forEach(t => {
+    if (!chapters[t.chapter]) chapters[t.chapter] = { name: t.chapter, subject: t.subject, topics: [] };
+    chapters[t.chapter].topics.push(t);
+  });
+
+  const subjects = {};
+  Object.values(chapters).forEach(ch => {
+    if (!subjects[ch.subject]) subjects[ch.subject] = { name: ch.subject, chapters: [] };
+    subjects[ch.subject].chapters.push(ch);
+  });
+
+  const w = container.clientWidth || 600;
+  const h = 500;
+  const cx = w/2, cy = h/2;
+  const innerR = 60, midR = 130, outerR = 210;
+
+  const statusColors = { done:'#22c55e', learning:'#f59e0b', overdue:'#ef4444', not_started:'#94a3b8' };
+  const subjectColors = { 'Maths':'#6c63ff', 'Reasoning':'#3b82f6', 'GS':'#f59e0b', 'English':'#22c55e', 'default':'#94a3b8' };
+
+  let svgPaths = '';
+  const tooltip = document.getElementById('sc-sunburst-tooltip');
+
+  function arc(startAngle, endAngle, innerRadius, outerRadius) {
+    const s = startAngle - Math.PI/2;
+    const e = endAngle - Math.PI/2;
+    const x1 = cx + innerRadius * Math.cos(s);
+    const y1 = cy + innerRadius * Math.sin(s);
+    const x2 = cx + outerRadius * Math.cos(s);
+    const y2 = cy + outerRadius * Math.sin(s);
+    const x3 = cx + outerRadius * Math.cos(e);
+    const y3 = cy + outerRadius * Math.sin(e);
+    const x4 = cx + innerRadius * Math.cos(e);
+    const y4 = cy + innerRadius * Math.sin(e);
+    const lg = endAngle - startAngle > Math.PI ? 1 : 0;
+    return `M ${x1} ${y1} L ${x2} ${y2} A ${outerRadius} ${outerRadius} 0 ${lg} 1 ${x3} ${y3} L ${x4} ${y4} A ${innerRadius} ${innerRadius} 0 ${lg} 0 ${x1} ${y1} Z`;
+  }
+
+  const subjectList = Object.values(subjects);
+  const subjectAngle = (2 * Math.PI) / subjectList.length;
+
+  subjectList.forEach((subj, si) => {
+    const sStart = si * subjectAngle;
+    const sEnd = sStart + subjectAngle;
+    const color = subjectColors[subj.name] || subjectColors.default;
+    svgPaths += `<path d="${arc(sStart, sEnd, innerR, midR)}" fill="${color}" opacity="0.85" stroke="#0a0a0f" stroke-width="2" class="sc-arc" data-label="${subj.name}" data-done="${subj.chapters.reduce((a,c)=>a+c.topics.filter(t=>scGetStatus(t)==='done').length,0)}" data-total="${subj.chapters.reduce((a,c)=>a+c.topics.length,0)}"/>`;
+
+    // Chapters
+    const chList = subj.chapters;
+    const chAngle = subjectAngle / chList.length;
+    chList.forEach((ch, ci) => {
+      const cStart = sStart + ci * chAngle;
+      const cEnd = cStart + chAngle;
+      const chDone = ch.topics.filter(t => scGetStatus(t) === 'done').length;
+      const chPct = ch.topics.length > 0 ? chDone / ch.topics.length : 0;
+      const chColor = chPct === 1 ? '#22c55e' : chPct > 0.5 ? '#f59e0b' : chPct > 0 ? '#6c63ff' : '#334155';
+      svgPaths += `<path d="${arc(cStart, cEnd, midR+3, outerR)}" fill="${chColor}" opacity="0.7" stroke="#0a0a0f" stroke-width="1.5" class="sc-arc" data-label="${ch.name}" data-done="${chDone}" data-total="${ch.topics.length}"/>`;
+    });
+  });
+
+  // Center text
+  svgPaths += `<circle cx="${cx}" cy="${cy}" r="${innerR-4}" fill="#12121a"/>`;
+  svgPaths += `<text x="${cx}" y="${cy-8}" text-anchor="middle" fill="#e8e8f0" font-size="20" font-weight="900" font-family="Space Grotesk,sans-serif">${Math.round(done/total*100)}%</text>`;
+  svgPaths += `<text x="${cx}" y="${cy+12}" text-anchor="middle" fill="#7878a0" font-size="9" font-weight="700" font-family="Space Grotesk,sans-serif" letter-spacing="1">COMPLETE</text>`;
+
+  container.innerHTML = `<svg width="${w}" height="${h}" style="cursor:pointer">${svgPaths}</svg>`;
+
+  // Tooltip
+  container.querySelectorAll('.sc-arc').forEach(el => {
+    el.addEventListener('mouseenter', (e) => {
+      const label = el.dataset.label;
+      const done = el.dataset.done;
+      const total = el.dataset.total;
+      if (tooltip) {
+        tooltip.classList.remove('hidden');
+        tooltip.innerHTML = `<div>${label}</div><div style="color:#22c55e">${done}/${total} done</div>`;
+        tooltip.style.left = (e.clientX + 10) + 'px';
+        tooltip.style.top = (e.clientY - 30) + 'px';
+      }
+    });
+    el.addEventListener('mousemove', (e) => {
+      if (tooltip) { tooltip.style.left = (e.clientX+10)+'px'; tooltip.style.top = (e.clientY-30)+'px'; }
+    });
+    el.addEventListener('mouseleave', () => { if (tooltip) tooltip.classList.add('hidden'); });
+  });
+}
+
+// ── WEEKLY VIEW ──
+function scRenderWeekly() {
+  const grid = document.getElementById('sc-weekly-grid');
+  if (!grid) return;
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const today = new Date();
+  let html = '';
+  for (let i=0; i<7; i++) {
+    const d = new Date(today); d.setDate(today.getDate() + i);
+    const dateStr = d.toISOString().split('T')[0];
+    const dayName = days[d.getDay()];
+    const isToday = i === 0;
+    let due = [];
+    Object.values(scDb).forEach(t => {
+      const nextDue = scGetNextDue(t);
+      if (nextDue === dateStr) due.push(t.name);
+    });
+    html += `<div onclick="scShowWeeklyDay('${dateStr}','${dayName + (isToday?' (Today)':'')}')" class="cursor-pointer rounded-xl p-3 text-center border transition-all ${isToday ? 'bg-violet-600 border-violet-500 text-white' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-violet-300'}">
+      <div class="text-[9px] font-black uppercase tracking-widest ${isToday ? 'text-violet-200' : 'text-slate-400'}">${dayName}</div>
+      <div class="text-lg font-black my-1">${d.getDate()}</div>
+      <div class="text-[10px] font-bold ${due.length > 0 ? (isToday ? 'text-violet-200' : 'text-violet-500') : 'text-slate-300 dark:text-slate-600'}">${due.length > 0 ? due.length + ' due' : '—'}</div>
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
+window.scShowWeeklyDay = (dateStr, label) => {
+  const detail = document.getElementById('sc-weekly-detail');
+  const title = document.getElementById('sc-weekly-detail-title');
+  const items = document.getElementById('sc-weekly-detail-items');
+  let due = [];
+  Object.values(scDb).forEach(t => {
+    const nextDue = scGetNextDue(t);
+    if (nextDue === dateStr) due.push(t);
+  });
+  title.textContent = label + ' — ' + due.length + ' topics due';
+  if (due.length === 0) {
+    items.innerHTML = '<div class="text-sm text-slate-400 font-bold text-center py-4">Nothing due this day 🎉</div>';
+  } else {
+    items.innerHTML = due.map(t => {
+      const rev = scGetNextRevLabel(t);
+      const statusColors = { done:'emerald', learning:'amber', overdue:'red', not_started:'slate' };
+      return `<div class="flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
+        <span class="text-sm font-semibold">${t.name}</span>
+        <span class="text-[10px] font-black uppercase tracking-widest text-violet-500 bg-violet-50 dark:bg-violet-900/20 px-2 py-1 rounded-lg">${rev || 'Done'}</span>
+      </div>`;
+    }).join('');
+  }
+  detail.classList.remove('hidden');
+};
+
+// ── TAB SWITCHING ──
+window.scSetTab = (tab) => {
+  ['tracker','coverage','weekly'].forEach(t => {
+    document.getElementById('sc-view-'+t).classList.add('hidden');
+    const btn = document.getElementById('sc-tab-'+t);
+    btn.classList.remove('bg-violet-600','text-white');
+    btn.classList.add('bg-slate-100','dark:bg-slate-800','text-slate-500','dark:text-slate-400');
+  });
+  document.getElementById('sc-view-'+tab).classList.remove('hidden');
+  const activeBtn = document.getElementById('sc-tab-'+tab);
+  activeBtn.classList.add('bg-violet-600','text-white');
+  activeBtn.classList.remove('bg-slate-100','dark:bg-slate-800','text-slate-500','dark:text-slate-400');
+  if (tab === 'coverage') setTimeout(scRenderCoverage, 50);
+  if (tab === 'weekly') scRenderWeekly();
+};
+
+// ── MAIN RENDER ──
+function scRender() {
+  scRenderStats();
+  scRenderTodayBanner();
+  scRenderTracker();
+}
+
+// ── OPEN ENTRY POINT ──
+window.openSyllabusCommand = () => {
+  scLoad();
+  showScreen('syllabus-command');
+  scRender();
+};
+
+// ── POST QUIZ HOOK: update revision progress ──
+const _origAfterSubmit = window._afterSubmit;
+window._afterSubmit = function(correct, wrong, skipped, total) {
+  if (_origAfterSubmit) _origAfterSubmit(correct, wrong, skipped, total);
+
+  // Check if this was a SC revision quiz
+  if (!currentQuizId || !db[currentQuizId] || !db[currentQuizId].isScRevision) return;
+
+  const quiz = db[currentQuizId];
+  const key = quiz.scKey;
+  const rev = quiz.scRev;
+  const startIdx = quiz.scStartIdx || 0;
+  const totalQs = quiz.scTotal || total;
+  const t = scDb ? scDb[key] : null;
+  if (!t) return;
+
+  // Collect wrong/skipped questions
+  const wrongQuestions = [];
+  if (window.historyDb && historyDb.length > 0) {
+    const lastAttempt = historyDb[0];
+    if (lastAttempt && lastAttempt.reviewData) {
+      lastAttempt.reviewData.forEach(q => {
+        if (q.status === 'wrong' || q.status === 'skipped') wrongQuestions.push(q.question);
+      });
+    }
+  }
+
+  // Update progress
+  const newDone = startIdx + total;
+  t[rev + 'Progress'] = newDone;
+
+  // Store wrong questions for next revision
+  const nextRevWrongKey = { r1:'r1Wrong', r2:'r2Wrong', r3:'r3Wrong', r4:'r4Wrong' }[rev];
+  if (nextRevWrongKey) {
+    const existing = t[nextRevWrongKey] || [];
+    const combined = [...new Set([...existing, ...wrongQuestions])];
+    t[nextRevWrongKey] = combined;
+  }
+
+  // Check if revision complete
+  if (newDone >= totalQs) {
+    // Show confidence modal
+    scShowConfidenceModal(key, rev);
+  }
+
+  scSave();
+};
+
+function scShowConfidenceModal(key, rev) {
+  const t = scDb[key];
+  setTimeout(() => {
+    document.getElementById('sc-modal-content').innerHTML = `
+      <div class="text-center">
+        <div class="text-2xl font-black text-slate-800 dark:text-slate-100 mb-1">${t.name} — ${rev.toUpperCase()} Complete!</div>
+        <div class="text-sm text-slate-500 mb-6">How confident do you feel?</div>
+        <div class="grid grid-cols-2 gap-3">
+          <button onclick="scSetConfidence('${key}','${rev}','shaky')" class="py-4 rounded-2xl bg-red-50 dark:bg-red-900/20 hover:bg-red-100 text-2xl font-black border border-red-200 transition-colors">😰<div class="text-xs text-red-500 mt-1">Shaky</div></button>
+          <button onclick="scSetConfidence('${key}','${rev}','okay')" class="py-4 rounded-2xl bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 text-2xl font-black border border-amber-200 transition-colors">😐<div class="text-xs text-amber-500 mt-1">Okay</div></button>
+          <button onclick="scSetConfidence('${key}','${rev}','good')" class="py-4 rounded-2xl bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 text-2xl font-black border border-blue-200 transition-colors">😊<div class="text-xs text-blue-500 mt-1">Good</div></button>
+          <button onclick="scSetConfidence('${key}','${rev}','nailed')" class="py-4 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 text-2xl font-black border border-emerald-200 transition-colors">🔥<div class="text-xs text-emerald-500 mt-1">Nailed it!</div></button>
+        </div>
+      </div>`;
+    document.getElementById('sc-modal').classList.remove('hidden');
+  }, 500);
+}
+
+window.scSetConfidence = (key, rev, level) => {
+  const t = scDb[key];
+  t.confidence = level;
+  t[rev] = true;
+  t[rev + 'Date'] = scToday();
+  t[rev + 'Progress'] = 0;
+
+  // Adaptive intervals — if shaky, halve next interval
+  if (level === 'shaky') {
+    const nextRev = { r1:'r2', r2:'r3', r3:'r4' }[rev];
+    if (nextRev) {
+      // Store a flag to use half interval
+      t[nextRev + 'HalfInterval'] = true;
+    }
+  }
+
+  scUpdateStreak();
+  scSave();
+  scCloseModal();
+  if (document.getElementById('screen-syllabus-command') && !document.getElementById('screen-syllabus-command').classList.contains('hidden')) {
+    scRender();
+  }
+};
+
+// ── CLOUD SYNC ──
+window.scSyncToCloud = () => {
+  localStorage.setItem(SC_KEY, JSON.stringify(scDb));
 };
 </script>
 
