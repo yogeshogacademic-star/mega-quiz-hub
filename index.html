@@ -816,17 +816,17 @@
       <!-- TRACKER TAB -->
       <div id="sc-view-tracker">
         <!-- Column headers -->
-        <div class="grid gap-0 mb-2 px-2" style="grid-template-columns:1fr 90px 36px 36px 36px 36px 36px 70px 90px 90px 32px">
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 pl-6">Topic</div>
+        <div class="grid gap-0 mb-2 px-2" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 46px 46px 72px 100px 28px">
+          <div></div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 pl-2">Topic</div>
           <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Status</div>
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Lec</div>
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">R1</div>
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">R2</div>
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">R3</div>
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">R4</div>
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Due</div>
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Qs Done</div>
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">HW</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-violet-400 text-center">Lec</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-blue-400 text-center">R1</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-emerald-400 text-center">R2</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-amber-400 text-center">R3</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-purple-400 text-center">R4</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Next Due</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Done/Total</div>
           <div></div>
         </div>
         <div id="sc-tracker-body" class="space-y-1"></div>
@@ -7384,43 +7384,56 @@ function scRenderTracker() {
       const topicTotal = scGetTopicQsCount(t.name, t.subject);
       const totalNum = typeof topicTotal === 'number' ? topicTotal : 0;
       const hasNew = scHasNewQuestions(t);
+      const isMathsSubject = SC_MATHS_SUBJECTS.includes(t.subject);
 
       const statusClass = { done:'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400', learning:'bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400', overdue:'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400', not_started:'bg-slate-100 dark:bg-slate-800 text-slate-400', new_qs:'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400' }[status] || 'bg-slate-100 text-slate-400';
       const statusLabel = { done:'Done ✓', learning:'Learning', overdue:'Revision!', not_started:'Not Started', new_qs:'New Qs! ⚡' }[status] || '—';
 
       let dueHtml = '<span class="text-slate-300 dark:text-slate-600 text-[10px]">—</span>';
       if (due) {
-        if (daysUntil < 0) dueHtml = `<span class="text-red-500 font-bold text-[10px]">${Math.abs(daysUntil)}d ago</span>`;
+        if (daysUntil < 0) dueHtml = `<span class="text-red-500 font-bold text-[10px]">${Math.abs(daysUntil)}d overdue</span>`;
         else if (daysUntil === 0) dueHtml = `<span class="text-amber-500 font-bold text-[10px]">Today</span>`;
         else if (daysUntil === 1) dueHtml = `<span class="text-amber-400 text-[10px]">Tomorrow</span>`;
         else dueHtml = `<span class="text-emerald-500 text-[10px]">${due}</span>`;
       }
 
-      // Qs done: show as 30/100 format
+      // Qs done: attempted/total (X%) format
+      const pctDone = totalNum > 0 ? Math.round(qsDone/totalNum*100) : 0;
+      const pctColor = pctDone >= 80 ? 'text-emerald-500' : pctDone >= 40 ? 'text-amber-500' : 'text-rose-400';
       const qsDoneStr = totalNum > 0
-        ? `${qsDone}/${totalNum}${acc ? '<br><span class="text-[9px] text-emerald-500">' + acc + '%</span>' : ''}`
-        : (qsDone > 0 ? `${qsDone}<br><span class="text-[9px] text-slate-400">Qs</span>` : '<span class="text-slate-300 dark:text-slate-600">—</span>');
+        ? `<span class="font-black">${qsDone}/${totalNum}</span><br><span class="${pctColor} text-[9px]">${pctDone}%${acc ? ' · '+acc+'% acc' : ''}</span>`
+        : (qsDone > 0 ? `${qsDone} Qs` : '<span class="text-slate-300 dark:text-slate-600">—</span>');
 
-      // NEW badge when new questions arrived after completion
+      // NEW badge
       const newBadge = hasNew ? `<span class="text-[8px] font-black bg-blue-500 text-white px-1.5 py-0.5 rounded-full animate-pulse ml-1">⚡NEW</span>` : '';
 
+      // Subtopic expand button — only for Arithmetic & Advanced Maths
+      const subTopicBtn = isMathsSubject
+        ? `<button onclick="event.stopPropagation();scRenderSubTopics('${t.name.replace(/'/g,"\\'")}','sc-sub-${t.key.replace(/[^a-zA-Z0-9]/g,'-')}')" class="text-[9px] text-slate-300 hover:text-violet-500 transition-colors ml-1" title="Show concepts">▾</button>`
+        : '';
+
+      // Lec tick with date
+      const lecDate = t.lecDate ? t.lecDate.slice(5).replace('-','/') : '';
+      const lecTick = `<div class="flex flex-col items-center gap-0.5">
+        <div onclick="scTickLec('${t.key}')" class="w-[22px] h-[22px] rounded-[5px] border flex items-center justify-center text-[11px] transition-all ${t.lec ? 'bg-violet-500 border-violet-500 text-white' : 'border-slate-200 dark:border-slate-700 hover:border-violet-400 cursor-pointer'}">${t.lec ? '✓' : ''}</div>
+        ${lecDate ? `<div class="text-[8px] text-violet-400 font-bold leading-none">${lecDate}</div>` : ''}
+      </div>`;
+
       html += `
-        <div class="grid items-center gap-0 px-2 py-0 min-h-[42px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" style="grid-template-columns:20px 1fr 90px 36px 36px 36px 36px 36px 70px 90px 90px 32px">
+        <div class="grid items-center gap-0 px-2 py-1 min-h-[46px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 46px 46px 72px 100px 28px">
           <div class="text-slate-300 dark:text-slate-600 text-[10px] text-center">${t.priority ? '⭐' : ''}</div>
-          <div class="flex items-center gap-1 pl-2">
+          <div class="flex items-center gap-0.5 pl-2">
             <span class="text-[12px] font-semibold ${status === 'done' ? 'line-through text-slate-400' : ''}">${t.name}</span>
-            ${newBadge}
-            <button onclick="event.stopPropagation();scRenderSubTopics('${t.name.replace(/'/g,"\\'")}','sc-sub-${t.key.replace(/[^a-zA-Z0-9]/g,'-')}')" class="text-[9px] text-slate-300 hover:text-violet-500 transition-colors" title="Show sub-topics">▾</button>
+            ${newBadge}${subTopicBtn}
           </div>
-          <div class="flex justify-center"><span class="text-[8.5px] font-black px-2 py-0.5 rounded-full ${statusClass}">${statusLabel}</span></div>
-          <div class="flex justify-center"><div onclick="scTickLec('${t.key}')" class="w-[22px] h-[22px] rounded-[5px] border flex items-center justify-center text-[11px] transition-all ${t.lec ? 'bg-violet-500 border-violet-500 text-white' : 'border-slate-200 dark:border-slate-700 hover:border-violet-400 cursor-pointer'}">${t.lec ? '✓' : ''}</div></div>
+          <div class="flex justify-center"><span class="text-[8px] font-black px-1.5 py-0.5 rounded-full ${statusClass}">${statusLabel}</span></div>
+          <div class="flex justify-center">${lecTick}</div>
           <div class="flex flex-col items-center">${scRevTick(t, 'r1', t.r1, daysUntil, revLabel)}</div>
           <div class="flex flex-col items-center">${scRevTick(t, 'r2', t.r2, daysUntil, revLabel)}</div>
           <div class="flex flex-col items-center">${scRevTick(t, 'r3', t.r3, daysUntil, revLabel)}</div>
           <div class="flex flex-col items-center">${scRevTick(t, 'r4', t.r4, daysUntil, revLabel)}</div>
           <div class="text-center">${dueHtml}</div>
-          <div class="text-center text-[10px] font-bold text-slate-500">${qsDoneStr}</div>
-          <div class="text-center text-[10px] font-bold">${scGetHWCount(t.name, t.subject)}</div>
+          <div class="text-center text-[10px] text-slate-500 leading-tight">${qsDoneStr}</div>
           <div class="flex justify-center"><button onclick="scOpenTopicMenu('${t.key}')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg font-black w-6 h-6 flex items-center justify-center rounded transition-colors">⋮</button></div>
         </div>
         <div id="sc-sub-${t.key.replace(/[^a-zA-Z0-9]/g,'-')}" class="hidden border-l border-r border-b border-slate-100 dark:border-slate-800"></div>`;
@@ -7439,10 +7452,31 @@ function scRevTick(t, rev, checked, daysUntil, revLabel) {
   const isNext = revLabel === rev.toUpperCase();
   const disabled = !t.lec || (rev !== 'r1' && !t[prev(rev)]);
 
-  if (checked) return `<div class="w-[22px] h-[22px] rounded-[5px] bg-${color}-500 border-${color}-500 border flex items-center justify-center text-white text-[11px]">✓</div>`;
+  // Show date as MM/DD below the tick
+  const dateStr = t[rev+'Date'] ? t[rev+'Date'].slice(5).replace('-','/') : '';
+
+  if (checked) return `
+    <div class="flex flex-col items-center gap-0.5">
+      <div class="w-[22px] h-[22px] rounded-[5px] bg-${color}-500 border-${color}-500 border flex items-center justify-center text-white text-[11px]">✓</div>
+      ${dateStr ? `<div class="text-[8px] text-${color}-400 font-bold leading-none">${dateStr}</div>` : ''}
+    </div>`;
+
+  // Show in-progress count if this rev is active but not done
+  const prog = t[rev+'Progress'] || 0;
+  const total = typeof scGetTopicQsCount(t.name, t.subject) === 'number' ? scGetTopicQsCount(t.name, t.subject) : 0;
+  const showProg = !checked && prog > 0 && (rev === revLabel?.toLowerCase());
+
   if (disabled) return `<div class="w-[22px] h-[22px] rounded-[5px] border border-slate-200 dark:border-slate-700 opacity-20"></div>`;
-  if (isDue) return `<div onclick="scStartRevision('${t.key}','${rev}')" class="w-[22px] h-[22px] rounded-[5px] border-2 border-red-500 flex items-center justify-center text-red-500 text-[10px] font-black cursor-pointer animate-pulse">!</div>`;
-  if (isNext) return `<div onclick="scStartRevision('${t.key}','${rev}')" class="w-[22px] h-[22px] rounded-[5px] border border-${color}-300 dark:border-${color}-700 flex items-center justify-center text-${color}-400 text-[10px] cursor-pointer hover:bg-${color}-50 dark:hover:bg-${color}-900/20 transition-all">›</div>`;
+  if (isDue) return `
+    <div class="flex flex-col items-center gap-0.5">
+      <div onclick="scStartRevision('${t.key}','${rev}')" class="w-[22px] h-[22px] rounded-[5px] border-2 border-red-500 flex items-center justify-center text-red-500 text-[10px] font-black cursor-pointer animate-pulse">!</div>
+      ${showProg && total ? `<div class="text-[8px] text-amber-500 font-bold leading-none">${prog}/${total}</div>` : ''}
+    </div>`;
+  if (isNext) return `
+    <div class="flex flex-col items-center gap-0.5">
+      <div onclick="scStartRevision('${t.key}','${rev}')" class="w-[22px] h-[22px] rounded-[5px] border border-${color}-300 dark:border-${color}-700 flex items-center justify-center text-${color}-400 text-[10px] cursor-pointer hover:bg-${color}-50 dark:hover:bg-${color}-900/20 transition-all">›</div>
+      ${showProg && total ? `<div class="text-[8px] text-amber-500 font-bold leading-none">${prog}/${total}</div>` : ''}
+    </div>`;
   return `<div class="w-[22px] h-[22px] rounded-[5px] border border-slate-100 dark:border-slate-800 opacity-30"></div>`;
 }
 
@@ -8042,7 +8076,7 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
   const t = scDb ? scDb[key] : null;
   if (!t) return;
 
-  // Collect wrong/skipped questions
+  // Collect wrong/skipped questions from this batch
   const wrongQuestions = [];
   if (window.historyDb && historyDb.length > 0) {
     const lastAttempt = historyDb[0];
@@ -8057,21 +8091,73 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
   const newDone = startIdx + total;
   t[rev + 'Progress'] = newDone;
 
-  // Store wrong questions for next revision
+  // Accumulate wrong/skipped for next revision round
   const nextRevWrongKey = { r1:'r1Wrong', r2:'r2Wrong', r3:'r3Wrong', r4:'r4Wrong' }[rev];
   if (nextRevWrongKey) {
     const existing = t[nextRevWrongKey] || [];
-    const combined = [...new Set([...existing, ...wrongQuestions])];
-    t[nextRevWrongKey] = combined;
-  }
-
-  // Check if revision complete
-  if (newDone >= totalQs) {
-    // Show confidence modal
-    scShowConfidenceModal(key, rev);
+    t[nextRevWrongKey] = [...new Set([...existing, ...wrongQuestions])];
   }
 
   scSave();
+
+  // All questions done → show confidence modal
+  if (newDone >= totalQs) {
+    scShowConfidenceModal(key, rev);
+    return;
+  }
+
+  // More questions remain → show "Do More / End R" batch modal
+  scShowBatchModal(key, rev, newDone, totalQs, wrongQuestions.length);
+};
+
+// ── BATCH COMPLETE MODAL ──
+function scShowBatchModal(key, rev, done, total, wrongCount) {
+  const t = scDb[key];
+  const pct = Math.round(done/total*100);
+  const remaining = total - done;
+  setTimeout(() => {
+    document.getElementById('sc-modal-content').innerHTML = `
+      <div class="text-center">
+        <div class="text-xl font-black text-slate-800 dark:text-slate-100 mb-1">${t.name} — ${rev.toUpperCase()} Batch Done 💪</div>
+        <div class="text-sm text-slate-500 mb-1">${done} / ${total} questions done</div>
+        <div class="text-xs text-rose-500 font-bold mb-4">${wrongCount > 0 ? wrongCount + ' wrong/skipped saved for next round' : '✅ All correct in this batch!'}</div>
+        <div class="w-full h-2.5 bg-slate-200 dark:bg-slate-700 rounded-full mb-6 overflow-hidden">
+          <div class="h-full bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full transition-all" style="width:${pct}%"></div>
+        </div>
+        <div class="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">${pct}% of ${rev.toUpperCase()} complete</div>
+        <div class="grid grid-cols-2 gap-3">
+          <button onclick="scDoMoreBatch('${key}','${rev}',${done})" class="py-4 rounded-2xl bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/40 border border-violet-200 dark:border-violet-700 transition-colors">
+            <div class="text-2xl mb-1">▶</div>
+            <div class="text-xs font-black text-violet-600 dark:text-violet-400">Do More</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">${remaining} questions left</div>
+          </button>
+          <button onclick="scEndRevEarly('${key}','${rev}')" class="py-4 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-700 transition-colors">
+            <div class="text-2xl mb-1">✅</div>
+            <div class="text-xs font-black text-emerald-600 dark:text-emerald-400">Done for Today</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Move on, continue later</div>
+          </button>
+        </div>
+        <button onclick="scCloseModal()" class="mt-3 text-[10px] text-slate-400 hover:text-slate-600 font-bold">Cancel</button>
+      </div>`;
+    document.getElementById('sc-modal').classList.remove('hidden');
+  }, 400);
+}
+
+// Continue same revision from where left off
+window.scDoMoreBatch = (key, rev, startIdx) => {
+  scCloseModal();
+  // Small delay so modal closes cleanly
+  setTimeout(() => scStartRevision(key, rev), 150);
+};
+
+// End revision early — save progress, let user continue later
+window.scEndRevEarly = (key, rev) => {
+  scCloseModal();
+  // Don't mark complete — just save current progress
+  // User can click revision tick again to continue
+  if (document.getElementById('screen-syllabus-command') && !document.getElementById('screen-syllabus-command').classList.contains('hidden')) {
+    scRender();
+  }
 };
 
 function scShowConfidenceModal(key, rev) {
