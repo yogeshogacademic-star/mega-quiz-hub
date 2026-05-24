@@ -7088,9 +7088,36 @@ let scStreak = { count: 0, lastDate: '' };
 function scLoad() {
   try { scDb = JSON.parse(localStorage.getItem(SC_KEY) || 'null') || {}; } catch { scDb = {}; }
   try { scStreak = JSON.parse(localStorage.getItem(SC_STREAK_KEY) || 'null') || { count:0, lastDate:'' }; } catch { scStreak = { count:0, lastDate:'' }; }
+  // Migration: remove any legacy standalone "Maths" entries (merged into Arithmetic/Advanced Maths)
+  Object.keys(scDb).forEach(k => { if (scDb[k] && scDb[k].subject === 'Maths') delete scDb[k]; });
   // Always merge — adds any new subjects/topics from SYLLABUS_MAP without losing progress
   scInitDefault();
 }
+
+// ── TAG INDEX HELPERS ─────────────────────────────────────────────────────────
+// Arithmetic & Advanced Maths: questions store the tracked topic at tags[2] (Tag 3)
+// All GS/English/Reasoning subjects: tracked topic is at tags[1] (Tag 2)
+const SC_MATHS_SUBJECTS = ['Arithmetic', 'Advanced Maths'];
+function scGetTagIdx(subject) {
+  return SC_MATHS_SUBJECTS.includes(subject) ? 2 : 1;
+}
+function scMatchesTopic(q, topicName, subject) {
+  if (!q || !q.tags) return false;
+  const idx = scGetTagIdx(subject || '');
+  return !!(q.tags[idx] && q.tags[idx].toLowerCase() === topicName.toLowerCase());
+}
+function scGetSubjectFor(topicName) {
+  // Look up subject from scDb
+  for (const v of Object.values(scDb)) {
+    if (!v.isSubTopic && v.name && v.name.toLowerCase() === topicName.toLowerCase()) return v.subject;
+  }
+  // Fallback: scan SYLLABUS_MAP
+  for (const [subj, topics] of Object.entries(SYLLABUS_MAP)) {
+    if (topics.some(tp => tp.toLowerCase() === topicName.toLowerCase())) return subj;
+  }
+  return 'GS'; // default → GS tag logic
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 function scSave() {
   localStorage.setItem(SC_KEY, JSON.stringify(scDb));
@@ -7147,29 +7174,23 @@ function scGetNextRevLabel(t) {
   return 'R4';
 }
 
-function scGetQsDone(topicName) {
-  // topicName matches tags[2] (topic level)
+function scGetQsDone(topicName, subject) {
+  const subj = subject || scGetSubjectFor(topicName);
   let count = 0;
   historyDb.forEach(h => {
     if (!h.reviewData) return;
-    h.reviewData.forEach(q => {
-      const t2 = (q.tags && q.tags[2]) ? q.tags[2] : '';
-      if (t2.toLowerCase() === topicName.toLowerCase()) count++;
-    });
+    h.reviewData.forEach(q => { if (scMatchesTopic(q, topicName, subj)) count++; });
   });
   return count;
 }
 
-function scGetAccuracy(topicName) {
+function scGetAccuracy(topicName, subject) {
+  const subj = subject || scGetSubjectFor(topicName);
   let correct = 0, total = 0;
   historyDb.forEach(h => {
     if (!h.reviewData) return;
     h.reviewData.forEach(q => {
-      const t2 = (q.tags && q.tags[2]) ? q.tags[2] : '';
-      if (t2.toLowerCase() === topicName.toLowerCase()) {
-        total++;
-        if (q.status === 'correct') correct++;
-      }
+      if (scMatchesTopic(q, topicName, subj)) { total++; if (q.status === 'correct') correct++; }
     });
   });
   return total > 0 ? Math.round(correct/total*100) : null;
@@ -7224,24 +7245,16 @@ function scRenderTodayBanner() {
 }
 
 
-function scGetHWCount(topicName) {
-  // Count questions attempted in historyDb where tags[2] matches this topic
-  // This is the same as qsDone - showing tag1 (subject) wise breakdown
+function scGetHWCount(topicName, subject) {
+  const subj = subject || scGetSubjectFor(topicName);
   let done = 0, total = 0;
   Object.values(db).forEach(quiz => {
     if (!quiz || !quiz.questions) return;
-    quiz.questions.forEach(q => {
-      if (q.tags && q.tags[2] && q.tags[2].toLowerCase().includes(topicName.toLowerCase())) {
-        total++;
-      }
-    });
+    quiz.questions.forEach(q => { if (scMatchesTopic(q, topicName, subj)) total++; });
   });
-  // Check how many of those have been attempted
   historyDb.forEach(h => {
     if (!h.reviewData) return;
-    h.reviewData.forEach(q => {
-      if (q.tags && q.tags[2] && q.tags[2].toLowerCase().includes(topicName.toLowerCase())) done++;
-    });
+    h.reviewData.forEach(q => { if (scMatchesTopic(q, topicName, subj)) done++; });
   });
   if (total === 0) return '<span class="text-slate-300 dark:text-slate-600">—</span>';
   const pct = Math.round(done/total*100);
@@ -7250,28 +7263,24 @@ function scGetHWCount(topicName) {
 }
 
 
-function scGetSubTopics(topicName) {
+function scGetSubTopics(topicName, subject) {
+  const subj = subject || scGetSubjectFor(topicName);
+  const subIdx = scGetTagIdx(subj) + 1;
   const concepts = {};
   Object.values(db).forEach(quiz => {
     if (!quiz || !quiz.questions) return;
     quiz.questions.forEach(q => {
-      const t2 = (q.tags && q.tags[2]) ? q.tags[2] : '';
-      const t3 = (q.tags && q.tags[3]) ? q.tags[3] : '';
-      if (t2.toLowerCase() === topicName.toLowerCase() && t3) {
-        if (!concepts[t3]) concepts[t3] = { name:t3, total:0, done:0, correct:0 };
-        concepts[t3].total++;
-      }
+      if (!scMatchesTopic(q, topicName, subj)) return;
+      const t3 = (q.tags && q.tags[subIdx]) ? q.tags[subIdx] : '';
+      if (t3) { if (!concepts[t3]) concepts[t3] = { name:t3, total:0, done:0, correct:0 }; concepts[t3].total++; }
     });
   });
   historyDb.forEach(h => {
     if (!h.reviewData) return;
     h.reviewData.forEach(q => {
-      const t2 = (q.tags && q.tags[2]) ? q.tags[2] : '';
-      const t3 = (q.tags && q.tags[3]) ? q.tags[3] : '';
-      if (t2.toLowerCase() === topicName.toLowerCase() && t3 && concepts[t3]) {
-        concepts[t3].done++;
-        if (q.status === 'correct') concepts[t3].correct++;
-      }
+      if (!scMatchesTopic(q, topicName, subj)) return;
+      const t3 = (q.tags && q.tags[subIdx]) ? q.tags[subIdx] : '';
+      if (t3 && concepts[t3]) { concepts[t3].done++; if (q.status === 'correct') concepts[t3].correct++; }
     });
   });
   return Object.values(concepts);
@@ -7281,9 +7290,11 @@ function scRenderSubTopics(topicName, containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
   if (!el.classList.contains('hidden')) { el.classList.add('hidden'); return; }
-  const subs = scGetSubTopics(topicName);
+  const subject = scGetSubjectFor(topicName);
+  const subs = scGetSubTopics(topicName, subject);
   if (subs.length === 0) {
-    el.innerHTML = '<div class="text-[10px] text-slate-400 py-2 px-4 italic">No sub-topics found. Add tags[3] to your JSON files.</div>';
+    const tagLbl = SC_MATHS_SUBJECTS.includes(subject) ? 'Tag 4 (concept)' : 'Tag 3 (concept)';
+    el.innerHTML = `<div class="text-[10px] text-slate-400 py-2 px-4 italic">No sub-topics found. Add ${tagLbl} to your JSON files.</div>`;
     el.classList.remove('hidden');
     return;
   }
@@ -7368,8 +7379,11 @@ function scRenderTracker() {
       const due = scGetNextDue(t);
       const daysUntil = due ? scDaysUntil(due) : null;
       const revLabel = scGetNextRevLabel(t);
-      const qsDone = scGetQsDone(t.name);
-      const acc = scGetAccuracy(t.name);
+      const qsDone = scGetQsDone(t.name, t.subject);
+      const acc = scGetAccuracy(t.name, t.subject);
+      const topicTotal = scGetTopicQsCount(t.name, t.subject);
+      const totalNum = typeof topicTotal === 'number' ? topicTotal : 0;
+      const hasNew = scHasNewQuestions(t);
 
       const statusClass = { done:'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400', learning:'bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400', overdue:'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400', not_started:'bg-slate-100 dark:bg-slate-800 text-slate-400', new_qs:'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400' }[status] || 'bg-slate-100 text-slate-400';
       const statusLabel = { done:'Done ✓', learning:'Learning', overdue:'Revision!', not_started:'Not Started', new_qs:'New Qs! ⚡' }[status] || '—';
@@ -7382,20 +7396,20 @@ function scRenderTracker() {
         else dueHtml = `<span class="text-emerald-500 text-[10px]">${due}</span>`;
       }
 
-      const tickClass = (checked, color) => checked ? `bg-${color}-500 border-${color}-500 text-white` : (status === 'not_started' && color !== 'violet' ? 'opacity-30 cursor-not-allowed border-slate-200 dark:border-slate-700' : 'border-slate-200 dark:border-slate-700 hover:border-violet-400 cursor-pointer');
+      // Qs done: show as 30/100 format
+      const qsDoneStr = totalNum > 0
+        ? `${qsDone}/${totalNum}${acc ? '<br><span class="text-[9px] text-emerald-500">' + acc + '%</span>' : ''}`
+        : (qsDone > 0 ? `${qsDone}<br><span class="text-[9px] text-slate-400">Qs</span>` : '<span class="text-slate-300 dark:text-slate-600">—</span>');
 
-      // R1 progress
-      let r1Extra = '';
-      if (t.lec && !t.r1 && t.r1Progress > 0) {
-        const total = scGetTopicQsCount(t.name);
-        r1Extra = `<div class="text-[9px] text-amber-500 font-bold">${t.r1Progress}/${total}</div>`;
-      }
+      // NEW badge when new questions arrived after completion
+      const newBadge = hasNew ? `<span class="text-[8px] font-black bg-blue-500 text-white px-1.5 py-0.5 rounded-full animate-pulse ml-1">⚡NEW</span>` : '';
 
       html += `
         <div class="grid items-center gap-0 px-2 py-0 min-h-[42px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" style="grid-template-columns:20px 1fr 90px 36px 36px 36px 36px 36px 70px 90px 90px 32px">
           <div class="text-slate-300 dark:text-slate-600 text-[10px] text-center">${t.priority ? '⭐' : ''}</div>
           <div class="flex items-center gap-1 pl-2">
             <span class="text-[12px] font-semibold ${status === 'done' ? 'line-through text-slate-400' : ''}">${t.name}</span>
+            ${newBadge}
             <button onclick="event.stopPropagation();scRenderSubTopics('${t.name.replace(/'/g,"\\'")}','sc-sub-${t.key.replace(/[^a-zA-Z0-9]/g,'-')}')" class="text-[9px] text-slate-300 hover:text-violet-500 transition-colors" title="Show sub-topics">▾</button>
           </div>
           <div class="flex justify-center"><span class="text-[8.5px] font-black px-2 py-0.5 rounded-full ${statusClass}">${statusLabel}</span></div>
@@ -7405,8 +7419,8 @@ function scRenderTracker() {
           <div class="flex flex-col items-center">${scRevTick(t, 'r3', t.r3, daysUntil, revLabel)}</div>
           <div class="flex flex-col items-center">${scRevTick(t, 'r4', t.r4, daysUntil, revLabel)}</div>
           <div class="text-center">${dueHtml}</div>
-          <div class="text-center text-[10px] font-bold text-slate-500">${qsDone > 0 ? qsDone + ' Qs' + (acc ? '<br><span class="text-[9px] text-emerald-500">' + acc + '%</span>' : '') : '<span class="text-slate-300 dark:text-slate-600">—</span>'}</div>
-          <div class="text-center text-[10px] font-bold">${scGetHWCount(t.name)}</div>
+          <div class="text-center text-[10px] font-bold text-slate-500">${qsDoneStr}</div>
+          <div class="text-center text-[10px] font-bold">${scGetHWCount(t.name, t.subject)}</div>
           <div class="flex justify-center"><button onclick="scOpenTopicMenu('${t.key}')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg font-black w-6 h-6 flex items-center justify-center rounded transition-colors">⋮</button></div>
         </div>
         <div id="sc-sub-${t.key.replace(/[^a-zA-Z0-9]/g,'-')}" class="hidden border-l border-r border-b border-slate-100 dark:border-slate-800"></div>`;
@@ -7434,15 +7448,12 @@ function scRevTick(t, rev, checked, daysUntil, revLabel) {
 
 function prev(rev) { return { r2:'r1', r3:'r2', r4:'r3' }[rev]; }
 
-function scGetTopicQsCount(topicName) {
-  // Count total questions in db where tags[2] = topicName
+function scGetTopicQsCount(topicName, subject) {
+  const subj = subject || scGetSubjectFor(topicName);
   let count = 0;
   Object.values(db).forEach(quiz => {
     if (!quiz || !quiz.questions) return;
-    quiz.questions.forEach(q => {
-      const t2 = (q.tags && q.tags[2]) ? q.tags[2] : '';
-      if (t2.toLowerCase() === topicName.toLowerCase()) count++;
-    });
+    quiz.questions.forEach(q => { if (scMatchesTopic(q, topicName, subj)) count++; });
   });
   return count || '?';
 }
@@ -7464,7 +7475,7 @@ window.scTickLec = (key) => {
     t.trackingMode = null; t.subTopicKeys = [];
     scSave(); scRender(); return;
   }
-  const subTopics = scGetAvailableSubTopics(t.name);
+  const subTopics = scGetAvailableSubTopics(t.name, t.subject);
   if (subTopics.length > 0 && !t.trackingMode) {
     scShowTrackingModeModal(key, subTopics);
   } else {
@@ -7474,14 +7485,14 @@ window.scTickLec = (key) => {
   }
 };
 
-function scGetAvailableSubTopics(topicName) {
+function scGetAvailableSubTopics(topicName, subject) {
+  const subj = subject || scGetSubjectFor(topicName);
+  const subIdx = scGetTagIdx(subj) + 1; // sub-topics are one level deeper
   const subs = new Set();
   Object.values(db).forEach(quiz => {
     if (!quiz || !quiz.questions) return;
     quiz.questions.forEach(q => {
-      const t2 = (q.tags && q.tags[2]) ? q.tags[2] : '';
-      const t3 = (q.tags && q.tags[3]) ? q.tags[3] : '';
-      if (t2.toLowerCase() === topicName.toLowerCase() && t3) subs.add(t3);
+      if (scMatchesTopic(q, topicName, subj) && q.tags && q.tags[subIdx]) subs.add(q.tags[subIdx]);
     });
   });
   return [...subs];
@@ -7489,7 +7500,7 @@ function scGetAvailableSubTopics(topicName) {
 
 function scShowTrackingModeModal(key, subTopics) {
   const t = scDb[key];
-  const total = scGetTopicQsCount(t.name);
+  const total = scGetTopicQsCount(t.name, t.subject);
   const subList = subTopics.slice(0,5).map(s => `<span class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded-lg">${s}</span>`).join(' ');
   const more = subTopics.length > 5 ? `<span class="text-[10px] text-slate-400">+${subTopics.length-5} more</span>` : '';
   document.getElementById('sc-modal-content').innerHTML = `
@@ -7517,7 +7528,7 @@ window.scSetTrackingMode = (key, mode) => {
   if (!t) return;
   t.trackingMode = mode; t.lec = true; t.lecDate = scToday();
   if (mode === 'subtopics') {
-    const subs = scGetAvailableSubTopics(t.name);
+    const subs = scGetAvailableSubTopics(t.name, t.subject);
     t.subTopicKeys = [];
     subs.forEach(sub => {
       const sk = key + '>>>>' + sub;
@@ -7562,18 +7573,18 @@ window.scStartRevision = (key, rev) => {
   const t = scDb[key];
   if (!t) return;
 
-  // Get questions for this topic
+  // Get questions for this topic using correct tag index
   let questions = [];
   Object.values(db).forEach(quiz => {
     if (!quiz || !quiz.questions) return;
     quiz.questions.forEach(q => {
       if (t.isSubTopic) {
-        const t2 = (q.tags&&q.tags[2])?q.tags[2]:'';
-        const t3 = (q.tags&&q.tags[3])?q.tags[3]:'';
-        if (t2.toLowerCase()===t.parentName.toLowerCase() && t3.toLowerCase()===t.name.toLowerCase()) questions.push(q);
+        // Sub-topic: match parent topic AND sub-topic name
+        const parentSubj = scGetSubjectFor(t.parentName);
+        const subIdx = scGetTagIdx(parentSubj) + 1;
+        if (scMatchesTopic(q, t.parentName, parentSubj) && q.tags && q.tags[subIdx] && q.tags[subIdx].toLowerCase() === t.name.toLowerCase()) questions.push(q);
       } else {
-        const t2 = (q.tags&&q.tags[2])?q.tags[2]:'';
-        if (t2.toLowerCase()===t.name.toLowerCase()) questions.push(q);
+        if (scMatchesTopic(q, t.name, t.subject)) questions.push(q);
       }
     });
   });
@@ -7647,13 +7658,15 @@ function scShowPerfectModal(key, rev) {
 
 function scLaunchRevQuiz(key, rev, questions, startIdx) {
   const t = scDb[key];
+  const BATCH_SIZE = 50; // max questions per session
+
   if (!questions) {
-    // Rebuild questions
+    // Rebuild questions with correct tag logic
     questions = [];
     Object.values(db).forEach(quiz => {
       if (!quiz || !quiz.questions) return;
       quiz.questions.forEach(q => {
-        if (q.tags && q.tags[2] && q.tags[2].toLowerCase().includes(t.name.toLowerCase())) questions.push(q);
+        if (scMatchesTopic(q, t.name, t.subject)) questions.push(q);
       });
     });
     if (rev === 'r2' && t.r1Wrong && t.r1Wrong.length > 0) {
@@ -7663,16 +7676,18 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
     }
   }
 
-  const slice = questions.slice(startIdx);
+  // Slice batch: max BATCH_SIZE questions starting from startIdx
+  const slice = questions.slice(startIdx, startIdx + BATCH_SIZE);
   if (slice.length === 0) { scMarkRevDone(key, rev, 'complete'); return; }
 
   // Store context for post-quiz callback
   window._scRevContext = { key, rev, allQuestions: questions, startIdx };
 
-  // Build temp quiz
+  // Build temp quiz title showing batch info when large topic
+  const batchInfo = questions.length > BATCH_SIZE ? ` (${startIdx+1}–${Math.min(startIdx+BATCH_SIZE, questions.length)} of ${questions.length})` : '';
   const tempId = 'quiz_sc_rev_' + Date.now();
   db[tempId] = {
-    id: tempId, title: t.name + ' — ' + rev.toUpperCase() + ' Revision',
+    id: tempId, title: t.name + ' — ' + rev.toUpperCase() + ' Revision' + batchInfo,
     subject: t.subject, questions: slice, isScRevision: true,
     scKey: key, scRev: rev, scStartIdx: startIdx, scTotal: questions.length
   };
@@ -7686,7 +7701,7 @@ window.scMarkRevDone = (key, rev, type) => {
   const t = scDb[key];
   if (!t) return;
   t[rev] = true; t[rev+'Date'] = scToday(); t[rev+'Progress'] = 0;
-  const qc = scGetTopicQsCount(t.isSubTopic ? t.parentName : t.name);
+  const qc = scGetTopicQsCount(t.isSubTopic ? t.parentName : t.name, t.subject);
   t[rev+'QsTotal'] = typeof qc === 'number' ? qc : 0;
   scUpdateStreak(); scSave(); scRender();
 };
