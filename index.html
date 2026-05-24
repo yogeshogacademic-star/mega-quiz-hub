@@ -7104,8 +7104,10 @@ function scGetTagIdx(subject) {
 }
 function scMatchesTopic(q, topicName, subject) {
   if (!q || !q.tags) return false;
-  const idx = scGetTagIdx(subject || '');
-  return !!(q.tags[idx] && q.tags[idx].toLowerCase() === topicName.toLowerCase());
+  // tags[0] MUST match the subject — prevents cross-subject mixing
+  if (subject && q.tags[0] && q.tags[0].toLowerCase() !== subject.toLowerCase()) return false;
+  // tags[1] MUST match the topic name exactly
+  return !!(q.tags[1] && q.tags[1].toLowerCase() === topicName.toLowerCase());
 }
 function scGetSubjectFor(topicName) {
   // Look up subject from scDb
@@ -7493,12 +7495,15 @@ function prev(rev) { return { r2:'r1', r3:'r2', r4:'r3' }[rev]; }
 
 function scGetTopicQsCount(topicName, subject) {
   const subj = subject || scGetSubjectFor(topicName);
-  let count = 0;
+  const seen = new Set();
   Object.values(db).forEach(quiz => {
     if (!quiz || !quiz.questions) return;
-    quiz.questions.forEach(q => { if (scMatchesTopic(q, topicName, subj)) count++; });
+    if (quiz.isScRevision || quiz.isSRS || (quiz.id && quiz.id.startsWith('quiz_sc_rev_'))) return;
+    quiz.questions.forEach(q => {
+      if (q && q.question && !seen.has(q.question) && scMatchesTopic(q, topicName, subj)) seen.add(q.question);
+    });
   });
-  return count || '?';
+  return seen.size || '?';
 }
 
 function scToggleChapter(chapter) {
@@ -7618,48 +7623,49 @@ window.scStartRevision = (key, rev) => {
   const t = scDb[key];
   if (!t) return;
 
-  // Get questions for this topic using correct tag index
+  // Collect questions — deduplicate by question text to avoid same Q from multiple files
+  const seen = new Set();
   let questions = [];
   Object.values(db).forEach(quiz => {
     if (!quiz || !quiz.questions) return;
+    // Skip temp/SRS quizzes
+    if (quiz.isScRevision || quiz.isSRS || (quiz.id && quiz.id.startsWith('quiz_sc_rev_'))) return;
     quiz.questions.forEach(q => {
+      if (!q || !q.question || seen.has(q.question)) return;
+      let match = false;
       if (t.isSubTopic) {
-        // Sub-topic: match parent topic AND sub-topic name
+        // Sub-topic: tags[0]=parentSubject, tags[1]=parentTopic, tags[2]=subTopic
         const parentSubj = scGetSubjectFor(t.parentName);
-        // Sub-topic: match parent topic at tags[1] AND sub-concept at tags[2]
-        if (scMatchesTopic(q, t.parentName, parentSubj) && q.tags && q.tags[2] && q.tags[2].toLowerCase() === t.name.toLowerCase()) questions.push(q);
+        match = scMatchesTopic(q, t.parentName, parentSubj)
+          && q.tags && q.tags[2]
+          && q.tags[2].toLowerCase() === t.name.toLowerCase();
       } else {
-        if (scMatchesTopic(q, t.name, t.subject)) questions.push(q);
+        match = scMatchesTopic(q, t.name, t.subject);
       }
+      if (match) { seen.add(q.question); questions.push(q); }
     });
   });
 
   // For R2+ filter to wrong/skipped from previous round
   if (rev === 'r2' && t.r1Wrong && t.r1Wrong.length > 0) {
-    const wrongSet = new Set(t.r1Wrong);
-    const filtered = questions.filter(q => wrongSet.has(q.question));
-    if (filtered.length > 0) questions = filtered;
+    const ws = new Set(t.r1Wrong);
+    const f = questions.filter(q => ws.has(q.question));
+    if (f.length > 0) questions = f;
   } else if (rev === 'r3' && t.r2Wrong && t.r2Wrong.length > 0) {
-    const wrongSet = new Set(t.r2Wrong);
-    const filtered = questions.filter(q => wrongSet.has(q.question));
-    if (filtered.length > 0) questions = filtered;
+    const ws = new Set(t.r2Wrong);
+    const f = questions.filter(q => ws.has(q.question));
+    if (f.length > 0) questions = f;
   } else if (rev === 'r4' && t.r3Wrong && t.r3Wrong.length > 0) {
-    const wrongSet = new Set(t.r3Wrong);
-    const filtered = questions.filter(q => wrongSet.has(q.question));
-    if (filtered.length > 0) questions = filtered;
+    const ws = new Set(t.r3Wrong);
+    const f = questions.filter(q => ws.has(q.question));
+    if (f.length > 0) questions = f;
   }
 
-  if (questions.length === 0 && rev === 'r1') {
-    scShowManualRevModal(key, rev); return;
-  }
-  if (questions.length === 0) {
-    scShowPerfectModal(key, rev); return;
-  }
+  if (questions.length === 0 && rev === 'r1') { scShowManualRevModal(key, rev); return; }
+  if (questions.length === 0) { scShowPerfectModal(key, rev); return; }
 
-  // Check progress - continue or fresh
   const progressKey = rev + 'Progress';
   const done = t[progressKey] || 0;
-
   if (done > 0 && done < questions.length) {
     scShowContinueModal(key, rev, done, questions.length, questions);
   } else {
@@ -7706,12 +7712,15 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
   const BATCH_SIZE = 50; // max questions per session
 
   if (!questions) {
-    // Rebuild questions with correct tag logic
+    // Rebuild questions with deduplication
+    const seen = new Set();
     questions = [];
     Object.values(db).forEach(quiz => {
       if (!quiz || !quiz.questions) return;
+      if (quiz.isScRevision || quiz.isSRS || (quiz.id && quiz.id.startsWith('quiz_sc_rev_'))) return;
       quiz.questions.forEach(q => {
-        if (scMatchesTopic(q, t.name, t.subject)) questions.push(q);
+        if (!q || !q.question || seen.has(q.question)) return;
+        if (scMatchesTopic(q, t.name, t.subject)) { seen.add(q.question); questions.push(q); }
       });
     });
     if (rev === 'r2' && t.r1Wrong && t.r1Wrong.length > 0) {
