@@ -7099,7 +7099,9 @@ function scLoad() {
 // All GS/English/Reasoning subjects: tracked topic is at tags[1] (Tag 2)
 const SC_MATHS_SUBJECTS = ['Arithmetic', 'Advanced Maths'];
 function scGetTagIdx(subject) {
-  return SC_MATHS_SUBJECTS.includes(subject) ? 2 : 1;
+  // ALL subjects: topic is always at tags[1] (Tag 2 in the editor)
+  // SC_MATHS_SUBJECTS only differs in that sub-topics (▾) are shown from tags[2]
+  return 1;
 }
 function scMatchesTopic(q, topicName, subject) {
   if (!q || !q.tags) return false;
@@ -7265,13 +7267,14 @@ function scGetHWCount(topicName, subject) {
 
 function scGetSubTopics(topicName, subject) {
   const subj = subject || scGetSubjectFor(topicName);
-  const subIdx = scGetTagIdx(subj) + 1;
+  // Sub-topics only for Maths subjects, from tags[2]
+  if (!SC_MATHS_SUBJECTS.includes(subj)) return [];
   const concepts = {};
   Object.values(db).forEach(quiz => {
     if (!quiz || !quiz.questions) return;
     quiz.questions.forEach(q => {
       if (!scMatchesTopic(q, topicName, subj)) return;
-      const t3 = (q.tags && q.tags[subIdx]) ? q.tags[subIdx] : '';
+      const t3 = (q.tags && q.tags[2]) ? q.tags[2] : '';
       if (t3) { if (!concepts[t3]) concepts[t3] = { name:t3, total:0, done:0, correct:0 }; concepts[t3].total++; }
     });
   });
@@ -7279,7 +7282,7 @@ function scGetSubTopics(topicName, subject) {
     if (!h.reviewData) return;
     h.reviewData.forEach(q => {
       if (!scMatchesTopic(q, topicName, subj)) return;
-      const t3 = (q.tags && q.tags[subIdx]) ? q.tags[subIdx] : '';
+      const t3 = (q.tags && q.tags[2]) ? q.tags[2] : '';
       if (t3 && concepts[t3]) { concepts[t3].done++; if (q.status === 'correct') concepts[t3].correct++; }
     });
   });
@@ -7293,8 +7296,7 @@ function scRenderSubTopics(topicName, containerId) {
   const subject = scGetSubjectFor(topicName);
   const subs = scGetSubTopics(topicName, subject);
   if (subs.length === 0) {
-    const tagLbl = SC_MATHS_SUBJECTS.includes(subject) ? 'Tag 4 (concept)' : 'Tag 3 (concept)';
-    el.innerHTML = `<div class="text-[10px] text-slate-400 py-2 px-4 italic">No sub-topics found. Add ${tagLbl} to your JSON files.</div>`;
+    el.innerHTML = `<div class="text-[10px] text-slate-400 py-2 px-4 italic">No sub-concepts found. Add Tag 3 to your Arithmetic/Maths questions.</div>`;
     el.classList.remove('hidden');
     return;
   }
@@ -7305,7 +7307,7 @@ function scRenderSubTopics(topicName, containerId) {
     html += `<div class="flex items-center gap-2 px-4 py-1.5 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800">
       <span class="text-slate-300 text-[10px]">└</span>
       <span class="text-[11.5px] text-slate-600 dark:text-slate-400 flex-1">${sub.name}</span>
-      <span class="text-[10px] font-bold text-slate-400">${sub.done}/${sub.total} Qs</span>
+      <span class="text-[10px] font-bold text-slate-400">${sub.done}/${sub.total}</span>
       ${acc!==null?`<span class="text-[10px] font-bold ${accColor}">${acc}%</span>`:''}
     </div>`;
   });
@@ -7520,13 +7522,15 @@ window.scTickLec = (key) => {
 };
 
 function scGetAvailableSubTopics(topicName, subject) {
+  // Sub-topics only meaningful for Maths subjects (shown as ▾ concepts)
+  // Sub-topics are at tags[2] (Tag 3 in editor) for all subjects
   const subj = subject || scGetSubjectFor(topicName);
-  const subIdx = scGetTagIdx(subj) + 1; // sub-topics are one level deeper
+  if (!SC_MATHS_SUBJECTS.includes(subj)) return []; // GS subjects have no sub-topics
   const subs = new Set();
   Object.values(db).forEach(quiz => {
     if (!quiz || !quiz.questions) return;
     quiz.questions.forEach(q => {
-      if (scMatchesTopic(q, topicName, subj) && q.tags && q.tags[subIdx]) subs.add(q.tags[subIdx]);
+      if (scMatchesTopic(q, topicName, subj) && q.tags && q.tags[2]) subs.add(q.tags[2]);
     });
   });
   return [...subs];
@@ -7615,8 +7619,8 @@ window.scStartRevision = (key, rev) => {
       if (t.isSubTopic) {
         // Sub-topic: match parent topic AND sub-topic name
         const parentSubj = scGetSubjectFor(t.parentName);
-        const subIdx = scGetTagIdx(parentSubj) + 1;
-        if (scMatchesTopic(q, t.parentName, parentSubj) && q.tags && q.tags[subIdx] && q.tags[subIdx].toLowerCase() === t.name.toLowerCase()) questions.push(q);
+        // Sub-topic: match parent topic at tags[1] AND sub-concept at tags[2]
+        if (scMatchesTopic(q, t.parentName, parentSubj) && q.tags && q.tags[2] && q.tags[2].toLowerCase() === t.name.toLowerCase()) questions.push(q);
       } else {
         if (scMatchesTopic(q, t.name, t.subject)) questions.push(q);
       }
