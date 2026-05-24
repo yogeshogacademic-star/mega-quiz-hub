@@ -7177,24 +7177,32 @@ function scGetNextRevLabel(t) {
 
 function scGetQsDone(topicName, subject) {
   const subj = subject || scGetSubjectFor(topicName);
-  let count = 0;
+  const seen = new Set(); // deduplicate — count each unique question once only
   historyDb.forEach(h => {
     if (!h.reviewData) return;
-    h.reviewData.forEach(q => { if (scMatchesTopic(q, topicName, subj)) count++; });
+    h.reviewData.forEach(q => {
+      if (scMatchesTopic(q, topicName, subj) && q.question) seen.add(q.question);
+    });
   });
-  return count;
+  return seen.size;
 }
 
 function scGetAccuracy(topicName, subject) {
   const subj = subject || scGetSubjectFor(topicName);
-  let correct = 0, total = 0;
+  const latest = {}; // keep only latest attempt per question
   historyDb.forEach(h => {
     if (!h.reviewData) return;
     h.reviewData.forEach(q => {
-      if (scMatchesTopic(q, topicName, subj)) { total++; if (q.status === 'correct') correct++; }
+      if (scMatchesTopic(q, topicName, subj) && q.question) {
+        // historyDb is newest-first, so only set if not already seen
+        if (!(q.question in latest)) latest[q.question] = q.status;
+      }
     });
   });
-  return total > 0 ? Math.round(correct/total*100) : null;
+  const entries = Object.values(latest);
+  if (entries.length === 0) return null;
+  const correct = entries.filter(s => s === 'correct').length;
+  return Math.round(correct / entries.length * 100);
 }
 
 function scRenderStats() {
