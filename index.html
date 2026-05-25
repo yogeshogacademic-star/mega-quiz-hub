@@ -1342,9 +1342,32 @@
     };
 
     const CONCEPT_MAP = {
-        // Arithmetic & Advanced Maths Tag 3 concepts are now read dynamically
-        // from your imported JSON question files (tags[2] field).
-        // Add your own via the + button in the question editor.
+        "Percentage": [
+            "Type 1: Basic Conversions & Calculations",
+            "Type 2: Percentage Equations (Algebraic)",
+            "Type 3: Percentage More/Less Comparison",
+            "Type 4: Finding Original Number",
+            "Type 5: Price Consumption Constant Expenditure",
+            "Type 6: Income Expenditure Savings",
+            "Type 7: Salary Distribution Multiple Heads",
+            "Type 8: Successive & Net Percentage Change",
+            "Type 9: Population Growth Decay & Depreciation",
+            "Type 10: Election & Voting",
+            "Type 11: Venn Diagram & Set Theory",
+            "Type 12: Passing Marks & Examination",
+            "Type 13: Geometry Percentage Change",
+            "Type 14: Miscellaneous"
+        ],
+        "3D-Mensuration": [
+            "Cube & Cuboid",
+            "Cylinder",
+            "Cone",
+            "Sphere",
+            "Hemisphere",
+            "Prism",
+            "Pyramid",
+            "Miscellaneous"
+        ]
     };
 
     window.openGlobalEditModalBySafeId = (id) => {
@@ -1384,6 +1407,15 @@
             const quiz = db[quizId];
             if(!quiz || !quiz.title || quiz.title.includes("Master Mock") || quiz.title.includes("SRS") || quiz.title.includes("🎯") || !Array.isArray(quiz.questions)) return;
             quiz.questions.forEach((q) => {
+                // Guard: fix non-array options before they can crash anything
+                if (!Array.isArray(q.options)) {
+                    if (q.type === 'typing' || q.exactAnswer) {
+                        q.options = [];
+                    } else if (q.options && typeof q.options === 'object') {
+                        const answerKey = q.answer;
+                        q.options = Object.entries(q.options).map(([key, text]) => ({ text: String(text), correct: key === answerKey }));
+                    } else { q.options = []; }
+                }
                 const searchStr = ((q.question || "") + " " + (q.solution || "") + " " + (q.tags ? (Array.isArray(q.tags) ? q.tags.join(" ") : String(q.tags)) : "")).toLowerCase();
                 let cText = "N/A";
                 if (q.type === 'typing') { cText = q.exactAnswer || "N/A"; } else { cText = (q.options && q.options.find(o=>o.correct)?.text) || "N/A"; }
@@ -4106,7 +4138,20 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                         }
 
                         // Fresh import
-                        const newId = 'quiz_' + Date.now(); 
+                        const newId = 'quiz_' + Date.now();
+                        // Auto-fix questions with object options (e.g. {A:'...', B:'...'} → array)
+                        if (Array.isArray(importedData.questions)) {
+                            importedData.questions.forEach(q => {
+                                if (!Array.isArray(q.options)) {
+                                    if (q.type === 'typing' || q.exactAnswer) {
+                                        q.options = [];
+                                    } else if (q.options && typeof q.options === 'object') {
+                                        const answerKey = q.answer;
+                                        q.options = Object.entries(q.options).map(([key, text]) => ({ text: String(text), correct: key === answerKey }));
+                                    } else { q.options = []; }
+                                }
+                            });
+                        }
                         db[newId] = importedData;
                         saveData(); rebuildSearchCache(); renderDashboard(); 
                         alert(`✅ Imported into ${targetImportSubject}!`);
