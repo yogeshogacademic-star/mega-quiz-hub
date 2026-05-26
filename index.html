@@ -7866,7 +7866,30 @@ window.scStartRevision = (key, rev) => {
   // For R2+ filter to wrong/skipped from previous round
   if (rev === 'r2' && t.r1Wrong && t.r1Wrong.length > 0) {
     const ws = new Set(t.r1Wrong);
+    
+    console.log('=== R2 FILTER DEBUG ===');
+    console.log('r1Wrong array:', t.r1Wrong);
+    console.log('r1Wrong Set size:', ws.size);
+    console.log('Questions BEFORE filter:', questions.length);
+    
+    const beforeFilter = questions.map(q => q.question);
     questions = questions.filter(q => ws.has(q.question));
+    const afterFilter = questions.map(q => q.question);
+    
+    console.log('Questions AFTER filter:', questions.length);
+    console.log('Before filter list:', beforeFilter);
+    console.log('After filter list:', afterFilter);
+    
+    // Check for duplicates or mismatches
+    const extras = afterFilter.filter(q => !ws.has(q));
+    if (extras.length > 0) {
+      console.error('🚨 EXTRA QUESTIONS that shouldnt be here:', extras);
+      alert(`BUG: ${extras.length} questions passed filter but are NOT in r1Wrong[]!\n\n${extras.slice(0,2).join('\n\n')}`);
+    }
+    
+    if (questions.length !== ws.size) {
+      alert(`⚠️ MISMATCH:\nr1Wrong[] has ${ws.size} questions\nBut filter returned ${questions.length} questions\n\nCheck console for details!`);
+    }
   } else if (rev === 'r3' && t.r2Wrong && t.r2Wrong.length > 0) {
     const ws = new Set(t.r2Wrong);
     questions = questions.filter(q => ws.has(q.question));
@@ -7874,19 +7897,11 @@ window.scStartRevision = (key, rev) => {
     const ws = new Set(t.r3Wrong);
     questions = questions.filter(q => ws.has(q.question));
   } else if (rev === 'r1') {
-    // SMART R1 FILTER: Skip already-mastered and recently-correct questions
-    // Only show: (1) new questions (2) due questions
-    const now = Date.now();
+    // R1 FILTER: Show ONLY new questions (NOT in SRS)
     const srsMap = new Map();
     mistakesDb.forEach(m => { if (m.question) srsMap.set(m.question, m); });
     
-    questions = questions.filter(q => {
-      const srsCard = srsMap.get(q.question);
-      if (!srsCard) return true; // New question - include
-      if (srsCard.isMastered) return false; // Mastered - skip
-      if (srsCard.srs.nextReview <= now) return true; // Due now - include
-      return false; // Not due yet - skip
-    });
+    questions = questions.filter(q => !srsMap.has(q.question)); // NEW ONLY
     
     // Store which questions are in THIS R1 attempt (for after-R4 SRS update)
     if (questions.length > 0) {
@@ -7932,7 +7947,21 @@ function scShowRoundStatsModal(key, rev, questions) {
   const prevRev = rev === 'r2' ? 'r1' : rev === 'r3' ? 'r2' : 'r3';
   const prevWrongKey = prevRev + 'Wrong';
   const prevQsTotal = t[prevRev + 'QsTotal'] || 0;
-  const wrongCount = questions.length;
+  
+  // BUG FIX: Use stored wrong count, not filtered questions length!
+  const wrongCount = (t[prevWrongKey] || []).length;
+  
+  // DEEP DEBUG
+  console.log('=== MODAL DEBUG ===');
+  console.log('prevWrongKey:', prevWrongKey);
+  console.log('Stored wrong array length:', wrongCount);
+  console.log('Filtered questions length:', questions.length);
+  console.log('Stored wrong array:', t[prevWrongKey]);
+  console.log('Filtered questions:', questions.map(q => q.question));
+  
+  if (wrongCount !== questions.length) {
+    alert(`🚨 BUG DETECTED!\n\nStored ${prevWrongKey}: ${wrongCount}\nFiltered questions: ${questions.length}\n\nThis is the bug! Modal will now use STORED count (${wrongCount})`);
+  }
   
   // If data missing or suspicious, show simplified modal
   if (!prevQsTotal || prevQsTotal < wrongCount) {
