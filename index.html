@@ -8395,6 +8395,14 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
       });
     }
   }
+  
+  // DEBUG: Show what was collected
+  if (rev === 'r1' && startIdx === 0) {
+    const summary = lastAttempt.reviewData.map(q => 
+      `${q.status}: ${q.question.slice(0,30)}...`
+    ).join('\n');
+    alert(`R1 SUBMIT DEBUG:\n\nTotal: ${total}\nCorrect: ${correct}\nWrong: ${wrong}\nSkipped: ${skipped}\n\nCollected ${wrongQuestions.length} wrong:\n${summary}`);
+  }
 
   // Update progress
   const newDone = startIdx + total;
