@@ -7812,7 +7812,13 @@ function scShowManualRevModal(key, rev) {
 // ── START REVISION ──
 window.scStartRevision = (key, rev) => {
   const t = scDb[key];
-  if (!t) return;
+  if (!t) {
+    alert(`ERROR: No topic found for key: ${key}`);
+    return;
+  }
+
+  // DEBUG: Show what topic we're working with
+  alert(`STARTING REVISION:\nKey: ${key}\nName: ${t.name}\nisSubTopic: ${t.isSubTopic}\nParent: ${t.parentName || 'none'}\nSubject: ${t.subject}`);
 
   // Collect questions — deduplicate by question text to avoid same Q from multiple files
   const seen = new Set();
@@ -7869,6 +7875,11 @@ window.scStartRevision = (key, rev) => {
 
   if (questions.length === 0 && rev === 'r1') { scShowManualRevModal(key, rev); return; }
   if (questions.length === 0) { scShowPerfectModal(key, rev); return; }
+
+  // DEBUG: Show what we found
+  if (t.isSubTopic) {
+    alert(`SUBTOPIC DEBUG:\nName: ${t.name}\nParent: ${t.parentName}\nSubject: ${t.subject}\nQuestions found: ${questions.length}\nFirst question: ${questions[0] ? questions[0].question.slice(0, 50) : 'none'}`);
+  }
 
   const progressKey = rev + 'Progress';
   const done = t[progressKey] || 0;
