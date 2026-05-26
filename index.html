@@ -7846,10 +7846,8 @@ window.scStartRevision = (key, rev) => {
 
   // For R2+ filter to wrong/skipped from previous round
   if (rev === 'r2' && t.r1Wrong && t.r1Wrong.length > 0) {
-    alert(`R2 FILTER:\nr1Wrong has ${t.r1Wrong.length} items\nBefore filter: ${questions.length} questions\nFirst wrong: ${t.r1Wrong[0] ? t.r1Wrong[0].slice(0,50) : 'none'}`);
     const ws = new Set(t.r1Wrong);
     questions = questions.filter(q => ws.has(q.question));
-    alert(`After filter: ${questions.length} questions`);
   } else if (rev === 'r3' && t.r2Wrong && t.r2Wrong.length > 0) {
     const ws = new Set(t.r2Wrong);
     questions = questions.filter(q => ws.has(q.question));
@@ -8396,11 +8394,17 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
     t[rev + 'QsTotal'] = totalQs;
   }
 
-  // Accumulate wrong/skipped for next revision round
+  // Store wrong/skipped for next revision round
   const nextRevWrongKey = { r1:'r1Wrong', r2:'r2Wrong', r3:'r3Wrong', r4:'r4Wrong' }[rev];
   if (nextRevWrongKey) {
-    const existing = t[nextRevWrongKey] || [];
-    t[nextRevWrongKey] = [...new Set([...existing, ...wrongQuestions])];
+    // If first batch (startIdx === 0), RESET wrong[] array
+    // If later batch (startIdx > 0), ACCUMULATE
+    if (startIdx === 0) {
+      t[nextRevWrongKey] = wrongQuestions;
+    } else {
+      const existing = t[nextRevWrongKey] || [];
+      t[nextRevWrongKey] = [...new Set([...existing, ...wrongQuestions])];
+    }
   }
 
   scSave();
