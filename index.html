@@ -7818,13 +7818,7 @@ function scShowManualRevModal(key, rev) {
 // ── START REVISION ──
 window.scStartRevision = (key, rev) => {
   const t = scDb[key];
-  if (!t) {
-    alert(`ERROR: No topic found for key: ${key}`);
-    return;
-  }
-
-  // DEBUG: Show what topic we're working with
-  alert(`STARTING REVISION:\nKey: ${key}\nName: ${t.name}\nisSubTopic: ${t.isSubTopic}\nParent: ${t.parentName || 'none'}\nSubject: ${t.subject}`);
+  if (!t) return;
 
   // Collect questions — deduplicate by question text to avoid same Q from multiple files
   const seen = new Set();
@@ -7881,11 +7875,6 @@ window.scStartRevision = (key, rev) => {
 
   if (questions.length === 0 && rev === 'r1') { scShowManualRevModal(key, rev); return; }
   if (questions.length === 0) { scShowPerfectModal(key, rev); return; }
-
-  // DEBUG: Show what we found
-  if (t.isSubTopic) {
-    alert(`SUBTOPIC DEBUG:\nName: ${t.name}\nParent: ${t.parentName}\nSubject: ${t.subject}\nQuestions found: ${questions.length}\nFirst question: ${questions[0] ? questions[0].question.slice(0, 50) : 'none'}`);
-  }
 
   const progressKey = rev + 'Progress';
   const done = t[progressKey] || 0;
@@ -7956,8 +7945,19 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
         if (match) { seen.add(q.question); questions.push(q); }
       });
     });
+    // Filter by wrong[] for R2/R3/R4
     if (rev === 'r2' && t.r1Wrong && t.r1Wrong.length > 0) {
       const ws = new Set(t.r1Wrong);
+      const f = questions.filter(q => ws.has(q.question));
+      if (f.length > 0) questions = f;
+    }
+    if (rev === 'r3' && t.r2Wrong && t.r2Wrong.length > 0) {
+      const ws = new Set(t.r2Wrong);
+      const f = questions.filter(q => ws.has(q.question));
+      if (f.length > 0) questions = f;
+    }
+    if (rev === 'r4' && t.r3Wrong && t.r3Wrong.length > 0) {
+      const ws = new Set(t.r3Wrong);
       const f = questions.filter(q => ws.has(q.question));
       if (f.length > 0) questions = f;
     }
