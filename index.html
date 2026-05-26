@@ -7874,12 +7874,19 @@ window.scStartRevision = (key, rev) => {
     const ws = new Set(t.r3Wrong);
     questions = questions.filter(q => ws.has(q.question));
   } else if (rev === 'r1') {
-    // R1 FILTER: Show ONLY new questions (not in SRS)
-    // Old questions are in SRS for maintenance - they appear in SRS sprints
+    // SMART R1 FILTER: Skip already-mastered and recently-correct questions
+    // Only show: (1) new questions (2) due questions
+    const now = Date.now();
     const srsMap = new Map();
     mistakesDb.forEach(m => { if (m.question) srsMap.set(m.question, m); });
     
-    questions = questions.filter(q => !srsMap.has(q.question)); // Only questions NOT in SRS
+    questions = questions.filter(q => {
+      const srsCard = srsMap.get(q.question);
+      if (!srsCard) return true; // New question - include
+      if (srsCard.isMastered) return false; // Mastered - skip
+      if (srsCard.srs.nextReview <= now) return true; // Due now - include
+      return false; // Not due yet - skip
+    });
     
     // Store which questions are in THIS R1 attempt (for after-R4 SRS update)
     if (questions.length > 0) {
@@ -8475,6 +8482,13 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
     } else {
       const existing = t[nextRevWrongKey] || [];
       t[nextRevWrongKey] = [...new Set([...existing, ...wrongQuestions])];
+    }
+    
+    // DEBUG R1
+    if (rev === 'r1') {
+      setTimeout(() => {
+        alert(`R1 SUBMIT DEBUG:\n\nTotal answered: ${total}\nWrong collected: ${wrongQuestions.length}\n\nStored to r1Wrong[]:\n${t.r1Wrong.length} questions\n\nFirst 3:\n${t.r1Wrong.slice(0,3).join('\n')}`);
+      }, 500);
     }
   }
 
