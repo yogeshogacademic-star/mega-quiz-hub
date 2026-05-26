@@ -8387,13 +8387,32 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
 
   // Collect wrong/skipped questions from this batch
   const wrongQuestions = [];
+  let debugInfo = '';
+  
   if (window.historyDb && historyDb.length > 0) {
     const lastAttempt = historyDb[0];
+    debugInfo += `historyDb exists: ${historyDb.length} attempts\n`;
+    debugInfo += `lastAttempt exists: ${!!lastAttempt}\n`;
+    debugInfo += `reviewData exists: ${!!(lastAttempt && lastAttempt.reviewData)}\n`;
+    debugInfo += `reviewData length: ${lastAttempt && lastAttempt.reviewData ? lastAttempt.reviewData.length : 0}\n\n`;
+    
     if (lastAttempt && lastAttempt.reviewData) {
-      lastAttempt.reviewData.forEach(q => {
-        if (q.status === 'wrong' || q.status === 'skipped') wrongQuestions.push(q.question);
+      lastAttempt.reviewData.forEach((q, idx) => {
+        debugInfo += `Q${idx+1}: status="${q.status}"\n`;
+        if (q.status === 'wrong' || q.status === 'skipped') {
+          wrongQuestions.push(q.question);
+        }
       });
     }
+  } else {
+    debugInfo = 'historyDb is empty or undefined!';
+  }
+
+  // DEBUG for R1
+  if (rev === 'r1' && startIdx === 0) {
+    setTimeout(() => {
+      alert(`COLLECTION DEBUG:\n\n${debugInfo}\n\nCollected: ${wrongQuestions.length} wrong questions`);
+    }, 500);
   }
 
   // Update progress
