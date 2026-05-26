@@ -7731,10 +7731,12 @@ function scGetAvailableSubTopics(topicName, subject) {
   Object.values(db).forEach(quiz => {
     if (!quiz || !quiz.questions) return;
     quiz.questions.forEach(q => {
-      if (scMatchesTopic(q, topicName, subj) && q.tags && q.tags[2]) subs.add(q.tags[2]);
+      if (scMatchesTopic(q, topicName, subj) && q.tags && q.tags[2]) {
+        subs.add(q.tags[2].trim()); // Trim whitespace
+      }
     });
   });
-  return [...subs];
+  return [...subs].sort(); // Sort for consistent ordering
 }
 
 function scShowTrackingModeModal(key, subTopics) {
@@ -7827,7 +7829,7 @@ window.scStartRevision = (key, rev) => {
         const parentSubj = scGetSubjectFor(t.parentName);
         match = scMatchesTopic(q, t.parentName, parentSubj)
           && q.tags && q.tags[2]
-          && q.tags[2].toLowerCase() === t.name.toLowerCase();
+          && q.tags[2].trim().toLowerCase() === t.name.trim().toLowerCase();
       } else {
         match = scMatchesTopic(q, t.name, t.subject);
       }
@@ -7924,7 +7926,17 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
       if (quiz.isScRevision || quiz.isSRS || (quiz.id && quiz.id.startsWith('quiz_sc_rev_'))) return;
       quiz.questions.forEach(q => {
         if (!q || !q.question || seen.has(q.question)) return;
-        if (scMatchesTopic(q, t.name, t.subject)) { seen.add(q.question); questions.push(q); }
+        let match = false;
+        if (t.isSubTopic) {
+          // Sub-topic: filter by parent topic + tag3
+          const parentSubj = scGetSubjectFor(t.parentName);
+          match = scMatchesTopic(q, t.parentName, parentSubj)
+            && q.tags && q.tags[2]
+            && q.tags[2].trim().toLowerCase() === t.name.trim().toLowerCase();
+        } else {
+          match = scMatchesTopic(q, t.name, t.subject);
+        }
+        if (match) { seen.add(q.question); questions.push(q); }
       });
     });
     if (rev === 'r2' && t.r1Wrong && t.r1Wrong.length > 0) {
