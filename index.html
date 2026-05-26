@@ -7552,6 +7552,12 @@ function scRenderTracker() {
               confidence: '', priority: false, notes: ''
             };
             scDb[subKey] = st; // Store it
+          } else {
+            // CRITICAL: Existing subtopic might not have key property! Set it now.
+            if (!st.key) st.key = subKey;
+            if (!st.isSubTopic) st.isSubTopic = true;
+            if (!st.parentName) st.parentName = t.name;
+            if (!st.parentKey) st.parentKey = t.key;
           }
           
           // Calculate next revision label and days until for THIS subtopic
