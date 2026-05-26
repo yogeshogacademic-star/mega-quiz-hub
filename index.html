@@ -7541,6 +7541,7 @@ function scRenderTracker() {
           // If subtopic doesn't exist in scDb yet, create minimal entry
           if (!st) {
             st = {
+              key: subKey, // CRITICAL: scRevTick needs this!
               subject: t.subject, chapter: t.chapter, name: subTopicName,
               parentKey: t.key, parentName: t.name, isSubTopic: true,
               lec: false, r1: false, r2: false, r3: false, r4: false,
@@ -7552,6 +7553,18 @@ function scRenderTracker() {
             };
             scDb[subKey] = st; // Store it
           }
+          
+          // Calculate next revision label and days until for THIS subtopic
+          let subRevLabel = null;
+          if (!st.lec) subRevLabel = null;
+          else if (!st.r1) subRevLabel = 'R1';
+          else if (!st.r2) subRevLabel = 'R2';
+          else if (!st.r3) subRevLabel = 'R3';
+          else if (!st.r4) subRevLabel = 'R4';
+          
+          const subDaysUntil = subRevLabel && st[subRevLabel.toLowerCase()+'Date'] 
+            ? Math.floor((new Date(st[subRevLabel.toLowerCase()+'Date'])-new Date(todayStr))/(1000*60*60*24)) 
+            : null;
           
           const subStatus = scGetStatus(st);
           const subStatusLabel = {'done':'DONE','learning':'●●●','overdue':'!','not_started':'—'}[subStatus]||'—';
@@ -7578,10 +7591,10 @@ function scRenderTracker() {
           </div>
           <div class="flex justify-center"><span class="text-[8px] font-black px-1.5 py-0.5 rounded-full ${subStatusClass}">${subStatusLabel}</span></div>
           <div class="flex justify-center">${subLecTick}</div>
-          <div class="flex flex-col items-center">${scRevTick(st, 'r1', st.r1, daysUntil, revLabel)}</div>
-          <div class="flex flex-col items-center">${scRevTick(st, 'r2', st.r2, daysUntil, revLabel)}</div>
-          <div class="flex flex-col items-center">${scRevTick(st, 'r3', st.r3, daysUntil, revLabel)}</div>
-          <div class="flex flex-col items-center">${scRevTick(st, 'r4', st.r4, daysUntil, revLabel)}</div>
+          <div class="flex flex-col items-center">${scRevTick(st, 'r1', st.r1, subDaysUntil, subRevLabel)}</div>
+          <div class="flex flex-col items-center">${scRevTick(st, 'r2', st.r2, subDaysUntil, subRevLabel)}</div>
+          <div class="flex flex-col items-center">${scRevTick(st, 'r3', st.r3, subDaysUntil, subRevLabel)}</div>
+          <div class="flex flex-col items-center">${scRevTick(st, 'r4', st.r4, subDaysUntil, subRevLabel)}</div>
           <div class="text-center"></div>
           <div class="text-center text-[10px] text-slate-500 leading-tight">${subQsDoneStr}</div>
           <div></div>
