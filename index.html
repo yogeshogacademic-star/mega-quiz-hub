@@ -8387,32 +8387,15 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
 
   // Collect wrong/skipped questions from this batch
   const wrongQuestions = [];
-  let debugInfo = '';
-  
-  if (historyDb && historyDb.length > 0) {  // REMOVED window.
+  if (historyDb && historyDb.length > 0) {
     const lastAttempt = historyDb[0];
-    debugInfo += `historyDb exists: ${historyDb.length} attempts\n`;
-    debugInfo += `lastAttempt exists: ${!!lastAttempt}\n`;
-    debugInfo += `reviewData exists: ${!!(lastAttempt && lastAttempt.reviewData)}\n`;
-    debugInfo += `reviewData length: ${lastAttempt && lastAttempt.reviewData ? lastAttempt.reviewData.length : 0}\n\n`;
-    
     if (lastAttempt && lastAttempt.reviewData) {
-      lastAttempt.reviewData.forEach((q, idx) => {
-        debugInfo += `Q${idx+1}: status="${q.status}"\n`;
+      lastAttempt.reviewData.forEach(q => {
         if (q.status === 'wrong' || q.status === 'skipped') {
           wrongQuestions.push(q.question);
         }
       });
     }
-  } else {
-    debugInfo = 'historyDb is empty or undefined!';
-  }
-
-  // DEBUG for R1
-  if (rev === 'r1' && startIdx === 0) {
-    setTimeout(() => {
-      alert(`COLLECTION DEBUG:\n\n${debugInfo}\n\nCollected: ${wrongQuestions.length} wrong questions`);
-    }, 500);
   }
 
   // Update progress
@@ -8420,8 +8403,9 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
   t[rev + 'Progress'] = newDone;
   
   // Set total question count on first submit (needed for R2/R3/R4 stats modal)
-  if (!t[rev + 'QsTotal']) {
-    t[rev + 'QsTotal'] = totalQs;
+  const quiz = db[currentQuizId];
+  if (!t[rev + 'QsTotal'] && quiz && quiz.scTotal) {
+    t[rev + 'QsTotal'] = quiz.scTotal;  // Use total for entire round, not batch size
   }
 
   // Store wrong/skipped for next revision round
@@ -8434,13 +8418,6 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
     } else {
       const existing = t[nextRevWrongKey] || [];
       t[nextRevWrongKey] = [...new Set([...existing, ...wrongQuestions])];
-    }
-    
-    // DEBUG: Show what was stored
-    if (rev === 'r1') {
-      setTimeout(() => {
-        alert(`R1 COMPLETE DEBUG:\n\nYou answered ${total} questions\nCorrect: ${correct}\nWrong: ${wrong}\n\nStored to r1Wrong[]:\n${t.r1Wrong.length} questions\n\nFirst wrong Q:\n${t.r1Wrong[0] ? t.r1Wrong[0].slice(0,50) : 'none'}`);
-      }, 1000);
     }
   }
 
