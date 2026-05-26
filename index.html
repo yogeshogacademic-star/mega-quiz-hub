@@ -7495,7 +7495,12 @@ function scRenderTracker() {
       const newBadge = hasNew ? `<span class="text-[8px] font-black bg-blue-500 text-white px-1.5 py-0.5 rounded-full animate-pulse ml-1">⚡NEW</span>` : '';
 
       // Subtopic expand button — only for Arithmetic & Advanced Maths
-      const subTopicBtn = isMathsSubject
+      // AUTO-DETECT if subtopics exist by checking tag3 in questions
+      const availableSubTopics = isMathsSubject ? scGetAvailableSubTopics(t.name, t.subject) : [];
+      const hasSubTopics = isMathsSubject && availableSubTopics.length > 0;
+      
+      // For Maths subjects with subtopics, don't show the expand button - subtopics render inline
+      const subTopicBtn = (isMathsSubject && !hasSubTopics)
         ? `<button onclick="event.stopPropagation();scRenderSubTopics('${t.name.replace(/'/g,"\\'")}','sc-sub-${t.key.replace(/[^a-zA-Z0-9]/g,'-')}')" class="text-[9px] text-slate-300 hover:text-violet-500 transition-colors ml-1" title="Show concepts">▾</button>`
         : '';
 
@@ -7505,9 +7510,6 @@ function scRenderTracker() {
         <div onclick="scTickLec('${t.key}')" class="w-[22px] h-[22px] rounded-[5px] border flex items-center justify-center text-[11px] transition-all ${t.lec ? 'bg-violet-500 border-violet-500 text-white' : 'border-slate-200 dark:border-slate-700 hover:border-violet-400 cursor-pointer'}">${t.lec ? '✓' : ''}</div>
         ${lecDate ? `<div class="text-[8px] text-violet-400 font-bold leading-none">${lecDate}</div>` : ''}
       </div>`;
-
-      // Check if this is Arithmetic/Advanced Maths with subtopic tracking
-      const hasSubTopics = isMathsSubject && t.trackingMode === 'subtopics' && t.subTopicKeys && t.subTopicKeys.length > 0;
 
       html += `
         <div class="grid items-center gap-0 px-2 py-1 min-h-[46px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 46px 46px 72px 100px 28px">
@@ -7529,17 +7531,33 @@ function scRenderTracker() {
           <div class="flex justify-center"><button onclick="scOpenTopicMenu('${t.key}')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg font-black w-6 h-6 flex items-center justify-center rounded transition-colors">⋮</button></div>
         </div>`;
       
-      // Render subtopic rows inline if hasSubTopics
-      if (hasSubTopics && t.subTopicKeys) {
-        t.subTopicKeys.forEach(subKey => {
-          const st = scDb[subKey];
-          if (!st) return;
+      // Render subtopic rows inline if hasSubTopics (auto-detected from tag3)
+      if (hasSubTopics && availableSubTopics.length > 0) {
+        availableSubTopics.forEach(subTopicName => {
+          // Check if scDb entry exists for this subtopic, if not create temp key
+          const subKey = `${t.key}>>>>${subTopicName}`;
+          let st = scDb[subKey];
+          
+          // If subtopic doesn't exist in scDb yet, create minimal entry
+          if (!st) {
+            st = {
+              subject: t.subject, chapter: t.chapter, name: subTopicName,
+              parentKey: t.key, parentName: t.name, isSubTopic: true,
+              lec: false, r1: false, r2: false, r3: false, r4: false,
+              lecDate: '', r1Date: '', r2Date: '', r3Date: '', r4Date: '',
+              r1Wrong: [], r2Wrong: [], r3Wrong: [],
+              r1Progress: 0, r2Progress: 0, r3Progress: 0, r4Progress: 0,
+              r1QsTotal: 0, r2QsTotal: 0, r3QsTotal: 0, r4QsTotal: 0,
+              confidence: '', priority: false, notes: ''
+            };
+            scDb[subKey] = st; // Store it
+          }
           
           const subStatus = scGetStatus(st);
           const subStatusLabel = {'done':'DONE','learning':'●●●','overdue':'!','not_started':'—'}[subStatus]||'—';
           const subStatusClass = {'done':'bg-emerald-500 text-white','learning':'bg-amber-500 text-white','overdue':'bg-red-500 text-white','not_started':'bg-slate-200 dark:bg-slate-700 text-slate-500'}[subStatus]||'';
           const subTotalNum = typeof scGetTopicQsCount(st.parentName, st.subject, st.name) === 'number' ? scGetTopicQsCount(st.parentName, st.subject, st.name) : 0;
-          const subQsDone = scGetQsDone('r4', st.parentName, st.name);
+          const subQsDone = scGetQsDone(st.parentName, st.subject, st.name);
           const subPctDone = subTotalNum > 0 ? Math.round(subQsDone/subTotalNum*100) : 0;
           const subPctColor = subPctDone >= 80 ? 'text-emerald-500' : subPctDone >= 40 ? 'text-amber-500' : 'text-rose-400';
           const subQsDoneStr = subTotalNum > 0
@@ -7548,7 +7566,7 @@ function scRenderTracker() {
           
           const subLecDate = st.lecDate ? st.lecDate.slice(5).replace('-','/') : '';
           const subLecTick = `<div class="flex flex-col items-center gap-0.5">
-            <div onclick="scTickLec('${subKey}')" class="w-[22px] h-[22px] rounded-[5px] border flex items-center justify-center text-[11px] transition-all ${st.lec ? 'bg-violet-500 border-violet-500 text-white' : 'border-slate-200 dark:border-slate-700 hover:border-violet-400 cursor-pointer'}">${st.lec ? '✓' : ''}</div>
+            <div onclick="scTickLec('${subKey.replace(/'/g,"\\'")}', event)" class="w-[22px] h-[22px] rounded-[5px] border flex items-center justify-center text-[11px] transition-all ${st.lec ? 'bg-violet-500 border-violet-500 text-white' : 'border-slate-200 dark:border-slate-700 hover:border-violet-400 cursor-pointer'}">${st.lec ? '✓' : ''}</div>
             ${subLecDate ? `<div class="text-[8px] text-violet-400 font-bold leading-none">${subLecDate}</div>` : ''}
           </div>`;
           
@@ -7569,6 +7587,7 @@ function scRenderTracker() {
           <div></div>
         </div>`;
         });
+        scSave(); // Save any newly created subtopic entries
       }
       
       html += `<div id="sc-sub-${t.key.replace(/[^a-zA-Z0-9]/g,'-')}" class="hidden border-l border-r border-b border-slate-100 dark:border-slate-800"></div>`;
