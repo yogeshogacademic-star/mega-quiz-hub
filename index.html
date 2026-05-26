@@ -7640,6 +7640,33 @@ function scRevTick(t, rev, checked, daysUntil, revLabel) {
   const prog = t[rev+'Progress'] || 0;
   const total = totalQsNow;
   const isInProgress = !checked && prog > 0 && prog < total;
+  
+  // Calculate stats for tooltips
+  const qsTotal = t[rev+'QsTotal'] || 0;
+  const wrongKey = { r1:'r1Wrong', r2:'r2Wrong', r3:'r3Wrong', r4:'r4Wrong' }[rev];
+  const wrongCount = (t[wrongKey] && t[wrongKey].length) || 0;
+  const correctCount = qsTotal - wrongCount;
+  const accuracy = qsTotal > 0 ? Math.round((correctCount / qsTotal) * 100) : 0;
+  
+  // Tooltip for completed round
+  const completedTooltip = checked && qsTotal > 0 
+    ? `${rev.toUpperCase()} Completed on ${dateStr || scToday()}\n${qsTotal} questions: ${correctCount} correct (${accuracy}%), ${wrongCount} wrong`
+    : '';
+  
+  // Tooltip for available next round (inline prev logic)
+  const prevRev = { r2:'r1', r3:'r2', r4:'r3' }[rev];
+  const prevWrongKey = prevRev ? { r1:'r1Wrong', r2:'r2Wrong', r3:'r3Wrong' }[prevRev] : null;
+  const nextWrongCount = prevWrongKey && t[prevWrongKey] ? t[prevWrongKey].length : 0;
+  const availableTooltip = !checked && !disabled && isNext 
+    ? (nextWrongCount > 0 
+        ? `${rev.toUpperCase()} - Review wrong from ${prevRev ? prevRev.toUpperCase() : ''}\n${nextWrongCount} question${nextWrongCount !== 1 ? 's' : ''} waiting`
+        : `${rev.toUpperCase()} - Click to start`)
+    : '';
+  
+  // Tooltip for disabled round
+  const disabledTooltip = disabled 
+    ? `${rev.toUpperCase()} - Complete ${prevRev ? prevRev.toUpperCase() : ''} first`
+    : '';
 
   if (checked) {
     // COMPLETED - show green check + optional red badge for new questions
@@ -7647,38 +7674,40 @@ function scRevTick(t, rev, checked, daysUntil, revLabel) {
       return `
         <div class="flex flex-col items-center gap-0.5">
           <div class="relative">
-            <div class="w-[22px] h-[22px] rounded-[5px] bg-${color}-500 border-${color}-500 border flex items-center justify-center text-white text-[11px]">✓</div>
-            <div onclick="scStartRevision('${t.key}','${rev}')" class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 flex items-center justify-center text-white text-[8px] font-black cursor-pointer animate-pulse" title="${newQsCount} new questions">🔴</div>
+            <div class="w-[22px] h-[22px] rounded-[5px] bg-${color}-500 border-${color}-500 border flex items-center justify-center text-white text-[11px]" title="${completedTooltip}">✓</div>
+            <div onclick="scStartRevision('${t.key}','${rev}')" class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 flex items-center justify-center text-white text-[8px] font-black cursor-pointer animate-pulse" title="${newQsCount} new questions available!\nClick to review">🔴</div>
           </div>
           ${dateStr ? `<div class="text-[8px] text-${color}-400 font-bold leading-none">${dateStr}</div>` : ''}
         </div>`;
     }
     return `
       <div class="flex flex-col items-center gap-0.5">
-        <div class="w-[22px] h-[22px] rounded-[5px] bg-${color}-500 border-${color}-500 border flex items-center justify-center text-white text-[11px]">✓</div>
+        <div class="w-[22px] h-[22px] rounded-[5px] bg-${color}-500 border-${color}-500 border flex items-center justify-center text-white text-[11px]" title="${completedTooltip}">✓</div>
         ${dateStr ? `<div class="text-[8px] text-${color}-400 font-bold leading-none">${dateStr}</div>` : ''}
       </div>`;
   }
 
   // IN-PROGRESS - show yellow hourglass + progress count
   if (isInProgress) {
+    const progressTooltip = `${rev.toUpperCase()} In Progress\n${prog} of ${total} questions answered\nClick to continue`;
     return `
       <div class="flex flex-col items-center gap-0.5">
-        <div onclick="scStartRevision('${t.key}','${rev}')" class="w-[22px] h-[22px] rounded-[5px] bg-amber-400 border-amber-400 border flex items-center justify-center text-white text-[11px] cursor-pointer">⏳</div>
+        <div onclick="scStartRevision('${t.key}','${rev}')" class="w-[22px] h-[22px] rounded-[5px] bg-amber-400 border-amber-400 border flex items-center justify-center text-white text-[11px] cursor-pointer" title="${progressTooltip}">⏳</div>
         <div class="text-[8px] text-amber-500 font-bold leading-none">${prog}/${total}</div>
       </div>`;
   }
 
-  if (disabled) return `<div class="w-[22px] h-[22px] rounded-[5px] border border-slate-200 dark:border-slate-700 opacity-20"></div>`;
+  if (disabled) return `<div class="w-[22px] h-[22px] rounded-[5px] border border-slate-200 dark:border-slate-700 opacity-20" title="${disabledTooltip}"></div>`;
   if (isDue) return `
     <div class="flex flex-col items-center gap-0.5">
-      <div onclick="scStartRevision('${t.key}','${rev}')" class="w-[22px] h-[22px] rounded-[5px] border-2 border-red-500 flex items-center justify-center text-red-500 text-[10px] font-black cursor-pointer animate-pulse">!</div>
+      <div onclick="scStartRevision('${t.key}','${rev}')" class="w-[22px] h-[22px] rounded-[5px] border-2 border-red-500 flex items-center justify-center text-red-500 text-[10px] font-black cursor-pointer animate-pulse" title="${rev.toUpperCase()} OVERDUE!\nClick to start">!</div>
     </div>`;
   if (isNext) return `
     <div class="flex flex-col items-center gap-0.5">
-      <div onclick="scStartRevision('${t.key}','${rev}')" class="w-[22px] h-[22px] rounded-[5px] border border-${color}-300 dark:border-${color}-700 flex items-center justify-center text-${color}-400 text-[10px] cursor-pointer hover:bg-${color}-50 dark:hover:bg-${color}-900/20 transition-all">›</div>
+      <div onclick="scStartRevision('${t.key}','${rev}')" class="w-[22px] h-[22px] rounded-[5px] border border-${color}-300 dark:border-${color}-700 flex items-center justify-center text-${color}-400 text-[10px] cursor-pointer hover:bg-${color}-50 dark:hover:bg-${color}-900/20 transition-all" title="${availableTooltip}">›</div>
     </div>`;
   return `<div class="w-[22px] h-[22px] rounded-[5px] border border-slate-100 dark:border-slate-800 opacity-30"></div>`;
+}
 }
 
 function prev(rev) { return { r2:'r1', r3:'r2', r4:'r3' }[rev]; }
@@ -8403,7 +8432,6 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
   t[rev + 'Progress'] = newDone;
   
   // Set total question count on first submit (needed for R2/R3/R4 stats modal)
-  const quiz = db[currentQuizId];
   if (!t[rev + 'QsTotal'] && quiz && quiz.scTotal) {
     t[rev + 'QsTotal'] = quiz.scTotal;  // Use total for entire round, not batch size
   }
