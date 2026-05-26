@@ -7629,9 +7629,15 @@ function scRevTick(t, rev, checked, daysUntil, revLabel) {
   // Show date as MM/DD below the tick
   const dateStr = t[rev+'Date'] ? t[rev+'Date'].slice(5).replace('-','/') : '';
 
-  // NEW QUESTION DETECTION: compare current total questions vs r1QsTotal stored at completion
-  const totalQsNow = typeof scGetTopicQsCount(t.isSubTopic ? t.parentName : t.name, t.subject) === 'number' 
-    ? scGetTopicQsCount(t.isSubTopic ? t.parentName : t.name, t.subject) : 0;
+  // NEW QUESTION DETECTION: compare current total questions vs saved at R1 completion
+  let totalQsNow = 0;
+  if (t.isSubTopic) {
+    totalQsNow = scGetTopicQsCount(t.parentName, t.subject, t.name);
+  } else {
+    totalQsNow = scGetTopicQsCount(t.name, t.subject);
+  }
+  if (typeof totalQsNow !== 'number') totalQsNow = 0;
+  
   const totalQsAtR1 = t.r1QsTotal || 0;
   const newQsDetected = checked && rev === 'r1' && totalQsAtR1 > 0 && totalQsNow > totalQsAtR1;
   const newQsCount = newQsDetected ? totalQsNow - totalQsAtR1 : 0;
@@ -7921,6 +7927,30 @@ function scShowRoundStatsModal(key, rev, questions) {
   const prevWrongKey = prevRev + 'Wrong';
   const prevQsTotal = t[prevRev + 'QsTotal'] || 0;
   const wrongCount = questions.length;
+  
+  // If data missing or suspicious, show simplified modal
+  if (!prevQsTotal || prevQsTotal < wrongCount) {
+    document.getElementById('sc-modal-content').innerHTML = `
+      <div class="text-center">
+        <div class="text-2xl font-black text-slate-800 dark:text-slate-100 mb-1">${t.name} — ${rev.toUpperCase()}</div>
+        <div class="text-xs text-slate-400 uppercase tracking-widest mb-4">${prevRev.toUpperCase()} Complete</div>
+        
+        <div class="p-6 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800 mb-6">
+          <div class="text-4xl font-black text-blue-600 dark:text-blue-400 mb-2">${wrongCount}</div>
+          <div class="text-xs text-slate-600 dark:text-slate-400 font-bold">question${wrongCount !== 1 ? 's' : ''} to review</div>
+        </div>
+        
+        <div class="text-xs text-slate-500 mb-6 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+          ${rev.toUpperCase()} will show questions you got wrong in ${prevRev.toUpperCase()}
+        </div>
+        
+        <button onclick="scLaunchRevQuiz('${key}','${rev}',null,0);scCloseModal()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">Start ${rev.toUpperCase()} (${wrongCount} Qs)</button>
+        <button onclick="scCloseModal()" class="mt-3 text-xs text-slate-400 hover:text-slate-600 font-bold">Cancel</button>
+      </div>`;
+    document.getElementById('sc-modal').classList.remove('hidden');
+    return;
+  }
+  
   const correctCount = prevQsTotal - wrongCount;
   
   document.getElementById('sc-modal-content').innerHTML = `
@@ -8403,8 +8433,12 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
   t[rev + 'Progress'] = newDone;
   
   // Set total question count on first submit (needed for R2/R3/R4 stats modal)
-  if (!t[rev + 'QsTotal'] && quiz && quiz.scTotal) {
-    t[rev + 'QsTotal'] = quiz.scTotal;  // Use total for entire round, not batch size
+  // FORCE SAVE: Always update if quiz.scTotal exists and is valid
+  if (quiz && quiz.scTotal && quiz.scTotal > 0) {
+    if (!t[rev + 'QsTotal'] || t[rev + 'QsTotal'] < quiz.scTotal) {
+      t[rev + 'QsTotal'] = quiz.scTotal;  // Use total for entire round, not batch size
+      scSave();  // Force save immediately
+    }
   }
 
   // Store wrong/skipped for next revision round
