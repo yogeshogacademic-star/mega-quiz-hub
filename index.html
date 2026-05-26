@@ -3049,9 +3049,10 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                 // SRS sprint: auto-grade every question (correct advances, wrong/skipped = 10-min penalty)
                 let srsStatus = (status === 'correct') ? 'correct' : 'wrong';
                 autoGradeSRS(q.question, srsStatus);
-            } else if (currentQuizId === 'quiz_sc_rev_current' || (db[currentQuizId] && db[currentQuizId].isScRevision)) {
-                // SYLLABUS COMMAND REVISION (R1/R2/R3/R4): This is the SRS authority now.
-                // Questions auto-enter/update SRS here. Dashboard quizzes no longer touch SRS.
+            } else if ((currentQuizId === 'quiz_sc_rev_current' || (db[currentQuizId] && db[currentQuizId].isScRevision)) 
+                       && db[currentQuizId] && db[currentQuizId].scRev === 'r1') {
+                // SYLLABUS COMMAND R1 ONLY: R1 is the true first attempt - SRS authority.
+                // R2/R3/R4 are same-day review → skip SRS (would artificially inflate intervals)
                 let assignedSubject = "Miscellaneous";
                 let safeTags = Array.isArray(q.tags) ? q.tags : [];
                 if (safeTags.length > 0 && CORE_SUBJECTS.includes(safeTags[0])) assignedSubject = safeTags[0];
@@ -7846,16 +7847,13 @@ window.scStartRevision = (key, rev) => {
   // For R2+ filter to wrong/skipped from previous round
   if (rev === 'r2' && t.r1Wrong && t.r1Wrong.length > 0) {
     const ws = new Set(t.r1Wrong);
-    const f = questions.filter(q => ws.has(q.question));
-    if (f.length > 0) questions = f;
+    questions = questions.filter(q => ws.has(q.question));
   } else if (rev === 'r3' && t.r2Wrong && t.r2Wrong.length > 0) {
     const ws = new Set(t.r2Wrong);
-    const f = questions.filter(q => ws.has(q.question));
-    if (f.length > 0) questions = f;
+    questions = questions.filter(q => ws.has(q.question));
   } else if (rev === 'r4' && t.r3Wrong && t.r3Wrong.length > 0) {
     const ws = new Set(t.r3Wrong);
-    const f = questions.filter(q => ws.has(q.question));
-    if (f.length > 0) questions = f;
+    questions = questions.filter(q => ws.has(q.question));
   } else if (rev === 'r1') {
     // SMART R1 FILTER: Skip already-mastered and recently-correct questions
     // Only show: (1) new questions (2) due questions (3) struggling questions
@@ -7880,6 +7878,9 @@ window.scStartRevision = (key, rev) => {
   const done = t[progressKey] || 0;
   if (done > 0 && done < questions.length) {
     scShowContinueModal(key, rev, done, questions.length, questions);
+  } else if (rev !== 'r1' && done === 0) {
+    // R2/R3/R4 starting fresh → show stats from previous round
+    scShowRoundStatsModal(key, rev, questions);
   } else {
     scLaunchRevQuiz(key, rev, questions, 0);
   }
@@ -7898,6 +7899,40 @@ function scShowContinueModal(key, rev, done, total, questions) {
         <button onclick="scLaunchRevQuiz('${key}','${rev}',null,${done});scCloseModal()" class="flex-1 bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">▶ Continue (${total-done} Qs)</button>
         <button onclick="scLaunchRevQuiz('${key}','${rev}',null,0);scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-black py-3 rounded-xl text-sm transition-colors">↺ Start Fresh</button>
       </div>
+      <button onclick="scCloseModal()" class="mt-3 text-xs text-slate-400 hover:text-slate-600 font-bold">Cancel</button>
+    </div>`;
+  document.getElementById('sc-modal').classList.remove('hidden');
+}
+
+function scShowRoundStatsModal(key, rev, questions) {
+  const t = scDb[key];
+  const prevRev = rev === 'r2' ? 'r1' : rev === 'r3' ? 'r2' : 'r3';
+  const prevWrongKey = prevRev + 'Wrong';
+  const prevQsTotal = t[prevRev + 'QsTotal'] || 0;
+  const wrongCount = questions.length;
+  const correctCount = prevQsTotal - wrongCount;
+  
+  document.getElementById('sc-modal-content').innerHTML = `
+    <div class="text-center">
+      <div class="text-2xl font-black text-slate-800 dark:text-slate-100 mb-1">${t.name} — ${rev.toUpperCase()}</div>
+      <div class="text-xs text-slate-400 uppercase tracking-widest mb-4">${prevRev.toUpperCase()} Summary</div>
+      
+      <div class="grid grid-cols-2 gap-3 mb-6">
+        <div class="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
+          <div class="text-3xl font-black text-emerald-600 dark:text-emerald-400">${correctCount}</div>
+          <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Correct</div>
+        </div>
+        <div class="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
+          <div class="text-3xl font-black text-red-600 dark:text-red-400">${wrongCount}</div>
+          <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Wrong/Skipped</div>
+        </div>
+      </div>
+      
+      <div class="text-xs text-slate-500 mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+        ${rev.toUpperCase()} will show <span class="font-black text-blue-600 dark:text-blue-400">${wrongCount} question${wrongCount !== 1 ? 's' : ''}</span> you got wrong in ${prevRev.toUpperCase()}
+      </div>
+      
+      <button onclick="scLaunchRevQuiz('${key}','${rev}',null,0);scCloseModal()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">Start ${rev.toUpperCase()} (${wrongCount} Qs)</button>
       <button onclick="scCloseModal()" class="mt-3 text-xs text-slate-400 hover:text-slate-600 font-bold">Cancel</button>
     </div>`;
   document.getElementById('sc-modal').classList.remove('hidden');
@@ -7945,28 +7980,18 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
         if (match) { seen.add(q.question); questions.push(q); }
       });
     });
-    // Filter by wrong[] for R2/R3/R4
-    const beforeFilter = questions.length;
+    // Filter by wrong[] for R2/R3/R4 - ALWAYS apply filter, empty = Perfect!
     if (rev === 'r2' && t.r1Wrong && t.r1Wrong.length > 0) {
       const ws = new Set(t.r1Wrong);
-      const f = questions.filter(q => ws.has(q.question));
-      if (f.length > 0) questions = f;
+      questions = questions.filter(q => ws.has(q.question));
     }
     if (rev === 'r3' && t.r2Wrong && t.r2Wrong.length > 0) {
       const ws = new Set(t.r2Wrong);
-      const f = questions.filter(q => ws.has(q.question));
-      if (f.length > 0) questions = f;
+      questions = questions.filter(q => ws.has(q.question));
     }
     if (rev === 'r4' && t.r3Wrong && t.r3Wrong.length > 0) {
       const ws = new Set(t.r3Wrong);
-      const f = questions.filter(q => ws.has(q.question));
-      if (f.length > 0) questions = f;
-    }
-    
-    // DEBUG: Show filtering results
-    if (rev === 'r2' || rev === 'r3' || rev === 'r4') {
-      const wrongKey = rev === 'r2' ? 'r1Wrong' : rev === 'r3' ? 'r2Wrong' : 'r3Wrong';
-      alert(`${rev.toUpperCase()} FILTER DEBUG:\nTopic: ${t.name}\n${wrongKey}: ${t[wrongKey] ? t[wrongKey].length : 0} wrong from previous\nBefore filter: ${beforeFilter} questions\nAfter filter: ${questions.length} questions\n\nFirst 2 wrong: ${t[wrongKey] ? t[wrongKey].slice(0,2).map(q => q.slice(0,30)).join(', ') : 'none'}`);
+      questions = questions.filter(q => ws.has(q.question));
     }
   }
 
@@ -7994,6 +8019,12 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
   };
 
   currentQuizId = tempId;
+  
+  // Update lobby title and question count immediately
+  const lobbyTitle = t.name + ' — ' + rev.toUpperCase() + (questions.length > BATCH_SIZE ? ` (Batch ${Math.floor(startIdx/BATCH_SIZE)+1})` : '');
+  document.getElementById('lobby-title').textContent = lobbyTitle;
+  document.getElementById('lobby-meta').textContent = `${slice.length} Question${slice.length !== 1 ? 's' : ''}`;
+  
   setLobbyTime('default');
   showScreen('lobby');
 }
