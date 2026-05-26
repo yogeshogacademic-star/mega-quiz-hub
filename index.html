@@ -1322,7 +1322,7 @@
         "Arithmetic": ["Percentage", "Ratio & Proportion", "Profit & Loss", "Discount & Dishonest Shopkeeper", "Time & Work", "Pipe & Cistern", "Simple Interest", "Compound Interest", "Installment", "Average", "Time, Speed & Distance", "Problems on Train", "Boat & Stream", "Circular and Linear Race", "Problems on Ages", "Partnership", "Mixture & Alligation"],
         "Advanced Maths": ["Number System", "Simplification", "Surds & Indices", "LCM & HCF", "Algebra", "Trigonometry", "Height & Distance", "Geometry", "Co-ordinate Geometry", "Polygon", "2D-Mensuration", "3D-Mensuration", "Miscellaneous", "Data Interpretation"],
         "Calculation": ["Tables", "Squares & Square Roots", "Cubes & Cube Roots", "Fraction-to-Percentage", "Pythagorean Triplets", "Digital Sum & Unit Digit", "Approximation & Simplification", "Multiplication & Division Rules", "Surds & Indices"],
-        "Reasoning": ["Analogy & Classification", "Number & Letter Series", "Coding-Decoding", "Blood Relations", "Direction & Distance", "Syllogism", "Order & Ranking", "Clock & Calendar", "Venn Diagrams", "Missing Number & Matrix", "Non-Verbal Reasoning", "Logical Reasoning"],
+        "Reasoning": ["Statement - Conclusion","Decision Making","Machine Input-Output","Statement - Argument","Statement - Assumptions","Syllogism","Data Sufficiency","Course of Action","Inequalities","Cause - Effect","Order - Ranking","Blood Relation","Figure Series","Mathematical Operations","Paper Unfolding/Cutting","Dice","Word Arrangement","Direction","Venn Diagram","Seating Arrangement","Number Series","Alphabetical Series","Coding-Decoding","Analogy","Odd One Out","Floor Arrangement","Calendar","Clock","Figure Counting"],
         "English": ["Active & Passive Voice", "Cloze Test", "Direct & Indirect Speech", "Figures of Speech", "Grammar & Error Spotting", "HOMONYMS", "Idioms & Phrases", "One Word Substitution", "Para Jumbles", "PREPOSITION", "Phrasal Verbs", "Reading Comprehension", "Sentence Improvement", "Spelling Errors", "Synonyms & Antonyms"],
         "Ancient History": ["Prehistoric & Indus Valley", "Vedic Age", "Buddhism & Jainism", "Mahajanapadas & Magadha", "Mauryan Empire", "Post-Mauryan Period", "Gupta Empire", "Post-Gupta & Harsha"],
         "Medieval History": ["Early Medieval India", "Delhi Sultanate", "Provincial Kingdoms", "Mughal Empire", "Maratha Empire", "Bhakti & Sufi Movements", "Books & Authors"],
@@ -2595,7 +2595,14 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         grid.appendChild(mambaCard);
         
         SUBJECTS.forEach(subject => {
-            const subjectQuizzes = Object.keys(db).filter(id => db[id].subject === subject && !db[id].title.includes("Master Mock") && !db[id].title.includes("🎯") && !db[id].title.includes("SRS"));
+            const subjectQuizzes = Object.keys(db).filter(id => 
+                db[id].subject === subject && 
+                !db[id].title.includes("Master Mock") && 
+                !db[id].title.includes("🎯") && 
+                !db[id].title.includes("SRS") &&
+                !db[id].isScRevision &&
+                !(id && id.startsWith('quiz_sc_rev_'))
+            );
             let listHTML = subjectQuizzes.length === 0 ? `<div class="text-xs text-slate-400 font-bold py-4 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg mb-2">No quizzes imported yet.</div>` : '';
             
             // V21.3 Export Button Added Here
@@ -3042,9 +3049,9 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                 // SRS sprint: auto-grade every question (correct advances, wrong/skipped = 10-min penalty)
                 let srsStatus = (status === 'correct') ? 'correct' : 'wrong';
                 autoGradeSRS(q.question, srsStatus);
-            } else {
-                // Normal quiz: ALL questions auto-enter SRS on first encounter.
-                // Correct = head start (due tomorrow). Wrong/skipped = due now (10-min penalty if already in SRS).
+            } else if (currentQuizId === 'quiz_sc_rev_current' || (db[currentQuizId] && db[currentQuizId].isScRevision)) {
+                // SYLLABUS COMMAND REVISION (R1/R2/R3/R4): This is the SRS authority now.
+                // Questions auto-enter/update SRS here. Dashboard quizzes no longer touch SRS.
                 let assignedSubject = "Miscellaneous";
                 let safeTags = Array.isArray(q.tags) ? q.tags : [];
                 if (safeTags.length > 0 && CORE_SUBJECTS.includes(safeTags[0])) assignedSubject = safeTags[0];
@@ -3054,8 +3061,8 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                     let newCard = JSON.parse(JSON.stringify(q));
                     newCard.subject = assignedSubject;
                     if (status === 'correct') {
-                        // Head start: correct first time, schedule for tomorrow
-                        newCard.srs = { reps: 1, ease: 2.5, interval: 1, nextReview: Date.now() + (24 * 60 * 60 * 1000) };
+                        // R1 entry: correct gets 3-day head start (aligns with R2 timing)
+                        newCard.srs = { reps: 1, ease: 2.5, interval: 3, nextReview: Date.now() + (3 * 24 * 60 * 60 * 1000) };
                     } else {
                         // Wrong or skipped: due immediately
                         newCard.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() };
@@ -3287,6 +3294,25 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
             m.srs.ease = Math.min(3.0, m.srs.ease + 0.1);
             m.srs.nextReview = Date.now() + (m.srs.interval * 24 * 60 * 60 * 1000);
             if (m.srs.interval >= 30) m.isMastered = true;
+            
+            // DYNAMIC WRONG[] REMOVAL: If this question is in a revision wrong[] list
+            // and you've proven mastery through sprints, remove it from the queue
+            Object.keys(scDb).forEach(key => {
+                const t = scDb[key];
+                // Remove from r1Wrong if interval >= 3 days (R2 threshold)
+                if (t.r1Wrong && t.r1Wrong.includes(qText) && m.srs.interval >= 3) {
+                    t.r1Wrong = t.r1Wrong.filter(q => q !== qText);
+                }
+                // Remove from r2Wrong if interval >= 7 days (R3 threshold)
+                if (t.r2Wrong && t.r2Wrong.includes(qText) && m.srs.interval >= 7) {
+                    t.r2Wrong = t.r2Wrong.filter(q => q !== qText);
+                }
+                // Remove from r3Wrong if interval >= 15 days (R4 threshold)
+                if (t.r3Wrong && t.r3Wrong.includes(qText) && m.srs.interval >= 15) {
+                    t.r3Wrong = t.r3Wrong.filter(q => q !== qText);
+                }
+            });
+            scSave(); // Save scDb changes
         } else {
             // Wrong or Skipped — real 10-minute penalty
             m.srs.reps = 0;
@@ -7105,7 +7131,7 @@ const SC_STREAK_KEY = 'sc_streak_v1';
 const SC_DEFAULT = {
   "Arithmetic": ["Percentage","Ratio & Proportion","Profit & Loss","Discount & Dishonest Shopkeeper","Time & Work","Pipe & Cistern","Simple Interest","Compound Interest","Installment","Average","Time, Speed & Distance","Problems on Train","Boat & Stream","Circular and Linear Race","Problems on Ages","Partnership","Mixture & Alligation"],
   "Advanced Maths": ["Number System","Simplification","Surds & Indices","LCM & HCF","Algebra","Trigonometry","Height & Distance","Geometry","Co-ordinate Geometry","Polygon","2D-Mensuration","3D-Mensuration","Data Interpretation"],
-  "Reasoning": ["Analogy & Classification","Number & Letter Series","Coding-Decoding","Blood Relations","Direction & Distance","Syllogism","Order & Ranking","Clock & Calendar","Venn Diagrams","Missing Number & Matrix","Non-Verbal Reasoning","Logical Reasoning"],
+  "Reasoning": ["Statement - Conclusion","Decision Making","Machine Input-Output","Statement - Argument","Statement - Assumptions","Syllogism","Data Sufficiency","Course of Action","Inequalities","Cause - Effect","Order - Ranking","Blood Relation","Figure Series","Mathematical Operations","Paper Unfolding/Cutting","Dice","Word Arrangement","Direction","Venn Diagram","Seating Arrangement","Number Series","Alphabetical Series","Coding-Decoding","Analogy","Odd One Out","Floor Arrangement","Calendar","Clock","Figure Counting"],
   "English": ["Active & Passive Voice","Cloze Test","Direct & Indirect Speech","Grammar & Error Spotting","Idioms & Phrases","One Word Substitution","Para Jumbles","Reading Comprehension","Sentence Improvement","Synonyms & Antonyms","Spelling Errors"],
   "Polity": ["Making, Preamble & Sources","Union, Territory & Citizenship","Fundamental Rights","DPSP & Fundamental Duties","Union Executive","Parliament","State Govt & Legislature","Judiciary","Local Govt (Panchayats & Municipalities)","Emergency Provisions","Constitutional & Non-Constitutional Bodies","Elections, Amendments,Parts & Schedules","Special Provisions & Anti-Defection","Bharatiya Nyaya Sanhita (BNS)"],
   "Ancient History": ["Prehistoric & Indus Valley","Vedic Age","Buddhism & Jainism","Mahajanapadas & Magadha","Mauryan Empire","Post-Mauryan Period","Gupta Empire","Post-Gupta & Harsha"],
@@ -7511,27 +7537,54 @@ function scRevTick(t, rev, checked, daysUntil, revLabel) {
   // Show date as MM/DD below the tick
   const dateStr = t[rev+'Date'] ? t[rev+'Date'].slice(5).replace('-','/') : '';
 
-  if (checked) return `
-    <div class="flex flex-col items-center gap-0.5">
-      <div class="w-[22px] h-[22px] rounded-[5px] bg-${color}-500 border-${color}-500 border flex items-center justify-center text-white text-[11px]">✓</div>
-      ${dateStr ? `<div class="text-[8px] text-${color}-400 font-bold leading-none">${dateStr}</div>` : ''}
-    </div>`;
+  // NEW QUESTION DETECTION: compare current total questions vs r1QsTotal stored at completion
+  const totalQsNow = typeof scGetTopicQsCount(t.isSubTopic ? t.parentName : t.name, t.subject) === 'number' 
+    ? scGetTopicQsCount(t.isSubTopic ? t.parentName : t.name, t.subject) : 0;
+  const totalQsAtR1 = t.r1QsTotal || 0;
+  const newQsDetected = checked && rev === 'r1' && totalQsAtR1 > 0 && totalQsNow > totalQsAtR1;
+  const newQsCount = newQsDetected ? totalQsNow - totalQsAtR1 : 0;
 
-  // Show in-progress count if this rev is active but not done
+  // IN-PROGRESS STATE: some batches done but not complete
   const prog = t[rev+'Progress'] || 0;
-  const total = typeof scGetTopicQsCount(t.name, t.subject) === 'number' ? scGetTopicQsCount(t.name, t.subject) : 0;
-  const showProg = !checked && prog > 0 && (rev === revLabel?.toLowerCase());
+  const total = totalQsNow;
+  const isInProgress = !checked && prog > 0 && prog < total;
+
+  if (checked) {
+    // COMPLETED - show green check + optional red badge for new questions
+    if (newQsDetected) {
+      return `
+        <div class="flex flex-col items-center gap-0.5">
+          <div class="relative">
+            <div class="w-[22px] h-[22px] rounded-[5px] bg-${color}-500 border-${color}-500 border flex items-center justify-center text-white text-[11px]">✓</div>
+            <div onclick="scStartRevision('${t.key}','${rev}')" class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 flex items-center justify-center text-white text-[8px] font-black cursor-pointer animate-pulse" title="${newQsCount} new questions">🔴</div>
+          </div>
+          ${dateStr ? `<div class="text-[8px] text-${color}-400 font-bold leading-none">${dateStr}</div>` : ''}
+        </div>`;
+    }
+    return `
+      <div class="flex flex-col items-center gap-0.5">
+        <div class="w-[22px] h-[22px] rounded-[5px] bg-${color}-500 border-${color}-500 border flex items-center justify-center text-white text-[11px]">✓</div>
+        ${dateStr ? `<div class="text-[8px] text-${color}-400 font-bold leading-none">${dateStr}</div>` : ''}
+      </div>`;
+  }
+
+  // IN-PROGRESS - show yellow hourglass + progress count
+  if (isInProgress) {
+    return `
+      <div class="flex flex-col items-center gap-0.5">
+        <div onclick="scStartRevision('${t.key}','${rev}')" class="w-[22px] h-[22px] rounded-[5px] bg-amber-400 border-amber-400 border flex items-center justify-center text-white text-[11px] cursor-pointer">⏳</div>
+        <div class="text-[8px] text-amber-500 font-bold leading-none">${prog}/${total}</div>
+      </div>`;
+  }
 
   if (disabled) return `<div class="w-[22px] h-[22px] rounded-[5px] border border-slate-200 dark:border-slate-700 opacity-20"></div>`;
   if (isDue) return `
     <div class="flex flex-col items-center gap-0.5">
       <div onclick="scStartRevision('${t.key}','${rev}')" class="w-[22px] h-[22px] rounded-[5px] border-2 border-red-500 flex items-center justify-center text-red-500 text-[10px] font-black cursor-pointer animate-pulse">!</div>
-      ${showProg && total ? `<div class="text-[8px] text-amber-500 font-bold leading-none">${prog}/${total}</div>` : ''}
     </div>`;
   if (isNext) return `
     <div class="flex flex-col items-center gap-0.5">
       <div onclick="scStartRevision('${t.key}','${rev}')" class="w-[22px] h-[22px] rounded-[5px] border border-${color}-300 dark:border-${color}-700 flex items-center justify-center text-${color}-400 text-[10px] cursor-pointer hover:bg-${color}-50 dark:hover:bg-${color}-900/20 transition-all">›</div>
-      ${showProg && total ? `<div class="text-[8px] text-amber-500 font-bold leading-none">${prog}/${total}</div>` : ''}
     </div>`;
   return `<div class="w-[22px] h-[22px] rounded-[5px] border border-slate-100 dark:border-slate-800 opacity-30"></div>`;
 }
@@ -7704,6 +7757,21 @@ window.scStartRevision = (key, rev) => {
     const ws = new Set(t.r3Wrong);
     const f = questions.filter(q => ws.has(q.question));
     if (f.length > 0) questions = f;
+  } else if (rev === 'r1') {
+    // SMART R1 FILTER: Skip already-mastered and recently-correct questions
+    // Only show: (1) new questions (2) due questions (3) struggling questions
+    const now = Date.now();
+    const srsMap = new Map();
+    mistakesDb.forEach(m => { if (m.question) srsMap.set(m.question, m); });
+    
+    questions = questions.filter(q => {
+      const srsCard = srsMap.get(q.question);
+      if (!srsCard) return true; // New question - include
+      if (srsCard.isMastered) return false; // Mastered - skip
+      if (srsCard.srs.nextReview <= now) return true; // Due now - include
+      if (srsCard.srs.interval < 7) return false; // Recently correct (< 7 days), not yet due - skip
+      return true; // Long interval but due for review - include
+    });
   }
 
   if (questions.length === 0 && rev === 'r1') { scShowManualRevModal(key, rev); return; }
@@ -7754,7 +7822,7 @@ function scShowPerfectModal(key, rev) {
 
 function scLaunchRevQuiz(key, rev, questions, startIdx) {
   const t = scDb[key];
-  const BATCH_SIZE = 50; // max questions per session
+  const BATCH_SIZE = 25; // max questions per session (was 50, reduced for better UX)
 
   if (!questions) {
     // Rebuild questions with deduplication
@@ -7784,7 +7852,13 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
 
   // Build temp quiz title showing batch info when large topic
   const batchInfo = questions.length > BATCH_SIZE ? ` (${startIdx+1}–${Math.min(startIdx+BATCH_SIZE, questions.length)} of ${questions.length})` : '';
-  const tempId = 'quiz_sc_rev_' + Date.now();
+  const tempId = 'quiz_sc_rev_current'; // Stable ID - no timestamp pollution
+  
+  // Clean up any old SC revision quizzes before creating the new one
+  Object.keys(db).forEach(id => {
+    if (id.startsWith('quiz_sc_rev_') || (db[id] && db[id].isScRevision)) delete db[id];
+  });
+  
   db[tempId] = {
     id: tempId, title: t.name + ' — ' + rev.toUpperCase() + ' Revision' + batchInfo,
     subject: t.subject, questions: slice, isScRevision: true,
