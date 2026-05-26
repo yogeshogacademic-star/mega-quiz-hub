@@ -7946,6 +7946,7 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
       });
     });
     // Filter by wrong[] for R2/R3/R4
+    const beforeFilter = questions.length;
     if (rev === 'r2' && t.r1Wrong && t.r1Wrong.length > 0) {
       const ws = new Set(t.r1Wrong);
       const f = questions.filter(q => ws.has(q.question));
@@ -7960,6 +7961,12 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
       const ws = new Set(t.r3Wrong);
       const f = questions.filter(q => ws.has(q.question));
       if (f.length > 0) questions = f;
+    }
+    
+    // DEBUG: Show filtering results
+    if (rev === 'r2' || rev === 'r3' || rev === 'r4') {
+      const wrongKey = rev === 'r2' ? 'r1Wrong' : rev === 'r3' ? 'r2Wrong' : 'r3Wrong';
+      alert(`${rev.toUpperCase()} FILTER DEBUG:\nTopic: ${t.name}\n${wrongKey}: ${t[wrongKey] ? t[wrongKey].length : 0} wrong from previous\nBefore filter: ${beforeFilter} questions\nAfter filter: ${questions.length} questions\n\nFirst 2 wrong: ${t[wrongKey] ? t[wrongKey].slice(0,2).map(q => q.slice(0,30)).join(', ') : 'none'}`);
     }
   }
 
