@@ -7821,12 +7821,15 @@ window.scStartRevision = (key, rev) => {
   const t = scDb[key];
   if (!t) return;
   
-  // SAFETY: Clear THIS round's wrong[] array before starting
-  // R1 clears r1Wrong[], R2 clears r2Wrong[], etc.
-  // This prevents accumulation across multiple attempts
-  const thisRoundWrong = { r1:'r1Wrong', r2:'r2Wrong', r3:'r3Wrong', r4:'r4Wrong' }[rev];
-  if (thisRoundWrong) {
-    t[thisRoundWrong] = [];
+  // NUCLEAR RESET: Clear THIS round + all later rounds to prevent OLD data
+  // If starting R1 → clear r1Wrong, r2Wrong, r3Wrong, r4Wrong
+  // If starting R2 → clear r2Wrong, r3Wrong, r4Wrong (keep r1Wrong for filtering)
+  const allRounds = ['r1Wrong', 'r2Wrong', 'r3Wrong', 'r4Wrong'];
+  const startIdx = allRounds.indexOf(rev + 'Wrong');
+  if (startIdx !== -1) {
+    for (let i = startIdx; i < allRounds.length; i++) {
+      t[allRounds[i]] = [];
+    }
   }
 
   // Collect questions — deduplicate by question text to avoid same Q from multiple files
