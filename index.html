@@ -7820,6 +7820,14 @@ function scShowManualRevModal(key, rev) {
 window.scStartRevision = (key, rev) => {
   const t = scDb[key];
   if (!t) return;
+  
+  // SAFETY: Clear THIS round's wrong[] array before starting
+  // R1 clears r1Wrong[], R2 clears r2Wrong[], etc.
+  // This prevents accumulation across multiple attempts
+  const thisRoundWrong = { r1:'r1Wrong', r2:'r2Wrong', r3:'r3Wrong', r4:'r4Wrong' }[rev];
+  if (thisRoundWrong) {
+    t[thisRoundWrong] = [];
+  }
 
   // Collect questions — deduplicate by question text to avoid same Q from multiple files
   const seen = new Set();
@@ -8397,9 +8405,9 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
   // Store wrong/skipped for next revision round
   const nextRevWrongKey = { r1:'r1Wrong', r2:'r2Wrong', r3:'r3Wrong', r4:'r4Wrong' }[rev];
   if (nextRevWrongKey) {
-    // If first batch (startIdx === 0), RESET wrong[] array
-    // If later batch (startIdx > 0), ACCUMULATE
-    if (startIdx === 0) {
+    // R1: ALWAYS RESET (fresh attempt every time)
+    // R2/R3/R4: Reset on first batch (startIdx=0), accumulate on later batches
+    if (rev === 'r1' || startIdx === 0) {
       t[nextRevWrongKey] = wrongQuestions;
     } else {
       const existing = t[nextRevWrongKey] || [];
@@ -8471,44 +8479,74 @@ window.scEndRevEarly = (key, rev) => {
 
 function scShowConfidenceModal(key, rev) {
   const t = scDb[key];
-  setTimeout(() => {
-    document.getElementById('sc-modal-content').innerHTML = `
-      <div class="text-center">
-        <div class="text-2xl font-black text-slate-800 dark:text-slate-100 mb-1">${t.name} — ${rev.toUpperCase()} Complete!</div>
-        <div class="text-sm text-slate-500 mb-6">How confident do you feel?</div>
-        <div class="grid grid-cols-2 gap-3">
-          <button onclick="scSetConfidence('${key}','${rev}','shaky')" class="py-4 rounded-2xl bg-red-50 dark:bg-red-900/20 hover:bg-red-100 text-2xl font-black border border-red-200 transition-colors">😰<div class="text-xs text-red-500 mt-1">Shaky</div></button>
-          <button onclick="scSetConfidence('${key}','${rev}','okay')" class="py-4 rounded-2xl bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 text-2xl font-black border border-amber-200 transition-colors">😐<div class="text-xs text-amber-500 mt-1">Okay</div></button>
-          <button onclick="scSetConfidence('${key}','${rev}','good')" class="py-4 rounded-2xl bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 text-2xl font-black border border-blue-200 transition-colors">😊<div class="text-xs text-blue-500 mt-1">Good</div></button>
-          <button onclick="scSetConfidence('${key}','${rev}','nailed')" class="py-4 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 text-2xl font-black border border-emerald-200 transition-colors">🔥<div class="text-xs text-emerald-500 mt-1">Nailed it!</div></button>
-        </div>
-      </div>`;
-    document.getElementById('sc-modal').classList.remove('hidden');
-  }, 500);
+  
+  // For R1: Show SRS stats
+  if (rev === 'r1' && window.historyDb && historyDb.length > 0) {
+    const lastAttempt = historyDb[0];
+    const total = lastAttempt.totalCorrect + lastAttempt.totalWrong + lastAttempt.totalSkipped;
+    const srsNew = total; // All questions in R1 enter SRS (either new or updated)
+    const wrongCount = t.r1Wrong ? t.r1Wrong.length : 0;
+    
+    setTimeout(() => {
+      document.getElementById('sc-modal-content').innerHTML = `
+        <div class="text-center">
+          <div class="text-2xl font-black text-slate-800 dark:text-slate-100 mb-1">${t.name} — R1 Complete!</div>
+          <div class="text-xs text-slate-400 uppercase tracking-widest mb-6">SRS Updated</div>
+          
+          <div class="grid grid-cols-2 gap-3 mb-6">
+            <div class="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-200 dark:border-indigo-800">
+              <div class="text-3xl font-black text-indigo-600 dark:text-indigo-400">${srsNew}</div>
+              <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Questions in SRS</div>
+            </div>
+            <div class="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
+              <div class="text-3xl font-black text-red-600 dark:text-red-400">${wrongCount}</div>
+              <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Wrong (R2 Queue)</div>
+            </div>
+          </div>
+          
+          <div class="text-xs text-slate-500 mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            ✅ All ${srsNew} questions entered SRS • ${wrongCount > 0 ? 'R2 will show ' + wrongCount + ' wrong questions' : 'All correct! R2 skipped ✨'}
+          </div>
+          
+          <button onclick="scMarkR1Done('${key}')" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">Continue</button>
+        </div>`;
+      document.getElementById('sc-modal').classList.remove('hidden');
+    }, 500);
+  } else {
+    // For R2/R3/R4: Just mark done without modal
+    scMarkRevDoneAuto(key, rev);
+  }
 }
 
-window.scSetConfidence = (key, rev, level) => {
+window.scMarkR1Done = (key) => {
   const t = scDb[key];
-  t.confidence = level;
-  t[rev] = true;
-  t[rev + 'Date'] = scToday();
-  t[rev + 'Progress'] = 0;
-
-  // Adaptive intervals — if shaky, halve next interval
-  if (level === 'shaky') {
-    const nextRev = { r1:'r2', r2:'r3', r3:'r4' }[rev];
-    if (nextRev) {
-      // Store a flag to use half interval
-      t[nextRev + 'HalfInterval'] = true;
-    }
-  }
-
+  t.r1 = true;
+  t.r1Date = scToday();
+  t.r1Progress = 0;
   scUpdateStreak();
   scSave();
   scCloseModal();
   if (document.getElementById('screen-syllabus-command') && !document.getElementById('screen-syllabus-command').classList.contains('hidden')) {
     scRender();
   }
+};
+
+window.scMarkRevDoneAuto = (key, rev) => {
+  const t = scDb[key];
+  t[rev] = true;
+  t[rev + 'Date'] = scToday();
+  t[rev + 'Progress'] = 0;
+  scUpdateStreak();
+  scSave();
+  if (document.getElementById('screen-syllabus-command') && !document.getElementById('screen-syllabus-command').classList.contains('hidden')) {
+    scRender();
+  }
+};
+
+// Remove old scSetConfidence function
+window.scSetConfidence = (key, rev, level) => {
+  // Deprecated - auto-mark now
+  scMarkRevDoneAuto(key, rev);
 };
 
 // ── CLOUD SYNC ──
