@@ -7629,7 +7629,7 @@ function scRevTick(t, rev, checked, daysUntil, revLabel) {
   // Show date as MM/DD below the tick
   const dateStr = t[rev+'Date'] ? t[rev+'Date'].slice(5).replace('-','/') : '';
 
-  // NEW QUESTION DETECTION: compare current total questions vs saved at R1 completion
+  // RED BADGE: Check for new questions only (R1 shows new only, due go to SRS sprint)
   let totalQsNow = 0;
   if (t.isSubTopic) {
     totalQsNow = scGetTopicQsCount(t.parentName, t.subject, t.name);
@@ -7638,7 +7638,7 @@ function scRevTick(t, rev, checked, daysUntil, revLabel) {
   }
   if (typeof totalQsNow !== 'number') totalQsNow = 0;
   
-  const totalQsAtR1 = t.r1QsTotal || 0;
+  const totalQsAtR1 = t.r1QsTotalRaw || 0;
   const newQsDetected = checked && rev === 'r1' && totalQsAtR1 > 0 && totalQsNow > totalQsAtR1;
   const newQsCount = newQsDetected ? totalQsNow - totalQsAtR1 : 0;
 
@@ -7650,11 +7650,13 @@ function scRevTick(t, rev, checked, daysUntil, revLabel) {
   if (checked) {
     // COMPLETED - show green check + optional red badge for new questions
     if (newQsDetected) {
+      const badgeText = `${newQsCount} new question${newQsCount !== 1 ? 's' : ''} available`;
+      
       return `
         <div class="flex flex-col items-center gap-0.5">
           <div class="relative">
             <div class="w-[22px] h-[22px] rounded-[5px] bg-${color}-500 border-${color}-500 border flex items-center justify-center text-white text-[11px]">✓</div>
-            <div onclick="scStartRevision('${t.key}','${rev}')" class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 flex items-center justify-center text-white text-[8px] font-black cursor-pointer animate-pulse" title="${newQsCount} new questions">🔴</div>
+            <div onclick="scStartRevision('${t.key}','${rev}')" class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 flex items-center justify-center text-white text-[8px] font-black cursor-pointer animate-pulse" title="${badgeText}">🔴</div>
           </div>
           ${dateStr ? `<div class="text-[8px] text-${color}-400 font-bold leading-none">${dateStr}</div>` : ''}
         </div>`;
@@ -7827,8 +7829,8 @@ window.scStartRevision = (key, rev) => {
   const t = scDb[key];
   if (!t) return;
   
-  // NUCLEAR RESET: Clear THIS round + all later rounds to prevent OLD data
-  // If starting R1 → clear r1Wrong, r2Wrong, r3Wrong, r4Wrong
+  // RESET: Clear THIS round + all later rounds for fresh cycle
+  // If starting R1 → clear r1Wrong, r2Wrong, r3Wrong, r4Wrong (fresh cycle)
   // If starting R2 → clear r2Wrong, r3Wrong, r4Wrong (keep r1Wrong for filtering)
   const allRounds = ['r1Wrong', 'r2Wrong', 'r3Wrong', 'r4Wrong'];
   const startIdx = allRounds.indexOf(rev + 'Wrong');
@@ -7872,20 +7874,17 @@ window.scStartRevision = (key, rev) => {
     const ws = new Set(t.r3Wrong);
     questions = questions.filter(q => ws.has(q.question));
   } else if (rev === 'r1') {
-    // SMART R1 FILTER: Skip already-mastered and recently-correct questions
-    // Only show: (1) new questions (2) due questions (3) struggling questions
-    const now = Date.now();
+    // R1 FILTER: Show ONLY new questions (not in SRS)
+    // Old questions are in SRS for maintenance - they appear in SRS sprints
     const srsMap = new Map();
     mistakesDb.forEach(m => { if (m.question) srsMap.set(m.question, m); });
     
-    questions = questions.filter(q => {
-      const srsCard = srsMap.get(q.question);
-      if (!srsCard) return true; // New question - include
-      if (srsCard.isMastered) return false; // Mastered - skip
-      if (srsCard.srs.nextReview <= now) return true; // Due now - include
-      if (srsCard.srs.interval < 7) return false; // Recently correct (< 7 days), not yet due - skip
-      return true; // Long interval but due for review - include
-    });
+    questions = questions.filter(q => !srsMap.has(q.question)); // Only questions NOT in SRS
+    
+    // Store which questions are in THIS R1 attempt (for after-R4 SRS update)
+    if (questions.length > 0) {
+      t.r1QuestionsAttempted = questions.map(q => q.question);
+    }
   }
 
   if (questions.length === 0 && rev === 'r1') { scShowManualRevModal(key, rev); return; }
@@ -7903,7 +7902,7 @@ window.scStartRevision = (key, rev) => {
   }
 };
 
-function scShowContinueModal(key, rev, done, total, questions) {
+function scShowContinueModal(key, rev, done, total, questions, isBooster) {
   const t = scDb[key];
   document.getElementById('sc-modal-content').innerHTML = `
     <div class="text-center">
@@ -7913,8 +7912,8 @@ function scShowContinueModal(key, rev, done, total, questions) {
         <div class="h-full bg-violet-500 rounded-full" style="width:${Math.round(done/total*100)}%"></div>
       </div>
       <div class="flex gap-3">
-        <button onclick="scLaunchRevQuiz('${key}','${rev}',null,${done});scCloseModal()" class="flex-1 bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">▶ Continue (${total-done} Qs)</button>
-        <button onclick="scLaunchRevQuiz('${key}','${rev}',null,0);scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-black py-3 rounded-xl text-sm transition-colors">↺ Start Fresh</button>
+        <button onclick="scLaunchRevQuiz('${key}','${rev}',null,${done},${isBooster || false});scCloseModal()" class="flex-1 bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">▶ Continue (${total-done} Qs)</button>
+        <button onclick="scLaunchRevQuiz('${key}','${rev}',null,0,${isBooster || false});scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-black py-3 rounded-xl text-sm transition-colors">↺ Start Fresh</button>
       </div>
       <button onclick="scCloseModal()" class="mt-3 text-xs text-slate-400 hover:text-slate-600 font-bold">Cancel</button>
     </div>`;
@@ -8436,15 +8435,40 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
   // FORCE SAVE: Always update if quiz.scTotal exists and is valid
   if (quiz && quiz.scTotal && quiz.scTotal > 0) {
     if (!t[rev + 'QsTotal'] || t[rev + 'QsTotal'] < quiz.scTotal) {
-      t[rev + 'QsTotal'] = quiz.scTotal;  // Use total for entire round, not batch size
+      t[rev + 'QsTotal'] = quiz.scTotal;  // Filtered count for stats
       scSave();  // Force save immediately
     }
+  }
+  
+  // ALSO save unfiltered total for accurate new question detection (R1 only)
+  if (rev === 'r1' && startIdx === 0) {
+    // Count total unique questions in quiz files (no filter)
+    const seen = new Set();
+    Object.values(db).forEach(quiz => {
+      if (!quiz || !quiz.questions) return;
+      if (quiz.isScRevision || quiz.isSRS || (quiz.id && quiz.id.startsWith('quiz_sc_rev_'))) return;
+      quiz.questions.forEach(q => {
+        if (!q || !q.question || seen.has(q.question)) return;
+        let match = false;
+        if (t.isSubTopic) {
+          const parentSubj = scGetSubjectFor(t.parentName);
+          match = scMatchesTopic(q, t.parentName, parentSubj)
+            && q.tags && q.tags[2]
+            && q.tags[2].trim().toLowerCase() === t.name.trim().toLowerCase();
+        } else {
+          match = scMatchesTopic(q, t.name, t.subject);
+        }
+        if (match) seen.add(q.question);
+      });
+    });
+    t.r1QsTotalRaw = seen.size;  // Unfiltered total for detection
+    scSave();
   }
 
   // Store wrong/skipped for next revision round
   const nextRevWrongKey = { r1:'r1Wrong', r2:'r2Wrong', r3:'r3Wrong', r4:'r4Wrong' }[rev];
   if (nextRevWrongKey) {
-    // R1: ALWAYS RESET (fresh attempt every time)
+    // R1: ALWAYS RESET (fresh cycle every time)
     // R2/R3/R4: Reset on first batch (startIdx=0), accumulate on later batches
     if (rev === 'r1' || startIdx === 0) {
       t[nextRevWrongKey] = wrongQuestions;
@@ -8575,6 +8599,34 @@ window.scMarkRevDoneAuto = (key, rev) => {
   t[rev] = true;
   t[rev + 'Date'] = scToday();
   t[rev + 'Progress'] = 0;
+  
+  // AFTER R4 COMPLETE: Graduate all questions from cycle to long-term SRS
+  if (rev === 'r4' && t.r1QuestionsAttempted && t.r1QuestionsAttempted.length > 0) {
+    const r4WrongSet = new Set(t.r4Wrong || []);
+    const srsIndexMap = new Map();
+    mistakesDb.forEach((m, idx) => { if(m.question) srsIndexMap.set(m.question, idx); });
+    
+    // Update SRS for ALL questions from this R1 cycle
+    t.r1QuestionsAttempted.forEach(qText => {
+      const mistIdx = srsIndexMap.get(qText);
+      if (mistIdx !== undefined && mistakesDb[mistIdx]) {
+        if (r4WrongSet.has(qText)) {
+          // Still struggling after 4 attempts → short interval for quick review
+          mistakesDb[mistIdx].srs.interval = 3;
+          mistakesDb[mistIdx].srs.nextReview = Date.now() + (3 * 24 * 60 * 60 * 1000);
+        } else {
+          // Mastered through cycle → long interval for maintenance  
+          mistakesDb[mistIdx].srs.interval = 14;
+          mistakesDb[mistIdx].srs.nextReview = Date.now() + (14 * 24 * 60 * 60 * 1000);
+          mistakesDb[mistIdx].isMastered = false; // Not truly mastered yet (30d = mastered)
+        }
+      }
+    });
+    
+    // Clear r1QuestionsAttempted for next cycle
+    t.r1QuestionsAttempted = [];
+  }
+  
   scUpdateStreak();
   scSave();
   if (document.getElementById('screen-syllabus-command') && !document.getElementById('screen-syllabus-command').classList.contains('hidden')) {
