@@ -7832,9 +7832,15 @@ window.scStartRevision = (key, rev) => {
   }
 
   // Collect questions — deduplicate by question text to avoid same Q from multiple files
+  // Sort quizzes by ID (timestamp-based) to match hub order
   const seen = new Set();
   let questions = [];
-  Object.values(db).forEach(quiz => {
+  const sortedQuizzes = Object.values(db).sort((a, b) => {
+    const aId = (a && a.id) ? a.id : '';
+    const bId = (b && b.id) ? b.id : '';
+    return aId.localeCompare(bId);
+  });
+  sortedQuizzes.forEach(quiz => {
     if (!quiz || !quiz.questions) return;
     // Skip temp/SRS quizzes
     if (quiz.isScRevision || quiz.isSRS || (quiz.id && quiz.id.startsWith('quiz_sc_rev_'))) return;
@@ -8010,17 +8016,21 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
   const BATCH_SIZE = 25; // max questions per session (was 50, reduced for better UX)
 
   if (!questions) {
-    // Rebuild questions with deduplication
+    // Rebuild questions with deduplication, sorted by quiz ID to match hub order
     const seen = new Set();
     questions = [];
-    Object.values(db).forEach(quiz => {
+    const sortedQuizzes = Object.values(db).sort((a, b) => {
+      const aId = (a && a.id) ? a.id : '';
+      const bId = (b && b.id) ? b.id : '';
+      return aId.localeCompare(bId);
+    });
+    sortedQuizzes.forEach(quiz => {
       if (!quiz || !quiz.questions) return;
       if (quiz.isScRevision || quiz.isSRS || (quiz.id && quiz.id.startsWith('quiz_sc_rev_'))) return;
       quiz.questions.forEach(q => {
         if (!q || !q.question || seen.has(q.question)) return;
         let match = false;
         if (t.isSubTopic) {
-          // Sub-topic: filter by parent topic + tag3
           const parentSubj = scGetSubjectFor(t.parentName);
           match = scMatchesTopic(q, t.parentName, parentSubj)
             && q.tags && q.tags[2]
