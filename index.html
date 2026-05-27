@@ -2044,6 +2044,8 @@
         let mockTrackerCloud = []; try { mockTrackerCloud = JSON.parse(localStorage.getItem('ssc_mock_tracker')||'[]'); } catch{}
         let scDataCloud = {}; try { scDataCloud = JSON.parse(localStorage.getItem('sc_syllabus_v1')||'{}'); } catch{}
         const payload = { subjects: SUBJECTS, db: cleanDb, syllabusData: scDataCloud, history: historyDb, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, mockTracker: mockTrackerCloud, savedAt: nowTs };
+        // Expose saveData globally for syllabus functions in other script blocks
+        window._saveDataGlobal = saveData;
         try {
             // Use no-cors for POST to avoid CORS block on Google's redirect
             await fetch(CLOUD_URL, {
@@ -7722,6 +7724,7 @@ window.scTickLec = (key) => {
     t.lec = true; t.lecDate = scToday();
     t.trackingMode = t.trackingMode || 'unit';
     scSave(); scRender();
+    if (typeof window._saveDataGlobal === 'function') window._saveDataGlobal();
   }
 };
 
@@ -8655,6 +8658,7 @@ window.scMarkR1Done = (key) => {
   if (document.getElementById('screen-syllabus-command') && !document.getElementById('screen-syllabus-command').classList.contains('hidden')) {
     scRender();
   }
+  if (typeof window._saveDataGlobal === 'function') window._saveDataGlobal();
 };
 
 window.scMarkRevDoneAuto = (key, rev) => {
@@ -8739,6 +8743,8 @@ window.scMarkRevDoneAuto = (key, rev) => {
   if (document.getElementById('screen-syllabus-command') && !document.getElementById('screen-syllabus-command').classList.contains('hidden')) {
     scRender();
   }
+  // Sync to cloud after every revision completion
+  if (typeof window._saveDataGlobal === 'function') window._saveDataGlobal();
 };
 
 // Remove old scSetConfidence function
