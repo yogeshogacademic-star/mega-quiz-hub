@@ -3293,25 +3293,8 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
             m.srs.ease = Math.min(3.0, m.srs.ease + 0.1);
             m.srs.nextReview = Date.now() + (m.srs.interval * 24 * 60 * 60 * 1000);
             if (m.srs.interval >= 30) m.isMastered = true;
-            
-            // DYNAMIC WRONG[] REMOVAL: If this question is in a revision wrong[] list
-            // and you've proven mastery through sprints, remove it from the queue
-            Object.keys(scDb).forEach(key => {
-                const t = scDb[key];
-                // Remove from r1Wrong if interval >= 3 days (R2 threshold)
-                if (t.r1Wrong && t.r1Wrong.includes(qText) && m.srs.interval >= 3) {
-                    t.r1Wrong = t.r1Wrong.filter(q => q !== qText);
-                }
-                // Remove from r2Wrong if interval >= 7 days (R3 threshold)
-                if (t.r2Wrong && t.r2Wrong.includes(qText) && m.srs.interval >= 7) {
-                    t.r2Wrong = t.r2Wrong.filter(q => q !== qText);
-                }
-                // Remove from r3Wrong if interval >= 15 days (R4 threshold)
-                if (t.r3Wrong && t.r3Wrong.includes(qText) && m.srs.interval >= 15) {
-                    t.r3Wrong = t.r3Wrong.filter(q => q !== qText);
-                }
-            });
-            scSave(); // Save scDb changes
+            // NOTE: Sprint correct does NOT remove from r1Wrong/r2Wrong/r3Wrong
+            // R1/R2/R3/R4 cycles are independent from SRS sprints
         } else {
             // Wrong or Skipped — real 10-minute penalty
             m.srs.reps = 0;
@@ -7206,7 +7189,7 @@ function scInitDefault() {
         subject, chapter: subject, name, priority: false, notes: '',
         lec:false, r1:false, r2:false, r3:false, r4:false,
         lecDate:'', r1Date:'', r2Date:'', r3Date:'', r4Date:'',
-        r1Wrong:[], r2Wrong:[], r3Wrong:[],
+        r1Wrong:[], r2Wrong:[], r3Wrong:[], r4Wrong:[],
         r1Progress:0, r2Progress:0, r3Progress:0, r4Progress:0,
         r1QsTotal:0, r2QsTotal:0, r3QsTotal:0, r4QsTotal:0,
         confidence:'', trackingMode:null, subTopicKeys:[]
@@ -7793,7 +7776,7 @@ window.scSetTrackingMode = (key, mode) => {
         parentKey:key, parentName:t.name, isSubTopic:true, priority:false, notes:'',
         lec:false, r1:false, r2:false, r3:false, r4:false,
         lecDate:'', r1Date:'', r2Date:'', r3Date:'', r4Date:'',
-        r1Wrong:[], r2Wrong:[], r3Wrong:[],
+        r1Wrong:[], r2Wrong:[], r3Wrong:[], r4Wrong:[],
         r1Progress:0, r2Progress:0, r3Progress:0, r4Progress:0,
         r1QsTotal:0, r2QsTotal:0, r3QsTotal:0, r4QsTotal:0,
         confidence:'', trackingMode:'unit', subTopicKeys:[] };
@@ -7833,15 +7816,19 @@ window.scStartRevision = (key, rev) => {
   const t = scDb[key];
   if (!t) return;
   
-  // RESET: Clear THIS round + all later rounds for fresh cycle
-  // If starting R1 → clear r1Wrong, r2Wrong, r3Wrong, r4Wrong (fresh cycle)
-  // If starting R2 → clear r2Wrong, r3Wrong, r4Wrong (keep r1Wrong for filtering)
-  const allRounds = ['r1Wrong', 'r2Wrong', 'r3Wrong', 'r4Wrong'];
-  const startIdx = allRounds.indexOf(rev + 'Wrong');
-  if (startIdx !== -1) {
-    for (let i = startIdx; i < allRounds.length; i++) {
-      t[allRounds[i]] = [];
+  // RESET: Only clear wrong arrays on truly FRESH start (progress=0)
+  // NOT when continuing mid-batch (Do More button) - that would lose batch 1 wrongs!
+  const currentProgress = t[rev + 'Progress'] || 0;
+  if (currentProgress === 0) {
+    const allRounds = ['r1Wrong', 'r2Wrong', 'r3Wrong', 'r4Wrong'];
+    const roundStartIdx = allRounds.indexOf(rev + 'Wrong');
+    if (roundStartIdx !== -1) {
+      for (let i = roundStartIdx; i < allRounds.length; i++) {
+        t[allRounds[i]] = [];
+      }
     }
+    // Also reset r1QuestionsAttempted on fresh R1
+    if (rev === 'r1') t.r1QuestionsAttempted = [];
   }
 
   // Collect questions — deduplicate by question text to avoid same Q from multiple files
@@ -7895,11 +7882,6 @@ window.scStartRevision = (key, rev) => {
     mistakesDb.forEach(m => { if (m.question) srsMap.set(m.question, m); });
     
     questions = questions.filter(q => !srsMap.has(q.question)); // NEW ONLY
-    
-    // Store which questions are in THIS R1 attempt (for after-R4 SRS update)
-    if (questions.length > 0) {
-      t.r1QuestionsAttempted = questions.map(q => q.question);
-    }
   }
 
   if (questions.length === 0 && rev === 'r1') { scShowManualRevModal(key, rev); return; }
@@ -8049,18 +8031,36 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
         if (match) { seen.add(q.question); questions.push(q); }
       });
     });
-    // Filter by wrong[] for R2/R3/R4 - ALWAYS apply filter, empty = Perfect!
-    if (rev === 'r2' && t.r1Wrong && t.r1Wrong.length > 0) {
-      const ws = new Set(t.r1Wrong);
-      questions = questions.filter(q => ws.has(q.question));
+    // Filter by wrong[] for R2/R3/R4 - SAME logic as scStartRevision
+    if (rev === 'r1') {
+      // R1: Show ONLY new questions (NOT in SRS) - same as scStartRevision
+      const srsMap = new Map();
+      mistakesDb.forEach(m => { if (m.question) srsMap.set(m.question, m); });
+      questions = questions.filter(q => !srsMap.has(q.question));
     }
-    if (rev === 'r3' && t.r2Wrong && t.r2Wrong.length > 0) {
-      const ws = new Set(t.r2Wrong);
-      questions = questions.filter(q => ws.has(q.question));
+    if (rev === 'r2') {
+      if (!t.r1Wrong || t.r1Wrong.length === 0) {
+        questions = [];
+      } else {
+        const ws = new Set(t.r1Wrong);
+        questions = questions.filter(q => ws.has(q.question));
+      }
     }
-    if (rev === 'r4' && t.r3Wrong && t.r3Wrong.length > 0) {
-      const ws = new Set(t.r3Wrong);
-      questions = questions.filter(q => ws.has(q.question));
+    if (rev === 'r3') {
+      if (!t.r2Wrong || t.r2Wrong.length === 0) {
+        questions = [];
+      } else {
+        const ws = new Set(t.r2Wrong);
+        questions = questions.filter(q => ws.has(q.question));
+      }
+    }
+    if (rev === 'r4') {
+      if (!t.r3Wrong || t.r3Wrong.length === 0) {
+        questions = [];
+      } else {
+        const ws = new Set(t.r3Wrong);
+        questions = questions.filter(q => ws.has(q.question));
+      }
     }
   }
 
@@ -8101,10 +8101,10 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
 window.scMarkRevDone = (key, rev, type) => {
   const t = scDb[key];
   if (!t) return;
-  t[rev] = true; t[rev+'Date'] = scToday(); t[rev+'Progress'] = 0;
   const qc = scGetTopicQsCount(t.isSubTopic ? t.parentName : t.name, t.subject);
   t[rev+'QsTotal'] = typeof qc === 'number' ? qc : 0;
-  scUpdateStreak(); scSave(); scRender();
+  // Use scMarkRevDoneAuto which handles R4 SRS graduation logic
+  scMarkRevDoneAuto(key, rev);
 };
 
 function scUpdateStreak() {
@@ -8202,7 +8202,7 @@ window.scAddTopic = (chapter, subject) => {
       <div class="text-xs text-slate-400 mb-4">${chapter}</div>
       <input id="sc-new-topic" type="text" placeholder="Topic name" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 mb-4">
       <div class="flex gap-3">
-        <button onclick="const n=document.getElementById('sc-new-topic').value.trim();if(n){const k='${chapter.replace(/'/g,"\'")}|||'+n;scDb[k]={subject:'${subject}',chapter:'${chapter.replace(/'/g,"\'")}',name:n,priority:false,notes:'',lec:false,r1:false,r2:false,r3:false,r4:false,lecDate:'',r1Date:'',r2Date:'',r3Date:'',r4Date:'',r1Wrong:[],r2Wrong:[],r3Wrong:[],r1Progress:0,r2Progress:0,r3Progress:0,r4Progress:0,confidence:''};scSave();scCloseModal();scRender();}" class="flex-1 bg-violet-600 text-white font-black py-2.5 rounded-xl text-sm">Add Topic</button>
+        <button onclick="const n=document.getElementById('sc-new-topic').value.trim();if(n){const k='${chapter.replace(/'/g,"\'")}|||'+n;scDb[k]={subject:'${subject}',chapter:'${chapter.replace(/'/g,"\'")}',name:n,priority:false,notes:'',lec:false,r1:false,r2:false,r3:false,r4:false,lecDate:'',r1Date:'',r2Date:'',r3Date:'',r4Date:'',r1Wrong:[],r2Wrong:[],r3Wrong:[],r4Wrong:[],r1Progress:0,r2Progress:0,r3Progress:0,r4Progress:0,confidence:''};scSave();scCloseModal();scRender();}" class="flex-1 bg-violet-600 text-white font-black py-2.5 rounded-xl text-sm">Add Topic</button>
         <button onclick="scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black py-2.5 rounded-xl text-sm">Cancel</button>
       </div>
     </div>`;
@@ -8494,16 +8494,28 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
     scSave();
   }
 
+  // Track ACTUALLY ANSWERED questions for after-R4 SRS graduation
+  // Using historyDb (real answered questions) NOT planned questions
+  if (rev === 'r1' && historyDb && historyDb.length > 0 && historyDb[0].reviewData) {
+    const answeredQs = historyDb[0].reviewData.map(q => q.question);
+    if (startIdx === 0) {
+      t.r1QuestionsAttempted = answeredQs; // Fresh start
+    } else {
+      const existing = t.r1QuestionsAttempted || [];
+      t.r1QuestionsAttempted = [...new Set([...existing, ...answeredQs])]; // Accumulate
+    }
+    scSave(); // Persist immediately
+  }
+
   // Store wrong/skipped for next revision round
   const nextRevWrongKey = { r1:'r1Wrong', r2:'r2Wrong', r3:'r3Wrong', r4:'r4Wrong' }[rev];
   if (nextRevWrongKey) {
-    // R1: ALWAYS RESET (fresh cycle every time)
-    // R2/R3/R4: Reset on first batch (startIdx=0), accumulate on later batches
-    if (rev === 'r1' || startIdx === 0) {
-      t[nextRevWrongKey] = wrongQuestions;
+    // Reset on first batch only (startIdx=0), accumulate on later batches
+    if (startIdx === 0) {
+      t[nextRevWrongKey] = wrongQuestions; // Fresh start
     } else {
       const existing = t[nextRevWrongKey] || [];
-      t[nextRevWrongKey] = [...new Set([...existing, ...wrongQuestions])];
+      t[nextRevWrongKey] = [...new Set([...existing, ...wrongQuestions])]; // Accumulate
     }
     
     // DEBUG R1
@@ -8583,8 +8595,8 @@ function scShowConfidenceModal(key, rev) {
   if (rev === 'r1' && window.historyDb && historyDb.length > 0) {
     const lastAttempt = historyDb[0];
     const total = lastAttempt.totalCorrect + lastAttempt.totalWrong + lastAttempt.totalSkipped;
-    const srsNew = total; // All questions in R1 enter SRS (either new or updated)
     const wrongCount = t.r1Wrong ? t.r1Wrong.length : 0;
+    const srsNew = total - wrongCount; // Only CORRECT questions enter SRS
     
     setTimeout(() => {
       document.getElementById('sc-modal-content').innerHTML = `
@@ -8664,38 +8676,34 @@ window.scMarkRevDoneAuto = (key, rev) => {
       if (r4WrongSet.has(qText)) {
         // WRONG in R4 = still struggling after full cycle → 10 min (same as R1 wrong)
         if (inSRS) {
-          // Was correct in R1, already in SRS → update to 10 min
           mistakesDb[mistIdx].srs.reps = 0;
           mistakesDb[mistIdx].srs.interval = 1;
           mistakesDb[mistIdx].srs.ease = Math.max(1.3, mistakesDb[mistIdx].srs.ease - 0.2);
           mistakesDb[mistIdx].srs.nextReview = now + (10 * 60 * 1000);
           mistakesDb[mistIdx].isMastered = false;
         } else {
-          // Was wrong in R1, never entered SRS → create @ 10 min
           const qObj = qObjMap.get(qText);
           if (qObj) {
             let newCard = JSON.parse(JSON.stringify(qObj));
+            newCard.subject = (qObj.tags && qObj.tags[0]) || t.subject || 'Miscellaneous';
             newCard.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: now + (10 * 60 * 1000) };
             newCard.isMastered = false;
             mistakesDb.push(newCard);
           }
         }
       } else {
-        // FIXED in cycle → 3 days (same as R1 correct) but never go backward
         const currentInterval = inSRS ? mistakesDb[mistIdx].srs.interval : 0;
         const newInterval = Math.max(currentInterval, 3);
         const nextReview = now + (newInterval * 24 * 60 * 60 * 1000);
-
         if (inSRS) {
-          // Already in SRS (was correct in R1, may have grown from sprints)
           mistakesDb[mistIdx].srs.interval = newInterval;
           mistakesDb[mistIdx].srs.nextReview = nextReview;
           mistakesDb[mistIdx].isMastered = false;
         } else {
-          // Was wrong in R1, fixed by R2/R3/R4 → create @ 3 days
           const qObj = qObjMap.get(qText);
           if (qObj) {
             let newCard = JSON.parse(JSON.stringify(qObj));
+            newCard.subject = (qObj.tags && qObj.tags[0]) || t.subject || 'Miscellaneous';
             newCard.srs = { reps: 1, ease: 2.5, interval: 3, nextReview: nextReview };
             newCard.isMastered = false;
             mistakesDb.push(newCard);
@@ -8706,6 +8714,9 @@ window.scMarkRevDoneAuto = (key, rev) => {
 
     // Clear for next cycle
     t.r1QuestionsAttempted = [];
+    
+    // CRITICAL: Persist mistakesDb changes (new SRS cards created above)
+    if (typeof saveData === 'function') saveData();
   }
   
   scUpdateStreak();
