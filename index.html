@@ -374,16 +374,69 @@
             </div>
 
             <!-- ===== PASTE CARDS FORM ===== -->
-            <div id="fc-paste-form" class="hidden mb-6 bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-200 dark:border-indigo-800/40 rounded-2xl p-6">
-                <div class="text-xs font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-2">Paste Gemini / AI Generated Cards</div>
-                <div class="text-xs text-slate-500 mb-4">Paste one or multiple cards in the format:<br>
-                <code class="bg-white dark:bg-slate-800 px-2 py-1 rounded text-indigo-600 text-xs">Title: ... | Chapter: ... | Difficulty: ... | Front — What to recall?: ... | Back — Formula: ... | Memory Trick: ...</code></div>
-                <textarea id="fc-paste-input" rows="10" placeholder="Paste your cards here...&#10;&#10;Card 7: Open Hollow Box Inner Dimensions&#10;Title: 3D — Open Hollow Box&#10;Chapter: Mensuration 3D — Cube &amp; Cuboid&#10;Difficulty: Hard&#10;Front — What to recall?: Inner dimensions of an OPEN hollow box...&#10;Back — Formula: L - 2w, B - 2w, H - w&#10;Memory Trick: No lid means you only subtract w from the Height ONCE!" class="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 text-slate-800 dark:text-slate-200 resize-none font-mono"></textarea>
-                <div class="flex gap-3 mt-4">
-                    <button onclick="fcParsePastedCards()" class="bg-indigo-500 hover:bg-indigo-600 text-white font-black px-6 py-2.5 rounded-xl text-sm transition-colors">⚡ Create Cards</button>
-                    <button onclick="fcTogglePasteForm()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-black px-6 py-2.5 rounded-xl text-sm transition-colors">Cancel</button>
+            <div id="fc-paste-form" class="hidden mb-6 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/15 dark:to-purple-900/10 border border-indigo-200 dark:border-indigo-700/50 rounded-2xl overflow-hidden shadow-sm">
+                <!-- Header -->
+                <div class="px-6 pt-5 pb-4 border-b border-indigo-100 dark:border-indigo-800/40 flex items-center justify-between">
+                    <div>
+                        <div class="text-sm font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-300 flex items-center gap-2">📋 Paste AI-Generated Cards</div>
+                        <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Accepts any format — raw, labelled, or blank-line separated</div>
+                    </div>
+                    <div id="fc-paste-live-count" class="hidden bg-indigo-600 text-white text-xs font-black px-3 py-1 rounded-full">0 cards detected</div>
                 </div>
-                <div id="fc-paste-result" class="hidden mt-3 text-sm font-bold text-emerald-600"></div>
+
+                <!-- Format hints (collapsible) -->
+                <div class="px-6 py-3 bg-white/60 dark:bg-slate-800/30 border-b border-indigo-100 dark:border-indigo-800/30">
+                    <button onclick="document.getElementById('fc-paste-formats').classList.toggle('hidden')" class="text-[10px] font-black uppercase tracking-widest text-indigo-500 dark:text-indigo-400 flex items-center gap-1">
+                        💡 Accepted Formats <span id="fc-fmt-arrow">▼</span>
+                    </button>
+                    <div id="fc-paste-formats" class="hidden mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                        <div class="bg-white dark:bg-slate-800 rounded-xl p-3 border border-indigo-100 dark:border-slate-700">
+                            <div class="font-black text-indigo-600 dark:text-indigo-400 mb-1">Format A — Labelled</div>
+                            <code class="text-slate-500 dark:text-slate-400 leading-relaxed block">Title: Box Formula<br>Chapter: Mensuration<br>Difficulty: Hard<br>Front: What is inner L?<br>Back: L - 2w<br>Hint: No lid = -w once</code>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 rounded-xl p-3 border border-indigo-100 dark:border-slate-700">
+                            <div class="font-black text-indigo-600 dark:text-indigo-400 mb-1">Format B — Blank Lines</div>
+                            <code class="text-slate-500 dark:text-slate-400 leading-relaxed block">Box Formula<br>Chapter: Mensuration<br>Front: What is inner L?<br>Back: L - 2w<br><br>Next Card Title<br>Front: ...<br>Back: ...</code>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 rounded-xl p-3 border border-indigo-100 dark:border-slate-700">
+                            <div class="font-black text-indigo-600 dark:text-indigo-400 mb-1">Format C — Numbered</div>
+                            <code class="text-slate-500 dark:text-slate-400 leading-relaxed block">Card 1: Box Formula<br>Chapter: Mensuration<br>Front: What is inner L?<br>Back: L - 2w<br><br>Card 2: ...<br>Front: ...<br>Back: ...</code>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Textarea -->
+                <div class="p-5">
+                    <textarea id="fc-paste-input" rows="12"
+                        oninput="fcPasteLiveCount()"
+                        placeholder="Paste one or many cards here...
+
+Card 1: Box Formula
+Chapter: Mensuration 3D
+Difficulty: Hard
+Front: Inner dimensions of OPEN hollow box?
+Back: L-2w, B-2w, H-w
+Hint: No lid = only subtract w once from H
+
+Card 2: Another formula
+Chapter: Algebra
+Front: Quadratic formula?
+Back: x = (-b ± √(b²-4ac)) / 2a"
+                        class="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400 text-slate-800 dark:text-slate-200 resize-y transition-colors"></textarea>
+
+                    <!-- Preview panel (shown after parsing) -->
+                    <div id="fc-paste-preview" class="hidden mt-4">
+                        <div class="text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Preview — Review before creating:</div>
+                        <div id="fc-paste-preview-cards" class="space-y-2 max-h-56 overflow-y-auto pr-1"></div>
+                    </div>
+
+                    <div class="flex flex-wrap gap-3 mt-4">
+                        <button onclick="fcPreviewPastedCards()" class="bg-indigo-500 hover:bg-indigo-600 text-white font-black px-6 py-2.5 rounded-xl text-sm transition-colors flex items-center gap-2">🔍 Preview</button>
+                        <button id="fc-paste-confirm-btn" onclick="fcConfirmPastedCards()" class="hidden bg-emerald-500 hover:bg-emerald-600 text-white font-black px-6 py-2.5 rounded-xl text-sm transition-colors flex items-center gap-2">✅ Create All</button>
+                        <button onclick="fcTogglePasteForm()" class="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-black px-5 py-2.5 rounded-xl text-sm transition-colors">Cancel</button>
+                    </div>
+                    <div id="fc-paste-result" class="hidden mt-3 text-sm font-black text-emerald-600 dark:text-emerald-400"></div>
+                </div>
             </div>
 
             <!-- ===== EDIT CARD MODAL ===== -->
@@ -7044,67 +7097,148 @@ window.fcTogglePasteForm = function(){
     const hidden = f.classList.contains('hidden');
     f.classList.toggle('hidden');
     if(b) b.textContent = hidden ? '✕ Cancel Paste' : '📋 Paste Cards';
-    if(hidden) document.getElementById('fc-paste-input').focus();
+    if(hidden){
+        document.getElementById('fc-paste-input').focus();
+        document.getElementById('fc-paste-preview').classList.add('hidden');
+        document.getElementById('fc-paste-confirm-btn').classList.add('hidden');
+        document.getElementById('fc-paste-result').classList.add('hidden');
+        document.getElementById('fc-paste-live-count').classList.add('hidden');
+        window._fcPendingCards = [];
+    }
 };
 
-window.fcParsePastedCards = function(){
-    const raw = document.getElementById('fc-paste-input').value.trim();
-    if(!raw){ alert('Nothing to parse!'); return; }
+// Live card count as user types
+window.fcPasteLiveCount = function(){
+    const raw = document.getElementById('fc-paste-input').value;
+    if(!raw.trim()){ document.getElementById('fc-paste-live-count').classList.add('hidden'); return; }
+    const parsed = fcSmartParseCards(raw);
+    const el = document.getElementById('fc-paste-live-count');
+    if(parsed.length > 0){
+        el.textContent = parsed.length + ' card' + (parsed.length>1?'s':'') + ' detected';
+        el.classList.remove('hidden');
+    } else {
+        el.classList.add('hidden');
+    }
+};
 
-    // Split into individual card blocks
-    const blocks = raw.split(/\n(?=Card\s*\d+:|Title:)/i).filter(b => b.trim());
-    let added = 0;
+// Smart multi-format parser — handles blank-line blocks, Card N: headers, labelled fields
+function fcSmartParseCards(raw){
+    raw = raw.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
 
+    // Split strategy: Card N: headers > double blank lines > single blank lines
+    let blocks;
+    if(/^\s*card\s*\d+\s*[:\-]/im.test(raw)){
+        blocks = raw.split(/\n(?=\s*card\s*\d+\s*[:\-])/i);
+    } else if(/\n\s*\n\s*\n/.test(raw)){
+        blocks = raw.split(/\n\s*\n\s*\n/);
+    } else {
+        blocks = raw.split(/\n\s*\n/);
+    }
+
+    const cards = [];
     blocks.forEach(block => {
-        const get = (label) => {
-            const patterns = [
-                new RegExp(label + '\\s*[:\-]\\s*(.+)', 'i'),
-            ];
-            for(const p of patterns){
-                const m = block.match(p);
-                if(m) return m[1].trim();
+        block = block.trim();
+        if(!block) return;
+
+        // Single-line field extractor (fuzzy label match)
+        const getField = (...labels) => {
+            for(const label of labels){
+                const re = new RegExp('^' + label + '\\s*[:\\-\u2014]\\s*(.+)', 'im');
+                const m = block.match(re);
+                if(m && m[1].trim()) return m[1].trim();
             }
             return '';
         };
 
-        const title      = get('Title') || get('Card \\d+');
-        const chapter    = get('Chapter');
-        const difficulty = (get('Difficulty') || 'medium').toLowerCase().replace('very hard','hard');
-        const front      = get('Front[^:]*');
-        const back       = get('Back[^:]*');
-        const hint       = get('Memory Trick') || get('Hint');
-
-        if(!front && !back) return; // skip empty blocks
-
-        const card = {
-            id: 'fc_paste_' + Date.now() + '_' + Math.random().toString(36).substr(2,5),
-            category: chapter || 'General',
-            difficulty: ['easy','medium','hard'].includes(difficulty) ? difficulty : 'medium',
-            title: title || 'Formula',
-            front: front || title,
-            back: back,
-            hint: hint,
-            example: ''
+        // Multi-line field extractor
+        const getMultiLine = (...labels) => {
+            for(const label of labels){
+                const re = new RegExp('(?:^|\\n)' + label + '\\s*[:\\-\u2014]\\s*([\\s\\S]+?)(?=\\n[A-Za-z][^\\n]*[:\\-]|$)', 'im');
+                const m = block.match(re);
+                if(m && m[1].trim()) return m[1].trim().replace(/\n/g,' ');
+            }
+            return '';
         };
 
-        fcCards.push(card);
-        added++;
+        const title      = getField('title', 'card\\s*\\d+', 'name');
+        const chapter    = getField('chapter', 'category', 'subject', 'section');
+        const diffRaw    = getField('difficulty', 'level', 'diff').toLowerCase();
+        const difficulty = diffRaw.includes('hard')?'hard': diffRaw.includes('easy')?'easy':'medium';
+        const front      = getMultiLine('front[^\\n]*', 'question[^\\n]*', 'q[\\s:]', 'recall[^\\n]*');
+        const back       = getMultiLine('back[^\\n]*', 'answer[^\\n]*', 'formula[^\\n]*', 'ans[\\s:]', 'solution[^\\n]*');
+        const hint       = getField('hint', 'memory\\s*trick', 'trick', 'tip', 'mnemonic', 'note');
+
+        if(!front && !back) return;
+
+        cards.push({ title: title||'Formula '+(cards.length+1), category: chapter||'General',
+            difficulty, front: front||title||'?', back: back||'—', hint, example:'' });
+    });
+    return cards;
+}
+
+// Preview: parse and show cards before committing
+window.fcPreviewPastedCards = function(){
+    const raw = document.getElementById('fc-paste-input').value.trim();
+    if(!raw){ alert('Nothing to parse!'); return; }
+
+    const cards = fcSmartParseCards(raw);
+    if(cards.length === 0){
+        alert('Could not detect any cards.\n\nMake sure each card has a Front and Back line.\nSeparate multiple cards with a blank line.');
+        return;
+    }
+
+    window._fcPendingCards = cards;
+
+    const container = document.getElementById('fc-paste-preview-cards');
+    const diffColor = d => d==='hard'?'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                          :d==='easy'?'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                     :'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400';
+    container.innerHTML = cards.map((c,i) => `
+        <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-3 text-xs">
+            <div class="flex items-center gap-2 mb-1">
+                <span class="font-black text-slate-700 dark:text-slate-200">${i+1}. ${c.title}</span>
+                <span class="text-[9px] font-black px-2 py-0.5 rounded-full ${diffColor(c.difficulty)}">${c.difficulty}</span>
+                <span class="text-slate-400 text-[9px]">${c.category}</span>
+            </div>
+            <div class="text-slate-500 dark:text-slate-400"><span class="font-bold text-slate-600 dark:text-slate-300">Q:</span> ${c.front.substring(0,90)}${c.front.length>90?'…':''}</div>
+            <div class="text-slate-500 dark:text-slate-400"><span class="font-bold text-slate-600 dark:text-slate-300">A:</span> ${c.back.substring(0,90)}${c.back.length>90?'…':''}</div>
+            ${c.hint?`<div class="text-indigo-500 dark:text-indigo-400 mt-0.5">💡 ${c.hint.substring(0,70)}${c.hint.length>70?'…':''}</div>`:''}
+        </div>`).join('');
+
+    document.getElementById('fc-paste-preview').classList.remove('hidden');
+    const btn = document.getElementById('fc-paste-confirm-btn');
+    btn.textContent = '✅ Create ' + cards.length + ' Card' + (cards.length>1?'s':'');
+    btn.classList.remove('hidden');
+};
+
+// Confirm: actually create all previewed cards
+window.fcConfirmPastedCards = function(){
+    const cards = window._fcPendingCards || [];
+    if(!cards.length){ alert('Click Preview first.'); return; }
+
+    const ts = Date.now();
+    cards.forEach((c,i) => {
+        fcCards.push({ id:'fc_paste_'+ts+'_'+i+'_'+Math.random().toString(36).substr(2,4),
+            category:c.category, difficulty:c.difficulty, title:c.title,
+            front:c.front, back:c.back, hint:c.hint, example:c.example });
     });
 
-    if(added > 0){
-        fcSave();
-        fcUpdateStats();
-        fcBuildCatFilters();
-        fcRender();
-        const res = document.getElementById('fc-paste-result');
-        res.textContent = '✅ ' + added + ' card' + (added>1?'s':'') + ' created successfully!';
-        res.classList.remove('hidden');
-        document.getElementById('fc-paste-input').value = '';
-        setTimeout(() => res.classList.add('hidden'), 3000);
-    } else {
-        alert('Could not parse any cards. Make sure each card has at least a Front and Back field.');
-    }
+    fcSave(); fcUpdateStats(); fcBuildCatFilters(); fcRender();
+
+    document.getElementById('fc-paste-input').value = '';
+    document.getElementById('fc-paste-preview').classList.add('hidden');
+    document.getElementById('fc-paste-confirm-btn').classList.add('hidden');
+    document.getElementById('fc-paste-live-count').classList.add('hidden');
+    window._fcPendingCards = [];
+
+    const res = document.getElementById('fc-paste-result');
+    res.textContent = '✅ ' + cards.length + ' card' + (cards.length>1?'s':'') + ' created!';
+    res.classList.remove('hidden');
+    setTimeout(() => res.classList.add('hidden'), 3000);
 };
+
+// Legacy alias
+window.fcParsePastedCards = window.fcPreviewPastedCards;
 
 // ═══════════════════════════════════════════════════════════════
 // SYLLABUS COMMAND CENTRE
@@ -7820,6 +7954,61 @@ function scShowManualRevModal(key, rev) {
 }
 
 // ── START REVISION ──
+// ── WRONG-QUEUE VALIDATOR ──────────────────────────────────────────────────
+// When a question's correct answer was wrong in the JSON and has since been
+// fixed, questions can sit in r1Wrong/r2Wrong/r3Wrong unfairly.
+// This runs before R2/R3/R4 starts: compares each wrong-queue entry against
+// (a) the current correct answer in db and (b) what the user actually answered
+// in historyDb.  If they match → user was right → silently remove from queue.
+function scValidateWrongQueue(t, wrongKey) {
+  const wrongArr = t[wrongKey];
+  if (!wrongArr || wrongArr.length === 0) return 0;
+
+  // Build map: questionText → current correct answer text (from live db)
+  const correctMap = new Map();
+  Object.values(db).forEach(quiz => {
+    if (!quiz || !quiz.questions) return;
+    if (quiz.isScRevision || quiz.isSRS) return;
+    quiz.questions.forEach(q => {
+      if (!q || !q.question || correctMap.has(q.question)) return;
+      // MCQ: find the option marked correct
+      if (q.options && Array.isArray(q.options)) {
+        const correct = q.options.find(o => o.correct);
+        if (correct) correctMap.set(q.question, correct.text.toLowerCase().trim());
+      } else if (q.exactAnswer !== undefined) {
+        // Typing question
+        correctMap.set(q.question, String(q.exactAnswer).toLowerCase().trim());
+      }
+    });
+  });
+
+  // Build map: questionText → user's last recorded answer text (from historyDb)
+  const userAnswerMap = new Map();
+  if (Array.isArray(historyDb)) {
+    // historyDb is newest-first; iterate all to capture every question's last uText
+    for (let i = historyDb.length - 1; i >= 0; i--) {
+      const h = historyDb[i];
+      if (!h || !Array.isArray(h.reviewData)) continue;
+      h.reviewData.forEach(r => {
+        if (r.question && r.uText) {
+          userAnswerMap.set(r.question, r.uText.toLowerCase().trim());
+        }
+      });
+    }
+  }
+
+  let fixed = 0;
+  t[wrongKey] = wrongArr.filter(qText => {
+    const currentCorrect = correctMap.get(qText);
+    const userAnswer     = userAnswerMap.get(qText);
+    if (!currentCorrect || !userAnswer) return true; // can't validate → keep
+    if (userAnswer === currentCorrect) { fixed++; return false; } // you were right → drop
+    return true; // still genuinely wrong → keep
+  });
+
+  return fixed;
+}
+
 window.scStartRevision = (key, rev) => {
   const t = scDb[key];
   if (!t) return;
@@ -7868,6 +8057,18 @@ window.scStartRevision = (key, rev) => {
     });
   });
 
+  // For R2/R3/R4: validate the wrong queue BEFORE building questions.
+  // If the JSON answer was fixed after the question was marked wrong, remove it silently.
+  // Only run on fresh start (progress=0) so it doesn't re-run on mid-batch continue.
+  let autoFixedCount = 0;
+  if (currentProgress === 0 && rev !== 'r1') {
+    const prevWrongKey = { r2:'r1Wrong', r3:'r2Wrong', r4:'r3Wrong' }[rev];
+    if (prevWrongKey) {
+      autoFixedCount = scValidateWrongQueue(t, prevWrongKey);
+      if (autoFixedCount > 0) scSave();
+    }
+  }
+
   // For R2+ filter to wrong/skipped from previous round
   if (rev === 'r2') {
     if (!t.r1Wrong || t.r1Wrong.length === 0) {
@@ -7891,11 +8092,11 @@ window.scStartRevision = (key, rev) => {
       questions = questions.filter(q => ws.has(q.question));
     }
   } else if (rev === 'r1') {
-    // R1 FILTER: Show ONLY new questions (NOT in SRS)
+    // R1 FILTER: Show ONLY new questions (NOT in SRS AND NOT already attempted this cycle)
     const srsMap = new Map();
     mistakesDb.forEach(m => { if (m.question) srsMap.set(m.question, m); });
-    
-    questions = questions.filter(q => !srsMap.has(q.question)); // NEW ONLY
+    const doneSet = new Set(t.r1QuestionsAttempted || []); // exclude already-done batches
+    questions = questions.filter(q => !srsMap.has(q.question) && !doneSet.has(q.question));
   }
 
   if (questions.length === 0 && rev === 'r1') { scShowManualRevModal(key, rev); return; }
@@ -7903,11 +8104,23 @@ window.scStartRevision = (key, rev) => {
 
   const progressKey = rev + 'Progress';
   const done = t[progressKey] || 0;
-  if (done > 0 && done < questions.length) {
+
+  if (rev === 'r1') {
+    // R1: questions is already pre-filtered (remaining unfinished only).
+    // Use r1QuestionsAttempted.length as the accurate "done" count.
+    const r1Done = (t.r1QuestionsAttempted || []).length;
+    const r1Total = r1Done + questions.length; // total for this R1 cycle
+    if (r1Done > 0) {
+      // Partially done: show continue modal with correct cumulative numbers
+      scShowContinueModal(key, rev, r1Done, r1Total, questions);
+    } else {
+      scLaunchRevQuiz(key, rev, questions, 0);
+    }
+  } else if (done > 0 && done < questions.length) {
     scShowContinueModal(key, rev, done, questions.length, questions);
   } else if (rev !== 'r1' && done === 0) {
     // R2/R3/R4 starting fresh → show stats from previous round
-    scShowRoundStatsModal(key, rev, questions);
+    scShowRoundStatsModal(key, rev, questions, autoFixedCount);
   } else {
     scLaunchRevQuiz(key, rev, questions, 0);
   }
@@ -7931,57 +8144,49 @@ function scShowContinueModal(key, rev, done, total, questions, isBooster) {
   document.getElementById('sc-modal').classList.remove('hidden');
 }
 
-function scShowRoundStatsModal(key, rev, questions) {
+function scShowRoundStatsModal(key, rev, questions, autoFixedCount) {
+  autoFixedCount = autoFixedCount || 0;
   const t = scDb[key];
   const prevRev = rev === 'r2' ? 'r1' : rev === 'r3' ? 'r2' : 'r3';
   const prevWrongKey = prevRev + 'Wrong';
   const prevQsTotal = t[prevRev + 'QsTotal'] || 0;
-  
-  // BUG FIX: Use stored wrong count, not filtered questions length!
+
   const wrongCount = (t[prevWrongKey] || []).length;
-  
-  // DEEP DEBUG
-  console.log('=== MODAL DEBUG ===');
-  console.log('prevWrongKey:', prevWrongKey);
-  console.log('Stored wrong array length:', wrongCount);
-  console.log('Filtered questions length:', questions.length);
-  console.log('Stored wrong array:', t[prevWrongKey]);
-  console.log('Filtered questions:', questions.map(q => q.question));
-  
-  if (wrongCount !== questions.length) {
-    alert(`🚨 BUG DETECTED!\n\nStored ${prevWrongKey}: ${wrongCount}\nFiltered questions: ${questions.length}\n\nThis is the bug! Modal will now use STORED count (${wrongCount})`);
-  }
-  
-  // If data missing or suspicious, show simplified modal
+
+  // Auto-fix banner (shown when answers were corrected in JSON after the fact)
+  const autoFixBanner = autoFixedCount > 0
+    ? `<div class="text-xs mb-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 font-bold">
+        ✅ ${autoFixedCount} question${autoFixedCount !== 1 ? 's' : ''} auto-removed — you were right, the answer was wrong in the JSON and has since been fixed.
+      </div>`
+    : '';
+
   if (!prevQsTotal || prevQsTotal < wrongCount) {
     document.getElementById('sc-modal-content').innerHTML = `
       <div class="text-center">
         <div class="text-2xl font-black text-slate-800 dark:text-slate-100 mb-1">${t.name} — ${rev.toUpperCase()}</div>
         <div class="text-xs text-slate-400 uppercase tracking-widest mb-4">${prevRev.toUpperCase()} Complete</div>
-        
+        ${autoFixBanner}
         <div class="p-6 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800 mb-6">
           <div class="text-4xl font-black text-blue-600 dark:text-blue-400 mb-2">${wrongCount}</div>
           <div class="text-xs text-slate-600 dark:text-slate-400 font-bold">question${wrongCount !== 1 ? 's' : ''} to review</div>
         </div>
-        
         <div class="text-xs text-slate-500 mb-6 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
           ${rev.toUpperCase()} will show questions you got wrong in ${prevRev.toUpperCase()}
         </div>
-        
         <button onclick="scLaunchRevQuiz('${key}','${rev}',null,0);scCloseModal()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">Start ${rev.toUpperCase()} (${wrongCount} Qs)</button>
         <button onclick="scCloseModal()" class="mt-3 text-xs text-slate-400 hover:text-slate-600 font-bold">Cancel</button>
       </div>`;
     document.getElementById('sc-modal').classList.remove('hidden');
     return;
   }
-  
-  const correctCount = prevQsTotal - wrongCount;
-  
+
+  const correctCount = prevQsTotal - wrongCount - autoFixedCount;
+
   document.getElementById('sc-modal-content').innerHTML = `
     <div class="text-center">
       <div class="text-2xl font-black text-slate-800 dark:text-slate-100 mb-1">${t.name} — ${rev.toUpperCase()}</div>
       <div class="text-xs text-slate-400 uppercase tracking-widest mb-4">${prevRev.toUpperCase()} Summary</div>
-      
+      ${autoFixBanner}
       <div class="grid grid-cols-2 gap-3 mb-6">
         <div class="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
           <div class="text-3xl font-black text-emerald-600 dark:text-emerald-400">${correctCount}</div>
@@ -7992,9 +8197,14 @@ function scShowRoundStatsModal(key, rev, questions) {
           <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Wrong/Skipped</div>
         </div>
       </div>
-      
       <div class="text-xs text-slate-500 mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
         ${rev.toUpperCase()} will show <span class="font-black text-blue-600 dark:text-blue-400">${wrongCount} question${wrongCount !== 1 ? 's' : ''}</span> you got wrong in ${prevRev.toUpperCase()}
+      </div>
+      <button onclick="scLaunchRevQuiz('${key}','${rev}',null,0);scCloseModal()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">Start ${rev.toUpperCase()} (${wrongCount} Qs)</button>
+      <button onclick="scCloseModal()" class="mt-3 text-xs text-slate-400 hover:text-slate-600 font-bold">Cancel</button>
+    </div>`;
+  document.getElementById('sc-modal').classList.remove('hidden');
+}        ${rev.toUpperCase()} will show <span class="font-black text-blue-600 dark:text-blue-400">${wrongCount} question${wrongCount !== 1 ? 's' : ''}</span> you got wrong in ${prevRev.toUpperCase()}
       </div>
       
       <button onclick="scLaunchRevQuiz('${key}','${rev}',null,0);scCloseModal()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">Start ${rev.toUpperCase()} (${wrongCount} Qs)</button>
@@ -8051,10 +8261,12 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
     });
     // Filter by wrong[] for R2/R3/R4 - SAME logic as scStartRevision
     if (rev === 'r1') {
-      // R1: Show ONLY new questions (NOT in SRS) - same as scStartRevision
+      // R1: show ONLY new questions (not in SRS) AND not already done in this cycle
       const srsMap = new Map();
       mistakesDb.forEach(m => { if (m.question) srsMap.set(m.question, m); });
-      questions = questions.filter(q => !srsMap.has(q.question));
+      const doneSet = new Set(t.r1QuestionsAttempted || []);
+      questions = questions.filter(q => !srsMap.has(q.question) && !doneSet.has(q.question));
+      startIdx = 0; // Always slice from 0 — done Qs are pre-filtered
     }
     if (rev === 'r2') {
       if (!t.r1Wrong || t.r1Wrong.length === 0) {
@@ -8089,26 +8301,33 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
   // Store context for post-quiz callback
   window._scRevContext = { key, rev, allQuestions: questions, startIdx };
 
+  // For R1: doneOffset = already-answered questions (pre-filtered out).
+  // For R2/R3/R4: doneOffset = startIdx (index-based, unchanged behavior).
+  const doneOffset = rev === 'r1' ? (t.r1QuestionsAttempted || []).length : startIdx;
+  const sessionTotal = rev === 'r1' ? questions.length + doneOffset : questions.length;
+
   // Build temp quiz title showing batch info when large topic
-  const batchInfo = questions.length > BATCH_SIZE ? ` (${startIdx+1}–${Math.min(startIdx+BATCH_SIZE, questions.length)} of ${questions.length})` : '';
+  const batchInfo = sessionTotal > BATCH_SIZE
+    ? ` (${doneOffset + 1}–${Math.min(doneOffset + BATCH_SIZE, sessionTotal)} of ${sessionTotal})`
+    : '';
   const tempId = 'quiz_sc_rev_current'; // Stable ID - no timestamp pollution
-  
+
   // Clean up any old SC revision quizzes before creating the new one
   Object.keys(db).forEach(id => {
     if (id.startsWith('quiz_sc_rev_') || (db[id] && db[id].isScRevision)) delete db[id];
   });
-  
+
   db[tempId] = {
     id: tempId, title: t.name + ' — ' + rev.toUpperCase() + ' Revision' + batchInfo,
     subject: t.subject, questions: slice, isScRevision: true,
-    timeInMinutes: Math.max(5, Math.ceil(slice.length * 1.5)), // 1.5 mins per question, min 5 mins
-    scKey: key, scRev: rev, scStartIdx: startIdx, scTotal: questions.length
+    timeInMinutes: Math.max(5, Math.ceil(slice.length * 1.5)),
+    scKey: key, scRev: rev, scStartIdx: startIdx, scDoneOffset: doneOffset, scTotal: sessionTotal
   };
 
   currentQuizId = tempId;
   
   // Update lobby title and question count immediately
-  const lobbyTitle = t.name + ' — ' + rev.toUpperCase() + (questions.length > BATCH_SIZE ? ` (Batch ${Math.floor(startIdx/BATCH_SIZE)+1})` : '');
+  const lobbyTitle = t.name + ' — ' + rev.toUpperCase() + (sessionTotal > BATCH_SIZE ? ` (Batch ${Math.floor(doneOffset / BATCH_SIZE) + 1})` : '');
   document.getElementById('lobby-title').textContent = lobbyTitle;
   document.getElementById('lobby-meta').textContent = `${slice.length} Question${slice.length !== 1 ? 's' : ''}`;
   
@@ -8457,6 +8676,9 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
   const key = quiz.scKey;
   const rev = quiz.scRev;
   const startIdx = quiz.scStartIdx || 0;
+  // scDoneOffset: for R1 = r1QuestionsAttempted.length before this batch (content-based)
+  //               for R2/R3/R4 = startIdx (index-based, unchanged behaviour)
+  const doneOffset = (quiz.scDoneOffset !== undefined) ? quiz.scDoneOffset : startIdx;
   const totalQs = quiz.scTotal || total;
   const t = scDb ? scDb[key] : null;
   if (!t) return;
@@ -8474,27 +8696,25 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
     }
   }
 
-  // Update progress
-  const newDone = startIdx + total;
+  // Update progress (cumulative: offset + this batch size)
+  const newDone = doneOffset + total;
   t[rev + 'Progress'] = newDone;
-  
-  // Set total question count on first submit (needed for R2/R3/R4 stats modal)
-  // FORCE SAVE: Always update if quiz.scTotal exists and is valid
+
+  // Store cycle total for stats modals
   if (quiz && quiz.scTotal && quiz.scTotal > 0) {
     if (!t[rev + 'QsTotal'] || t[rev + 'QsTotal'] < quiz.scTotal) {
-      t[rev + 'QsTotal'] = quiz.scTotal;  // Filtered count for stats
-      scSave();  // Force save immediately
+      t[rev + 'QsTotal'] = quiz.scTotal;
+      scSave();
     }
   }
-  
-  // ALSO save unfiltered total for accurate new question detection (R1 only)
-  if (rev === 'r1' && startIdx === 0) {
-    // Count total unique questions in quiz files (no filter)
+
+  // Save unfiltered total for new-question detection (R1 only, first batch)
+  if (rev === 'r1' && doneOffset === 0) {
     const seen = new Set();
-    Object.values(db).forEach(quiz => {
-      if (!quiz || !quiz.questions) return;
-      if (quiz.isScRevision || quiz.isSRS || (quiz.id && quiz.id.startsWith('quiz_sc_rev_'))) return;
-      quiz.questions.forEach(q => {
+    Object.values(db).forEach(qz => {
+      if (!qz || !qz.questions) return;
+      if (qz.isScRevision || qz.isSRS || (qz.id && qz.id.startsWith('quiz_sc_rev_'))) return;
+      qz.questions.forEach(q => {
         if (!q || !q.question || seen.has(q.question)) return;
         let match = false;
         if (t.isSubTopic) {
@@ -8508,40 +8728,31 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
         if (match) seen.add(q.question);
       });
     });
-    t.r1QsTotalRaw = seen.size;  // Unfiltered total for detection
+    t.r1QsTotalRaw = seen.size;
     scSave();
   }
 
-  // Track ACTUALLY ANSWERED questions for after-R4 SRS graduation
-  // Using historyDb (real answered questions) NOT planned questions
+  // Track answered questions for after-R4 SRS graduation.
+  // Always accumulate — reset to [] happens in scStartRevision on a fresh cycle start.
   if (rev === 'r1' && historyDb && historyDb.length > 0 && historyDb[0].reviewData) {
     const answeredQs = historyDb[0].reviewData.map(q => q.question);
-    if (startIdx === 0) {
-      t.r1QuestionsAttempted = answeredQs; // Fresh start
-    } else {
-      const existing = t.r1QuestionsAttempted || [];
-      t.r1QuestionsAttempted = [...new Set([...existing, ...answeredQs])]; // Accumulate
-    }
-    scSave(); // Persist immediately
+    const existing = t.r1QuestionsAttempted || [];
+    t.r1QuestionsAttempted = [...new Set([...existing, ...answeredQs])];
+    scSave();
   }
 
-  // Store wrong/skipped for next revision round
+  // Store wrong/skipped for next revision round.
+  // Fresh-start detection: R1 uses doneOffset===0; R2/R3/R4 use startIdx===0.
   const nextRevWrongKey = { r1:'r1Wrong', r2:'r2Wrong', r3:'r3Wrong', r4:'r4Wrong' }[rev];
+  const isFreshStart = rev === 'r1' ? doneOffset === 0 : startIdx === 0;
   if (nextRevWrongKey) {
-    // Reset on first batch only (startIdx=0), accumulate on later batches
-    if (startIdx === 0) {
-      t[nextRevWrongKey] = wrongQuestions; // Fresh start
+    if (isFreshStart) {
+      t[nextRevWrongKey] = wrongQuestions; // Fresh start — replace previous
     } else {
       const existing = t[nextRevWrongKey] || [];
-      t[nextRevWrongKey] = [...new Set([...existing, ...wrongQuestions])]; // Accumulate
+      t[nextRevWrongKey] = [...new Set([...existing, ...wrongQuestions])]; // Accumulate batches
     }
-    
-    // DEBUG R1
-    if (rev === 'r1') {
-      setTimeout(() => {
-        alert(`R1 SUBMIT DEBUG:\n\nTotal answered: ${total}\nWrong collected: ${wrongQuestions.length}\n\nStored to r1Wrong[]:\n${t.r1Wrong.length} questions\n\nFirst 3:\n${t.r1Wrong.slice(0,3).join('\n')}`);
-      }, 500);
-    }
+    // (Debug alert removed)
   }
 
   scSave();
@@ -8589,11 +8800,13 @@ function scShowBatchModal(key, rev, done, total, wrongCount) {
   }, 400);
 }
 
-// Continue same revision from where left off
-window.scDoMoreBatch = (key, rev, startIdx) => {
+// Continue same revision from where left off — go straight to next batch, no extra modal
+window.scDoMoreBatch = (key, rev, done) => {
   scCloseModal();
-  // Small delay so modal closes cleanly
-  setTimeout(() => scStartRevision(key, rev), 150);
+  // For R1: always pass 0 (done Qs pre-filtered by r1QuestionsAttempted)
+  // For R2/R3/R4: pass done as startIdx (index-based)
+  const nextIdx = rev === 'r1' ? 0 : done;
+  setTimeout(() => scLaunchRevQuiz(key, rev, null, nextIdx), 150);
 };
 
 // End revision early — save progress, let user continue later
@@ -8608,36 +8821,35 @@ window.scEndRevEarly = (key, rev) => {
 
 function scShowConfidenceModal(key, rev) {
   const t = scDb[key];
-  
-  // For R1: Show SRS stats
-  if (rev === 'r1' && window.historyDb && historyDb.length > 0) {
-    const lastAttempt = historyDb[0];
-    const total = lastAttempt.totalCorrect + lastAttempt.totalWrong + lastAttempt.totalSkipped;
-    const wrongCount = t.r1Wrong ? t.r1Wrong.length : 0;
-    const srsNew = total - wrongCount; // Only CORRECT questions enter SRS
-    
+
+  // For R1: Show full-cycle stats (across all batches)
+  if (rev === 'r1') {
+    const totalAnswered = (t.r1QuestionsAttempted || []).length; // All answered this cycle
+    const wrongCount = (t.r1Wrong || []).length; // All wrong across all batches
+    const correctCount = Math.max(0, totalAnswered - wrongCount);
+
     setTimeout(() => {
       document.getElementById('sc-modal-content').innerHTML = `
         <div class="text-center">
           <div class="text-2xl font-black text-slate-800 dark:text-slate-100 mb-1">${t.name} — R1 Complete!</div>
-          <div class="text-xs text-slate-400 uppercase tracking-widest mb-6">SRS Updated</div>
-          
+          <div class="text-xs text-slate-400 uppercase tracking-widest mb-6">All ${totalAnswered} questions done</div>
+
           <div class="grid grid-cols-2 gap-3 mb-6">
-            <div class="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-200 dark:border-indigo-800">
-              <div class="text-3xl font-black text-indigo-600 dark:text-indigo-400">${srsNew}</div>
-              <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Questions in SRS</div>
+            <div class="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
+              <div class="text-3xl font-black text-emerald-600 dark:text-emerald-400">${correctCount}</div>
+              <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Correct ✓</div>
             </div>
             <div class="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
               <div class="text-3xl font-black text-red-600 dark:text-red-400">${wrongCount}</div>
-              <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Wrong (R2 Queue)</div>
+              <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Wrong → R2 Queue</div>
             </div>
           </div>
-          
+
           <div class="text-xs text-slate-500 mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            ✅ All ${srsNew} questions entered SRS • ${wrongCount > 0 ? 'R2 will show ' + wrongCount + ' wrong questions' : 'All correct! R2 skipped ✨'}
+            ${wrongCount > 0 ? '⚠️ R2 will show ' + wrongCount + ' wrong questions for follow-up' : '🎉 Perfect score! R2 skipped ✨'}
           </div>
-          
-          <button onclick="scMarkR1Done('${key}')" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">Continue</button>
+
+          <button onclick="scMarkR1Done('${key}')" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">Continue → Mark R1 Done</button>
         </div>`;
       document.getElementById('sc-modal').classList.remove('hidden');
     }, 500);
@@ -8652,6 +8864,8 @@ window.scMarkR1Done = (key) => {
   t.r1 = true;
   t.r1Date = scToday();
   t.r1Progress = 0;
+  t.r1QuestionsAttempted = []; // CRITICAL: clear so new cycle doesn't see stale done-set
+  t.r1QsTotalRaw = 0;          // reset so new-question badge recalculates correctly
   scUpdateStreak();
   scSave();
   scCloseModal();
