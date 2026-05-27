@@ -2094,10 +2094,15 @@
         notesDb = data.notes || {};
         if (data.fcCards && Array.isArray(data.fcCards)) {
             localStorage.setItem('yogesh_fc_cards_v2', JSON.stringify(data.fcCards));
-            // Reload into IIFE memory immediately — no refresh needed
             if (typeof window.fcReloadFromStorage === 'function') window.fcReloadFromStorage();
         }
         if (data.fcProgress && typeof data.fcProgress === 'object') localStorage.setItem('yogesh_fc_prog_v2', JSON.stringify(data.fcProgress));
+        
+        // FIX: Restore syllabusData (R1/R2/R3/R4 progress + SRS cycle data)
+        if (data.syllabusData && Object.keys(data.syllabusData).length > 0) {
+            localStorage.setItem('sc_syllabus_v1', JSON.stringify(data.syllabusData));
+            if (typeof scLoad === 'function') scLoad();
+        }
         if (data.mockTracker && Array.isArray(data.mockTracker) && data.mockTracker.length > 0) {
             try {
                 const localMocks = JSON.parse(localStorage.getItem('ssc_mock_tracker') || '[]');
