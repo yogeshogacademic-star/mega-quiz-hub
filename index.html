@@ -7637,7 +7637,9 @@ function scRevTick(t, rev, checked, daysUntil, revLabel) {
   if (typeof totalQsNow !== 'number') totalQsNow = 0;
   
   const totalQsAtR1 = t.r1QsTotalRaw || 0;
-  const newQsDetected = checked && rev === 'r1' && totalQsAtR1 > 0 && totalQsNow > totalQsAtR1;
+  // Red badge ONLY when all 4 cycles complete AND new questions added
+  const allCyclesDone = t.r1 && t.r2 && t.r3 && t.r4;
+  const newQsDetected = checked && rev === 'r1' && allCyclesDone && totalQsAtR1 > 0 && totalQsNow > totalQsAtR1;
   const newQsCount = newQsDetected ? totalQsNow - totalQsAtR1 : 0;
 
   // IN-PROGRESS STATE: some batches done but not complete
@@ -7801,9 +7803,13 @@ window.scSetTrackingMode = (key, mode) => {
 };
 
 function scHasNewQuestions(t) {
-  if (!t.r4QsTotal) return false;
-  const current = scGetTopicQsCount(t.isSubTopic ? t.parentName : t.name);
-  return typeof current === 'number' && current > t.r4QsTotal;
+  // NEW badge ONLY when:
+  // 1. ALL 4 cycles complete
+  // 2. Questions added since R1 started (r1QsTotalRaw is the baseline)
+  if (!t.r4) return false;
+  if (!t.r1QsTotalRaw) return false;
+  const current = scGetTopicQsCount(t.isSubTopic ? t.parentName : t.name, t.subject);
+  return typeof current === 'number' && current > t.r1QsTotalRaw;
 }
 
 function scShowManualRevModal(key, rev) {
