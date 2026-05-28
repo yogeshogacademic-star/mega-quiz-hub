@@ -7777,8 +7777,12 @@ function scRevTick(t, rev, checked, daysUntil, revLabel) {
 
   // IN-PROGRESS STATE: some batches done but not complete
   const prog = t[rev+'Progress'] || 0;
-  const total = totalQsNow;
-  const isInProgress = !checked && prog > 0 && prog < total;
+  // BUG2 FIX: use the stored round-specific total, not the full topic count
+  // R1 uses r1QsTotalRaw (eligible questions); R2/R3/R4 use their stored QsTotal
+  const roundTotal = rev === 'r1'
+    ? (t.r1QsTotalRaw || totalQsNow)       // eligible Qs for this R1 cycle
+    : (t[rev + 'QsTotal'] || totalQsNow);  // stored wrong-queue size for R2/R3/R4
+  const isInProgress = !checked && prog > 0 && prog < roundTotal;
 
   if (checked) {
     // COMPLETED - show green check + optional red badge for new questions
@@ -7806,7 +7810,7 @@ function scRevTick(t, rev, checked, daysUntil, revLabel) {
     return `
       <div class="flex flex-col items-center gap-0.5">
         <div onclick="scStartRevision('${t.key}','${rev}')" class="w-[22px] h-[22px] rounded-[5px] bg-amber-400 border-amber-400 border flex items-center justify-center text-white text-[11px] cursor-pointer">⏳</div>
-        <div class="text-[8px] text-amber-500 font-bold leading-none">${prog}/${total}</div>
+        <div class="text-[8px] text-amber-500 font-bold leading-none">${prog}/${roundTotal}</div>
       </div>`;
   }
 
@@ -7855,8 +7859,14 @@ window.scTickLec = (key) => {
   if (!t) return;
   if (t.lec) {
     if (!confirm('Unmark lecture for ' + t.name + '? This will reset all revision progress.')) return;
-    t.lec = false; t.lecDate = ''; t.r1 = false; t.r1Date = '';
-    t.r2 = false; t.r2Date = ''; t.r3 = false; t.r3Date = ''; t.r4 = false; t.r4Date = '';
+    t.lec = false; t.lecDate = '';
+    t.r1 = false; t.r1Date = ''; t.r2 = false; t.r2Date = '';
+    t.r3 = false; t.r3Date = ''; t.r4 = false; t.r4Date = '';
+    // BUG1 FIX: clear ALL progress & wrong arrays on unmark so fresh start works
+    t.r1Progress = 0; t.r2Progress = 0; t.r3Progress = 0; t.r4Progress = 0;
+    t.r1Wrong = []; t.r2Wrong = []; t.r3Wrong = []; t.r4Wrong = [];
+    t.r1QuestionsAttempted = []; t.r1QsTotalRaw = 0;
+    t.r1QsTotal = 0; t.r2QsTotal = 0; t.r3QsTotal = 0; t.r4QsTotal = 0;
     t.trackingMode = null; t.subTopicKeys = [];
     scSave(); scRender(); return;
   }
@@ -8032,6 +8042,12 @@ window.scStartRevision = (key, rev) => {
       for (let i = roundStartIdx; i < allRounds.length; i++) {
         t[allRounds[i]] = [];
       }
+    }
+    // BUG3 FIX: also clear *Progress fields from this round onward
+    // (stale values from abandoned sessions cause false in-progress display)
+    const progressRounds = ['r1Progress','r2Progress','r3Progress','r4Progress'];
+    for (let i = roundStartIdx; i < progressRounds.length; i++) {
+      t[progressRounds[i]] = 0;
     }
     // Also reset r1QuestionsAttempted on fresh R1
     if (rev === 'r1') t.r1QuestionsAttempted = [];
@@ -8298,7 +8314,12 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
 
   // Slice batch: max BATCH_SIZE questions starting from startIdx
   const slice = questions.slice(startIdx, startIdx + BATCH_SIZE);
-  if (slice.length === 0) { scMarkRevDone(key, rev, 'complete'); return; }
+  if (slice.length === 0) {
+    // BUG8 FIX: for R1 route through confirmation modal (not silent mark-done)
+    // For R2/R3/R4 the modal is handled inside scShowConfidenceModal
+    scShowConfidenceModal(key, rev);
+    return;
+  }
 
   // Store context for post-quiz callback
   window._scRevContext = { key, rev, allQuestions: questions, startIdx };
@@ -8667,9 +8688,13 @@ window.openSyllabusCommand = () => {
 };
 
 // ── POST QUIZ HOOK: update revision progress ──
-const _origAfterSubmit = window._afterSubmit;
+// BUG9 FIX: use let (not const) so it can be recaptured if needed;
+// store under a namespaced variable to avoid collision with other scripts
+let _scRevOrigAfterSubmit = window._afterSubmit || null;
 window._afterSubmit = function(correct, wrong, skipped, total) {
-  if (_origAfterSubmit) _origAfterSubmit(correct, wrong, skipped, total);
+  if (_scRevOrigAfterSubmit && _scRevOrigAfterSubmit !== window._afterSubmit) {
+    _scRevOrigAfterSubmit(correct, wrong, skipped, total);
+  }
 
   // Check if this was a SC revision quiz
   if (!currentQuizId || !db[currentQuizId] || !db[currentQuizId].isScRevision) return;
@@ -8765,8 +8790,10 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
     return;
   }
 
+  // BUG4 FIX: show ACCUMULATED wrong count (all batches so far), not just this batch
+  const accumulatedWrong = nextRevWrongKey ? (t[nextRevWrongKey] || []).length : wrongQuestions.length;
   // More questions remain → show "Do More / End R" batch modal
-  scShowBatchModal(key, rev, newDone, totalQs, wrongQuestions.length);
+  scShowBatchModal(key, rev, newDone, totalQs, accumulatedWrong);
 };
 
 // ── BATCH COMPLETE MODAL ──
@@ -8856,8 +8883,34 @@ function scShowConfidenceModal(key, rev) {
       document.getElementById('sc-modal').classList.remove('hidden');
     }, 500);
   } else {
-    // For R2/R3/R4: Just mark done without modal
-    scMarkRevDoneAuto(key, rev);
+    // BUG6 FIX: show brief completion stats for R2/R3/R4 (was silent before)
+    const totalAnswered = t[rev + 'QsTotal'] || 0;
+    const wrongArr = t[rev + 'Wrong'] || [];
+    const wrongCnt  = wrongArr.length;
+    const correctCnt = Math.max(0, totalAnswered - wrongCnt);
+    const nextRev = rev === 'r2' ? 'R3' : rev === 'r3' ? 'R4' : null;
+    setTimeout(() => {
+      document.getElementById('sc-modal-content').innerHTML = `
+        <div class="text-center">
+          <div class="text-2xl font-black text-slate-800 dark:text-slate-100 mb-1">${t.name} — ${rev.toUpperCase()} Complete!</div>
+          <div class="text-xs text-slate-400 uppercase tracking-widest mb-5">Revision Round Done</div>
+          <div class="grid grid-cols-2 gap-3 mb-5">
+            <div class="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
+              <div class="text-3xl font-black text-emerald-600 dark:text-emerald-400">${correctCnt}</div>
+              <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Correct ✓</div>
+            </div>
+            <div class="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
+              <div class="text-3xl font-black text-red-600 dark:text-red-400">${wrongCnt}</div>
+              <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest">${nextRev ? 'Wrong → ' + nextRev : 'Wrong (SRS)'}</div>
+            </div>
+          </div>
+          <div class="text-xs text-slate-500 mb-5 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            ${wrongCnt > 0 ? (nextRev ? '⚠️ ' + nextRev + ' will show ' + wrongCnt + ' questions' : '⚠️ ' + wrongCnt + ' remaining questions enter SRS') : '🎉 Perfect round! All correct.'}
+          </div>
+          <button onclick="scMarkRevDoneAuto('${key}','${rev}');scCloseModal()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">Continue → Mark ${rev.toUpperCase()} Done</button>
+        </div>`;
+      document.getElementById('sc-modal').classList.remove('hidden');
+    }, 400);
   }
 }
 
@@ -8867,7 +8920,11 @@ window.scMarkR1Done = (key) => {
   t.r1Date = scToday();
   t.r1Progress = 0;
   t.r1QuestionsAttempted = []; // CRITICAL: clear so new cycle doesn't see stale done-set
-  t.r1QsTotalRaw = 0;          // reset so new-question badge recalculates correctly
+  // BUG7 FIX: preserve r1QsTotalRaw as the baseline for new-question badge detection.
+  // Zeroing it blinds the badge until the user submits the first batch of the new cycle.
+  // We only update it during _afterSubmit (first batch, doneOffset===0), so it stays
+  // as the "questions at cycle completion" snapshot until then.
+  // (No change needed — just don't reset it here)
   scUpdateStreak();
   scSave();
   scCloseModal();
@@ -8929,10 +8986,15 @@ window.scMarkRevDoneAuto = (key, rev) => {
       } else {
         const currentInterval = inSRS ? mistakesDb[mistIdx].srs.interval : 0;
         const newInterval = Math.max(currentInterval, 3);
-        const nextReview = now + (newInterval * 24 * 60 * 60 * 1000);
+        const newNextReview = now + (newInterval * 24 * 60 * 60 * 1000);
         if (inSRS) {
           mistakesDb[mistIdx].srs.interval = newInterval;
-          mistakesDb[mistIdx].srs.nextReview = nextReview;
+          // BUG5 FIX: never push an existing card's due date FURTHER out —
+          // keep the earlier of (existing schedule, new graduation date)
+          const existingNext = mistakesDb[mistIdx].srs.nextReview || 0;
+          mistakesDb[mistIdx].srs.nextReview = existingNext > now
+            ? Math.min(existingNext, newNextReview)  // already future: keep earlier
+            : newNextReview;                          // overdue: reset to graduation date
           mistakesDb[mistIdx].isMastered = false;
         } else {
           const qObj = qObjMap.get(qText);
