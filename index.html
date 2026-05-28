@@ -71,7 +71,14 @@
         .srs-hb-upcoming{ background:#f59e0b; transition:width 0.8s cubic-bezier(0.4,0,0.2,1); }
         .srs-hb-mastered{ background:#10b981; transition:width 0.8s cubic-bezier(0.4,0,0.2,1); }
 
-        /* PARTICLE BURST */
+        /* Inline images in question text and option text */
+        .question-img-wrap img, .option-text img {
+            display: inline-block;
+            max-height: 80px;
+            max-width: 100%;
+            vertical-align: middle;
+            margin: 2px 4px;
+        }
         @keyframes particle-fly {
             0%   { transform: translate(0,0) scale(1); opacity:1; }
             100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity:0; }
@@ -2991,14 +2998,16 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
             const pBtn = document.createElement('button'); pBtn.id = `pal-${qIndex}`; pBtn.className = `palette-btn palette-unanswered shadow-sm`; pBtn.textContent = qIndex + 1;
             pBtn.onclick = () => { if (!lobbySettings.perQTimer) setFocus(qIndex); }; paletteFragment.appendChild(pBtn);
 
-            let optsHTML = ''; let isBlind = lobbySettings.blind && !quizState.revealed[qIndex]; let speechTxt = q.question;
+            let optsHTML = ''; let isBlind = lobbySettings.blind && !quizState.revealed[qIndex];
+            // Strip ALL HTML tags from speechTxt — img tags contain double quotes that break the onclick attribute
+            let speechTxt = q.question.replace(/<[^>]*>/gm, ' ').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim();
             let imageHTML = q.image ? `<div class="mb-6"><img src="${q.image}" class="max-h-64 rounded-xl shadow-md border border-slate-200 dark:border-slate-700 object-contain mx-auto"></div>` : '';
 
             if (q.type === 'typing') {
                 let typedVal = quizState.answers[qIndex] || '';
                 optsHTML = `<input type="text" id="type-ans-${qIndex}" oninput="handleTypingAnswer(${qIndex}, this.value)" value="${typedVal.replace(/"/g, '&quot;')}" autocomplete="off" class="w-full p-6 mt-2 text-2xl md:text-3xl font-black text-center text-emerald-600 dark:text-emerald-400 bg-slate-50 dark:bg-slate-950 border-4 border-slate-200 dark:border-slate-700 rounded-2xl focus:border-emerald-500 outline-none shadow-inner transition-colors placeholder-slate-300 dark:placeholder-slate-700" placeholder="Type exact answer here...">`;
             } else {
-                optsHTML = q.options.map((opt, oIndex) => `<div id="opt-${qIndex}-${oIndex}" data-qindex="${qIndex}" data-oindex="${oIndex}" class="option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-slate-100 dark:border-slate-800 hover:border-emerald-400 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm hover:shadow-md"><span class="min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-slate-100 dark:bg-slate-700 text-slate-500 transition-colors">${String.fromCharCode(65+oIndex)}</span><span class="mt-0.5 pointer-events-none">${opt.text}</span></div>`).join('');
+                optsHTML = q.options.map((opt, oIndex) => `<div id="opt-${qIndex}-${oIndex}" data-qindex="${qIndex}" data-oindex="${oIndex}" class="option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-slate-100 dark:border-slate-800 hover:border-emerald-400 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm hover:shadow-md"><span class="min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-slate-100 dark:bg-slate-700 text-slate-500 transition-colors">${String.fromCharCode(65+oIndex)}</span><span class="mt-0.5 pointer-events-none option-text">${opt.text}</span></div>`).join('');
                 speechTxt += ". " + q.options.map((o,i) => `Option ${String.fromCharCode(65+i)}: ${o.text}. `).join('');
             }
                 
@@ -3023,7 +3032,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
 
             const card = document.createElement('div'); card.id = `qcard-${qIndex}`;
             card.className = `bg-white dark:bg-slate-900 p-6 sm:p-10 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-lg ${lobbySettings.perQTimer ? 'hidden' : ''}`;
-            card.innerHTML = `<div class="flex justify-between items-center mb-8 border-b border-slate-100 dark:border-slate-800 pb-4"><div class="flex items-center gap-4"><span class="text-xs font-black text-emerald-500 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/30 px-4 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-800/30">Question ${qIndex + 1}</span><button onclick="speakText('${speechTxt.replace(/'/g, "\\'")}')" class="text-xl hover:scale-110 transition-transform bg-slate-50 dark:bg-slate-800 p-2 rounded-full" title="Read Aloud">🎧</button></div><button onclick="toggleMark(${qIndex})" id="markBtn-${qIndex}" class="text-xs font-black text-slate-400 hover:text-purple-500 flex items-center gap-2 transition-colors uppercase px-4 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg"><span class="text-lg leading-none">📌</span> Mark (M)</button></div><div class="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6 leading-relaxed">${q.question}</div>${imageHTML}<div class="relative"><div id="opts-cont-${qIndex}" class="space-y-2 transition-all duration-300 ${isBlind ? 'blur-xl opacity-20 pointer-events-none select-none' : ''}">${optsHTML}</div>${blindOverlay}</div>${tagHtml}`;
+            card.innerHTML = `<div class="flex justify-between items-center mb-8 border-b border-slate-100 dark:border-slate-800 pb-4"><div class="flex items-center gap-4"><span class="text-xs font-black text-emerald-500 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/30 px-4 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-800/30">Question ${qIndex + 1}</span><button onclick="speakText('${speechTxt.replace(/'/g, "\\'")}')" class="text-xl hover:scale-110 transition-transform bg-slate-50 dark:bg-slate-800 p-2 rounded-full" title="Read Aloud">🎧</button></div><button onclick="toggleMark(${qIndex})" id="markBtn-${qIndex}" class="text-xs font-black text-slate-400 hover:text-purple-500 flex items-center gap-2 transition-colors uppercase px-4 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg"><span class="text-lg leading-none">📌</span> Mark (M)</button></div><div class="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6 leading-relaxed question-img-wrap">${q.question}</div>${imageHTML}<div class="relative"><div id="opts-cont-${qIndex}" class="space-y-2 transition-all duration-300 ${isBlind ? 'blur-xl opacity-20 pointer-events-none select-none' : ''}">${optsHTML}</div>${blindOverlay}</div>${tagHtml}`;
             fragment.appendChild(card);
         });
         
@@ -8200,13 +8209,6 @@ function scShowRoundStatsModal(key, rev, questions, autoFixedCount) {
       <div class="text-xs text-slate-500 mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
         ${rev.toUpperCase()} will show <span class="font-black text-blue-600 dark:text-blue-400">${wrongCount} question${wrongCount !== 1 ? 's' : ''}</span> you got wrong in ${prevRev.toUpperCase()}
       </div>
-      <button onclick="scLaunchRevQuiz('${key}','${rev}',null,0);scCloseModal()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">Start ${rev.toUpperCase()} (${wrongCount} Qs)</button>
-      <button onclick="scCloseModal()" class="mt-3 text-xs text-slate-400 hover:text-slate-600 font-bold">Cancel</button>
-    </div>`;
-  document.getElementById('sc-modal').classList.remove('hidden');
-}        ${rev.toUpperCase()} will show <span class="font-black text-blue-600 dark:text-blue-400">${wrongCount} question${wrongCount !== 1 ? 's' : ''}</span> you got wrong in ${prevRev.toUpperCase()}
-      </div>
-      
       <button onclick="scLaunchRevQuiz('${key}','${rev}',null,0);scCloseModal()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">Start ${rev.toUpperCase()} (${wrongCount} Qs)</button>
       <button onclick="scCloseModal()" class="mt-3 text-xs text-slate-400 hover:text-slate-600 font-bold">Cancel</button>
     </div>`;
