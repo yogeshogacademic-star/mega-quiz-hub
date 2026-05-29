@@ -665,8 +665,11 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
             <div class="absolute -top-32 -right-32 w-96 h-96 bg-emerald-500 rounded-full mix-blend-multiply filter blur-[100px] opacity-40 animate-pulse pointer-events-none"></div>
             <div class="absolute -bottom-32 -left-32 w-96 h-96 bg-indigo-600 rounded-full mix-blend-multiply filter blur-[100px] opacity-40 animate-pulse pointer-events-none" style="animation-delay: 2s;"></div>
 
-            <div id="sync-status" class="absolute top-6 right-6 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full bg-slate-800/80 text-slate-400 border border-slate-700 flex items-center gap-2 z-20 backdrop-blur-md shadow-lg">
-                <span class="w-2 h-2 rounded-full bg-slate-500 animate-pulse"></span> Connecting...
+            <div class="absolute top-6 right-6 flex items-center gap-2 z-20">
+                <button onclick="tryCloudSync(0)" title="Force re-sync — pulls quiz attempts from phone/other devices" class="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-indigo-900/80 text-indigo-300 border border-indigo-700 hover:bg-indigo-700 transition-colors backdrop-blur-md shadow-lg">⟳ Sync</button>
+                <div id="sync-status" class="text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full bg-slate-800/80 text-slate-400 border border-slate-700 flex items-center gap-2 backdrop-blur-md shadow-lg">
+                    <span class="w-2 h-2 rounded-full bg-slate-500 animate-pulse"></span> Connecting...
+                </div>
             </div>
 
             <div class="relative z-10 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mt-4 md:mt-0">
@@ -2309,16 +2312,33 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
         // Local only has attempts done on THIS device
         // Merge = union of both, deduplicated, newest first
         if (data.history && Array.isArray(data.history) && data.history.length > 0) {
-            // Use ts (millisecond timestamp) as primary key — 100% unique
-            // Fall back to composite key for older entries without ts
-            const makeKey = h => h.ts ? String(h.ts) : `${h.date}|${h.title}|${h.attemptNumber}|${h.score}`;
-            const localKeys = new Set((historyDb || []).map(makeKey));
-            const newFromCloud = data.history.filter(h => !localKeys.has(makeKey(h)));
-            if (newFromCloud.length > 0) {
-                historyDb = [...(historyDb || []), ...newFromCloud]
-                    .sort((a,b) => (b.attemptNumber||0) - (a.attemptNumber||0));
+            // BACKFILL: assign a synthetic ts to any entry missing one (older entries)
+            // Use a counter offset so entries from the same date don't collide
+            let syntheticOffset = 0;
+            const backfillTs = (arr) => arr.map(h => {
+                if (!h.ts) {
+                    // Parse the date string and offset by counter to avoid same-ms collisions
+                    const parsed = Date.parse(h.date);
+                    h = Object.assign({}, h, { ts: (isNaN(parsed) ? Date.now() : parsed) + (syntheticOffset++) });
+                }
+                return h;
+            });
+            const cloudHistory = backfillTs(data.history);
+            historyDb = backfillTs(historyDb || []);
+
+            // Use ts as the sole dedup key — guaranteed unique after backfill
+            const makeKey = h => String(h.ts);
+            const localKeys = new Set(historyDb.map(makeKey));
+            const newFromCloud = cloudHistory.filter(h => !localKeys.has(makeKey(h)));
+            if (newFromCloud.length > 0 || historyDb.length === 0) {
+                historyDb = [...historyDb, ...newFromCloud]
+                    // Sort by ts descending — newest attempt first regardless of device
+                    .sort((a,b) => (b.ts||0) - (a.ts||0));
                 if (historyDb.length > 500) historyDb.length = 500;
-                console.log(`[Cross-device sync] Loaded ${newFromCloud.length} attempt(s) from cloud.`);
+                console.log(`[Cross-device sync] Loaded ${newFromCloud.length} attempt(s) from cloud (total: ${historyDb.length}).`);
+            } else {
+                // Re-sort local even if no new entries (ensures phone attempts are in right order)
+                historyDb = historyDb.sort((a,b) => (b.ts||0) - (a.ts||0));
             }
         }
         } catch(e) { console.warn('[Sync] history merge error — local history kept safe:', e); }
