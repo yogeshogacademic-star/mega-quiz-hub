@@ -2105,25 +2105,13 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
         const lastKnownCount = parseInt(localStorage.getItem('megaLastKnownCount') || '0');
 
         if (lastKnownCount > 0 && totalQLocal < lastKnownCount * 0.5) {
-            // CRITICAL PROTECTION: db looks almost empty (less than 50% of known questions)
-            // This means something went very wrong — DON'T push db to cloud
-            // BUT still save personal data (history/SRS/notes) which is always safe
-            console.warn(`⛔ DB SAVE BLOCKED: local has ${totalQLocal}q but last known was ${lastKnownCount}q. Saving personal data only.`);
+            console.warn(`⛔ SAVE BLOCKED: local has ${totalQLocal}q but last known was ${lastKnownCount}q.`);
             showSyncStatus('blocked');
-            // Save personal data WITHOUT the suspect db — never lose attempts/SRS/notes
-            let mockTrackerPartial = []; try { mockTrackerPartial = JSON.parse(localStorage.getItem('ssc_mock_tracker')||'[]'); } catch{}
-            let scDataPartial = {}; try { scDataPartial = JSON.parse(localStorage.getItem('sc_syllabus_v1')||'{}'); } catch{}
-            const safePayload = { subjects: SUBJECTS, db: data => { throw new Error('blocked'); }, syllabusData: scDataPartial, syllabusLastSave: parseInt(localStorage.getItem('sc_syllabus_lastSave')||'0'), history: historyDb, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, mockTracker: mockTrackerPartial, savedAt: nowTs };
-            // Actually: fetch latest cloud db and merge personal data onto it
-            try {
-                const cloudData = await fetchFromCloud(10000);
-                if (cloudData && cloudData.db) {
-                    const mergedPayload = { ...cloudData, history: historyDb, mistakes: mistakesDb, notes: notesDb, fcCards: fcCardsCloud, fcProgress: fcProgCloud, savedAt: nowTs };
-                    await fetch(CLOUD_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(mergedPayload), mode: 'no-cors' });
-                    console.log('✅ Personal data saved safely with cloud db intact.');
-                    showSyncStatus('synced');
-                }
-            } catch(e) { console.warn('Safe partial save failed:', e); }
+            const warn = document.createElement('div');
+            warn.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:9999;background:#7f1d1d;color:#fca5a5;font-weight:900;font-size:13px;padding:14px 24px;border-radius:16px;border:1px solid #b91c1c;box-shadow:0 4px 24px rgba(0,0,0,0.5);max-width:420px;text-align:center;';
+            warn.innerHTML = '⛔ SAVE BLOCKED — Local data looks incomplete (' + totalQLocal + ' vs ' + lastKnownCount + ' questions). Cloud data is safe. Refresh to reload from cloud.';
+            document.body.appendChild(warn);
+            setTimeout(() => warn.remove(), 8000);
             return;
         }
 
