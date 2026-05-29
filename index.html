@@ -2187,22 +2187,61 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
 
     async function applyCloudData(data) {
         if (!data || !data.db) return false;
-        if (data.subjects) SUBJECTS = data.subjects;
-        if (data.categories) SUBJECT_CATEGORIES = data.categories;
+
+        // ── SUBJECTS: merge cloud + local so custom subjects are never lost ──
+        if (data.subjects && Array.isArray(data.subjects)) {
+            data.subjects.forEach(s => { if (!SUBJECTS.includes(s)) SUBJECTS.push(s); });
+        }
+        if (data.categories) {
+            Object.assign(SUBJECT_CATEGORIES, data.categories); // local keys win via later assign
+        }
+
+        // ── DB: cloud wins for quiz files (source of truth) ──
         db = data.db;
-        const _tagsFixed = repairAllTags(); // fix corrupted tags from cloud
-        mistakesDb = data.mistakes || [];
-        notesDb = data.notes || {};
+        const _tagsFixed = repairAllTags(); // fix any corrupted tags from cloud
+
+        // ── MISTAKES (SRS): keep whichever set has more data — prevents wipe of local SRS progress ──
+        const cloudMistakes = data.mistakes || [];
+        if (cloudMistakes.length >= mistakesDb.length) {
+            // Cloud has equal or more — merge: cloud as base, local entries win on same question
+            const localMap = new Map((mistakesDb || []).map(m => [m.question, m]));
+            const merged = [...cloudMistakes];
+            merged.forEach((m, i) => { if (localMap.has(m.question)) merged[i] = localMap.get(m.question); });
+            // Add any local entries not in cloud
+            (mistakesDb || []).forEach(m => { if (!cloudMistakes.find(c => c.question === m.question)) merged.push(m); });
+            mistakesDb = merged;
+        }
+        // else: local has more entries — keep local, don't overwrite with smaller cloud set
+
+        // ── NOTES: merge cloud + local so neither set loses notes ──
+        const cloudNotes = data.notes || {};
+        Object.keys(cloudNotes).forEach(subject => {
+            if (!notesDb[subject]) { notesDb[subject] = cloudNotes[subject]; }
+            else {
+                Object.keys(cloudNotes[subject]).forEach(topic => {
+                    if (!notesDb[subject][topic]) notesDb[subject][topic] = cloudNotes[subject][topic];
+                    // local note wins on conflict — don't overwrite
+                });
+            }
+        });
         if (data.fcCards && Array.isArray(data.fcCards)) {
             localStorage.setItem('yogesh_fc_cards_v2', JSON.stringify(data.fcCards));
             if (typeof window.fcReloadFromStorage === 'function') window.fcReloadFromStorage();
         }
         if (data.fcProgress && typeof data.fcProgress === 'object') localStorage.setItem('yogesh_fc_prog_v2', JSON.stringify(data.fcProgress));
         
-        // FIX: Restore syllabusData (R1/R2/R3/R4 progress + SRS cycle data)
+        // ── SYLLABUS DATA (R1/R2/R3/R4 progress): only apply cloud if local has nothing ──
+        // Local scSave() runs on every progress update so local is always fresher
+        // Only use cloud data if local is completely empty (fresh install / cleared storage)
         if (data.syllabusData && Object.keys(data.syllabusData).length > 0) {
-            localStorage.setItem('sc_syllabus_v1', JSON.stringify(data.syllabusData));
-            if (typeof scLoad === 'function') scLoad();
+            const localSyllabus = localStorage.getItem('sc_syllabus_v1');
+            const localSyllabusData = localSyllabus ? JSON.parse(localSyllabus) : {};
+            if (Object.keys(localSyllabusData).length === 0) {
+                // Local is empty — restore from cloud (fresh install scenario)
+                localStorage.setItem('sc_syllabus_v1', JSON.stringify(data.syllabusData));
+                if (typeof scLoad === 'function') scLoad();
+            }
+            // else: local has data — keep it, don't let cloud overwrite R1/R2/R3/R4 progress
         }
         if (data.mockTracker && Array.isArray(data.mockTracker) && data.mockTracker.length > 0) {
             try {
