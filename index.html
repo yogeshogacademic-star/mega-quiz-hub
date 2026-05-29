@@ -2104,20 +2104,32 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
         }, 0);
         const lastKnownCount = parseInt(localStorage.getItem('megaLastKnownCount') || '0');
 
-        if (lastKnownCount > 0 && totalQLocal < lastKnownCount * 0.85) {
-            console.warn(`⛔ SAVE BLOCKED: local has ${totalQLocal}q but last known was ${lastKnownCount}q.`);
+        if (lastKnownCount > 0 && totalQLocal < lastKnownCount * 0.5) {
+            // CRITICAL PROTECTION: db looks almost empty (less than 50% of known questions)
+            // This means something went very wrong — DON'T push db to cloud
+            // BUT still save personal data (history/SRS/notes) which is always safe
+            console.warn(`⛔ DB SAVE BLOCKED: local has ${totalQLocal}q but last known was ${lastKnownCount}q. Saving personal data only.`);
             showSyncStatus('blocked');
-            const warn = document.createElement('div');
-            warn.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:9999;background:#7f1d1d;color:#fca5a5;font-weight:900;font-size:13px;padding:14px 24px;border-radius:16px;border:1px solid #b91c1c;box-shadow:0 4px 24px rgba(0,0,0,0.5);max-width:420px;text-align:center;';
-            warn.innerHTML = '⛔ SAVE BLOCKED — Local data looks incomplete (' + totalQLocal + ' vs ' + lastKnownCount + ' questions). Cloud data is safe. Please refresh to load from cloud.';
-            document.body.appendChild(warn);
-            setTimeout(() => warn.remove(), 8000);
+            // Save personal data WITHOUT the suspect db — never lose attempts/SRS/notes
+            let mockTrackerPartial = []; try { mockTrackerPartial = JSON.parse(localStorage.getItem('ssc_mock_tracker')||'[]'); } catch{}
+            let scDataPartial = {}; try { scDataPartial = JSON.parse(localStorage.getItem('sc_syllabus_v1')||'{}'); } catch{}
+            const safePayload = { subjects: SUBJECTS, db: data => { throw new Error('blocked'); }, syllabusData: scDataPartial, syllabusLastSave: parseInt(localStorage.getItem('sc_syllabus_lastSave')||'0'), history: historyDb, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, mockTracker: mockTrackerPartial, savedAt: nowTs };
+            // Actually: fetch latest cloud db and merge personal data onto it
+            try {
+                const cloudData = await fetchFromCloud(10000);
+                if (cloudData && cloudData.db) {
+                    const mergedPayload = { ...cloudData, history: historyDb, mistakes: mistakesDb, notes: notesDb, fcCards: fcCardsCloud, fcProgress: fcProgCloud, savedAt: nowTs };
+                    await fetch(CLOUD_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(mergedPayload), mode: 'no-cors' });
+                    console.log('✅ Personal data saved safely with cloud db intact.');
+                    showSyncStatus('synced');
+                }
+            } catch(e) { console.warn('Safe partial save failed:', e); }
             return;
         }
 
         let mockTrackerCloud = []; try { mockTrackerCloud = JSON.parse(localStorage.getItem('ssc_mock_tracker')||'[]'); } catch{}
         let scDataCloud = {}; try { scDataCloud = JSON.parse(localStorage.getItem('sc_syllabus_v1')||'{}'); } catch{}
-        const payload = { subjects: SUBJECTS, db: cleanDb, syllabusData: scDataCloud, history: historyDb, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, mockTracker: mockTrackerCloud, savedAt: nowTs };
+        const payload = { subjects: SUBJECTS, db: cleanDb, syllabusData: scDataCloud, syllabusLastSave: parseInt(localStorage.getItem('sc_syllabus_lastSave')||'0'), history: historyDb, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, mockTracker: mockTrackerCloud, savedAt: nowTs };
         // Expose saveData globally for syllabus functions in other script blocks
         window._saveDataGlobal = saveData;
         try {
@@ -2193,7 +2205,10 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
             data.subjects.forEach(s => { if (!SUBJECTS.includes(s)) SUBJECTS.push(s); });
         }
         if (data.categories) {
-            Object.assign(SUBJECT_CATEGORIES, data.categories); // local keys win via later assign
+            // FIX: local wins — only add keys that don't exist locally
+            Object.keys(data.categories).forEach(k => {
+                if (!SUBJECT_CATEGORIES[k]) SUBJECT_CATEGORIES[k] = data.categories[k];
+            });
         }
 
         // ── DB: cloud wins for quiz files (source of truth) ──
@@ -2224,24 +2239,58 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                 });
             }
         });
-        if (data.fcCards && Array.isArray(data.fcCards)) {
-            localStorage.setItem('yogesh_fc_cards_v2', JSON.stringify(data.fcCards));
-            if (typeof window.fcReloadFromStorage === 'function') window.fcReloadFromStorage();
+        // ── FLASHCARDS: merge cloud + local (never replace) ──
+        try { if (data.fcCards && Array.isArray(data.fcCards)) {
+            let localFC = [];
+            try { const s = localStorage.getItem('yogesh_fc_cards_v2'); if(s) localFC = JSON.parse(s); } catch {}
+            const localIds = new Set(localFC.map(c => c.id));
+            const newFromCloud = data.fcCards.filter(c => !localIds.has(c.id));
+            if (newFromCloud.length > 0 || localFC.length === 0) {
+                const merged = [...localFC, ...newFromCloud];
+                localStorage.setItem('yogesh_fc_cards_v2', JSON.stringify(merged));
+                if (typeof window.fcReloadFromStorage === 'function') window.fcReloadFromStorage();
+                if (newFromCloud.length > 0) console.log(`[FC Sync] Added ${newFromCloud.length} flashcard(s) from cloud.`);
+            }
         }
-        if (data.fcProgress && typeof data.fcProgress === 'object') localStorage.setItem('yogesh_fc_prog_v2', JSON.stringify(data.fcProgress));
+        } } catch(e) { console.warn('[Sync] fcCards merge error:', e); }
+        // ── FLASHCARD PROGRESS: merge, keep whichever has more reviews per card ──
+        try { if (data.fcProgress && typeof data.fcProgress === 'object') {
+            let localProg = {};
+            try { const p = localStorage.getItem('yogesh_fc_prog_v2'); if(p) localProg = JSON.parse(p); } catch {}
+            Object.keys(data.fcProgress).forEach(id => {
+                if (!localProg[id]) {
+                    localProg[id] = data.fcProgress[id]; // card only in cloud
+                } else if ((data.fcProgress[id].reviews||0) > (localProg[id].reviews||0)) {
+                    localProg[id] = data.fcProgress[id]; // cloud has more reviews = more progress
+                }
+                // else local wins (local has equal or more reviews)
+            });
+            localStorage.setItem('yogesh_fc_prog_v2', JSON.stringify(localProg));
+        }
         
-        // ── SYLLABUS DATA (R1/R2/R3/R4 progress): only apply cloud if local has nothing ──
-        // Local scSave() runs on every progress update so local is always fresher
-        // Only use cloud data if local is completely empty (fresh install / cleared storage)
+        } } catch(e) { console.warn('[Sync] fcProgress merge error:', e); }
+        // ── SYLLABUS DATA (R1/R2/R3/R4 progress): timestamp-based sync ──
+        // Uses syllabusLastSave to know WHEN syllabus was last updated on each device
+        // Cloud wins only if it was saved MORE RECENTLY (from another device like phone)
         if (data.syllabusData && Object.keys(data.syllabusData).length > 0) {
             const localSyllabus = localStorage.getItem('sc_syllabus_v1');
             const localSyllabusData = localSyllabus ? JSON.parse(localSyllabus) : {};
+            const localTs = parseInt(localStorage.getItem('sc_syllabus_lastSave') || '0');
+            const cloudTs = data.syllabusLastSave || 0; // timestamp from cloud payload
+
             if (Object.keys(localSyllabusData).length === 0) {
-                // Local is empty — restore from cloud (fresh install scenario)
+                // Fresh install — restore from cloud
                 localStorage.setItem('sc_syllabus_v1', JSON.stringify(data.syllabusData));
+                if (cloudTs) localStorage.setItem('sc_syllabus_lastSave', cloudTs.toString());
                 if (typeof scLoad === 'function') scLoad();
+            } else if (cloudTs > localTs) {
+                // Cloud is newer (from another device e.g. phone) — use cloud
+                localStorage.setItem('sc_syllabus_v1', JSON.stringify(data.syllabusData));
+                localStorage.setItem('sc_syllabus_lastSave', cloudTs.toString());
+                if (typeof scLoad === 'function') scLoad();
+                console.log('[Syllabus Sync] Applied newer syllabus progress from cloud.');
             }
-            // else: local has data — keep it, don't let cloud overwrite R1/R2/R3/R4 progress
+            // else: local is newer or equal — keep local
         }
         if (data.mockTracker && Array.isArray(data.mockTracker) && data.mockTracker.length > 0) {
             try {
@@ -2266,6 +2315,26 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
             localStorage.setItem('megaLastKnownCount', cloudQCount.toString());
             localStorage.setItem('megaLastCloudSave', (data.savedAt || Date.now()).toString());
         }
+        // ── HISTORY: merge cloud + local — this is the cross-device sync fix ──
+        try {
+        // Cloud has attempts from other devices (phone, tablet etc.)
+        // Local only has attempts done on THIS device
+        // Merge = union of both, deduplicated, newest first
+        if (data.history && Array.isArray(data.history) && data.history.length > 0) {
+            // Use ts (millisecond timestamp) as primary key — 100% unique
+            // Fall back to composite key for older entries without ts
+            const makeKey = h => h.ts ? String(h.ts) : `${h.date}|${h.title}|${h.attemptNumber}|${h.score}`;
+            const localKeys = new Set((historyDb || []).map(makeKey));
+            const newFromCloud = data.history.filter(h => !localKeys.has(makeKey(h)));
+            if (newFromCloud.length > 0) {
+                historyDb = [...(historyDb || []), ...newFromCloud]
+                    .sort((a,b) => (b.attemptNumber||0) - (a.attemptNumber||0));
+                if (historyDb.length > 500) historyDb.length = 500;
+                console.log(`[Cross-device sync] Loaded ${newFromCloud.length} attempt(s) from cloud.`);
+            }
+        }
+        } catch(e) { console.warn('[Sync] history merge error — local history kept safe:', e); }
+
         await updateLocalCache(); rebuildSearchCache(); renderDashboard(); showSyncStatus('synced');
         // If tags were repaired, push fixed data back to cloud so it's permanently clean
         if (_tagsFixed > 0) {
@@ -3266,7 +3335,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         if(lobbyQuizMode === 'wrong') displayTitle += " (Revision Run)";
         document.getElementById('results-title').textContent = `${candName}'s Report - Attempt #${currentAttemptNum}`;
 
-        historyDb.unshift({ date: new Date().toLocaleDateString(), title: displayTitle, subject: db[currentQuizId] ? db[currentQuizId].subject : "Mixed", score: parseFloat(score.toFixed(2)), accuracy: Math.round((correct / activeQuestions.length) * 100) || 0, candidateName: candName, attemptNumber: currentAttemptNum, totalCorrect: correct, totalWrong: wrong, totalSkipped: skipped, reviewData: historicalReviewData });
+        historyDb.unshift({ ts: Date.now(), date: new Date().toLocaleDateString(), title: displayTitle, subject: db[currentQuizId] ? db[currentQuizId].subject : "Mixed", score: parseFloat(score.toFixed(2)), accuracy: Math.round((correct / activeQuestions.length) * 100) || 0, candidateName: candName, attemptNumber: currentAttemptNum, totalCorrect: correct, totalWrong: wrong, totalSkipped: skipped, reviewData: historicalReviewData });
         if (historyDb.length > 500) historyDb.length = 500;
         
         saveData(); updateSRSBadge(); showScreen('results'); window.scrollTo(0,0); filterReview('all'); _afterSubmit(correct, wrong, skipped, activeQuestions.length);
@@ -7413,6 +7482,7 @@ function scGetSubjectFor(topicName) {
 function scSave() {
   localStorage.setItem(SC_KEY, JSON.stringify(scDb));
   localStorage.setItem(SC_STREAK_KEY, JSON.stringify(scStreak));
+  localStorage.setItem('sc_syllabus_lastSave', Date.now().toString()); // timestamp for cross-device sync
 }
 
 function scInitDefault() {
