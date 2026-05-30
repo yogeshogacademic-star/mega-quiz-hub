@@ -4115,18 +4115,33 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         if (missingFromCloud.length === 0) {
             setBtn('✅ All synced!', false);
             setTimeout(() => setBtn('🔄 Recover & Sync History', false), 3000);
-            alert(`✅ Nothing missing!\n\nCloud already has all ${cloudHistory.length} attempt(s) from this device.\n\nClose this and open the OTHER device to run recovery there too.`);
+            const allLocalDates = [...new Set(localAll.map(h=>h.date))].sort();
+            const allCloudDates = [...new Set(cloudHistory.map(h=>h.date))].sort();
+            alert(
+                `📊 DIAGNOSTIC REPORT\n\n` +
+                `This device: ${localAll.length} attempt(s)\n` +
+                `Date range: ${allLocalDates[0]} → ${allLocalDates[allLocalDates.length-1]}\n\n` +
+                `Cloud: ${cloudHistory.length} attempt(s)\n` +
+                `Date range: ${allCloudDates[0]} → ${allCloudDates[allCloudDates.length-1]}\n\n` +
+                `✅ Nothing missing — cloud already has everything from this device.\n\n` +
+                `If you expect newer dates, the attempts from those sessions may not have been saved due to the sync bug that was active. They are gone from all storage.`
+            );
             return;
         }
 
         // ── STEP 4: Show exactly what will be added ──
         const dates = [...new Set(missingFromCloud.map(h=>h.date))].sort();
+        const allLocalDates = [...new Set(localAll.map(h=>h.date))].sort();
+        const allCloudDates = [...new Set(cloudHistory.map(h=>h.date))].sort();
         const confirmed = confirm(
-            `Found ${missingFromCloud.length} attempt(s) on this device NOT in cloud.\n\n` +
-            `Dates: ${dates.join(', ')}\n\n` +
-            `Cloud currently has: ${cloudHistory.length} attempt(s)\n` +
-            `After recovery cloud will have: ${cloudHistory.length + missingFromCloud.length}\n\n` +
-            `Add these missing attempts to cloud? (Nothing existing will be changed)`
+            `📊 DIAGNOSTIC REPORT\n\n` +
+            `This device has: ${localAll.length} attempt(s)\n` +
+            `Date range: ${allLocalDates[0]} → ${allLocalDates[allLocalDates.length-1]}\n\n` +
+            `Cloud has: ${cloudHistory.length} attempt(s)\n` +
+            `Date range: ${allCloudDates[0]} → ${allCloudDates[allCloudDates.length-1]}\n\n` +
+            `Missing from cloud: ${missingFromCloud.length}\n` +
+            (missingFromCloud.length > 0 ? `Dates to add: ${dates.join(', ')}\n\n` : '\n') +
+            `Add ${missingFromCloud.length} missing attempts to cloud?`
         );
         if (!confirmed) { setBtn('🔄 Recover & Sync History', false); return; }
 
