@@ -8429,12 +8429,27 @@ window.scStartRevision = (key, rev) => {
       questions = questions.filter(q => ws.has(q.question));
     }
   } else if (rev === 'r1') {
-    // R1 FILTER: strip SRS-graduated questions, then skip already-done questions
     const srsMap = new Map();
     mistakesDb.forEach(m => { if (m.question) srsMap.set(m.question, m); });
     questions = questions.filter(q => !srsMap.has(q.question));
 
     const doneSoFar = t.r1Progress || 0;
+
+    // DIAGNOSTIC — checking what history entries exist for this topic
+    const topicHistory = (historyDb||[]).filter(h => h.title && h.title.toLowerCase().includes(t.name.toLowerCase()));
+    const debugMsg = [
+      `key: ${key}`,
+      `r1Progress: ${doneSoFar}`,
+      `r1QuestionsAttempted: ${(t.r1QuestionsAttempted||[]).length}`,
+      `r1Wrong: ${(t.r1Wrong||[]).length}`,
+      `questions in pool: ${questions.length}`,
+      `SRS-filtered out: ${srsMap.size}`,
+      `history entries for "${t.name}": ${topicHistory.length}`,
+      topicHistory.slice(0,3).map(h=>`  - ${h.date} "${h.title}" ${h.totalCorrect||0}/${h.total||0}`).join('\n'),
+      `will show: ${doneSoFar > 0 ? questions.length - doneSoFar : questions.length}`
+    ].join('\n');
+    alert('R1 DEBUG\n' + debugMsg);
+
     if (doneSoFar > 0 && doneSoFar < questions.length) {
       questions = questions.slice(doneSoFar);
     } else if (doneSoFar >= questions.length) {
