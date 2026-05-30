@@ -8379,29 +8379,21 @@ window.scStartRevision = (key, rev) => {
       questions = questions.filter(q => ws.has(q.question));
     }
   } else if (rev === 'r1') {
-    // R1 FILTER: Show ONLY new questions (NOT in SRS AND NOT already attempted this cycle)
+    // R1 FILTER: strip SRS-graduated questions, then skip already-done questions
     const srsMap = new Map();
     mistakesDb.forEach(m => { if (m.question) srsMap.set(m.question, m); });
-    // Strip SRS-graduated questions first
     questions = questions.filter(q => !srsMap.has(q.question));
-    const attempted = t.r1QuestionsAttempted || [];
-    if (attempted.length > 0) {
-      // Text-based filter with trim to handle whitespace differences
-      const doneSet = new Set(attempted.map(s => s.trim()));
-      const filtered = questions.filter(q => !doneSet.has((q.question||'').trim()));
-      if (filtered.length < questions.length) {
-        questions = filtered; // at least some matched — text filter worked
-      } else {
-        // Zero matches despite stored texts — likely text mismatch after sync
-        // Fall back: skip first N questions by index
-        const skipCount = Math.min(attempted.length, questions.length);
-        questions = questions.slice(skipCount);
-      }
-    } else if ((t.r1Progress || 0) > 0) {
-      // r1QuestionsAttempted wiped/empty but r1Progress shows N done — skip by index
-      const skipCount = Math.min(t.r1Progress, questions.length);
-      questions = questions.slice(skipCount);
+
+    // GROUND TRUTH: r1Progress is the integer count of how many Qs were answered.
+    // r1QuestionsAttempted (text array) can be empty, stale, or partially mismatched
+    // after sync issues. ALWAYS use r1Progress for the skip count.
+    const doneSoFar = t.r1Progress || 0;
+    if (doneSoFar > 0 && doneSoFar < questions.length) {
+      questions = questions.slice(doneSoFar); // show only the remaining questions
+    } else if (doneSoFar >= questions.length) {
+      questions = []; // everything done — route to completion modal
     }
+    // doneSoFar === 0 → show all questions (fresh start)
   }
 
   if (questions.length === 0 && rev === 'r1') { scShowManualRevModal(key, rev); return; }
@@ -8558,33 +8550,17 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
     });
     // Filter by wrong[] for R2/R3/R4 - SAME logic as scStartRevision
     if (rev === 'r1') {
-      // R1: show ONLY new questions (not in SRS) AND not already done in this cycle
+      // R1: strip SRS-graduated, then skip by r1Progress (reliable integer)
       const srsMap = new Map();
       mistakesDb.forEach(m => { if (m.question) srsMap.set(m.question, m); });
-      // Remove SRS-graduated questions first
       questions = questions.filter(q => !srsMap.has(q.question));
-
-      const attempted = t.r1QuestionsAttempted || [];
-      if (attempted.length > 0) {
-        // Normal path: text-based dedup (trim both sides to handle whitespace diffs)
-        const doneSet = new Set(attempted.map(s => s.trim()));
-        const filtered = questions.filter(q => !doneSet.has((q.question||'').trim()));
-        if (filtered.length < questions.length) {
-          // At least some matched — use text filter
-          questions = filtered;
-        } else {
-          // Zero matches despite having 75 attempted — text mismatch, fall back to index skip
-          const skipCount = Math.min(attempted.length, questions.length);
-          questions = questions.slice(skipCount);
-          console.warn(`[R1] Text-match failed (${attempted.length} stored vs 0 matched) — index-skip ${skipCount}`);
-        }
-      } else if ((t.r1Progress || 0) > 0) {
-        // r1QuestionsAttempted is empty but r1Progress says N done — skip by index
-        const skipCount = Math.min(t.r1Progress, questions.length);
-        questions = questions.slice(skipCount);
-        console.warn(`[R1] r1QuestionsAttempted empty, r1Progress=${t.r1Progress} — index-skip ${skipCount}`);
+      const doneSoFar = t.r1Progress || 0;
+      if (doneSoFar > 0 && doneSoFar < questions.length) {
+        questions = questions.slice(doneSoFar);
+      } else if (doneSoFar >= questions.length) {
+        questions = [];
       }
-      startIdx = 0; // Always slice from 0 — done Qs are pre-filtered
+      startIdx = 0;
     }
     if (rev === 'r2') {
       if (!t.r1Wrong || t.r1Wrong.length === 0) {
