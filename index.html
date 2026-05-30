@@ -4068,46 +4068,85 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     function formatTime(s) { return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`; }
     
     // ── RECOVER ALL HISTORY ─────────────────────────────────────────────
-    // Reads history from EVERY storage layer on this device (memory + IndexedDB)
-    // Merges everything together and pushes to cloud
-    // Run on phone AND laptop to combine all missing attempts
+    // Smart delta sync: fetches cloud, finds what THIS device has that cloud DOESN'T,
+    // adds ONLY those missing ones. Never overwrites existing cloud attempts.
     window.recoverAllHistory = async () => {
         const btn = document.querySelector('button[onclick="recoverAllHistory()"]');
-        if (btn) { btn.textContent = '⏳ Recovering...'; btn.disabled = true; }
+        const setBtn = (txt, off) => { if(btn){btn.textContent=txt; btn.disabled=!!off;} };
+
+        setBtn('⏳ Reading local storage...', true);
+        const makeKey = h => h.ts ? String(h.ts) : `${h.date}|${h.title}|${h.attemptNumber}|${h.score}`;
+
+        // ── STEP 1: Collect ALL local attempts (memory + IndexedDB) ──
+        let localAll = [...(historyDb || [])];
+        let localKeys = new Set(localAll.map(makeKey));
         try {
-            const makeKey = h => h.ts ? String(h.ts) : `${h.date}|${h.title}|${h.attemptNumber}|${h.score}`;
-            let allHistory = [...(historyDb || [])];
-            let allKeys = new Set(allHistory.map(makeKey));
-
-            // Read from IndexedDB — might have history the broken HTML never loaded
-            try {
-                const idbRaw = await idbKeyval.get('megaData');
-                if (idbRaw) {
-                    const idbData = JSON.parse(idbRaw);
-                    if (Array.isArray(idbData.history)) {
-                        let added = 0;
-                        idbData.history.forEach(h => {
-                            const k = makeKey(h);
-                            if (!allKeys.has(k)) { allHistory.push(h); allKeys.add(k); added++; }
-                        });
-                        if (added > 0) console.log(`[Recovery] +${added} attempts from IndexedDB`);
-                    }
+            const idbRaw = await idbKeyval.get('megaData');
+            if (idbRaw) {
+                const idbData = JSON.parse(idbRaw);
+                if (Array.isArray(idbData.history)) {
+                    let extra = 0;
+                    idbData.history.forEach(h => {
+                        const k = makeKey(h);
+                        if (!localKeys.has(k)) { localAll.push(h); localKeys.add(k); extra++; }
+                    });
+                    if (extra) console.log(`[Recovery] +${extra} from IndexedDB`);
                 }
-            } catch(e) { console.warn('IndexedDB read error:', e); }
+            }
+        } catch(e) { console.warn('IndexedDB read error:', e); }
 
-            // Sort newest first
-            allHistory.sort((a,b) => (b.attemptNumber||0) - (a.attemptNumber||0));
-            historyDb = allHistory;
+        setBtn('⏳ Checking cloud...', true);
 
-            // Push to cloud — other device will merge these in on next open
-            await saveData();
-
-            const dates = [...new Set(allHistory.map(h=>h.date))].sort();
-            alert(`✅ Recovery complete!\n\n${allHistory.length} total attempts found on this device.\nDates: ${dates.join(', ')}\n\nPushed to cloud. Now open the OTHER device — it will automatically pick up these attempts.`);
-            if (btn) { btn.textContent = '✅ Done — Open Other Device'; btn.disabled = false; }
+        // ── STEP 2: Fetch what cloud already has ──
+        let cloudHistory = [];
+        try {
+            const cloudData = await fetchFromCloud(15000);
+            if (cloudData && Array.isArray(cloudData.history)) cloudHistory = cloudData.history;
         } catch(e) {
-            alert('Recovery failed: ' + e.message);
-            if (btn) { btn.textContent = '🔄 Recover & Sync History'; btn.disabled = false; }
+            setBtn('🔄 Recover & Sync History', false);
+            alert('Could not reach cloud. Check your connection and try again.');
+            return;
+        }
+
+        // ── STEP 3: Find attempts on THIS device that cloud does NOT have ──
+        const cloudKeys = new Set(cloudHistory.map(makeKey));
+        const missingFromCloud = localAll.filter(h => !cloudKeys.has(makeKey(h)));
+
+        if (missingFromCloud.length === 0) {
+            setBtn('✅ All synced!', false);
+            setTimeout(() => setBtn('🔄 Recover & Sync History', false), 3000);
+            alert(`✅ Nothing missing!\n\nCloud already has all ${cloudHistory.length} attempt(s) from this device.\n\nClose this and open the OTHER device to run recovery there too.`);
+            return;
+        }
+
+        // ── STEP 4: Show exactly what will be added ──
+        const dates = [...new Set(missingFromCloud.map(h=>h.date))].sort();
+        const confirmed = confirm(
+            `Found ${missingFromCloud.length} attempt(s) on this device NOT in cloud.\n\n` +
+            `Dates: ${dates.join(', ')}\n\n` +
+            `Cloud currently has: ${cloudHistory.length} attempt(s)\n` +
+            `After recovery cloud will have: ${cloudHistory.length + missingFromCloud.length}\n\n` +
+            `Add these missing attempts to cloud? (Nothing existing will be changed)`
+        );
+        if (!confirmed) { setBtn('🔄 Recover & Sync History', false); return; }
+
+        // ── STEP 5: Add ONLY missing to historyDb then save ──
+        setBtn('⏳ Pushing to cloud...', true);
+        const memKeys = new Set((historyDb||[]).map(makeKey));
+        missingFromCloud.forEach(h => {
+            if (!memKeys.has(makeKey(h))) { historyDb.push(h); memKeys.add(makeKey(h)); }
+        });
+        historyDb.sort((a,b) => (b.attemptNumber||0) - (a.attemptNumber||0));
+        if (historyDb.length > 500) historyDb.length = 500;
+
+        try {
+            await saveData();
+            setBtn('✅ Done!', false);
+            setTimeout(() => setBtn('🔄 Recover & Sync History', false), 4000);
+            alert(`✅ Recovery complete!\n\nAdded ${missingFromCloud.length} missing attempt(s) to cloud.\n\nNow open the OTHER device and tap this button there too — it will find what that device has that cloud still doesn't.`);
+        } catch(e) {
+            setBtn('🔄 Recover & Sync History', false);
+            alert('Save failed: ' + e.message);
         }
     };
 
