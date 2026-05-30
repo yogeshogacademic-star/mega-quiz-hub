@@ -8382,8 +8382,26 @@ window.scStartRevision = (key, rev) => {
     // R1 FILTER: Show ONLY new questions (NOT in SRS AND NOT already attempted this cycle)
     const srsMap = new Map();
     mistakesDb.forEach(m => { if (m.question) srsMap.set(m.question, m); });
-    const doneSet = new Set(t.r1QuestionsAttempted || []); // exclude already-done batches
-    questions = questions.filter(q => !srsMap.has(q.question) && !doneSet.has(q.question));
+    // Strip SRS-graduated questions first
+    questions = questions.filter(q => !srsMap.has(q.question));
+    const attempted = t.r1QuestionsAttempted || [];
+    if (attempted.length > 0) {
+      // Text-based filter with trim to handle whitespace differences
+      const doneSet = new Set(attempted.map(s => s.trim()));
+      const filtered = questions.filter(q => !doneSet.has((q.question||'').trim()));
+      if (filtered.length < questions.length) {
+        questions = filtered; // at least some matched — text filter worked
+      } else {
+        // Zero matches despite stored texts — likely text mismatch after sync
+        // Fall back: skip first N questions by index
+        const skipCount = Math.min(attempted.length, questions.length);
+        questions = questions.slice(skipCount);
+      }
+    } else if ((t.r1Progress || 0) > 0) {
+      // r1QuestionsAttempted wiped/empty but r1Progress shows N done — skip by index
+      const skipCount = Math.min(t.r1Progress, questions.length);
+      questions = questions.slice(skipCount);
+    }
   }
 
   if (questions.length === 0 && rev === 'r1') { scShowManualRevModal(key, rev); return; }
@@ -8393,12 +8411,11 @@ window.scStartRevision = (key, rev) => {
   const done = t[progressKey] || 0;
 
   if (rev === 'r1') {
-    // R1: questions is already pre-filtered (remaining unfinished only).
-    // Use r1QuestionsAttempted.length as the accurate "done" count.
-    const r1Done = (t.r1QuestionsAttempted || []).length;
-    const r1Total = r1Done + questions.length; // total for this R1 cycle
+    // Use r1QuestionsAttempted.length if populated, else fall back to r1Progress
+    const attempted = t.r1QuestionsAttempted || [];
+    const r1Done = attempted.length > 0 ? attempted.length : (t.r1Progress || 0);
+    const r1Total = r1Done + questions.length;
     if (r1Done > 0) {
-      // Partially done: show continue modal with correct cumulative numbers
       scShowContinueModal(key, rev, r1Done, r1Total, questions);
     } else {
       scLaunchRevQuiz(key, rev, questions, 0);
@@ -8544,8 +8561,29 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
       // R1: show ONLY new questions (not in SRS) AND not already done in this cycle
       const srsMap = new Map();
       mistakesDb.forEach(m => { if (m.question) srsMap.set(m.question, m); });
-      const doneSet = new Set(t.r1QuestionsAttempted || []);
-      questions = questions.filter(q => !srsMap.has(q.question) && !doneSet.has(q.question));
+      // Remove SRS-graduated questions first
+      questions = questions.filter(q => !srsMap.has(q.question));
+
+      const attempted = t.r1QuestionsAttempted || [];
+      if (attempted.length > 0) {
+        // Normal path: text-based dedup (trim both sides to handle whitespace diffs)
+        const doneSet = new Set(attempted.map(s => s.trim()));
+        const filtered = questions.filter(q => !doneSet.has((q.question||'').trim()));
+        if (filtered.length < questions.length) {
+          // At least some matched — use text filter
+          questions = filtered;
+        } else {
+          // Zero matches despite having 75 attempted — text mismatch, fall back to index skip
+          const skipCount = Math.min(attempted.length, questions.length);
+          questions = questions.slice(skipCount);
+          console.warn(`[R1] Text-match failed (${attempted.length} stored vs 0 matched) — index-skip ${skipCount}`);
+        }
+      } else if ((t.r1Progress || 0) > 0) {
+        // r1QuestionsAttempted is empty but r1Progress says N done — skip by index
+        const skipCount = Math.min(t.r1Progress, questions.length);
+        questions = questions.slice(skipCount);
+        console.warn(`[R1] r1QuestionsAttempted empty, r1Progress=${t.r1Progress} — index-skip ${skipCount}`);
+      }
       startIdx = 0; // Always slice from 0 — done Qs are pre-filtered
     }
     if (rev === 'r2') {
