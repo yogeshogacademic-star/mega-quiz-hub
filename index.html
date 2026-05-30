@@ -8431,29 +8431,40 @@ window.scStartRevision = (key, rev) => {
   } else if (rev === 'r1') {
     const srsMap = new Map();
     mistakesDb.forEach(m => { if (m.question) srsMap.set(m.question, m); });
-    questions = questions.filter(q => !srsMap.has(q.question));
+
+    // AUTO-RECONSTRUCT r1Progress from history if it was wiped by sync
+    // History entries like "(1–25 of 86)", "(26–50 of 86)" tell us exactly how far we got
+    if (!t.r1Progress || t.r1Progress === 0) {
+      const r1Entries = (historyDb||[]).filter(h =>
+        h.title && h.title.includes(t.name) &&
+        (h.title.includes('R1 Revision') || h.title.includes('R1 revision'))
+      );
+      if (r1Entries.length > 0) {
+        let maxDone = 0, totalQs = 0;
+        r1Entries.forEach(h => {
+          const m = h.title.match(/\((\d+)[–\-](\d+) of (\d+)\)/);
+          if (m) { maxDone = Math.max(maxDone, parseInt(m[2])); totalQs = parseInt(m[3]); }
+        });
+        if (maxDone > 0) {
+          t.r1Progress = maxDone;
+          if (totalQs > 0 && !t.r1QsTotalRaw) t.r1QsTotalRaw = totalQs;
+          console.log(`[R1 Reconstruct] Restored r1Progress=${maxDone} of ${totalQs} from history`);
+          scSave();
+        }
+      }
+    }
 
     const doneSoFar = t.r1Progress || 0;
-
-    // DIAGNOSTIC — checking what history entries exist for this topic
-    const topicHistory = (historyDb||[]).filter(h => h.title && h.title.toLowerCase().includes(t.name.toLowerCase()));
-    const debugMsg = [
-      `key: ${key}`,
-      `r1Progress: ${doneSoFar}`,
-      `r1QuestionsAttempted: ${(t.r1QuestionsAttempted||[]).length}`,
-      `r1Wrong: ${(t.r1Wrong||[]).length}`,
-      `questions in pool: ${questions.length}`,
-      `SRS-filtered out: ${srsMap.size}`,
-      `history entries for "${t.name}": ${topicHistory.length}`,
-      topicHistory.slice(0,3).map(h=>`  - ${h.date} "${h.title}" ${h.totalCorrect||0}/${h.total||0}`).join('\n'),
-      `will show: ${doneSoFar > 0 ? questions.length - doneSoFar : questions.length}`
-    ].join('\n');
-    alert('R1 DEBUG\n' + debugMsg);
-
     if (doneSoFar > 0 && doneSoFar < questions.length) {
-      questions = questions.slice(doneSoFar);
+      // INDEX-SKIP on FULL pool first (before SRS filter)
+      // Then SRS-filter only the REMAINING questions
+      const remaining = questions.slice(doneSoFar);
+      questions = remaining.filter(q => !srsMap.has(q.question));
     } else if (doneSoFar >= questions.length) {
-      questions = [];
+      questions = []; // all done → completion modal
+    } else {
+      // Fresh start — just remove SRS questions
+      questions = questions.filter(q => !srsMap.has(q.question));
     }
   }
 
@@ -8611,15 +8622,16 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
     });
     // Filter by wrong[] for R2/R3/R4 - SAME logic as scStartRevision
     if (rev === 'r1') {
-      // R1: strip SRS-graduated, then skip by r1Progress (reliable integer)
       const srsMap = new Map();
       mistakesDb.forEach(m => { if (m.question) srsMap.set(m.question, m); });
-      questions = questions.filter(q => !srsMap.has(q.question));
       const doneSoFar = t.r1Progress || 0;
       if (doneSoFar > 0 && doneSoFar < questions.length) {
-        questions = questions.slice(doneSoFar);
+        const remaining = questions.slice(doneSoFar);
+        questions = remaining.filter(q => !srsMap.has(q.question));
       } else if (doneSoFar >= questions.length) {
         questions = [];
+      } else {
+        questions = questions.filter(q => !srsMap.has(q.question));
       }
       startIdx = 0;
     }
