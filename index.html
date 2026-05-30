@@ -8384,16 +8384,14 @@ window.scStartRevision = (key, rev) => {
     mistakesDb.forEach(m => { if (m.question) srsMap.set(m.question, m); });
     questions = questions.filter(q => !srsMap.has(q.question));
 
-    // GROUND TRUTH: r1Progress is the integer count of how many Qs were answered.
-    // r1QuestionsAttempted (text array) can be empty, stale, or partially mismatched
-    // after sync issues. ALWAYS use r1Progress for the skip count.
     const doneSoFar = t.r1Progress || 0;
+    // DIAGNOSTIC — remove after confirming fix
+    alert(`R1 DEBUG\nkey: ${key}\nr1Progress: ${doneSoFar}\nr1QuestionsAttempted.length: ${(t.r1QuestionsAttempted||[]).length}\ntotal questions: ${questions.length}\nwill show: ${Math.max(0, questions.length - doneSoFar)}`);
     if (doneSoFar > 0 && doneSoFar < questions.length) {
-      questions = questions.slice(doneSoFar); // show only the remaining questions
+      questions = questions.slice(doneSoFar);
     } else if (doneSoFar >= questions.length) {
-      questions = []; // everything done — route to completion modal
+      questions = [];
     }
-    // doneSoFar === 0 → show all questions (fresh start)
   }
 
   if (questions.length === 0 && rev === 'r1') { scShowManualRevModal(key, rev); return; }
