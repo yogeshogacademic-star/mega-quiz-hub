@@ -2186,7 +2186,14 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
     }
 
     async function applyCloudData(data) {
-        if (!data || !data.db) return false;
+        if (!data || !data.db || typeof data.db !== 'object') return false;
+        // Safety: if cloud returned empty db but local has quizzes, keep local
+        const cloudDbCount = Object.keys(data.db).length;
+        const localDbCount = Object.keys(db).length;
+        if (cloudDbCount === 0 && localDbCount > 0) {
+            console.warn('[Sync] Cloud db is empty but local has quizzes — keeping local safe.');
+            return false;
+        }
 
         // ── SUBJECTS: merge cloud + local so custom subjects are never lost ──
         if (data.subjects && Array.isArray(data.subjects)) {
@@ -2231,8 +2238,8 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
         try { if (data.fcCards && Array.isArray(data.fcCards)) {
             let localFC = [];
             try { const s = localStorage.getItem('yogesh_fc_cards_v2'); if(s) localFC = JSON.parse(s); } catch {}
-            const localIds = new Set(localFC.map(c => c.id));
-            const newFromCloud = data.fcCards.filter(c => !localIds.has(c.id));
+            const localIds = new Set(localFC.filter(card => card.id).map(card => card.id));
+            const newFromCloud = data.fcCards.filter(card => card.id && !localIds.has(card.id));
             if (newFromCloud.length > 0 || localFC.length === 0) {
                 const merged = [...localFC, ...newFromCloud];
                 localStorage.setItem('yogesh_fc_cards_v2', JSON.stringify(merged));
@@ -2303,31 +2310,38 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
             localStorage.setItem('megaLastKnownCount', cloudQCount.toString());
             localStorage.setItem('megaLastCloudSave', (data.savedAt || Date.now()).toString());
         }
-        // ── HISTORY: merge cloud + local — this is the cross-device sync fix ──
+        // ── HISTORY: bidirectional merge ──────────────────────────────────────
+        let _localHasNewHistory = false;
         try {
-        // Cloud has attempts from other devices (phone, tablet etc.)
-        // Local only has attempts done on THIS device
-        // Merge = union of both, deduplicated, newest first
-        if (data.history && Array.isArray(data.history) && data.history.length > 0) {
-            // Use ts (millisecond timestamp) as primary key — 100% unique
-            // Fall back to composite key for older entries without ts
             const makeKey = h => h.ts ? String(h.ts) : `${h.date}|${h.title}|${h.attemptNumber}|${h.score}`;
-            const localKeys = new Set((historyDb || []).map(makeKey));
-            const newFromCloud = data.history.filter(h => !localKeys.has(makeKey(h)));
-            if (newFromCloud.length > 0) {
-                historyDb = [...(historyDb || []), ...newFromCloud]
-                    .sort((a,b) => (b.attemptNumber||0) - (a.attemptNumber||0));
-                if (historyDb.length > 500) historyDb.length = 500;
-                console.log(`[Cross-device sync] Loaded ${newFromCloud.length} attempt(s) from cloud.`);
+            if (data.history && Array.isArray(data.history) && data.history.length > 0) {
+                // Add cloud items missing locally
+                const localKeys = new Set((historyDb || []).map(makeKey));
+                const newFromCloud = data.history.filter(h => !localKeys.has(makeKey(h)));
+                if (newFromCloud.length > 0) {
+                    historyDb = [...(historyDb || []), ...newFromCloud]
+                        .sort((a,b) => (b.attemptNumber||0) - (a.attemptNumber||0));
+                    if (historyDb.length > 500) historyDb.length = 500;
+                    console.log(`[Sync] +${newFromCloud.length} attempt(s) from cloud → local.`);
+                }
             }
-        }
-        } catch(e) { console.warn('[Sync] history merge error — local history kept safe:', e); }
+            // Check if local has attempts cloud doesn't — if yes, push to cloud
+            const cloudKeys = new Set((data.history || []).map(makeKey));
+            const localOnlyCount = (historyDb || []).filter(h => !cloudKeys.has(makeKey(h))).length;
+            if (localOnlyCount > 0) {
+                _localHasNewHistory = true;
+                console.log(`[Sync] ${localOnlyCount} local attempt(s) not in cloud — will push.`);
+            }
+        } catch(e) { console.warn('[Sync] history merge error:', e); }
 
         await updateLocalCache(); rebuildSearchCache(); renderDashboard(); showSyncStatus('synced');
-        // If tags were repaired, push fixed data back to cloud so it's permanently clean
-        if (_tagsFixed > 0) {
-            console.log(`[Tag Repair] Pushing ${_tagsFixed} fixed tag(s) back to cloud...`);
-            setTimeout(() => saveData(), 2000);
+
+        // ── PUSH LOCAL DATA TO CLOUD if this device has things cloud doesn't ──
+        // This makes sync truly bidirectional — both devices always share everything
+        const _needPush = _tagsFixed > 0 || _localHasNewHistory;
+        if (_needPush) {
+            console.log(`[Sync] Local has newer data — pushing to cloud so other devices get it...`);
+            setTimeout(() => saveData(), 2500);
         }
         return true;
     }
@@ -7470,7 +7484,13 @@ function scGetSubjectFor(topicName) {
 function scSave() {
   localStorage.setItem(SC_KEY, JSON.stringify(scDb));
   localStorage.setItem(SC_STREAK_KEY, JSON.stringify(scStreak));
-  localStorage.setItem('sc_syllabus_lastSave', Date.now().toString()); // timestamp for cross-device sync
+  localStorage.setItem('sc_syllabus_lastSave', Date.now().toString());
+  // Push syllabus progress to cloud so other devices (phone↔laptop) stay in sync
+  clearTimeout(window._scSaveCloudDebounce);
+  window._scSaveCloudDebounce = setTimeout(() => {
+    if (typeof window._saveDataGlobal === 'function') window._saveDataGlobal().catch(()=>{});
+    else if (typeof saveData === 'function') saveData().catch(()=>{});
+  }, 4000); // 4s debounce — batches rapid R1/R2 saves into one cloud push
 }
 
 function scInitDefault() {
