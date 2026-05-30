@@ -2265,28 +2265,45 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
         }
         
         } catch(e) { console.warn('[Sync] fcProgress merge error:', e); }
-        // ── SYLLABUS DATA (R1/R2/R3/R4 progress): timestamp-based sync ──
-        // Uses syllabusLastSave to know WHEN syllabus was last updated on each device
-        // Cloud wins only if it was saved MORE RECENTLY (from another device like phone)
+        // ── SYLLABUS DATA: smart merge — MAX progress per topic, both directions ──
         if (data.syllabusData && Object.keys(data.syllabusData).length > 0) {
             const localSyllabus = localStorage.getItem('sc_syllabus_v1');
             const localSyllabusData = localSyllabus ? JSON.parse(localSyllabus) : {};
-            const localTs = parseInt(localStorage.getItem('sc_syllabus_lastSave') || '0');
-            const cloudTs = data.syllabusLastSave || 0; // timestamp from cloud payload
+            const cloudSyllabusData = data.syllabusData;
 
             if (Object.keys(localSyllabusData).length === 0) {
-                // Fresh install — restore from cloud
-                localStorage.setItem('sc_syllabus_v1', JSON.stringify(data.syllabusData));
-                if (cloudTs) localStorage.setItem('sc_syllabus_lastSave', cloudTs.toString());
+                localStorage.setItem('sc_syllabus_v1', JSON.stringify(cloudSyllabusData));
+                if (data.syllabusLastSave) localStorage.setItem('sc_syllabus_lastSave', data.syllabusLastSave.toString());
                 if (typeof scLoad === 'function') scLoad();
-            } else if (cloudTs > localTs) {
-                // Cloud is newer (from another device e.g. phone) — use cloud
-                localStorage.setItem('sc_syllabus_v1', JSON.stringify(data.syllabusData));
-                localStorage.setItem('sc_syllabus_lastSave', cloudTs.toString());
-                if (typeof scLoad === 'function') scLoad();
-                console.log('[Syllabus Sync] Applied newer syllabus progress from cloud.');
+            } else {
+                const progressFields = ['r1Progress','r2Progress','r3Progress','r4Progress','r1QsTotalRaw'];
+                const flagFields     = ['r1','r2','r3','r4','lec'];
+                const wrongFields    = ['r1Wrong','r2Wrong','r3Wrong','r4Wrong'];
+                const merged = JSON.parse(JSON.stringify(localSyllabusData));
+                let changed = false;
+                Object.keys(cloudSyllabusData).forEach(key => {
+                    if (!merged[key]) { merged[key] = cloudSyllabusData[key]; changed = true; return; }
+                    progressFields.forEach(f => {
+                        if ((cloudSyllabusData[key][f]||0) > (merged[key][f]||0)) {
+                            merged[key][f] = cloudSyllabusData[key][f]; changed = true;
+                        }
+                    });
+                    flagFields.forEach(f => {
+                        if (cloudSyllabusData[key][f] && !merged[key][f]) {
+                            merged[key][f] = cloudSyllabusData[key][f]; changed = true;
+                        }
+                    });
+                    wrongFields.forEach(f => {
+                        const ca = cloudSyllabusData[key][f]||[], la = merged[key][f]||[];
+                        if (ca.length > la.length) { merged[key][f] = ca; changed = true; }
+                    });
+                });
+                if (changed) {
+                    localStorage.setItem('sc_syllabus_v1', JSON.stringify(merged));
+                    if (typeof scLoad === 'function') scLoad();
+                    console.log('[Syllabus Sync] Merged cloud progress (MAX per topic).');
+                }
             }
-            // else: local is newer or equal — keep local
         }
         if (data.mockTracker && Array.isArray(data.mockTracker) && data.mockTracker.length > 0) {
             try {
@@ -4154,11 +4171,44 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         historyDb.sort((a,b) => (b.attemptNumber||0) - (a.attemptNumber||0));
         if (historyDb.length > 500) historyDb.length = 500;
 
+        // ── STEP 6: Also merge syllabus progress — take MAX per topic ──
+        // This fixes the case where R1 was done on phone but scDb never synced to cloud
+        try {
+            const cloudScRaw = cloudData.syllabusData;
+            const localScRaw = JSON.parse(localStorage.getItem('sc_syllabus_v1')||'{}');
+            if (cloudScRaw && Object.keys(cloudScRaw).length > 0) {
+                const progressFields = ['r1Progress','r2Progress','r3Progress','r4Progress','r1QsTotalRaw'];
+                const roundFields    = ['r1','r2','r3','r4','lec'];
+                const mergedSc = JSON.parse(JSON.stringify(localScRaw));
+                Object.keys(cloudScRaw).forEach(key => {
+                    if (!mergedSc[key]) { mergedSc[key] = cloudScRaw[key]; return; }
+                    // Take MAX progress for each round
+                    progressFields.forEach(f => {
+                        if ((cloudScRaw[key][f]||0) > (mergedSc[key][f]||0))
+                            mergedSc[key][f] = cloudScRaw[key][f];
+                    });
+                    // Take TRUE for completion flags if either device has it done
+                    roundFields.forEach(f => {
+                        if (cloudScRaw[key][f] && !mergedSc[key][f])
+                            mergedSc[key][f] = cloudScRaw[key][f];
+                    });
+                    // Merge wrong arrays — take longer one
+                    ['r1Wrong','r2Wrong','r3Wrong','r4Wrong'].forEach(f => {
+                        const ca = cloudScRaw[key][f]||[], la = mergedSc[key][f]||[];
+                        if (ca.length > la.length) mergedSc[key][f] = ca;
+                    });
+                });
+                localStorage.setItem('sc_syllabus_v1', JSON.stringify(mergedSc));
+                if (typeof scLoad === 'function') scLoad();
+                console.log('[Recovery] Syllabus merged');
+            }
+        } catch(e) { console.warn('Syllabus merge error:', e); }
+
         try {
             await saveData();
             setBtn('✅ Done!', false);
             setTimeout(() => setBtn('🔄 Recover & Sync History', false), 4000);
-            alert(`✅ Recovery complete!\n\nAdded ${missingFromCloud.length} missing attempt(s) to cloud.\n\nNow open the OTHER device and tap this button there too — it will find what that device has that cloud still doesn't.`);
+            alert(`✅ Recovery complete!\n\nAdded ${missingFromCloud.length} missing attempt(s) to cloud.\nSyllabus progress also merged.\n\nNow open the OTHER device and tap this button there too.`);
         } catch(e) {
             setBtn('🔄 Recover & Sync History', false);
             alert('Save failed: ' + e.message);
@@ -8385,8 +8435,6 @@ window.scStartRevision = (key, rev) => {
     questions = questions.filter(q => !srsMap.has(q.question));
 
     const doneSoFar = t.r1Progress || 0;
-    // DIAGNOSTIC — remove after confirming fix
-    alert(`R1 DEBUG\nkey: ${key}\nr1Progress: ${doneSoFar}\nr1QuestionsAttempted.length: ${(t.r1QuestionsAttempted||[]).length}\ntotal questions: ${questions.length}\nwill show: ${Math.max(0, questions.length - doneSoFar)}`);
     if (doneSoFar > 0 && doneSoFar < questions.length) {
       questions = questions.slice(doneSoFar);
     } else if (doneSoFar >= questions.length) {
