@@ -785,6 +785,7 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                 <div class="flex justify-center gap-4 flex-wrap">
                     <button onclick="exportBackup()" class="bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-blue-100 dark:border-blue-900/30">💾 Full Backup (Everything)</button>
                     <button onclick="triggerRestore()" class="bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-amber-100 dark:border-amber-900/30">📂 Restore Backup 🔒</button>
+                    <button onclick="recoverAllHistory()" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-emerald-100 dark:border-emerald-900/30">🔄 Recover & Sync History</button>
                     <button onclick="factoryReset()" class="bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-red-100 dark:border-red-900/30">⚠️ Reset System 🔒</button>
                 </div>
             </div>
@@ -4066,6 +4067,50 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     
     function formatTime(s) { return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`; }
     
+    // ── RECOVER ALL HISTORY ─────────────────────────────────────────────
+    // Reads history from EVERY storage layer on this device (memory + IndexedDB)
+    // Merges everything together and pushes to cloud
+    // Run on phone AND laptop to combine all missing attempts
+    window.recoverAllHistory = async () => {
+        const btn = document.querySelector('button[onclick="recoverAllHistory()"]');
+        if (btn) { btn.textContent = '⏳ Recovering...'; btn.disabled = true; }
+        try {
+            const makeKey = h => h.ts ? String(h.ts) : `${h.date}|${h.title}|${h.attemptNumber}|${h.score}`;
+            let allHistory = [...(historyDb || [])];
+            let allKeys = new Set(allHistory.map(makeKey));
+
+            // Read from IndexedDB — might have history the broken HTML never loaded
+            try {
+                const idbRaw = await idbKeyval.get('megaData');
+                if (idbRaw) {
+                    const idbData = JSON.parse(idbRaw);
+                    if (Array.isArray(idbData.history)) {
+                        let added = 0;
+                        idbData.history.forEach(h => {
+                            const k = makeKey(h);
+                            if (!allKeys.has(k)) { allHistory.push(h); allKeys.add(k); added++; }
+                        });
+                        if (added > 0) console.log(`[Recovery] +${added} attempts from IndexedDB`);
+                    }
+                }
+            } catch(e) { console.warn('IndexedDB read error:', e); }
+
+            // Sort newest first
+            allHistory.sort((a,b) => (b.attemptNumber||0) - (a.attemptNumber||0));
+            historyDb = allHistory;
+
+            // Push to cloud — other device will merge these in on next open
+            await saveData();
+
+            const dates = [...new Set(allHistory.map(h=>h.date))].sort();
+            alert(`✅ Recovery complete!\n\n${allHistory.length} total attempts found on this device.\nDates: ${dates.join(', ')}\n\nPushed to cloud. Now open the OTHER device — it will automatically pick up these attempts.`);
+            if (btn) { btn.textContent = '✅ Done — Open Other Device'; btn.disabled = false; }
+        } catch(e) {
+            alert('Recovery failed: ' + e.message);
+            if (btn) { btn.textContent = '🔄 Recover & Sync History'; btn.disabled = false; }
+        }
+    };
+
     window.factoryReset = async () => {
         requireAuth(async () => {
             if(confirm("MAMBA CRITICAL WARNING: This will permanently delete all quizzes, history, and custom subjects locally AND in the Cloud.\n\nType 'DELETE' to confirm:")) {
