@@ -786,6 +786,7 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                     <button onclick="exportBackup()" class="bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-blue-100 dark:border-blue-900/30">💾 Full Backup (Everything)</button>
                     <button onclick="triggerRestore()" class="bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-amber-100 dark:border-amber-900/30">📂 Restore Backup 🔒</button>
                     <button onclick="recoverAllHistory()" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-emerald-100 dark:border-emerald-900/30">🔄 Recover & Sync History</button>
+                    <button id="debug-mode-btn" onclick="toggleDebugMode()" class="font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border">🔬 Debug Mode</button>
                     <button onclick="factoryReset()" class="bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-red-100 dark:border-red-900/30">⚠️ Reset System 🔒</button>
                 </div>
             </div>
@@ -4213,6 +4214,91 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
             setBtn('🔄 Recover & Sync History', false);
             alert('Save failed: ' + e.message);
         }
+    };
+
+    // ── DEBUG MODE ────────────────────────────────────────────────────────
+    // Shows full status panel before every R1/R2/R3/R4 launch
+    // Toggle ON to diagnose, toggle OFF when satisfied
+
+    function updateDebugBtn() {
+        const on = localStorage.getItem('sc_debug_mode') === '1';
+        const btn = document.getElementById('debug-mode-btn');
+        if (!btn) return;
+        if (on) {
+            btn.className = 'bg-violet-600 text-white font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-violet-700';
+            btn.textContent = '🔬 Debug Mode ON';
+        } else {
+            btn.className = 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-slate-200 dark:border-slate-700';
+            btn.textContent = '🔬 Debug Mode OFF';
+        }
+    }
+    window.toggleDebugMode = function() {
+        const on = localStorage.getItem('sc_debug_mode') === '1';
+        localStorage.setItem('sc_debug_mode', on ? '0' : '1');
+        updateDebugBtn();
+    };
+    setTimeout(updateDebugBtn, 500);
+
+    // Called from scStartRevision before launching — returns a Promise
+    // Resolves true = proceed, false = cancel
+    window.scShowDebugPanel = function(key, rev, questions, t, srsFilteredOut) {
+        if (localStorage.getItem('sc_debug_mode') !== '1') return Promise.resolve(true);
+
+        const revColors = { r1:'blue', r2:'emerald', r3:'amber', r4:'purple' };
+        const col = revColors[rev] || 'slate';
+
+        // History entries for this topic
+        const topicHist = (historyDb||[]).filter(h =>
+            h.title && h.title.toLowerCase().includes((t.name||'').toLowerCase())
+        );
+        const histLines = topicHist.slice(0,5).map(h =>
+            `<div class="text-slate-400 text-[10px]">${h.date || ''} &nbsp;·&nbsp; ${(h.title||'').substring(0,45)} &nbsp;·&nbsp; ${h.totalCorrect||0}/${h.total||0}</div>`
+        ).join('');
+
+        const rows = [
+            ['Key',                  key],
+            ['r1Progress',           t.r1Progress || 0],
+            ['r2Progress',           t.r2Progress || 0],
+            ['r3Progress',           t.r3Progress || 0],
+            ['r4Progress',           t.r4Progress || 0],
+            ['r1QuestionsAttempted', (t.r1QuestionsAttempted||[]).length],
+            ['r1Wrong',              (t.r1Wrong||[]).length],
+            ['r2Wrong',              (t.r2Wrong||[]).length],
+            ['r3Wrong',              (t.r3Wrong||[]).length],
+            ['r1 / r2 / r3 / r4 ✓', [t.r1,t.r2,t.r3,t.r4].map(v=>v?'✓':'✗').join(' · ')],
+            ['SRS-filtered out',     srsFilteredOut],
+            ['Questions in pool',    questions.length],
+            ['Will show (1st batch)',Math.min(questions.length, 25)],
+        ];
+
+        const tableRows = rows.map(([label, val]) =>
+            `<tr><td class="text-slate-400 text-[11px] pr-4 py-0.5">${label}</td><td class="text-slate-200 text-[11px] font-bold">${val}</td></tr>`
+        ).join('');
+
+        return new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.id = 'sc-debug-overlay';
+            overlay.className = 'fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center p-4';
+            overlay.innerHTML = `
+              <div class="bg-slate-900 border border-${col}-500/40 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+                <div class="flex items-center gap-2 mb-4">
+                  <span class="text-xs font-black uppercase tracking-widest text-${col}-400 bg-${col}-500/10 px-3 py-1 rounded-full border border-${col}-500/30">🔬 Debug — ${rev.toUpperCase()}</span>
+                  <span class="text-slate-400 text-xs ml-auto">${t.name}</span>
+                </div>
+                <table class="w-full mb-4">${tableRows}</table>
+                ${topicHist.length > 0 ? `<div class="border-t border-slate-700 pt-3 mb-4">
+                  <div class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Recent history (${topicHist.length} entries)</div>
+                  ${histLines}
+                </div>` : ''}
+                <div class="flex gap-3 mt-2">
+                  <button id="dbg-launch" class="flex-1 bg-${col}-600 hover:bg-${col}-700 text-white font-black py-2.5 rounded-xl text-sm transition-colors">▶ Launch ${rev.toUpperCase()}</button>
+                  <button id="dbg-cancel" class="px-5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-black py-2.5 rounded-xl text-sm transition-colors">Cancel</button>
+                </div>
+              </div>`;
+            document.body.appendChild(overlay);
+            document.getElementById('dbg-launch').onclick = () => { overlay.remove(); resolve(true); };
+            document.getElementById('dbg-cancel').onclick = () => { overlay.remove(); resolve(false); };
+        });
     };
 
     window.factoryReset = async () => {
@@ -8474,24 +8560,26 @@ window.scStartRevision = (key, rev) => {
   const progressKey = rev + 'Progress';
   const done = t[progressKey] || 0;
 
-  if (rev === 'r1') {
-    // Use r1QuestionsAttempted.length if populated, else fall back to r1Progress
-    const attempted = t.r1QuestionsAttempted || [];
-    const r1Done = attempted.length > 0 ? attempted.length : (t.r1Progress || 0);
-    const r1Total = r1Done + questions.length;
-    if (r1Done > 0) {
-      scShowContinueModal(key, rev, r1Done, r1Total, questions);
+  // ── DEBUG PANEL (fires only when Debug Mode ON in Settings) ──
+  scShowDebugPanel(key, rev, questions, t, (mistakesDb||[]).length).then(proceed => {
+    if (!proceed) return;
+    if (rev === 'r1') {
+      const attempted = t.r1QuestionsAttempted || [];
+      const r1Done = attempted.length > 0 ? attempted.length : (t.r1Progress || 0);
+      const r1Total = r1Done + questions.length;
+      if (r1Done > 0) {
+        scShowContinueModal(key, rev, r1Done, r1Total, questions);
+      } else {
+        scLaunchRevQuiz(key, rev, questions, 0);
+      }
+    } else if (done > 0 && done < questions.length) {
+      scShowContinueModal(key, rev, done, questions.length, questions);
+    } else if (rev !== 'r1' && done === 0) {
+      scShowRoundStatsModal(key, rev, questions, autoFixedCount);
     } else {
       scLaunchRevQuiz(key, rev, questions, 0);
     }
-  } else if (done > 0 && done < questions.length) {
-    scShowContinueModal(key, rev, done, questions.length, questions);
-  } else if (rev !== 'r1' && done === 0) {
-    // R2/R3/R4 starting fresh → show stats from previous round
-    scShowRoundStatsModal(key, rev, questions, autoFixedCount);
-  } else {
-    scLaunchRevQuiz(key, rev, questions, 0);
-  }
+  });
 };
 
 function scShowContinueModal(key, rev, done, total, questions, isBooster) {
