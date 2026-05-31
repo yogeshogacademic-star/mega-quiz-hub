@@ -786,6 +786,7 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                     <button onclick="exportBackup()" class="bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-blue-100 dark:border-blue-900/30">💾 Full Backup (Everything)</button>
                     <button onclick="triggerRestore()" class="bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-amber-100 dark:border-amber-900/30">📂 Restore Backup 🔒</button>
                     <button onclick="recoverAllHistory()" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-emerald-100 dark:border-emerald-900/30">🔄 Recover & Sync History</button>
+                    <button onclick="scanDuplicates()" class="bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-orange-100 dark:border-orange-900/30">🔍 Scan Duplicates</button>
                     <button id="debug-mode-btn" onclick="toggleDebugMode()" class="font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border">🔬 Debug Mode</button>
                     <button onclick="factoryReset()" class="bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-red-100 dark:border-red-900/30">⚠️ Reset System 🔒</button>
                 </div>
@@ -874,12 +875,13 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
         <button onclick="scSetTab('tracker')" id="sc-tab-tracker" class="sc-tab px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-violet-600 text-white transition-all">📋 Tracker</button>
         <button onclick="scSetTab('coverage')" id="sc-tab-coverage" class="sc-tab px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all">🌐 Coverage</button>
         <button onclick="scSetTab('weekly')" id="sc-tab-weekly" class="sc-tab px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all">📆 Weekly</button>
+        <button onclick="scSetTab('weakbank')" id="sc-tab-weakbank" class="sc-tab px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all">🔴 Weak Bank</button>
       </div>
 
       <!-- TRACKER TAB -->
       <div id="sc-view-tracker">
         <!-- Column headers -->
-        <div class="grid gap-0 mb-2 px-2" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 46px 46px 72px 100px 28px">
+        <div class="grid gap-0 mb-2 px-2" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 46px 46px 72px 52px 52px 52px 28px">
           <div></div>
           <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 pl-2">Topic</div>
           <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Status</div>
@@ -889,7 +891,9 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
           <div class="text-[9px] font-black uppercase tracking-widest text-amber-400 text-center">R3</div>
           <div class="text-[9px] font-black uppercase tracking-widest text-purple-400 text-center">R4</div>
           <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Next Due</div>
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Done/Total</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Total</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-emerald-400 text-center">SRS</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">New</div>
           <div></div>
         </div>
         <div id="sc-tracker-body" class="space-y-1"></div>
@@ -915,6 +919,11 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
             <div id="sc-weekly-detail-title" class="text-xs font-black uppercase tracking-widest text-slate-500 mb-3"></div>
             <div id="sc-weekly-detail-items" class="space-y-2"></div>
           </div>
+
+      <!-- WEAK BANK TAB -->
+      <div id="sc-view-weakbank" class="hidden">
+        <div id="sc-weak-bank-body"></div>
+      </div>
         </div>
       </div>
 
@@ -2090,7 +2099,7 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
     async function saveData() {
         showSyncStatus('syncing');
         let cleanDb = {};
-        Object.keys(db).forEach(key => { if (!key.startsWith('quiz_srs') && !key.startsWith('quiz_master_mock') && !key.startsWith('quiz_topic_practice')) { cleanDb[key] = db[key]; } });
+        Object.keys(db).forEach(key => { if (!key.startsWith('quiz_srs') && !key.startsWith('quiz_master_mock') && !key.startsWith('quiz_topic_practice') && !key.startsWith('quiz_weak_bank')) { cleanDb[key] = db[key]; } });
         let tempDb = db; db = cleanDb;
         try { await updateLocalCache(); } catch(err) { console.warn("Local cache update failed, continuing to cloud sync...", err); }
         db = tempDb;
@@ -2277,9 +2286,10 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                 if (data.syllabusLastSave) localStorage.setItem('sc_syllabus_lastSave', data.syllabusLastSave.toString());
                 if (typeof scLoad === 'function') scLoad();
             } else {
-                const progressFields = ['r1Progress','r2Progress','r3Progress','r4Progress','r1QsTotalRaw'];
+                const progressFields = ['r1Progress','r2Progress','r3Progress','r4Progress','r1QsTotalRaw','r2QsTotal','r3QsTotal','r4QsTotal'];
                 const flagFields     = ['r1','r2','r3','r4','lec'];
                 const wrongFields    = ['r1Wrong','r2Wrong','r3Wrong','r4Wrong'];
+                const dateFields     = ['lecDate','r1Date','r2Date','r3Date','r4Date'];
                 const merged = JSON.parse(JSON.stringify(localSyllabusData));
                 let changed = false;
                 Object.keys(cloudSyllabusData).forEach(key => {
@@ -2290,6 +2300,11 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                         }
                     });
                     flagFields.forEach(f => {
+                        if (cloudSyllabusData[key][f] && !merged[key][f]) {
+                            merged[key][f] = cloudSyllabusData[key][f]; changed = true;
+                        }
+                    });
+                    dateFields.forEach(f => {
                         if (cloudSyllabusData[key][f] && !merged[key][f]) {
                             merged[key][f] = cloudSyllabusData[key][f]; changed = true;
                         }
@@ -3025,7 +3040,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     function openLobby(id) {
         currentQuizId = id; const q = db[id];
         document.getElementById('lobby-title').textContent = q.title; document.getElementById('lobby-meta').textContent = `${q.questions.length} Questions | Default Time: ${q.timeInMinutes} Mins`;
-        const lastStoredName = localStorage.getItem('megaQuizCandidateName') || "Yogesh"; document.getElementById('candidate-name').value = lastStoredName;
+        const lastStoredName = localStorage.getItem('megaQuizCandidateName') || "Yogesh Singh"; document.getElementById('candidate-name').value = lastStoredName;
         
         let prev = historyDb.filter(h => h.title === q.title);
         // Exclude Revision Runs so attempt# only counts real full attempts
@@ -3355,6 +3370,13 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         let displayTitle = db[currentQuizId] ? db[currentQuizId].title : "Custom Test";
         if(lobbyQuizMode === 'wrong') displayTitle += " (Revision Run)";
         document.getElementById('results-title').textContent = `${candName}'s Report - Attempt #${currentAttemptNum}`;
+
+        // ── WEAK BANK: pure practice — skip history, SRS, all saves ──
+        if (db[currentQuizId] && db[currentQuizId].isWeakBank) {
+          updateSRSBadge(); showScreen('results'); window.scrollTo(0,0); filterReview('all');
+          setTimeout(() => { delete db['quiz_weak_bank_current']; }, 5000); // clean up after results viewed
+          return; // nothing saved, nothing updated
+        }
 
         historyDb.unshift({ ts: Date.now(), date: new Date().toLocaleDateString(), title: displayTitle, subject: db[currentQuizId] ? db[currentQuizId].subject : "Mixed", score: parseFloat(score.toFixed(2)), accuracy: Math.round((correct / activeQuestions.length) * 100) || 0, candidateName: candName, attemptNumber: currentAttemptNum, totalCorrect: correct, totalWrong: wrong, totalSkipped: skipped, reviewData: historicalReviewData });
         if (historyDb.length > 500) historyDb.length = 500;
@@ -3984,7 +4006,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         // Track which attempt is being viewed so saveEdit re-renders the right one
         window.currentHistoryViewIndex = index;
 
-        document.getElementById('results-title').textContent = `${attempt.candidateName || 'Yogesh'}'s Report - Attempt #${attempt.attemptNumber || 1}`;
+        document.getElementById('results-title').textContent = `${attempt.candidateName || 'Yogesh Singh'}'s Report - Attempt #${attempt.attemptNumber || 1}`;
         document.getElementById('res-score').textContent = attempt.score; document.getElementById('res-correct').textContent = attempt.totalCorrect || 0;
         document.getElementById('res-wrong').textContent = attempt.totalWrong || 0; document.getElementById('res-skipped').textContent = attempt.totalSkipped || 0;
         // MEMORY FIX: reset edit registry before rendering history review cards
@@ -4007,7 +4029,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         
         historyDb.forEach((h, index) => {
             if (h.title === quizTitle || h.title.includes(quizTitle)) {
-                found = true; const attText = h.attemptNumber ? `ATTEMPT #${h.attemptNumber}` : `ATTEMPT #1`; const nameText = h.candidateName ? h.candidateName : "Yogesh";
+                found = true; const attText = h.attemptNumber ? `ATTEMPT #${h.attemptNumber}` : `ATTEMPT #1`; const nameText = h.candidateName ? h.candidateName : "Yogesh Singh";
                 const reviewBtn = h.reviewData ? `<button onclick="openHistoryReview(${index})" class="mt-4 w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50 font-black text-[10px] uppercase tracking-widest py-3 rounded-xl transition-colors border border-indigo-100 dark:border-indigo-800/30">🔍 View Full Report</button>` : `<div class="mt-4 w-full bg-slate-100 dark:bg-slate-800 text-slate-400 font-bold text-[10px] uppercase tracking-widest py-3 rounded-xl text-center">No Deep Data</div>`;
                 list.innerHTML += `<div class="bg-white dark:bg-slate-900 p-6 rounded-2xl flex flex-col border border-slate-200 dark:border-slate-800 shadow-sm"><div class="flex justify-between items-start"><div><div class="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30 uppercase tracking-widest inline-block px-3 py-1 rounded-md">${nameText} • ${attText}</div><div class="text-sm font-bold text-slate-500 mt-3">${h.date}</div></div><div class="text-right"><div class="text-4xl font-black text-emerald-500 leading-none tracking-tighter">${h.score}</div><div class="text-[10px] uppercase font-black text-slate-400 mt-2 tracking-widest">${h.accuracy}% ACC</div></div></div>${reviewBtn}</div>`;
             }
@@ -4022,7 +4044,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         document.getElementById('screen-analytics').classList.remove('hidden'); document.getElementById('screen-subject-analysis').classList.add('hidden');
         
         let historyHTML = `<div class="space-y-3">${historyDb.map((h, index) => {
-            const attText = h.attemptNumber ? `ATTEMPT #${h.attemptNumber}` : `ATTEMPT #1`; const nameText = h.candidateName ? h.candidateName : "Yogesh";
+            const attText = h.attemptNumber ? `ATTEMPT #${h.attemptNumber}` : `ATTEMPT #1`; const nameText = h.candidateName ? h.candidateName : "Yogesh Singh";
             const reviewBtn = h.reviewData ? `<button onclick="openHistoryReview(${index})" class="mt-3 w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400 dark:hover:bg-indigo-900/40 font-black text-[10px] uppercase tracking-widest py-2 rounded-xl transition-colors border border-indigo-100 dark:border-indigo-800/30">🔍 View Full Report</button>` : '';
             return `<div class="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl flex flex-col border border-slate-200 dark:border-slate-800 shadow-sm"><div class="flex justify-between items-start w-full"><div><div class="font-black text-slate-800 dark:text-slate-200 text-lg tracking-tight">${h.title}</div><div class="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mt-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/30 inline-block px-3 py-1 rounded-md">${nameText} • ${attText}</div><div class="text-xs font-bold text-slate-400 mt-3 tracking-wide">${h.subject} • ${h.date}</div></div><div class="text-right"><div class="text-4xl font-black text-emerald-500 tracking-tighter leading-none">${h.score}</div><div class="text-[10px] uppercase font-black text-slate-400 tracking-widest mt-2">${h.accuracy}% ACC</div></div></div>${reviewBtn}</div>`;
         }).join('') || '<div class="text-slate-400 text-center text-sm py-4 italic">No test history found. Go dominate a mock!</div>'}</div>`;
@@ -4178,8 +4200,9 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
             const cloudScRaw = cloudData.syllabusData;
             const localScRaw = JSON.parse(localStorage.getItem('sc_syllabus_v1')||'{}');
             if (cloudScRaw && Object.keys(cloudScRaw).length > 0) {
-                const progressFields = ['r1Progress','r2Progress','r3Progress','r4Progress','r1QsTotalRaw'];
+                const progressFields = ['r1Progress','r2Progress','r3Progress','r4Progress','r1QsTotalRaw','r2QsTotal','r3QsTotal','r4QsTotal'];
                 const roundFields    = ['r1','r2','r3','r4','lec'];
+                const dateFields     = ['lecDate','r1Date','r2Date','r3Date','r4Date'];
                 const mergedSc = JSON.parse(JSON.stringify(localScRaw));
                 Object.keys(cloudScRaw).forEach(key => {
                     if (!mergedSc[key]) { mergedSc[key] = cloudScRaw[key]; return; }
@@ -4188,8 +4211,13 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                         if ((cloudScRaw[key][f]||0) > (mergedSc[key][f]||0))
                             mergedSc[key][f] = cloudScRaw[key][f];
                     });
-                    // Take TRUE for completion flags if either device has it done
+                    // Take TRUE for completion flags + copy dates if other device has it done
                     roundFields.forEach(f => {
+                        if (cloudScRaw[key][f] && !mergedSc[key][f])
+                            mergedSc[key][f] = cloudScRaw[key][f];
+                    });
+                    // Copy dates from cloud if local doesn't have them
+                    dateFields.forEach(f => {
                         if (cloudScRaw[key][f] && !mergedSc[key][f])
                             mergedSc[key][f] = cloudScRaw[key][f];
                     });
@@ -4216,15 +4244,21 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         }
     };
 
-    // ── DEBUG MODE ────────────────────────────────────────────────────────
-    // Shows full status panel before every R1/R2/R3/R4 launch
-    // Toggle ON to diagnose, toggle OFF when satisfied
+    // ══════════════════════════════════════════════════════
+    // 🔬 DEBUG SYSTEM — toggle in Settings
+    // Shows live panels at every key checkpoint:
+    //   • Before R1/R2/R3/R4 launch (pre-flight)
+    //   • After each batch (what went where)
+    //   • After R4 graduation (SRS flood report)
+    //   • After sync (what moved between devices)
+    // ══════════════════════════════════════════════════════
+
+    function isDebugOn() { return localStorage.getItem('sc_debug_mode') === '1'; }
 
     function updateDebugBtn() {
-        const on = localStorage.getItem('sc_debug_mode') === '1';
         const btn = document.getElementById('debug-mode-btn');
         if (!btn) return;
-        if (on) {
+        if (isDebugOn()) {
             btn.className = 'bg-violet-600 text-white font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-violet-700';
             btn.textContent = '🔬 Debug Mode ON';
         } else {
@@ -4233,72 +4267,228 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         }
     }
     window.toggleDebugMode = function() {
-        const on = localStorage.getItem('sc_debug_mode') === '1';
-        localStorage.setItem('sc_debug_mode', on ? '0' : '1');
+        localStorage.setItem('sc_debug_mode', isDebugOn() ? '0' : '1');
         updateDebugBtn();
     };
     setTimeout(updateDebugBtn, 500);
 
-    // Called from scStartRevision before launching — returns a Promise
-    // Resolves true = proceed, false = cancel
-    window.scShowDebugPanel = function(key, rev, questions, t, srsFilteredOut) {
-        if (localStorage.getItem('sc_debug_mode') !== '1') return Promise.resolve(true);
+    // ── TOAST: non-blocking slide-in panel (auto-dismiss 10s) ──────────────
+    window.scDebugToast = function(title, rows, color) {
+        if (!isDebugOn()) return;
+        color = color || 'violet';
+        const existing = document.getElementById('sc-debug-toast');
+        if (existing) existing.remove();
+        const el = document.createElement('div');
+        el.id = 'sc-debug-toast';
+        el.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9998;max-width:340px;width:calc(100vw - 40px);transition:transform 0.3s ease,opacity 0.3s ease;transform:translateX(120%);opacity:0';
+        const rowsHTML = rows.map(([label, val, highlight]) =>
+            `<div class="flex justify-between items-center py-0.5 border-b border-slate-700/40 last:border-0">
+               <span class="text-slate-400 text-[11px]">${label}</span>
+               <span class="text-[11px] font-bold ${highlight ? 'text-'+color+'-400' : 'text-slate-200'}">${val}</span>
+             </div>`
+        ).join('');
+        el.innerHTML = `<div class="bg-slate-900 border border-${color}-500/50 rounded-2xl p-4 shadow-2xl">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-black uppercase tracking-widest text-${color}-400">🔬 ${title}</span>
+            <button onclick="document.getElementById('sc-debug-toast').remove()" class="text-slate-500 hover:text-slate-300 text-lg leading-none ml-2">×</button>
+          </div>
+          <div>${rowsHTML}</div>
+          <div class="mt-2 text-[9px] text-slate-600 text-right">auto-dismiss in 10s</div>
+        </div>`;
+        document.body.appendChild(el);
+        requestAnimationFrame(() => { el.style.transform='translateX(0)'; el.style.opacity='1'; });
+        setTimeout(() => {
+            if (document.getElementById('sc-debug-toast') === el) {
+                el.style.transform='translateX(120%)'; el.style.opacity='0';
+                setTimeout(() => el.remove(), 350);
+            }
+        }, 10000);
+    };
 
-        const revColors = { r1:'blue', r2:'emerald', r3:'amber', r4:'purple' };
-        const col = revColors[rev] || 'slate';
-
-        // History entries for this topic
+    // ── PRE-FLIGHT MODAL: shows BEFORE launching any R1/R2/R3/R4 ──────────
+    window.scShowDebugPanel = function(key, rev, questions, t, srsTotal) {
+        if (!isDebugOn()) return Promise.resolve(true);
+        const colors = { r1:'blue', r2:'emerald', r3:'amber', r4:'purple' };
+        const col = colors[rev] || 'violet';
         const topicHist = (historyDb||[]).filter(h =>
             h.title && h.title.toLowerCase().includes((t.name||'').toLowerCase())
         );
-        const histLines = topicHist.slice(0,5).map(h =>
-            `<div class="text-slate-400 text-[10px]">${h.date || ''} &nbsp;·&nbsp; ${(h.title||'').substring(0,45)} &nbsp;·&nbsp; ${h.totalCorrect||0}/${h.total||0}</div>`
+        const histLines = topicHist.slice(0,4).map(h =>
+            `<div class="text-slate-400 text-[10px] py-0.5 border-b border-slate-700/30">${h.date||''} &nbsp;·&nbsp; ${(h.title||'').substring(0,42)} &nbsp;·&nbsp; ${h.totalCorrect||0}/${h.total||0}</div>`
         ).join('');
-
         const rows = [
-            ['Key',                  key],
-            ['r1Progress',           t.r1Progress || 0],
-            ['r2Progress',           t.r2Progress || 0],
-            ['r3Progress',           t.r3Progress || 0],
-            ['r4Progress',           t.r4Progress || 0],
+            ['Key', key],
+            ['r1 / r2 / r3 / r4 ✓', [t.r1,t.r2,t.r3,t.r4].map(v=>v?'<span class="text-emerald-400">✓</span>':'<span class="text-red-400">✗</span>').join(' · ')],
+            ['r1Progress', `${t.r1Progress||0} / ${t.r1QsTotalRaw||'?'}`],
+            ['r1Wrong / r2Wrong / r3Wrong', `${(t.r1Wrong||[]).length} / ${(t.r2Wrong||[]).length} / ${(t.r3Wrong||[]).length}`],
             ['r1QuestionsAttempted', (t.r1QuestionsAttempted||[]).length],
-            ['r1Wrong',              (t.r1Wrong||[]).length],
-            ['r2Wrong',              (t.r2Wrong||[]).length],
-            ['r3Wrong',              (t.r3Wrong||[]).length],
-            ['r1 / r2 / r3 / r4 ✓', [t.r1,t.r2,t.r3,t.r4].map(v=>v?'✓':'✗').join(' · ')],
-            ['SRS-filtered out',     srsFilteredOut],
-            ['Questions in pool',    questions.length],
-            ['Will show (1st batch)',Math.min(questions.length, 25)],
+            ['SRS total (all topics)', srsTotal],
+            ['Questions in pool now', questions.length],
+            ['Will show (batch 1)', Math.min(questions.length, 25)],
         ];
-
-        const tableRows = rows.map(([label, val]) =>
-            `<tr><td class="text-slate-400 text-[11px] pr-4 py-0.5">${label}</td><td class="text-slate-200 text-[11px] font-bold">${val}</td></tr>`
+        const tableRows = rows.map(([l,v]) =>
+            `<tr><td class="text-slate-400 text-[11px] pr-4 py-0.5">${l}</td><td class="text-slate-200 text-[11px] font-bold">${v}</td></tr>`
         ).join('');
-
         return new Promise(resolve => {
             const overlay = document.createElement('div');
-            overlay.id = 'sc-debug-overlay';
             overlay.className = 'fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center p-4';
-            overlay.innerHTML = `
-              <div class="bg-slate-900 border border-${col}-500/40 rounded-2xl p-6 max-w-md w-full shadow-2xl">
-                <div class="flex items-center gap-2 mb-4">
-                  <span class="text-xs font-black uppercase tracking-widest text-${col}-400 bg-${col}-500/10 px-3 py-1 rounded-full border border-${col}-500/30">🔬 Debug — ${rev.toUpperCase()}</span>
-                  <span class="text-slate-400 text-xs ml-auto">${t.name}</span>
-                </div>
-                <table class="w-full mb-4">${tableRows}</table>
-                ${topicHist.length > 0 ? `<div class="border-t border-slate-700 pt-3 mb-4">
-                  <div class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Recent history (${topicHist.length} entries)</div>
-                  ${histLines}
-                </div>` : ''}
-                <div class="flex gap-3 mt-2">
-                  <button id="dbg-launch" class="flex-1 bg-${col}-600 hover:bg-${col}-700 text-white font-black py-2.5 rounded-xl text-sm transition-colors">▶ Launch ${rev.toUpperCase()}</button>
-                  <button id="dbg-cancel" class="px-5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-black py-2.5 rounded-xl text-sm transition-colors">Cancel</button>
-                </div>
-              </div>`;
+            overlay.innerHTML = `<div class="bg-slate-900 border border-${col}-500/40 rounded-2xl p-5 max-w-sm w-full shadow-2xl">
+              <div class="flex items-center gap-2 mb-3">
+                <span class="text-xs font-black uppercase tracking-widest text-${col}-400 bg-${col}-500/10 px-3 py-1 rounded-full border border-${col}-500/30">🔬 Pre-flight — ${rev.toUpperCase()}</span>
+                <span class="text-slate-400 text-xs ml-auto">${t.name}</span>
+              </div>
+              <table class="w-full mb-3">${tableRows}</table>
+              ${topicHist.length > 0 ? `<div class="border-t border-slate-700 pt-2 mb-3"><div class="text-[9px] text-slate-500 uppercase tracking-widest mb-1">History (${topicHist.length} entries)</div>${histLines}</div>` : ''}
+              <div class="flex gap-3">
+                <button id="dbg-launch" class="flex-1 bg-${col}-600 hover:bg-${col}-700 text-white font-black py-2.5 rounded-xl text-sm">▶ Launch ${rev.toUpperCase()}</button>
+                <button id="dbg-cancel" class="px-5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-black py-2.5 rounded-xl text-sm">Cancel</button>
+              </div>
+            </div>`;
             document.body.appendChild(overlay);
-            document.getElementById('dbg-launch').onclick = () => { overlay.remove(); resolve(true); };
-            document.getElementById('dbg-cancel').onclick = () => { overlay.remove(); resolve(false); };
+            overlay.querySelector('#dbg-launch').onclick = () => { overlay.remove(); resolve(true); };
+            overlay.querySelector('#dbg-cancel').onclick = () => { overlay.remove(); resolve(false); };
         });
+    };
+
+    // ── POST-BATCH TOAST: fires after each R1/R2/R3/R4 batch ──────────────
+    // Called from _afterSubmit (syllabus revision)
+    window.scDebugPostBatch = function(key, rev, correct, wrong, skipped, newDone, totalQs, srsBefore) {
+        if (!isDebugOn()) return;
+        const t = scDb[key];
+        if (!t) return;
+        const colors = { r1:'blue', r2:'emerald', r3:'amber', r4:'purple' };
+        const srsAfter = (mistakesDb||[]).length;
+        const srsAdded = srsAfter - srsBefore;
+        const nextRev = { r1:'R2', r2:'R3', r3:'R4', r4:'SRS' }[rev];
+        const wrongKey = rev+'Wrong';
+        const dueDate = new Date(Date.now() + 3*86400000).toLocaleDateString();
+
+        const rows = [
+            ['Batch result', `✓ ${correct} correct · ✗ ${wrong} wrong · ⊘ ${skipped} skip`],
+            ['Cumulative progress', `${newDone} / ${totalQs} done`],
+            rev === 'r1' ? ['→ Correct entered SRS', srsAdded > 0 ? `+${srsAdded} cards @ 3 days (due ${dueDate})` : 'Already in SRS / 0 new'] : ['→ Wrong carry to '+nextRev, (t[wrongKey]||[]).length + ' questions'],
+            rev === 'r1' ? ['→ Wrong go to R2 queue', (t.r1Wrong||[]).length + ' questions'] : null,
+            ['SRS total', `${srsBefore} → ${srsAfter} (+${srsAdded})`],
+            (newDone < totalQs) ? ['Remaining', `${totalQs - newDone} questions left`] : ['Round complete!', '🎉 All questions done'],
+        ].filter(Boolean);
+
+        scDebugToast(`After ${rev.toUpperCase()} Batch — ${t.name}`, rows, colors[rev]);
+    };
+
+    // ── R4 GRADUATION TOAST: fires after R4 completes ─────────────────────
+    window.scDebugR4Graduation = function(key, graduated, wrongInR4, correctInR4, srsBefore) {
+        if (!isDebugOn()) return;
+        const t = scDb[key];
+        const srsAfter = (mistakesDb||[]).length;
+        const dueDate3d = new Date(Date.now() + 3*86400000).toLocaleDateString();
+        const due10m = new Date(Date.now() + 10*60000).toLocaleTimeString();
+        const rows = [
+            ['Topic', (t && t.name) || key],
+            ['Total graduated', `${graduated} questions`],
+            ['→ Correct by R4', `${correctInR4} cards @ 3 days (due ${dueDate3d})`],
+            ['→ Wrong in R4', `${wrongInR4} cards @ 10 min (due ${due10m})`],
+            ['SRS total', `${srsBefore} → ${srsAfter} (+${srsAfter - srsBefore})`],
+            ['Next step', 'Check SRS Sprint for new cards due today'],
+        ];
+        scDebugToast(`R4 Graduation — ${(t&&t.name)||key}`, rows, 'purple');
+    };
+
+    // ── DUPLICATE SCANNER ─────────────────────────────────────────────────
+    window.scanDuplicates = function() {
+        const btn = document.querySelector('button[onclick="scanDuplicates()"]');
+        if (btn) { btn.textContent = '⏳ Scanning...'; btn.disabled = true; }
+
+        const qMap = {};
+        let totalQs = 0;
+        Object.entries(db).forEach(([quizId, quiz]) => {
+            if (!quiz || !Array.isArray(quiz.questions) || quiz.isScRevision || quiz.isSRS || quiz.isWeakBank) return;
+            quiz.questions.forEach((q, idx) => {
+                if (!q || !q.question) return;
+                const key = q.question.trim();
+                totalQs++;
+                if (!qMap[key]) qMap[key] = [];
+                qMap[key].push({ quizId, title: quiz.title || quizId, answer: q.answer, idx });
+            });
+        });
+
+        const duplicates = Object.entries(qMap).filter(([, locs]) => locs.length > 1);
+        const dupCount = duplicates.reduce((s, [, locs]) => s + locs.length - 1, 0);
+        const uniqueCount = Object.keys(qMap).length;
+
+        if (btn) { btn.textContent = '🔍 Scan Duplicates'; btn.disabled = false; }
+
+        if (duplicates.length === 0) {
+            alert(`✅ No duplicates found!\n\nTotal questions: ${totalQs}\nUnique: ${uniqueCount}\n\nYour hub is clean.`);
+            return;
+        }
+
+        // Check if any duplicates have DIFFERENT answers (risky to auto-remove)
+        const answerConflicts = duplicates.filter(([, locs]) => {
+            const answers = [...new Set(locs.map(l => (l.answer||'').trim()))];
+            return answers.length > 1;
+        });
+
+        // Group by quiz pairs
+        const quizPairs = {};
+        duplicates.forEach(([qText, locs]) => {
+            const pairKey = [...new Set(locs.map(l => l.title))].sort().join(' ↔ ');
+            if (!quizPairs[pairKey]) quizPairs[pairKey] = [];
+            quizPairs[pairKey].push(qText);
+        });
+
+        const topPairs = Object.entries(quizPairs)
+            .sort((a, b) => b[1].length - a[1].length)
+            .slice(0, 6);
+
+        // Sample 3 duplicates to show
+        const samples = duplicates.slice(0, 3).map(([qText, locs]) => {
+            const inConflict = locs.some((l, i) => i > 0 && (l.answer||'').trim() !== (locs[0].answer||'').trim());
+            return `"${qText.substring(0, 60)}${qText.length > 60 ? '...' : ''}"\n  Found in: ${locs.map(l => l.title).join(', ')}${inConflict ? '\n  ⚠️ DIFFERENT ANSWERS IN EACH COPY' : ''}`;
+        }).join('\n\n');
+
+        let msg = `🔍 DUPLICATE SCAN RESULTS\n\n` +
+            `Total questions: ${totalQs}\n` +
+            `Unique questions: ${uniqueCount}\n` +
+            `Duplicate entries: ${dupCount} (${Math.round(dupCount/totalQs*100)}% of hub)\n`;
+
+        if (answerConflicts.length > 0) {
+            msg += `\n⚠️ WARNING: ${answerConflicts.length} duplicate(s) have DIFFERENT ANSWERS in each copy.\nDo NOT auto-remove — manually check these first.\n`;
+        }
+
+        msg += `\nOVERLAPPING QUIZ PAIRS:\n`;
+        topPairs.forEach(([pair, qs]) => { msg += `• ${pair}: ${qs.length} shared Qs\n`; });
+
+        msg += `\nSAMPLE DUPLICATES:\n${samples}`;
+
+        if (answerConflicts.length > 0) {
+            msg += `\n\n❌ Auto-removal blocked — answer conflicts found.\nFix the ${answerConflicts.length} conflicting question(s) manually first, then re-scan.`;
+            alert(msg);
+            return;
+        }
+
+        msg += `\n\nSafe to remove? All duplicates have identical answers.\n(Keeps first occurrence in each quiz, removes repeats)`;
+
+        if (!confirm(msg)) return;
+
+        // Remove — keep first occurrence by quiz ID sort (deterministic)
+        const seen = new Set();
+        let removed = 0;
+        Object.keys(db).sort().forEach(quizId => {
+            const quiz = db[quizId];
+            if (!quiz || !Array.isArray(quiz.questions) || quiz.isScRevision || quiz.isSRS || quiz.isWeakBank) return;
+            const before = quiz.questions.length;
+            quiz.questions = quiz.questions.filter(q => {
+                if (!q || !q.question) return true;
+                const key = q.question.trim();
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+            removed += before - quiz.questions.length;
+        });
+
+        saveData(); rebuildSearchCache();
+        alert(`✅ Removed ${removed} duplicate(s). Hub now has ${uniqueCount} unique questions. Synced to cloud.`);
     };
 
     window.factoryReset = async () => {
@@ -7864,16 +8054,21 @@ function scRenderTodayBanner() {
 
 function scGetHWCount(topicName, subject) {
   const subj = subject || scGetSubjectFor(topicName);
-  let done = 0, total = 0;
+  // UNIQUE questions: count each question text only once
+  const totalSet = new Set();
   Object.values(db).forEach(quiz => {
     if (!quiz || !quiz.questions) return;
-    quiz.questions.forEach(q => { if (scMatchesTopic(q, topicName, subj)) total++; });
+    quiz.questions.forEach(q => { if (scMatchesTopic(q, topicName, subj) && q.question) totalSet.add(q.question); });
   });
+  const total = totalSet.size;
+  if (total === 0) return '<span class="text-slate-300 dark:text-slate-600">—</span>';
+  // UNIQUE questions seen in history (not repeated counts)
+  const doneSet = new Set();
   historyDb.forEach(h => {
     if (!h.reviewData) return;
-    h.reviewData.forEach(q => { if (scMatchesTopic(q, topicName, subj)) done++; });
+    h.reviewData.forEach(q => { if (scMatchesTopic(q, topicName, subj) && q.question) doneSet.add(q.question); });
   });
-  if (total === 0) return '<span class="text-slate-300 dark:text-slate-600">—</span>';
+  const done = doneSet.size;
   const pct = Math.round(done/total*100);
   const color = pct >= 80 ? 'text-emerald-500' : pct >= 40 ? 'text-amber-500' : 'text-red-400';
   return `<span class="${color}">${done}/${total}</span>`;
@@ -7933,6 +8128,20 @@ function scRenderSubTopics(topicName, containerId) {
 function scRenderTracker() {
   const body = document.getElementById('sc-tracker-body');
   if (!body) return;
+
+  // Pre-build SRS count per topic (done once for performance)
+  // Key: topic question text → count how many mistakesDb entries belong to each topic
+  const _srsTopicCounts = {};
+  (mistakesDb||[]).forEach(m => {
+    if (!m.question || !m.tags) return;
+    // Use tags[0]+tags[1] as topic key (subject + topic)
+    const topicKey = (m.tags[1] || '').trim().toLowerCase();
+    if (!_srsTopicCounts[topicKey]) _srsTopicCounts[topicKey] = 0;
+    _srsTopicCounts[topicKey]++;
+  });
+  // Also build full SRS question set for exact matching
+  const _srsQSet = new Set((mistakesDb||[]).map(m => m.question).filter(Boolean));
+  window._srsQSet = _srsQSet; // make available for row rendering
 
   // Group by SUBJECT first
   const subjects = {};
@@ -8014,12 +8223,36 @@ function scRenderTracker() {
         else dueHtml = `<span class="text-emerald-500 text-[10px]">${due}</span>`;
       }
 
-      // Qs done: attempted/total (X%) format
-      const pctDone = totalNum > 0 ? Math.round(qsDone/totalNum*100) : 0;
-      const pctColor = pctDone >= 80 ? 'text-emerald-500' : pctDone >= 40 ? 'text-amber-500' : 'text-rose-400';
-      const qsDoneStr = totalNum > 0
-        ? `<span class="font-black">${qsDone}/${totalNum}</span><br><span class="${pctColor} text-[9px]">${pctDone}%${acc ? ' · '+acc+'% acc' : ''}</span>`
-        : (qsDone > 0 ? `${qsDone} Qs` : '<span class="text-slate-300 dark:text-slate-600">—</span>');
+      // ── QS COLUMNS: Total | SRS | New ──────────────────────────────────
+      const _allTopicQs = new Set();
+      Object.values(db).forEach(quiz => {
+        if (!quiz || !quiz.questions || quiz.isScRevision || quiz.isSRS || quiz.isWeakBank) return;
+        quiz.questions.forEach(q => {
+          if (q && q.question && scMatchesTopic(q, t.name, t.subject)) _allTopicQs.add(q.question);
+        });
+      });
+      const _totalUniq = _allTopicQs.size;
+      let _srsCount = 0;
+      _allTopicQs.forEach(qText => { if (window._srsQSet && window._srsQSet.has(qText)) _srsCount++; });
+      const _newCount = Math.max(0, _totalUniq - _srsCount);
+      const _srsPct   = _totalUniq > 0 ? Math.round(_srsCount / _totalUniq * 100) : 0;
+
+      const _colTotal = _totalUniq > 0
+        ? `<div class="flex flex-col items-center gap-0.5">
+             <div class="w-full h-[3px] rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+               <div style="width:${_srsPct}%" class="h-full bg-emerald-500"></div>
+             </div>
+             <span class="text-[11px] font-black text-slate-600 dark:text-slate-300">${_totalUniq}</span>
+           </div>`
+        : '<span class="text-slate-300 dark:text-slate-600 text-[10px]">—</span>';
+
+      const _colSRS = _totalUniq > 0
+        ? `<span class="text-[11px] font-black ${_srsCount === _totalUniq ? 'text-emerald-500' : _srsCount > 0 ? 'text-emerald-400' : 'text-slate-400'}">${_srsCount}</span>`
+        : '<span class="text-slate-300 dark:text-slate-600 text-[10px]">—</span>';
+
+      const _colNew = _totalUniq > 0
+        ? `<span class="text-[11px] font-black ${_newCount === 0 ? 'text-emerald-500' : _newCount <= 10 ? 'text-amber-500' : 'text-slate-500'}">${_newCount}</span>`
+        : '<span class="text-slate-300 dark:text-slate-600 text-[10px]">—</span>';
 
       // NEW badge
       const newBadge = hasNew ? `<span class="text-[8px] font-black bg-blue-500 text-white px-1.5 py-0.5 rounded-full animate-pulse ml-1">⚡NEW</span>` : '';
@@ -8042,7 +8275,7 @@ function scRenderTracker() {
       </div>`;
 
       html += `
-        <div class="grid items-center gap-0 px-2 py-1 min-h-[46px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 46px 46px 72px 100px 28px">
+        <div class="grid items-center gap-0 px-2 py-1 min-h-[46px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 46px 46px 72px 52px 52px 52px 28px">
           <div class="text-slate-300 dark:text-slate-600 text-[10px] text-center">${t.priority ? '⭐' : ''}</div>
           <div class="flex items-center gap-0.5 pl-2">
             <span class="text-[12px] font-semibold ${status === 'done' ? 'line-through text-slate-400' : ''}">${t.name}</span>
@@ -8057,7 +8290,9 @@ function scRenderTracker() {
           <div class="flex flex-col items-center">${scRevTick(t, 'r3', t.r3, daysUntil, revLabel)}</div>
           <div class="flex flex-col items-center">${scRevTick(t, 'r4', t.r4, daysUntil, revLabel)}</div>`}
           <div class="text-center">${dueHtml}</div>
-          <div class="text-center text-[10px] text-slate-500 leading-tight">${qsDoneStr}</div>
+          <div class="flex items-center justify-center">${_colTotal}</div>
+          <div class="flex items-center justify-center">${_colSRS}</div>
+          <div class="flex items-center justify-center">${_colNew}</div>
           <div class="flex justify-center"><button onclick="scOpenTopicMenu('${t.key}')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg font-black w-6 h-6 flex items-center justify-center rounded transition-colors">⋮</button></div>
         </div>`;
       
@@ -8105,13 +8340,31 @@ function scRenderTracker() {
           const subStatus = scGetStatus(st);
           const subStatusLabel = {'done':'DONE','learning':'●●●','overdue':'!','not_started':'—'}[subStatus]||'—';
           const subStatusClass = {'done':'bg-emerald-500 text-white','learning':'bg-amber-500 text-white','overdue':'bg-red-500 text-white','not_started':'bg-slate-200 dark:bg-slate-700 text-slate-500'}[subStatus]||'';
-          const subTotalNum = typeof scGetTopicQsCount(st.parentName, st.subject, st.name) === 'number' ? scGetTopicQsCount(st.parentName, st.subject, st.name) : 0;
-          const subQsDone = scGetQsDone(st.parentName, st.subject, st.name);
-          const subPctDone = subTotalNum > 0 ? Math.round(subQsDone/subTotalNum*100) : 0;
-          const subPctColor = subPctDone >= 80 ? 'text-emerald-500' : subPctDone >= 40 ? 'text-amber-500' : 'text-rose-400';
-          const subQsDoneStr = subTotalNum > 0
-            ? `<span class="font-black">${subQsDone}/${subTotalNum}</span><br><span class="${subPctColor} text-[9px]">${subPctDone}%</span>`
-            : '<span class="text-slate-300 dark:text-slate-600">—</span>';
+
+          // Sub-topic Q columns: Total | SRS | New
+          const _stQs = new Set();
+          Object.values(db).forEach(quiz => {
+            if (!quiz || !quiz.questions || quiz.isScRevision || quiz.isSRS || quiz.isWeakBank) return;
+            quiz.questions.forEach(q => {
+              if (q && q.question && scMatchesTopic(q, st.parentName, st.subject) && q.tags && q.tags[2] && q.tags[2].trim().toLowerCase() === st.name.trim().toLowerCase())
+                _stQs.add(q.question);
+            });
+          });
+          const _stTotal = _stQs.size;
+          let _stSRS = 0;
+          _stQs.forEach(qText => { if (window._srsQSet && window._srsQSet.has(qText)) _stSRS++; });
+          const _stNew = Math.max(0, _stTotal - _stSRS);
+          const _stPct = _stTotal > 0 ? Math.round(_stSRS/_stTotal*100) : 0;
+
+          const _subColTotal = _stTotal > 0
+            ? `<div class="flex flex-col items-center gap-0.5"><div class="w-full h-[3px] rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden"><div style="width:${_stPct}%" class="h-full bg-emerald-500"></div></div><span class="text-[11px] font-black text-slate-500">${_stTotal}</span></div>`
+            : '<span class="text-slate-300 dark:text-slate-600 text-[10px]">—</span>';
+          const _subColSRS = _stTotal > 0
+            ? `<span class="text-[11px] font-black ${_stSRS === _stTotal ? 'text-emerald-500' : _stSRS > 0 ? 'text-emerald-400' : 'text-slate-400'}">${_stSRS}</span>`
+            : '<span class="text-slate-300 text-[10px]">—</span>';
+          const _subColNew = _stTotal > 0
+            ? `<span class="text-[11px] font-black ${_stNew === 0 ? 'text-emerald-500' : _stNew <= 5 ? 'text-amber-500' : 'text-slate-500'}">${_stNew}</span>`
+            : '<span class="text-slate-300 text-[10px]">—</span>';
           
           const subLecDate = st.lecDate ? st.lecDate.slice(5).replace('-','/') : '';
           const subLecTick = `<div class="flex flex-col items-center gap-0.5">
@@ -8120,7 +8373,7 @@ function scRenderTracker() {
           </div>`;
           
           html += `
-        <div class="grid items-center gap-0 px-2 py-1 min-h-[40px] bg-slate-50 dark:bg-slate-800/40 border-l border-r border-b border-slate-100 dark:border-slate-800" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 46px 46px 72px 100px 28px">
+        <div class="grid items-center gap-0 px-2 py-1 min-h-[40px] bg-slate-50 dark:bg-slate-800/40 border-l border-r border-b border-slate-100 dark:border-slate-800" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 46px 46px 72px 52px 52px 52px 28px">
           <div class="text-slate-300 dark:text-slate-600 text-[10px] text-center">└</div>
           <div class="flex items-center gap-0.5 pl-4">
             <span class="text-[11px] text-slate-600 dark:text-slate-400">${st.name}</span>
@@ -8132,7 +8385,9 @@ function scRenderTracker() {
           <div class="flex flex-col items-center">${scRevTick(st, 'r3', st.r3, subDaysUntil, subRevLabel)}</div>
           <div class="flex flex-col items-center">${scRevTick(st, 'r4', st.r4, subDaysUntil, subRevLabel)}</div>
           <div class="text-center"></div>
-          <div class="text-center text-[10px] text-slate-500 leading-tight">${subQsDoneStr}</div>
+          <div class="flex items-center justify-center">${_subColTotal}</div>
+          <div class="flex items-center justify-center">${_subColSRS}</div>
+          <div class="flex items-center justify-center">${_subColNew}</div>
           <div></div>
         </div>`;
         });
@@ -8385,7 +8640,7 @@ function scValidateWrongQueue(t, wrongKey) {
   const correctMap = new Map();
   Object.values(db).forEach(quiz => {
     if (!quiz || !quiz.questions) return;
-    if (quiz.isScRevision || quiz.isSRS) return;
+    if (quiz.isScRevision || quiz.isSRS || quiz.isWeakBank) return;
     quiz.questions.forEach(q => {
       if (!q || !q.question || correctMap.has(q.question)) return;
       // MCQ: find the option marked correct
@@ -9096,7 +9351,7 @@ window.scShowWeeklyDay = (dateStr, label) => {
 
 // ── TAB SWITCHING ──
 window.scSetTab = (tab) => {
-  ['tracker','coverage','weekly'].forEach(t => {
+  ['tracker','coverage','weekly','weakbank'].forEach(t => {
     document.getElementById('sc-view-'+t).classList.add('hidden');
     const btn = document.getElementById('sc-tab-'+t);
     btn.classList.remove('bg-violet-600','text-white');
@@ -9108,6 +9363,7 @@ window.scSetTab = (tab) => {
   activeBtn.classList.remove('bg-slate-100','dark:bg-slate-800','text-slate-500','dark:text-slate-400');
   if (tab === 'coverage') setTimeout(scRenderCoverage, 50);
   if (tab === 'weekly') scRenderWeekly();
+  if (tab === 'weakbank') scRenderWeakBank();
 };
 
 // ── MAIN RENDER ──
@@ -9116,6 +9372,167 @@ function scRender() {
   scRenderTodayBanner();
   scRenderTracker();
 }
+
+// ═══════════════════════════════════════════════════════════════
+// 🔴 WEAK BANK — all r1Wrong questions grouped by subject/topic
+// Pure practice mode: no SRS updates, no progress changes
+// ═══════════════════════════════════════════════════════════════
+const WB_MATH = ['Advanced Maths', 'Arithmetic'];
+
+function wbGetGroup(q) {
+  const subj = (q.tags?.[0] || '').trim();
+  const cat  = WB_MATH.includes(subj)
+    ? (q.tags?.[2] || q.tags?.[1] || 'General').trim()
+    : (q.tags?.[1] || 'General').trim();
+  return { subj, cat };
+}
+
+window.scRenderWeakBank = function() {
+  const el = document.getElementById('sc-weak-bank-body');
+  if (!el) return;
+
+  // Build question lookup: text → full object
+  const qMap = new Map();
+  Object.values(db).forEach(quiz => {
+    if (!quiz || !quiz.questions || quiz.isScRevision || quiz.isSRS || quiz.isWeakBank) return;
+    quiz.questions.forEach(q => {
+      if (q?.question && !qMap.has(q.question.trim())) qMap.set(q.question.trim(), q);
+    });
+  });
+
+  // Collect all r1Wrong across ALL topics
+  const groups = {}; // groups[subj][cat] = Set of question texts
+  Object.values(scDb).forEach(t => {
+    if (!t || !Array.isArray(t.r1Wrong) || t.r1Wrong.length === 0) return;
+    t.r1Wrong.forEach(qText => {
+      const qObj = qMap.get(qText.trim());
+      if (!qObj) return;
+      const { subj, cat } = wbGetGroup(qObj);
+      if (!subj) return;
+      if (!groups[subj]) groups[subj] = {};
+      if (!groups[subj][cat]) groups[subj][cat] = new Set();
+      groups[subj][cat].add(qText.trim());
+    });
+  });
+
+  const totalQs = Object.values(groups).reduce((s, cats) =>
+    s + Object.values(cats).reduce((s2, set) => s2 + set.size, 0), 0);
+
+  if (totalQs === 0) {
+    el.innerHTML = `
+      <div class="flex flex-col items-center justify-center py-20 text-center px-6">
+        <div class="text-5xl mb-4">📋</div>
+        <div class="text-slate-600 dark:text-slate-300 font-black text-lg">No weak questions yet</div>
+        <div class="text-slate-400 text-sm mt-2">Complete R1 batches — every question you get wrong lands here automatically</div>
+      </div>`;
+    return;
+  }
+
+  // Sort: Advanced Maths + Arithmetic first, then alphabetical
+  const subjOrder = [
+    ...WB_MATH.filter(s => groups[s]),
+    ...Object.keys(groups).filter(s => !WB_MATH.includes(s)).sort()
+  ];
+
+  let html = `
+    <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800 bg-rose-50 dark:bg-rose-900/10">
+      <div>
+        <span class="text-rose-600 dark:text-rose-400 font-black text-sm">🔴 ${totalQs} weak questions</span>
+        <span class="text-slate-400 text-xs ml-2">across ${subjOrder.length} subject(s)</span>
+      </div>
+      <span class="text-[10px] text-slate-400 uppercase tracking-widest">R1 wrong only · no SRS impact</span>
+    </div>`;
+
+  subjOrder.forEach(subj => {
+    const cats = groups[subj];
+    const subjTotal = Object.values(cats).reduce((s, set) => s + set.size, 0);
+    // Sort categories: most wrong first
+    const sortedCats = Object.entries(cats).sort((a, b) => b[1].size - a[1].size);
+
+    html += `
+      <div class="border-b border-slate-100 dark:border-slate-800">
+        <div class="flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-800/60 sticky top-0">
+          <span class="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">${subj}</span>
+          <span class="text-[10px] font-bold text-rose-400">${subjTotal} wrong</span>
+        </div>`;
+
+    sortedCats.forEach(([cat, qSet]) => {
+      const dots = Math.min(5, Math.ceil(qSet.size / 5));
+      const dotHtml = '●'.repeat(dots) + '○'.repeat(5 - dots);
+      const sEnc = encodeURIComponent(subj);
+      const cEnc = encodeURIComponent(cat);
+      html += `
+        <div class="flex items-center justify-between px-5 py-3 border-t border-slate-50 dark:border-slate-800/40 hover:bg-rose-50/30 dark:hover:bg-rose-900/10 transition-colors">
+          <div>
+            <div class="text-[13px] font-bold text-slate-700 dark:text-slate-200">${cat}</div>
+            <div class="flex items-center gap-2 mt-0.5">
+              <span class="text-[10px] font-black text-rose-500">${qSet.size} wrong</span>
+              <span class="text-[9px] text-rose-300 tracking-widest">${dotHtml}</span>
+            </div>
+          </div>
+          <button onclick="scLaunchWeakGroup('${sEnc}','${cEnc}')"
+            class="bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white font-black text-[10px] uppercase tracking-widest px-4 py-2.5 rounded-xl transition-colors shadow-sm">
+            ► Practice
+          </button>
+        </div>`;
+    });
+
+    html += `</div>`;
+  });
+
+  el.innerHTML = html;
+};
+
+window.scLaunchWeakGroup = function(sEnc, cEnc) {
+  const subj = decodeURIComponent(sEnc);
+  const cat  = decodeURIComponent(cEnc);
+
+  // Build question lookup
+  const qMap = new Map();
+  Object.values(db).forEach(quiz => {
+    if (!quiz || !quiz.questions || quiz.isScRevision || quiz.isSRS || quiz.isWeakBank) return;
+    quiz.questions.forEach(q => {
+      if (q?.question && !qMap.has(q.question.trim())) qMap.set(q.question.trim(), q);
+    });
+  });
+
+  // Collect matching r1Wrong questions for this group
+  const seen = new Set();
+  const questions = [];
+  Object.values(scDb).forEach(t => {
+    if (!t || !Array.isArray(t.r1Wrong)) return;
+    t.r1Wrong.forEach(qText => {
+      const qObj = qMap.get(qText.trim());
+      if (!qObj) return;
+      const g = wbGetGroup(qObj);
+      if (g.subj === subj && g.cat === cat && !seen.has(qText.trim())) {
+        seen.add(qText.trim());
+        questions.push(qObj);
+      }
+    });
+  });
+
+  if (questions.length === 0) { alert('No questions found for this group.'); return; }
+
+  // Shuffle
+  for (let i = questions.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [questions[i], questions[j]] = [questions[j], questions[i]];
+  }
+
+  // Create temp quiz — marked isWeakBank so submitQuiz skips history + SRS
+  const tempId = 'quiz_weak_bank_current';
+  db[tempId] = {
+    title: `${cat} — Weak Bank`,
+    subject: subj,
+    questions,
+    isWeakBank: true,
+    _weakSubj: subj,
+    _weakCat: cat
+  };
+
+  openQuizLobby(tempId);
+};
 
 // ── OPEN ENTRY POINT ──
 window.openSyllabusCommand = () => {
@@ -9140,10 +9557,9 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
   const key = quiz.scKey;
   const rev = quiz.scRev;
   const startIdx = quiz.scStartIdx || 0;
-  // scDoneOffset: for R1 = r1QuestionsAttempted.length before this batch (content-based)
-  //               for R2/R3/R4 = startIdx (index-based, unchanged behaviour)
   const doneOffset = (quiz.scDoneOffset !== undefined) ? quiz.scDoneOffset : startIdx;
   const totalQs = quiz.scTotal || total;
+  const _srsBefore = (mistakesDb||[]).length; // snapshot BEFORE any SRS changes
   const t = scDb ? scDb[key] : null;
   if (!t) return;
 
@@ -9223,12 +9639,14 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
 
   // All questions done → show confidence modal
   if (newDone >= totalQs) {
+    scDebugPostBatch(key, rev, correct, wrong, skipped, newDone, totalQs, _srsBefore);
     scShowConfidenceModal(key, rev);
     return;
   }
 
   // BUG4 FIX: show ACCUMULATED wrong count (all batches so far), not just this batch
   const accumulatedWrong = nextRevWrongKey ? (t[nextRevWrongKey] || []).length : wrongQuestions.length;
+  scDebugPostBatch(key, rev, correct, wrong, skipped, newDone, totalQs, _srsBefore);
   // More questions remain → show "Do More / End R" batch modal
   scShowBatchModal(key, rev, newDone, totalQs, accumulatedWrong);
 };
@@ -9381,6 +9799,9 @@ window.scMarkRevDoneAuto = (key, rev) => {
   if (rev === 'r4' && t.r1QuestionsAttempted && t.r1QuestionsAttempted.length > 0) {
     const r4WrongSet = new Set(t.r4Wrong || []);
     const now = Date.now();
+    const _r4SrsBefore = (mistakesDb||[]).length; // for debug report
+    const _r4Total = t.r1QuestionsAttempted.length;
+    const _r4WrongCount = r4WrongSet.size;
     
     // Build SRS index map for quick lookup
     const srsIndexMap = new Map();
@@ -9390,7 +9811,7 @@ window.scMarkRevDoneAuto = (key, rev) => {
     const qObjMap = new Map();
     Object.values(db).forEach(quiz => {
       if (!quiz || !quiz.questions) return;
-      if (quiz.isScRevision || quiz.isSRS) return;
+      if (quiz.isScRevision || quiz.isSRS || quiz.isWeakBank) return;
       quiz.questions.forEach(q => {
         if (q && q.question && !qObjMap.has(q.question)) {
           qObjMap.set(q.question, q);
@@ -9448,7 +9869,11 @@ window.scMarkRevDoneAuto = (key, rev) => {
 
     // Clear for next cycle
     t.r1QuestionsAttempted = [];
-    
+
+    // 🔬 DEBUG: R4 graduation report
+    const _r4SrsAfter = (mistakesDb||[]).length;
+    scDebugR4Graduation(key, _r4Total, _r4WrongCount, _r4Total - _r4WrongCount, _r4SrsBefore);
+
     // CRITICAL: Persist mistakesDb changes (new SRS cards created above)
     if (typeof saveData === 'function') saveData();
   }
