@@ -4209,7 +4209,8 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         if(s !== 'dashboard' && s !== 'db-manager' && s !== 'target-radar' && s !== 'notes') {
             document.getElementById('omni-search').value = '';
             document.getElementById('search-results-container').classList.add('hidden');
-            document.getElementById('dashboard-main-content').classList.remove('hidden');
+            if(s !== 'planner') document.getElementById('dashboard-main-content').classList.remove('hidden');
+            else document.getElementById('dashboard-main-content').classList.add('hidden');
         }
         document.getElementById('screen-subject-analysis').classList.add('hidden');
     }
@@ -10601,603 +10602,6 @@ body.light select.inp option { background:white; }
   </div>
 </div>
 
-<script>
-function noteHtml(note){ return note ? '<div style="font-size:10px;color:#64748b;margin-top:3px;font-style:italic">&quot;'+note+'&quot;</div>' : ''; }
-// ════════════════ DATA ════════════════
-const STORE = 'warroom_v1';
-let D = { blocks:{}, logs:{}, debt:{}, streak:{count:0,last:''}, target:50 };
-
-const SUB_COLORS = {
-  'Arithmetic':'#8b5cf6','Advanced Maths':'#6366f1','Reasoning':'#3b82f6',
-  'English':'#a78bfa','Polity':'#f59e0b','Ancient History':'#f97316',
-  'Medieval History':'#fb923c','Modern History':'#f97316','Geography':'#22c55e',
-  'Economics':'#10b981','Environment & Ecology':'#34d399','Biology':'#4ade80',
-  'Science & Technology':'#22d3ee','Static GK':'#e879f9','Current Affairs':'#f472b6',
-  'Art & Culture':'#c084fc','Physics':'#38bdf8','Chemistry':'#67e8f9','Custom':'#94a3b8'
-};
-
-let hubData = {}; // subject → [chapters]
-let calDate = new Date();
-let calSelectedDate = todayStr();
-let viewingBlockDate = todayStr();
-let selectedPri = 'high';
-let selectedBPri = 'high';
-let weeklyChart = null, debtChart = null;
-
-// ════════════════ UTILS ════════════════
-function istNow(){ return new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'})); }
-function todayStr(){ const d=istNow(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
-function dateStr(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
-function fmtDate(s){ const d=new Date(s+'T00:00:00'); return d.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'}); }
-function fmtShort(s){ const d=new Date(s+'T00:00:00'); return d.toLocaleDateString('en-IN',{day:'numeric',month:'short'}); }
-function subColor(s){ return SUB_COLORS[s]||'#94a3b8'; }
-function t2m(t){ if(!t) return 0; const[h,m]=t.split(':').map(Number); return h*60+m; }
-function hDisp(h){ if(!h||h<=0) return '0h'; const hrs=Math.floor(h),mins=Math.round((h-hrs)*60); return mins>0?`${hrs}h ${mins}m`:`${hrs}h`; }
-function getWeekStart(s){ const d=new Date(s+'T00:00:00'); const day=d.getDay(); const diff=day===0?-6:1-day; d.setDate(d.getDate()+diff); return dateStr(d); }
-function getWeekDates(ws){ return Array.from({length:7},(_,i)=>{ const d=new Date(ws+'T00:00:00'); d.setDate(d.getDate()+i); return dateStr(d); }); }
-
-// ════════════════ STORAGE ════════════════
-function save(){ localStorage.setItem(STORE,JSON.stringify(D)); }
-function load(){ const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);}catch(e){} }
-
-// ════════════════ HUB DATA ════════════════
-const SC_DEFAULT = {
-  "Arithmetic": ["Percentage","Ratio & Proportion","Profit & Loss","Discount & Dishonest Shopkeeper","Time & Work","Pipe & Cistern","Simple Interest","Compound Interest","Installment","Average","Time, Speed & Distance","Problems on Train","Boat & Stream","Circular and Linear Race","Problems on Ages","Partnership","Mixture & Alligation"],
-  "Advanced Maths": ["Number System","Simplification","Surds & Indices","LCM & HCF","Algebra","Trigonometry","Height & Distance","Geometry","Co-ordinate Geometry","Polygon","2D-Mensuration","3D-Mensuration","Data Interpretation"],
-  "Reasoning": ["Statement - Conclusion","Decision Making","Machine Input-Output","Statement - Argument","Statement - Assumptions","Syllogism","Data Sufficiency","Course of Action","Inequalities","Cause - Effect","Order - Ranking","Blood Relation","Figure Series","Mathematical Operations","Paper Unfolding/Cutting","Dice","Word Arrangement","Direction","Venn Diagram","Seating Arrangement","Number Series","Alphabetical Series","Coding-Decoding","Analogy","Odd One Out","Floor Arrangement","Calendar","Clock","Figure Counting"],
-  "English": ["Active & Passive Voice","Cloze Test","Direct & Indirect Speech","Grammar & Error Spotting","Idioms & Phrases","One Word Substitution","Para Jumbles","Reading Comprehension","Sentence Improvement","Synonyms & Antonyms","Spelling Errors"],
-  "Polity": ["Making, Preamble & Sources","Union, Territory & Citizenship","Fundamental Rights","DPSP & Fundamental Duties","Union Executive","Parliament","State Govt & Legislature","Judiciary","Local Govt (Panchayats & Municipalities)","Emergency Provisions","Constitutional & Non-Constitutional Bodies","Elections, Amendments,Parts & Schedules","Special Provisions & Anti-Defection","Bharatiya Nyaya Sanhita (BNS)"],
-  "Ancient History": ["Prehistoric & Indus Valley","Vedic Age","Buddhism & Jainism","Mahajanapadas & Magadha","Mauryan Empire","Post-Mauryan Period","Gupta Empire","Post-Gupta & Harsha"],
-  "Medieval History": ["Early Medieval India","Delhi Sultanate","Provincial Kingdoms","Mughal Empire","Maratha Empire","Bhakti & Sufi Movements","Books & Authors"],
-  "Modern History": ["Advent of Europeans","British Expansion & Policies","Revolt of 1857","Socio-Religious Reform Movements","Indian National Congress","Gandhian Era","Revolutionary Nationalism","Partition & Independence","Post-Independence Consolidation"],
-  "Geography": ["Geomorphology","Mapping","Census 2011","Climatology","Oceanography","Indian Physical Geography","Indian Drainage System","Indian Climate, Soil & Vegetation","Economic Geography","Human & Demographic Geography"],
-  "Economics": ["Pillar 1: Money, Banking, Finance & Insurance","Pillar 2: Budget, Taxes & Public Finance","Pillar 3: International Trade & BoP","Pillar 4: Sectors of Economy, GDP & Inflation","Pillar 5: Infrastructure","Pillar 6: Human Resource Development (HRD)","Pillar 7: Microeconomics"],
-  "Physics": ["Units & Measurements","Mechanics","Gravitation","Properties of Matter","Heat & Thermodynamics","Waves & Sound","Optics","Electricity & Magnetism","Modern Physics"],
-  "Chemistry": ["Matter & Its States","Atomic Structure & Periodic Table","Chemical Bonding & Reactions","Acids, Bases & Salts","Metals, Non-Metals & Metallurgy","Carbon & Organic Compounds","Chemistry in Everyday Life"],
-  "Biology": ["Cell Biology","Classification of Organisms","Human Anatomy & Physiology","Plant Morphology & Physiology","Genetics & Evolution","Human Diseases & Defense Mechanisms","Nutrition & Vitamins"],
-  "Environment & Ecology": ["Ecology Concepts & Ecosystems","Biodiversity & Conservation","Environmental Pollution & Degradation","Climate Change","Environmental Acts & Policies","International Treaties & Conventions"],
-  "Science & Technology": ["Space Technology","Defense Technology","Biotechnology","IT, Telecom & Emerging Tech","Nuclear Technology"],
-  "Static GK": ["Firsts in India & World","Classical Dances","Folk Dances","Festivals & Fairs","International Organisations","Superlatives","Important Dates & Days","National Parks & Wildlife Sanctuaries","UNESCO World Heritage Sites","Capitals & Currencies","Books & Authors","Sports Terminologies & Trophies"],
-  "Current Affairs": ["National News & Governance","International News","Economy & Banking Updates","Sports News","Awards & Honors","Appointments & Resignations","Defense Exercises","Government Schemes & Yojanas"],
-  "Art & Culture": ["Architecture & Sculpture","Paintings","Music & Dance","Puppetry & Theatre","Languages & Literature","Fairs, Festivals & Handicrafts","Indian Philosophy"]
-};
-
-function loadHub(){
-  // Always load from SC_DEFAULT first (guaranteed chapters)
-  Object.entries(SC_DEFAULT).forEach(([subj, chapters]) => {
-    hubData[subj] = chapters;
-  });
-  // Then try to enrich from localStorage if Hub data exists
-  try{
-    const raw=localStorage.getItem('sc_syllabus_v1');
-    if(raw){
-      const scDb=JSON.parse(raw);
-      Object.values(scDb).forEach(t=>{
-        if(!t.subject||!t.name) return;
-        if(!hubData[t.subject]) hubData[t.subject]=[];
-        if(!hubData[t.subject].includes(t.name)) hubData[t.subject].push(t.name);
-      });
-    }
-  }catch(e){}
-  fillSubjectDropdowns();
-}
-
-function fillSubjectDropdowns(){
-  const subjects=Object.keys(hubData).length>0?Object.keys(hubData).sort():Object.keys(SUB_COLORS).filter(s=>s!=='Custom');
-  ['b-subject','l-subject'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(!el) return;
-    el.innerHTML='<option value="">— Select Subject —</option>';
-    subjects.forEach(s=>el.innerHTML+=`<option value="${s}">${s}</option>`);
-  });
-}
-
-function bUpdateChapters(){
-  const s=document.getElementById('b-subject').value;
-  const chs=hubData[s]||[];
-  const el=document.getElementById('b-chapter');
-  el.innerHTML='<option value="">— Select Chapter —</option>';
-  chs.forEach(c=>el.innerHTML+=`<option value="${c}">${c}</option>`);
-}
-function lUpdateChapters(){
-  const s=document.getElementById('l-subject').value;
-  const chs=hubData[s]||[];
-  const el=document.getElementById('l-chapter');
-  el.innerHTML='<option value="">— Select Chapter —</option>';
-  chs.forEach(c=>el.innerHTML+=`<option value="${c}">${c}</option>`);
-}
-function lHandleCustom(){
-  const v=document.getElementById('l-custom').value.trim();
-  if(v){ document.getElementById('l-subject').value=''; document.getElementById('l-chapter').innerHTML='<option value="">— Select Chapter —</option>'; document.getElementById('l-topic').value=''; }
-}
-
-// ════════════════ TABS ════════════════
-function switchTab(tab,btn){
-  document.querySelectorAll('.wr-screen').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.wr-tab-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('screen-'+tab).classList.add('active');
-  btn.classList.add('active');
-  if(tab==='home') renderHome();
-  if(tab==='calendar'){ renderCalendar(); renderDayDetail(calSelectedDate); }
-  if(tab==='stats') renderStats();
-  if(tab==='log'){ prefillLogTime(); renderTodayLogList(); }
-}
-
-// ════════════════ PRIORITY BUTTONS ════════════════
-function selectPri(btn){
-  document.querySelectorAll('.pri-select-btn').forEach(b=>b.style.opacity='0.35');
-  btn.style.opacity='1'; selectedPri=btn.dataset.val;
-}
-function selectBPri(btn){
-  document.querySelectorAll('.bpri-btn').forEach(b=>b.style.opacity='0.35');
-  btn.style.opacity='1'; selectedBPri=btn.dataset.val;
-}
-
-// ════════════════ BLOCK MODAL ════════════════
-function openBlockModal(){
-  document.getElementById('modal-block').style.display='flex';
-  fillSubjectDropdowns();
-  const now=new Date();
-  const h=String(now.getHours()).padStart(2,'0');
-  const h2=String(now.getHours()+1).padStart(2,'0');
-  document.getElementById('b-start').value=`${h}:00`;
-  document.getElementById('b-end').value=`${h2}:00`;
-  document.getElementById('b-subject').value='';
-  document.getElementById('b-chapter').innerHTML='<option value="">— Select Chapter —</option>';
-  document.getElementById('b-topic').value='';
-  document.getElementById('b-custom').value='';
-}
-function closeBlockModal(){ document.getElementById('modal-block').style.display='none'; }
-
-function saveBlock(){
-  const subj=document.getElementById('b-subject').value;
-  const ch=document.getElementById('b-chapter').value;
-  const topic=document.getElementById('b-topic').value.trim();
-  const custom=document.getElementById('b-custom').value.trim();
-  const start=document.getElementById('b-start').value;
-  const end=document.getElementById('b-end').value;
-  if(!start||!end){ alert('Set start and end time'); return; }
-  if(!custom&&!subj){ alert('Select a subject or enter a custom task'); return; }
-  const hrs=(t2m(end)-t2m(start))/60;
-  if(hrs<=0){ alert('End must be after start'); return; }
-  const label=custom||(topic||ch||subj);
-  const block={ id:Date.now(), date:viewingBlockDate, subject:custom?'Custom':subj, chapter:ch, topic, custom, label, start, end, plannedHrs:hrs, priority:selectedBPri };
-  if(!D.blocks[viewingBlockDate]) D.blocks[viewingBlockDate]=[];
-  D.blocks[viewingBlockDate].push(block);
-  save(); closeBlockModal();
-  renderHome(); renderCalendar(); renderDayDetail(viewingBlockDate);
-}
-
-// ════════════════ LOG ════════════════
-function prefillLogTime(){
-  const now=new Date();
-  document.getElementById('l-end').value=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-}
-function lCalcHours(){
-  const s=document.getElementById('l-start').value;
-  const e=document.getElementById('l-end').value;
-  if(s&&e){ const h=(t2m(e)-t2m(s))/60; if(h>0){ document.getElementById('l-hours').value=Math.round(h*4)/4; document.getElementById('l-hrs-auto').textContent='(auto-calculated)'; } }
-}
-
-function saveLog(){
-  const subj=document.getElementById('l-subject').value;
-  const ch=document.getElementById('l-chapter').value;
-  const topic=document.getElementById('l-topic').value.trim();
-  const custom=document.getElementById('l-custom').value.trim();
-  const start=document.getElementById('l-start').value;
-  const end=document.getElementById('l-end').value;
-  const hrs=parseFloat(document.getElementById('l-hours').value);
-  const note=document.getElementById('l-note').value.trim();
-  if(!custom&&!subj){ alert('Select a subject or enter a custom task'); return; }
-  if(!hrs||hrs<=0){ alert('Enter valid hours'); return; }
-  const label=custom||(topic||ch||subj);
-  const log={ id:Date.now(), date:todayStr(), subject:custom?'Custom':subj, chapter:ch, topic, custom, label, start, end, hrs, note, priority:selectedPri, time:new Date().toISOString() };
-  if(!D.logs[todayStr()]) D.logs[todayStr()]=[];
-  D.logs[todayStr()].push(log);
-  updateDebt(log.date);
-  updateStreak();
-  save();
-  // Reset
-  ['l-subject','l-chapter','l-topic','l-custom','l-hours','l-note','l-start','l-end'].forEach(id=>{ const el=document.getElementById(id); if(el.tagName==='SELECT') el.value=''; else el.value=''; });
-  document.getElementById('l-chapter').innerHTML='<option value="">— Select Chapter —</option>';
-  document.getElementById('l-hrs-auto').textContent='';
-  renderTodayLogList(); renderHome();
-  const btn=document.querySelector('[onclick="saveLog()"]');
-  btn.textContent='✅ Logged!'; btn.style.background='linear-gradient(135deg,#10b981,#059669)';
-  setTimeout(()=>{ btn.textContent='✅ LOG IT'; btn.style.background=''; },2000);
-}
-
-function updateDebt(date){
-  const blocks=D.blocks[date]||[];
-  const logs=D.logs[date]||[];
-  const planned=blocks.reduce((a,b)=>a+b.plannedHrs,0);
-  const logged=logs.reduce((a,l)=>a+l.hrs,0);
-  const debt=Math.max(0,planned-logged);
-  if(debt>0) D.debt[date]=debt; else delete D.debt[date];
-}
-
-function renderTodayLogList(){
-  const el=document.getElementById('l-today-logs');
-  if(!el) return;
-  const logs=D.logs[todayStr()]||[];
-  if(!logs.length){ el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;font-weight:700">No sessions logged yet today</div>'; return; }
-  el.innerHTML=[...logs].reverse().map(l=>`
-    <div style="display:flex;align-items:center;gap:10px;padding:11px 13px;border-radius:12px;border:1px solid var(--border);background:var(--bg3);margin-bottom:7px">
-      <div style="width:9px;height:9px;border-radius:50%;background:${subColor(l.subject)};flex-shrink:0"></div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:900">${l.label}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:2px;font-weight:700">${l.subject}${l.start&&l.end?' · '+l.start+'–'+l.end:''}</div>
-        ${noteHtml(l.note)}
-      </div>
-      <div style="font-size:13px;font-weight:900;color:${subColor(l.subject)};flex-shrink:0">${hDisp(l.hrs)}</div>
-      <button onclick="deleteLog('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 4px">×</button>
-    </div>`).join('');
-}
-
-function deleteLog(date,id){
-  D.logs[date]=(D.logs[date]||[]).filter(l=>l.id!==id);
-  updateDebt(date); save(); renderTodayLogList(); renderHome();
-}
-
-// ════════════════ STREAK ════════════════
-function updateStreak(){
-  const today=todayStr();
-  if(D.streak.last===today) return;
-  const yesterday=new Date(today+'T00:00:00'); yesterday.setDate(yesterday.getDate()-1);
-  const yd=dateStr(yesterday);
-  if(D.streak.last===yd||!D.streak.last) D.streak.count=(D.streak.count||0)+1;
-  else D.streak.count=1;
-  D.streak.last=today;
-}
-
-// ════════════════ HOME ════════════════
-function renderHome(){ if(!document.getElementById('h-ring')) return; // not in DOM yet
-  const today=todayStr();
-  const ws=getWeekStart(today);
-  const wd=getWeekDates(ws);
-
-  // Weekly hrs
-  let wHrs=0;
-  wd.forEach(d=>(D.logs[d]||[]).forEach(l=>wHrs+=l.hrs||0));
-  const pct=Math.min(100,(wHrs/D.target)*100);
-  const circ=2*Math.PI*46;
-  const ring=document.getElementById('h-ring');
-  ring.style.strokeDashoffset=circ-(circ*pct/100);
-  ring.style.stroke=pct>=100?'#10b981':pct>=60?'#4f6ef7':pct>=30?'#f59e0b':'#ef4444';
-  document.getElementById('h-ring-num').textContent=Math.round(wHrs*10)/10;
-  const elapsed=Math.max(1,wd.filter(d=>d<=today).length);
-  document.getElementById('h-avg').textContent=`Avg ${Math.round((wHrs/elapsed)*10)/10}h/day`;
-  const dLeft=7-elapsed;
-  if(dLeft>0&&wHrs<D.target) document.getElementById('h-needed').textContent=`Need ${Math.round(((D.target-wHrs)/dLeft)*10)/10}h/day`;
-  else if(wHrs>=D.target) { document.getElementById('h-needed').textContent='🎯 TARGET HIT!'; document.getElementById('h-needed').style.color='#10b981'; }
-
-  // Today
-  const tBlocks=D.blocks[today]||[];
-  const tLogs=D.logs[today]||[];
-  const tPlanned=tBlocks.reduce((a,b)=>a+b.plannedHrs,0);
-  const tLogged=tLogs.reduce((a,l)=>a+l.hrs,0);
-  document.getElementById('h-planned').textContent=Math.round(tPlanned*10)/10;
-  document.getElementById('h-logged').textContent=Math.round(tLogged*10)/10;
-  document.getElementById('h-today-date').textContent=fmtDate(today);
-
-  // Debt
-  const totalDebt=Object.values(D.debt).reduce((a,v)=>a+v,0);
-  const debtEl=document.getElementById('h-debt');
-  debtEl.innerHTML=totalDebt>0.05?`<span class="debt-pill has">⚠️ Debt: ${hDisp(totalDebt)}</span>`:`<span class="debt-pill none">✅ Zero Debt</span>`;
-
-  // Right Now
-  const _ist=istNow(); const nowM=_ist.getHours()*60+_ist.getMinutes();
-  const curBlock=tBlocks.find(b=>t2m(b.start)<=nowM&&t2m(b.end)>nowM);
-  const nxtBlock=tBlocks.filter(b=>t2m(b.start)>nowM).sort((a,b)=>t2m(a.start)-t2m(b.start))[0];
-  const rnEl=document.getElementById('h-rightnow');
-  if(curBlock){
-    rnEl.innerHTML=`<div class="glow" style="padding:9px 11px;border-radius:11px;border-left:3px solid ${subColor(curBlock.subject)};background:${subColor(curBlock.subject)}18"><div style="font-size:13px;font-weight:900">${curBlock.label}</div><div style="font-size:10px;color:var(--muted);margin-top:2px">${curBlock.start}–${curBlock.end} · ${hDisp(curBlock.plannedHrs)}</div></div>`;
-  } else {
-    rnEl.innerHTML=`<div style="color:var(--muted);font-size:12px;font-weight:700;padding:8px 0">No block scheduled now</div>`;
-  }
-  document.getElementById('h-next').textContent=nxtBlock?`Next: ${nxtBlock.label} at ${nxtBlock.start}`:'';
-
-  // Streak
-  const sc=D.streak.count||0;
-  const streakActive=D.streak.last===today||D.streak.last===(()=>{const d=new Date(today+'T00:00:00');d.setDate(d.getDate()-1);return dateStr(d);})();
-  const sEl=document.getElementById('h-streak');
-  const sLbl=document.getElementById('h-streak-lbl');
-  if(sc>0&&streakActive){ sEl.innerHTML=`<span class="fire">🔥</span>${sc}`; sLbl.textContent=`day${sc>1?'s':''} in a row`; }
-  else { sEl.textContent='0'; sLbl.textContent='Start today!'; }
-  const navStreak=document.getElementById('nav-streak');
-  if(sc>0&&streakActive){ navStreak.style.display='flex'; navStreak.textContent=`🔥 ${sc}`; } else navStreak.style.display='none';
-
-  // Tasks
-  renderHomeTasks(tBlocks,tLogs);
-
-  // Subject progress
-  renderHomeSubjProgress(wd);
-
-  // Alerts
-  renderAlerts(today);
-}
-
-function renderHomeTasks(blocks,logs){
-  const el=document.getElementById('h-tasks-list');
-  if(!el) return;
-  if(!blocks.length){ el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;font-weight:700">No blocks planned. Add your first block! 🔥</div>'; document.getElementById('h-tasks-pct').textContent='0 blocks planned'; document.getElementById('h-tasks-bar').style.width='0%'; return; }
-  const sorted=[...blocks].sort((a,b)=>t2m(a.start)-t2m(b.start));
-  const totalLogged=logs.reduce((a,l)=>a+l.hrs,0);
-  const totalPlanned=blocks.reduce((a,b)=>a+b.plannedHrs,0);
-  const pct=totalPlanned>0?Math.min(100,Math.round((totalLogged/totalPlanned)*100)):0;
-  document.getElementById('h-tasks-pct').textContent=`${pct}% done · ${blocks.length} blocks`;
-  document.getElementById('h-tasks-bar').style.width=pct+'%';
-  el.innerHTML=sorted.map(b=>{
-    const bLogs=logs.filter(l=>l.subject===b.subject&&l.start>=b.start);
-    const bLogged=bLogs.reduce((a,l)=>a+l.hrs,0);
-    let cls='',icon='○';
-    if(bLogged>=b.plannedHrs){cls='green';icon='✓';}
-    else if(bLogged>0){cls='yellow';icon='◑';}
-    const priCls=b.priority==='high'?'pri-high':b.priority==='low'?'pri-low':'pri-med';
-    return `<div class="task-row ${cls}">
-      <div class="task-circle" style="color:${subColor(b.subject)};border-color:${subColor(b.subject)}60">${icon}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:900">${b.label}</div>
-        <div style="display:flex;align-items:center;gap:5px;margin-top:3px;flex-wrap:wrap">
-          <span style="font-size:9px;background:${subColor(b.subject)}20;color:${subColor(b.subject)};padding:2px 7px;border-radius:999px;font-weight:900">${b.subject}</span>
-          <span class="pri ${priCls}">${b.priority}</span>
-          <span style="font-size:9px;color:var(--muted);font-weight:700">🕐 ${b.start}–${b.end}</span>
-        </div>
-      </div>
-      <div style="text-align:right;flex-shrink:0">
-        <div style="font-size:12px;font-weight:900;color:var(--muted2)">${hDisp(b.plannedHrs)}</div>
-        ${bLogged>0?`<div style="font-size:9px;color:var(--green);font-weight:900">done ${hDisp(bLogged)}</div>`:''}
-      </div>
-      <button onclick="deleteBlock('${b.date}',${b.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 5px">×</button>
-    </div>`;
-  }).join('');
-}
-
-function deleteBlock(date,id){
-  D.blocks[date]=(D.blocks[date]||[]).filter(b=>b.id!==id);
-  updateDebt(date); save(); renderHome(); renderCalendar(); renderDayDetail(date);
-}
-
-function renderHomeSubjProgress(wd){
-  const el=document.getElementById('h-subj-progress');
-  if(!el) return;
-  const sh={};
-  wd.forEach(d=>(D.logs[d]||[]).forEach(l=>{ if(l.subject&&l.subject!=='Custom') sh[l.subject]=(sh[l.subject]||0)+l.hrs; }));
-  const sorted=Object.entries(sh).sort((a,b)=>b[1]-a[1]);
-  if(!sorted.length){ el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;font-weight:700">Log sessions to see breakdown 📊</div>'; return; }
-  const max=sorted[0][1];
-  el.innerHTML=sorted.map(([s,h])=>{
-    const pct=Math.round((h/max)*100);
-    return `<div class="subj-bar">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div style="font-size:12px;font-weight:900">${s}</div>
-        <div style="font-size:12px;font-weight:900;color:${subColor(s)}">${hDisp(h)}</div>
-      </div>
-      <div class="subj-bar-track"><div class="subj-bar-fill" style="width:${pct}%;background:${subColor(s)}"></div></div>
-    </div>`;
-  }).join('');
-}
-
-function renderAlerts(today){
-  const el=document.getElementById('h-alerts');
-  if(!el) return;
-  const subjLast={};
-  for(let i=0;i<30;i++){
-    const d=new Date(today+'T00:00:00'); d.setDate(d.getDate()-i);
-    const ds=dateStr(d);
-    (D.logs[ds]||[]).forEach(l=>{ if(l.subject&&!subjLast[l.subject]) subjLast[l.subject]=i; });
-  }
-  const alerts=Object.entries(subjLast).filter(([,days])=>days>=3).sort((a,b)=>b[1]-a[1]);
-  if(!alerts.length){ el.innerHTML=''; return; }
-  el.innerHTML=`<div class="card" style="margin-top:14px;border-color:rgba(239,68,68,0.2);background:rgba(239,68,68,0.04)">
-    <div style="font-size:10px;font-weight:900;color:#f87171;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">⚠️ Ignored Subjects</div>
-    <div style="display:flex;gap:7px;flex-wrap:wrap">${alerts.map(([s,d])=>`<span class="alert-chip">${s} — ${d}d ago</span>`).join('')}</div>
-  </div>`;
-}
-
-// ════════════════ CALENDAR ════════════════
-function renderCalendar(){
-  const year=calDate.getFullYear(), month=calDate.getMonth();
-  document.getElementById('cal-month-title').textContent=calDate.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
-  const first=new Date(year,month,1);
-  const last=new Date(year,month+1,0);
-  let startDay=first.getDay(); if(startDay===0) startDay=7;
-  const cells=document.getElementById('cal-cells');
-  const today=todayStr();
-  let html='';
-  // Empty cells before
-  for(let i=1;i<startDay;i++){
-    const d=new Date(year,month,1-startDay+i);
-    html+=`<div class="cal-cell other-month" onclick="calSelectDate('${dateStr(d)}')">${d.getDate()}</div>`;
-  }
-  for(let d=1;d<=last.getDate();d++){
-    const ds=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const logs=D.logs[ds]||[];
-    const blocks=D.blocks[ds]||[];
-    const hrs=logs.reduce((a,l)=>a+l.hrs,0);
-    let bg='var(--bg)';
-    if(hrs>=6) bg='rgba(16,185,129,0.25)';
-    else if(hrs>=3) bg='rgba(245,158,11,0.25)';
-    else if(hrs>0) bg='rgba(79,110,247,0.25)';
-    else if(blocks.length>0) bg='var(--border2)';
-    const isToday=ds===today;
-    const isSel=ds===calSelectedDate;
-    html+=`<div class="cal-cell${isToday?' today':''}${isSel?' selected':''}" style="background:${bg}" onclick="calSelectDate('${ds}')">
-      <span>${d}</span>
-      ${hrs>0?`<div class="cal-dot" style="background:${hrs>=6?'#10b981':hrs>=3?'#f59e0b':'#4f6ef7'}"></div>`:''}
-    </div>`;
-  }
-  // Remaining
-  const remaining=(7-((startDay-1+last.getDate())%7))%7;
-  for(let i=1;i<=remaining;i++){
-    const d=new Date(year,month+1,i);
-    html+=`<div class="cal-cell other-month" onclick="calSelectDate('${dateStr(d)}')">${i}</div>`;
-  }
-  cells.innerHTML=html;
-}
-
-function calSelectDate(ds){
-  calSelectedDate=ds; viewingBlockDate=ds;
-  renderCalendar(); renderDayDetail(ds);
-}
-function calPrevMonth(){ calDate.setMonth(calDate.getMonth()-1); renderCalendar(); }
-function calNextMonth(){ calDate.setMonth(calDate.getMonth()+1); renderCalendar(); }
-function calToday(){ calDate=new Date(); calSelectedDate=todayStr(); renderCalendar(); renderDayDetail(todayStr()); }
-
-function renderDayDetail(ds){
-  const titleEl=document.getElementById('cal-detail-title');
-  const modeEl=document.getElementById('cal-detail-mode');
-  const addBtn=document.getElementById('cal-add-btn');
-  const contentEl=document.getElementById('cal-day-content');
-  const today=todayStr();
-  titleEl.textContent=fmtDate(ds);
-  const isPast=ds<today;
-  const isToday=ds===today;
-  const isFuture=ds>today;
-
-  if(isPast){
-    modeEl.textContent='📋 Real Logs'; addBtn.style.display='none';
-    const logs=D.logs[ds]||[];
-    const totalHrs=logs.reduce((a,l)=>a+l.hrs,0);
-    if(!logs.length){ contentEl.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;font-weight:700">No sessions logged this day</div>'; return; }
-    contentEl.innerHTML=`<div style="padding:10px 12px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
-      <div style="font-size:11px;font-weight:900;color:var(--muted)">TOTAL STUDIED</div>
-      <div style="font-family:var(--font-display);font-size:18px;font-weight:800;color:var(--green)">${hDisp(totalHrs)}</div>
-    </div>`+logs.map(l=>logCard(l)).join('');
-  } else if(isToday){
-    modeEl.textContent='📅 Today — Plan & Logs'; addBtn.style.display='flex';
-    renderTodayDayDetail(ds, contentEl);
-  } else {
-    modeEl.textContent='📅 Planned Blocks'; addBtn.style.display='flex';
-    const blocks=D.blocks[ds]||[];
-    if(!blocks.length){ contentEl.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;font-weight:700">No blocks planned yet.<br>Click + Block to plan! 🔥</div>'; return; }
-    renderBlocksInDetail(blocks, contentEl);
-  }
-}
-
-function renderTodayDayDetail(ds, contentEl){
-  const blocks=D.blocks[ds]||[];
-  const logs=D.logs[ds]||[];
-  const totalLogged=logs.reduce((a,l)=>a+l.hrs,0);
-  let html='';
-  if(blocks.length){
-    html+=`<div style="font-size:10px;font-weight:900;color:var(--accent);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Planned</div>`;
-    html+=renderBlockCards(blocks);
-  }
-  if(logs.length){
-    html+=`<div style="font-size:10px;font-weight:900;color:var(--green);text-transform:uppercase;letter-spacing:0.08em;margin:12px 0 8px">Logged · ${hDisp(totalLogged)} total</div>`;
-    html+=logs.map(l=>logCard(l)).join('');
-  }
-  if(!blocks.length&&!logs.length) html='<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;font-weight:700">Nothing yet. Add blocks or log sessions!</div>';
-  contentEl.innerHTML=html;
-}
-
-function renderBlockCards(blocks){
-  return [...blocks].sort((a,b)=>t2m(a.start)-t2m(b.start)).map(b=>`
-    <div style="padding:10px 12px;border-radius:10px;border:1px solid ${subColor(b.subject)}30;background:${subColor(b.subject)}0d;margin-bottom:7px;display:flex;align-items:center;gap:10px">
-      <div style="width:8px;height:8px;border-radius:50%;background:${subColor(b.subject)};flex-shrink:0"></div>
-      <div style="flex:1">
-        <div style="font-size:12px;font-weight:900">${b.label}</div>
-        <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:2px">${b.start}–${b.end} · ${hDisp(b.plannedHrs)}</div>
-      </div>
-      <span class="pri ${b.priority==='high'?'pri-high':b.priority==='low'?'pri-low':'pri-med'}">${b.priority}</span>
-      <button onclick="deleteBlock('${b.date}',${b.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px">×</button>
-    </div>`).join('');
-}
-function renderBlocksInDetail(blocks, el){
-  el.innerHTML=renderBlockCards(blocks);
-}
-
-function logCard(l){
-  return `<div style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg3);margin-bottom:7px">
-    <div style="display:flex;align-items:center;gap:8px">
-      <div style="width:8px;height:8px;border-radius:50%;background:${subColor(l.subject)};flex-shrink:0"></div>
-      <div style="flex:1">
-        <div style="font-size:12px;font-weight:900">${l.label}</div>
-        <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:2px">${l.subject}${l.chapter?' · '+l.chapter:''}${l.start&&l.end?' · '+l.start+'–'+l.end:''}</div>
-        ${noteHtml(l.note)}
-      </div>
-      <div style="font-size:13px;font-weight:900;color:${subColor(l.subject)};flex-shrink:0">${hDisp(l.hrs)}</div>
-    </div>
-  </div>`;
-}
-
-// ════════════════ STATS ════════════════
-function renderStats(){
-  const today=todayStr();
-  const ws=getWeekStart(today);
-  const wd=getWeekDates(ws);
-  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-  const hrs=wd.map(d=>(D.logs[d]||[]).reduce((a,l)=>a+l.hrs,0));
-  const total=hrs.reduce((a,b)=>a+b,0);
-  const avg=total/7;
-  document.getElementById('s-total').textContent=hDisp(total);
-  document.getElementById('s-avg').textContent=`Avg ${Math.round(avg*10)/10}h/day`;
-
-  // Weekly bar chart
-  const ctx=document.getElementById('s-weekly-chart').getContext('2d');
-  if(weeklyChart) weeklyChart.destroy();
-  weeklyChart=new Chart(ctx,{
-    type:'bar',
-    data:{ labels:days, datasets:[{ data:hrs, backgroundColor:hrs.map((h,i)=>{ if(wd[i]===today) return '#4f6ef7'; return h>=7?'#10b981':h>=4?'#f59e0b':h>0?'#4f6ef7':'#1a2236'; }), borderRadius:7, borderSkipped:false }] },
-    options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{grid:{color:'#1a2236'},ticks:{color:'#4a5568',font:{weight:'700',size:10}},min:0}, x:{grid:{display:false},ticks:{color:'#4a5568',font:{weight:'900',size:11}}} } }
-  });
-
-  // Best hours
-  const hc={};
-  Object.values(D.logs).forEach(dl=>dl.forEach(l=>{ if(!l.start) return; const h=parseInt(l.start.split(':')[0]); hc[h]=(hc[h]||0)+l.hrs; }));
-  const bhSorted=Object.entries(hc).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  const bhEl=document.getElementById('s-best-hours');
-  if(bhSorted.length){ bhEl.innerHTML=bhSorted.map(([h,hrsV])=>{ const lbl=h==0?'12 AM':h<12?`${h} AM`:h==12?'12 PM':`${h-12} PM`; const p=Math.round((hrsV/bhSorted[0][1])*100); return `<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-size:11px;font-weight:900">${lbl}</span><span style="font-size:11px;font-weight:700;color:#4f6ef7">${hDisp(hrsV)}</span></div><div class="pbar-wrap"><div class="pbar-fill" style="width:${p}%;background:linear-gradient(90deg,#4f6ef7,#7c3aed)"></div></div></div>`; }).join(''); }
-
-  // Debt chart
-  const dlabels=[],ddata=[];
-  let running=0;
-  for(let i=13;i>=0;i--){ const d=new Date(today+'T00:00:00'); d.setDate(d.getDate()-i); const ds=dateStr(d); running+=D.debt[ds]||0; dlabels.push(`${d.getDate()}/${d.getMonth()+1}`); ddata.push(Math.round(running*10)/10); }
-  const dCtx=document.getElementById('s-debt-chart').getContext('2d');
-  if(debtChart) debtChart.destroy();
-  debtChart=new Chart(dCtx,{
-    type:'line',
-    data:{ labels:dlabels, datasets:[{ data:ddata, borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,0.08)', fill:true, tension:0.4, pointBackgroundColor:'#ef4444', pointRadius:3 }] },
-    options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{grid:{color:'#1a2236'},ticks:{color:'#4a5568',font:{weight:'700',size:10}},min:0}, x:{grid:{display:false},ticks:{color:'#4a5568',font:{weight:'700',size:9}}} } }
-  });
-
-  // Subject breakdown
-  const sh={};
-  wd.forEach(d=>(D.logs[d]||[]).forEach(l=>{ sh[l.subject||'Custom']=(sh[l.subject||'Custom']||0)+l.hrs; }));
-  const ss=Object.entries(sh).sort((a,b)=>b[1]-a[1]);
-  const sTotal=ss.reduce((a,[,h])=>a+h,0);
-  const sbEl=document.getElementById('s-subj-breakdown');
-  if(!ss.length){ sbEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;font-weight:700">No data yet</div>'; }
-  else sbEl.innerHTML=ss.map(([s,h])=>{ const p=Math.round((h/sTotal)*100); return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="width:8px;height:8px;border-radius:50%;background:${subColor(s)};flex-shrink:0"></div><div style="flex:1"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-size:12px;font-weight:900">${s}</span><span style="font-size:12px;font-weight:900;color:${subColor(s)}">${hDisp(h)} <span style="color:var(--muted);font-weight:700">(${p}%)</span></span></div><div class="pbar-wrap"><div class="pbar-fill" style="width:${p}%;background:${subColor(s)}"></div></div></div></div>`; }).join('');
-
-  // Heatmap
-  renderHeatmap();
-}
-
-function renderHeatmap(){
-  const el=document.getElementById('s-heatmap');
-  if(!el) return;
-  const today=todayStr();
-  const cells=[];
-  for(let i=89;i>=0;i--){ const d=new Date(today+'T00:00:00'); d.setDate(d.getDate()-i); const ds=dateStr(d); const hrs=(D.logs[ds]||[]).reduce((a,l)=>a+l.hrs,0); let bg='var(--border)'; if(hrs>=6) bg='#10b981'; else if(hrs>=3) bg='#f59e0b'; else if(hrs>0) bg='rgba(79,110,247,0.6)'; cells.push(`<div class="heat-cell" style="background:${bg}" title="${ds}: ${hDisp(hrs)}"></div>`); }
-  el.innerHTML=`<div class="heatmap-grid">${cells.join('')}</div>`;
-}
-
-// ════════════════ THEME ════════════════
-function toggleTheme(){ document.body.classList.toggle('light'); document.querySelector('[onclick="toggleTheme()"]').textContent=document.body.classList.contains('light')?'☀️':'🌙'; }
-
-// ════════════════ INIT ════════════════
-function init(){
-  load(); loadHub();
-  viewingBlockDate=todayStr();
-  setInterval(()=>{ if(document.getElementById('screen-home').classList.contains('active')) renderHome(); },60000);
-}
-// Defer init until planner screen is opened
-window._plannerInit = function() { if(!window._plannerInitDone) { load(); loadHub(); viewingBlockDate=todayStr(); window._plannerInitDone=true; } renderHome(); };
-// Auto-init when screen becomes visible
-(function() { const _obs = new MutationObserver(function(){ const el=document.getElementById("screen-planner"); if(el && !el.classList.contains("hidden")) { window._plannerInit(); } }); setTimeout(function(){ const el=document.getElementById("screen-planner"); if(el) _obs.observe(el, {attributes:true, attributeFilter:["class"]}); },500); })();
-</script>
 
 </div>
 
@@ -11247,7 +10651,7 @@ function save(){ localStorage.setItem(STORE,JSON.stringify(D)); }
 function load(){ const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);}catch(e){} }
 
 // ════════════════ HUB DATA ════════════════
-const SC_DEFAULT = {
+const PLANNER_SUBJECTS = {
   "Arithmetic": ["Percentage","Ratio & Proportion","Profit & Loss","Discount & Dishonest Shopkeeper","Time & Work","Pipe & Cistern","Simple Interest","Compound Interest","Installment","Average","Time, Speed & Distance","Problems on Train","Boat & Stream","Circular and Linear Race","Problems on Ages","Partnership","Mixture & Alligation"],
   "Advanced Maths": ["Number System","Simplification","Surds & Indices","LCM & HCF","Algebra","Trigonometry","Height & Distance","Geometry","Co-ordinate Geometry","Polygon","2D-Mensuration","3D-Mensuration","Data Interpretation"],
   "Reasoning": ["Statement - Conclusion","Decision Making","Machine Input-Output","Statement - Argument","Statement - Assumptions","Syllogism","Data Sufficiency","Course of Action","Inequalities","Cause - Effect","Order - Ranking","Blood Relation","Figure Series","Mathematical Operations","Paper Unfolding/Cutting","Dice","Word Arrangement","Direction","Venn Diagram","Seating Arrangement","Number Series","Alphabetical Series","Coding-Decoding","Analogy","Odd One Out","Floor Arrangement","Calendar","Clock","Figure Counting"],
@@ -11270,7 +10674,7 @@ const SC_DEFAULT = {
 
 function loadHub(){
   // Always load from SC_DEFAULT first (guaranteed chapters)
-  Object.entries(SC_DEFAULT).forEach(([subj, chapters]) => {
+  Object.entries(PLANNER_SUBJECTS).forEach(([subj, chapters]) => {
     hubData[subj] = chapters;
   });
   // Then try to enrich from localStorage if Hub data exists
@@ -11814,8 +11218,34 @@ if (typeof window._saveDataGlobal === 'function') {
   };
 }
 
+
+// Expose planner functions globally for HTML onclick handlers
+window.switchTab = typeof switchTab !== "undefined" ? switchTab : function(){};
+window.openBlockModal = typeof openBlockModal !== "undefined" ? openBlockModal : function(){};
+window.closeBlockModal = typeof closeBlockModal !== "undefined" ? closeBlockModal : function(){};
+window.saveBlock = typeof saveBlock !== "undefined" ? saveBlock : function(){};
+window.saveLog = typeof saveLog !== "undefined" ? saveLog : function(){};
+window.deleteLog = typeof deleteLog !== "undefined" ? deleteLog : function(){};
+window.deleteBlock = typeof deleteBlock !== "undefined" ? deleteBlock : function(){};
+window.markBlockDone = typeof markBlockDone !== "undefined" ? markBlockDone : function(){};
+window.calSelectDate = typeof calSelectDate !== "undefined" ? calSelectDate : function(){};
+window.calPrevMonth = typeof calPrevMonth !== "undefined" ? calPrevMonth : function(){};
+window.calNextMonth = typeof calNextMonth !== "undefined" ? calNextMonth : function(){};
+window.calToday = typeof calToday !== "undefined" ? calToday : function(){};
+window.lUpdateChapters = typeof lUpdateChapters !== "undefined" ? lUpdateChapters : function(){};
+window.bUpdateChapters = typeof bUpdateChapters !== "undefined" ? bUpdateChapters : function(){};
+window.lHandleCustom = typeof lHandleCustom !== "undefined" ? lHandleCustom : function(){};
+window.lCalcHours = typeof lCalcHours !== "undefined" ? lCalcHours : function(){};
+window.selectPri = typeof selectPri !== "undefined" ? selectPri : function(){};
+window.selectBPri = typeof selectBPri !== "undefined" ? selectBPri : function(){};
+window.renderStats = typeof renderStats !== "undefined" ? renderStats : function(){};
+window.toggleTheme = typeof toggleTheme !== "undefined" ? toggleTheme : function(){};
+window.openBlockModalAt = typeof openBlockModalAt !== "undefined" ? openBlockModalAt : function(){};
+window.prevDay = typeof prevDay !== "undefined" ? prevDay : function(){};
+window.nextDay = typeof nextDay !== "undefined" ? nextDay : function(){};
+window.goToday = typeof goToday !== "undefined" ? goToday : function(){};
+
 })();
-</script>
-<!-- ===================== END WAR ROOM PLANNER ===================== -->
+
 
 </body></html>
