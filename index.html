@@ -11170,9 +11170,12 @@ function init(){
   viewingBlockDate=todayStr();
   setInterval(()=>{ if(document.getElementById('screen-home').classList.contains('active')) renderHome(); },60000);
 }
-window.plannerInit = function(){ load(); loadHub(); viewingBlockDate=todayStr(); renderHome(); _hookPlannerSync(); };
+window.plannerInit = function(){ load(); loadHub(); viewingBlockDate=todayStr(); renderHome(); };
 
-// Lazy cloud sync hook — waits for hub to set _saveDataGlobal first
+// Expose planner save globally so hub cloud sync picks it up
+window._plannerSave = function() { try { if(typeof save === 'function') save(); } catch(e) {} };
+
+// Poll until _saveDataGlobal exists then wrap it once
 var _plannerHookDone = false;
 function _hookPlannerSync() {
   if (_plannerHookDone) return;
@@ -11180,12 +11183,18 @@ function _hookPlannerSync() {
     _plannerHookDone = true;
     var _hubSave = window._saveDataGlobal;
     window._saveDataGlobal = async function() {
-      try { if(typeof save === 'function') save(); } catch(e) {}
+      window._plannerSave();
       return _hubSave();
     };
+    console.log('[War Room] Cloud sync hooked ✅');
   }
 }
-setTimeout(_hookPlannerSync, 1000);
+// Try every 500ms for up to 10 seconds
+var _hookInterval = setInterval(function() {
+  _hookPlannerSync();
+  if (_plannerHookDone) clearInterval(_hookInterval);
+}, 500);
+setTimeout(function() { clearInterval(_hookInterval); }, 10000);
 </script>
 <!-- ===== END WAR ROOM PLANNER ===== -->
 </body></html>
