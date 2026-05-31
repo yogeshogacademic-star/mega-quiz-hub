@@ -4204,7 +4204,8 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
             const el = document.getElementById('screen-'+x);
             if(el) el.classList.add('hidden');
         }); 
-        document.getElementById('screen-'+s).classList.remove('hidden'); 
+        document.getElementById('screen-'+s).classList.remove('hidden');
+        if(s === 'planner' && typeof window._plannerInit === 'function') window._plannerInit();
         if(s !== 'dashboard' && s !== 'db-manager' && s !== 'target-radar' && s !== 'notes') {
             document.getElementById('omni-search').value = '';
             document.getElementById('search-results-container').classList.add('hidden');
@@ -5921,7 +5922,7 @@ function updateStreak(){
 }
 
 // ════════════════ HOME ════════════════
-function renderHome(){
+function renderHome(){ if(!document.getElementById('h-ring')) return; // not in DOM yet
   const today=todayStr();
   const ws=getWeekStart(today);
   const wd=getWeekDates(ws);
@@ -6259,11 +6260,14 @@ function toggleTheme(){ document.body.classList.toggle('light'); document.queryS
 
 // ════════════════ INIT ════════════════
 function init(){
-  load(); loadHub(); renderHome();
+  load(); loadHub();
   viewingBlockDate=todayStr();
   setInterval(()=>{ if(document.getElementById('screen-home').classList.contains('active')) renderHome(); },60000);
 }
-init();
+// Defer init until planner screen is opened
+window._plannerInit = function() { if(!window._plannerInitDone) { load(); loadHub(); viewingBlockDate=todayStr(); window._plannerInitDone=true; } renderHome(); };
+// Auto-init when screen becomes visible
+(function() { const _obs = new MutationObserver(function(){ const el=document.getElementById("screen-planner"); if(el && !el.classList.contains("hidden")) { window._plannerInit(); } }); setTimeout(function(){ const el=document.getElementById("screen-planner"); if(el) _obs.observe(el, {attributes:true, attributeFilter:["class"]}); },500); })();
 </script>
 
 </div>
