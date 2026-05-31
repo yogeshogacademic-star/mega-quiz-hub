@@ -10254,7 +10254,7 @@ body.light select.inp option { background:white; }
     <button class="wr-tab-btn" onclick="switchTab('log',this)">✍️ Log</button>
     <button class="wr-tab-btn" onclick="switchTab('stats',this)">📊 Stats</button>
   </div>
-  <div></div>
+  <div id="wr-streak" data-also="nav-streak" style="display:none;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.25);color:#fbbf24;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:900"></div>
 </div>
 
 <!-- ══════════════════════ HOME ══════════════════════ -->
@@ -10880,8 +10880,8 @@ function renderHome(){
   const sLbl=document.getElementById('h-streak-lbl');
   if(sc>0&&streakActive){ sEl.innerHTML=`<span class="fire">🔥</span>${sc}`; sLbl.textContent=`day${sc>1?'s':''} in a row`; }
   else { sEl.textContent='0'; sLbl.textContent='Start today!'; }
-  const navStreak=document.getElementById('nav-streak');
-  if(sc>0&&streakActive){ navStreak.style.display='flex'; navStreak.textContent=`🔥 ${sc}`; } else navStreak.style.display='none';
+  const navStreak=document.getElementById('nav-streak')||document.getElementById('wr-streak');
+  if(navStreak){ if(sc>0&&streakActive){ navStreak.style.display='flex'; navStreak.textContent='🔥 '+sc; } else navStreak.style.display='none'; }
 
   // Tasks
   renderHomeTasks(tBlocks,tLogs);
