@@ -2324,30 +2324,7 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                 console.warn('Mock tracker merge error:', e);
             }
         }
-        // ── PLANNER DATA: cloud wins unless local has more logs ──
-        if (data.plannerData && typeof data.plannerData === 'object') {
-            try {
-                const localPlanner = JSON.parse(localStorage.getItem('warroom_v1') || '{}');
-                const cloudLogs = Object.keys(data.plannerData.logs || {}).length;
-                const localLogs = Object.keys(localPlanner.logs || {}).length;
-                if (cloudLogs > 0 && cloudLogs >= localLogs) {
-                    // Merge: keep local logs + add any cloud logs not in local
-                    const merged = JSON.parse(JSON.stringify(data.plannerData));
-                    Object.keys(localPlanner.logs || {}).forEach(date => {
-                        if (!merged.logs[date]) merged.logs[date] = localPlanner.logs[date];
-                    });
-                    Object.keys(localPlanner.blocks || {}).forEach(date => {
-                        if (!merged.blocks[date]) merged.blocks[date] = localPlanner.blocks[date];
-                    });
-                    // Local streak wins if higher
-                    if ((localPlanner.streak||{}).count > (merged.streak||{}).count) merged.streak = localPlanner.streak;
-                    localStorage.setItem('warroom_v1', JSON.stringify(merged));
-                } else if (localLogs > cloudLogs) {
-                    // Local has more — keep local, don't overwrite
-                    console.log('[Planner Sync] Local has more logs — keeping local.');
-                }
-            } catch(e) { console.warn('[Planner Sync] merge error:', e); }
-        }
+        if(data.plannerData&&typeof data.plannerData==='object'){try{const _lp=JSON.parse(localStorage.getItem('warroom_v1')||'{}');const _cl=Object.keys((data.plannerData.logs)||{}).length;const _ll=Object.keys((_lp.logs)||{}).length;if(_cl>=_ll){const _m=JSON.parse(JSON.stringify(data.plannerData));Object.keys((_lp.logs)||{}).forEach(d=>{if(!_m.logs[d])_m.logs[d]=_lp.logs[d];});Object.keys((_lp.blocks)||{}).forEach(d=>{if(!_m.blocks[d])_m.blocks[d]=_lp.blocks[d];});localStorage.setItem('warroom_v1',JSON.stringify(_m));}}catch(e){console.warn('Planner sync:',e);}}
         const cloudQCount = Object.values(db).reduce((a,subj) => {
             if(!subj || typeof subj !== 'object') return a;
             return a + Object.values(subj).reduce((b,topic)=>b+(Array.isArray(topic)?topic.length:0),0);
@@ -4205,12 +4182,12 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
             if(el) el.classList.add('hidden');
         }); 
         document.getElementById('screen-'+s).classList.remove('hidden');
-        if(s === 'planner' && typeof window._plannerInit === 'function') window._plannerInit();
+        if(s === 'planner' && typeof window.plannerInit === 'function') window.plannerInit();
         if(s !== 'dashboard' && s !== 'db-manager' && s !== 'target-radar' && s !== 'notes') {
             document.getElementById('omni-search').value = '';
             document.getElementById('search-results-container').classList.add('hidden');
-            if(s !== 'planner') document.getElementById('dashboard-main-content').classList.remove('hidden');
-            else document.getElementById('dashboard-main-content').classList.add('hidden');
+            if(s === 'planner') document.getElementById('dashboard-main-content').classList.add('hidden');
+            else document.getElementById('dashboard-main-content').classList.remove('hidden');
         }
         document.getElementById('screen-subject-analysis').classList.add('hidden');
     }
@@ -5166,6 +5143,7 @@ window.generateQuantNotes = () => {
         }
 
         notesHTML += `</div></div>
+
 </body></html>`;
         
         const blob = new Blob([notesHTML], { type: 'text/html' });
@@ -10100,10 +10078,8 @@ window.scSyncToCloud = () => {
 </script>
 
 <!-- ===================== END MOCK TRACKER ===================== -->
-
-<!-- ===================== WAR ROOM PLANNER ===================== -->
-<style id="planner-styles">
-/* WAR ROOM PLANNER STYLES — scoped, no conflict with hub */
+<!-- ===== WAR ROOM PLANNER ===== -->
+<style>
 
 :root {
   --bg: #070b14;
@@ -10130,11 +10106,11 @@ body::before { content:''; position:fixed; inset:0; background-image:url("data:i
 
 /* NAV */
 .wr-nav { background:rgba(7,11,20,0.95); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:50; padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between; }
-.wr-nav-logo { font-family:var(--font-display); font-size:16px; font-weight:800; letter-spacing:0.02em; background:linear-gradient(135deg,#4f6ef7,#7c3aed); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.nav-logo { font-family:var(--font-display); font-size:16px; font-weight:800; letter-spacing:0.02em; background:linear-gradient(135deg,#4f6ef7,#7c3aed); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
 .wr-nav-tabs { display:flex; gap:2px; background:var(--bg3); padding:3px; border-radius:12px; border:1px solid var(--border); }
 .wr-tab-btn { padding:6px 16px; border-radius:9px; font-size:11px; font-weight:900; font-family:var(--font-body); text-transform:uppercase; letter-spacing:0.06em; cursor:pointer; border:none; background:transparent; color:var(--muted2); transition:all 0.18s; }
 .wr-tab-btn.active { background:linear-gradient(135deg,#4f6ef7,#7c3aed); color:white; box-shadow:0 2px 12px rgba(79,110,247,0.35); }
-.wr-nav-right { display:flex; align-items:center; gap:10px; }
+.nav-right { display:flex; align-items:center; gap:10px; }
 .streak-pill { background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.25); color:#fbbf24; padding:4px 12px; border-radius:999px; font-size:12px; font-weight:900; }
 .theme-btn { background:var(--bg3); border:1px solid var(--border); color:var(--muted2); padding:6px 10px; border-radius:9px; cursor:pointer; font-size:13px; }
 
@@ -10269,18 +10245,16 @@ body.light select.inp option { background:white; }
 </style>
 
 <div id="screen-planner" class="hidden w-full flex-1">
-
-
 <!-- NAV -->
-<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #1a2236;background:#0d1321;position:sticky;top:0;z-index:40">
-  <button onclick="window.showScreen && window.showScreen('dashboard')" style="background:transparent;border:none;color:#64748b;font-size:11px;font-weight:900;cursor:pointer;text-transform:uppercase;letter-spacing:0.08em;font-family:'Nunito Sans',sans-serif;display:flex;align-items:center;gap:4px">← Hub</button>
+<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #1a2236;background:#0d1321;position:sticky;top:56px;z-index:40">
+  <button onclick="showScreen('dashboard')" style="background:none;border:none;color:#64748b;font-size:11px;font-weight:900;cursor:pointer;text-transform:uppercase;letter-spacing:.08em;font-family:'Nunito Sans',sans-serif">← Hub</button>
   <div style="display:flex;gap:2px;background:#111827;padding:3px;border-radius:12px;border:1px solid #1a2236">
     <button class="wr-tab-btn active" onclick="switchTab('home',this)">🏠 Home</button>
     <button class="wr-tab-btn" onclick="switchTab('calendar',this)">📅 Calendar</button>
     <button class="wr-tab-btn" onclick="switchTab('log',this)">✍️ Log</button>
     <button class="wr-tab-btn" onclick="switchTab('stats',this)">📊 Stats</button>
   </div>
-  <div id="nav-streak" class="streak-pill" style="display:none"></div>
+  <div></div>
 </div>
 
 <!-- ══════════════════════ HOME ══════════════════════ -->
@@ -10601,17 +10575,9 @@ body.light select.inp option { background:white; }
     </div>
   </div>
 </div>
-
-
 </div>
 
 <script>
-/* WAR ROOM PLANNER JS — all variables prefixed/scoped, no conflict with hub */
-(function() {
-// Planner auto-save hook into hub's cloud sync
-const _plannerOrigSave = typeof window._saveDataGlobal === 'function' ? window._saveDataGlobal : null;
-
-
 function noteHtml(note){ return note ? '<div style="font-size:10px;color:#64748b;margin-top:3px;font-style:italic">&quot;'+note+'&quot;</div>' : ''; }
 // ════════════════ DATA ════════════════
 const STORE = 'warroom_v1';
@@ -11203,49 +11169,7 @@ function init(){
   viewingBlockDate=todayStr();
   setInterval(()=>{ if(document.getElementById('screen-home').classList.contains('active')) renderHome(); },60000);
 }
-init();
-
-
-// Hook planner save into hub cloud sync
-window._plannerSaveToLocal = function() { save(); };
-
-// Override hub's _saveDataGlobal to also save planner data before cloud push
-if (typeof window._saveDataGlobal === 'function') {
-  const _hubSave = window._saveDataGlobal;
-  window._saveDataGlobal = async function() {
-    try { save(); } catch(e) {}
-    return _hubSave();
-  };
-}
-
-
-// Expose planner functions globally for HTML onclick handlers
-window.switchTab = typeof switchTab !== "undefined" ? switchTab : function(){};
-window.openBlockModal = typeof openBlockModal !== "undefined" ? openBlockModal : function(){};
-window.closeBlockModal = typeof closeBlockModal !== "undefined" ? closeBlockModal : function(){};
-window.saveBlock = typeof saveBlock !== "undefined" ? saveBlock : function(){};
-window.saveLog = typeof saveLog !== "undefined" ? saveLog : function(){};
-window.deleteLog = typeof deleteLog !== "undefined" ? deleteLog : function(){};
-window.deleteBlock = typeof deleteBlock !== "undefined" ? deleteBlock : function(){};
-window.markBlockDone = typeof markBlockDone !== "undefined" ? markBlockDone : function(){};
-window.calSelectDate = typeof calSelectDate !== "undefined" ? calSelectDate : function(){};
-window.calPrevMonth = typeof calPrevMonth !== "undefined" ? calPrevMonth : function(){};
-window.calNextMonth = typeof calNextMonth !== "undefined" ? calNextMonth : function(){};
-window.calToday = typeof calToday !== "undefined" ? calToday : function(){};
-window.lUpdateChapters = typeof lUpdateChapters !== "undefined" ? lUpdateChapters : function(){};
-window.bUpdateChapters = typeof bUpdateChapters !== "undefined" ? bUpdateChapters : function(){};
-window.lHandleCustom = typeof lHandleCustom !== "undefined" ? lHandleCustom : function(){};
-window.lCalcHours = typeof lCalcHours !== "undefined" ? lCalcHours : function(){};
-window.selectPri = typeof selectPri !== "undefined" ? selectPri : function(){};
-window.selectBPri = typeof selectBPri !== "undefined" ? selectBPri : function(){};
-window.renderStats = typeof renderStats !== "undefined" ? renderStats : function(){};
-window.toggleTheme = typeof toggleTheme !== "undefined" ? toggleTheme : function(){};
-window.openBlockModalAt = typeof openBlockModalAt !== "undefined" ? openBlockModalAt : function(){};
-window.prevDay = typeof prevDay !== "undefined" ? prevDay : function(){};
-window.nextDay = typeof nextDay !== "undefined" ? nextDay : function(){};
-window.goToday = typeof goToday !== "undefined" ? goToday : function(){};
-
-})();
-
-
+window.plannerInit = function(){ load(); loadHub(); viewingBlockDate=todayStr(); renderHome(); };
+</script>
+<!-- ===== END WAR ROOM PLANNER ===== -->
 </body></html>
