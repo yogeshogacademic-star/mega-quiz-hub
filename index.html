@@ -4183,6 +4183,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         }); 
         document.getElementById('screen-'+s).classList.remove('hidden');
         if(s === 'planner' && typeof window.plannerInit === 'function') window.plannerInit();
+        if(s === 'dashboard') document.getElementById('dashboard-main-content').classList.remove('hidden');
         if(s !== 'dashboard' && s !== 'db-manager' && s !== 'target-radar' && s !== 'notes') {
             document.getElementById('omni-search').value = '';
             document.getElementById('search-results-container').classList.add('hidden');
@@ -11169,7 +11170,22 @@ function init(){
   viewingBlockDate=todayStr();
   setInterval(()=>{ if(document.getElementById('screen-home').classList.contains('active')) renderHome(); },60000);
 }
-window.plannerInit = function(){ load(); loadHub(); viewingBlockDate=todayStr(); renderHome(); };
+window.plannerInit = function(){ load(); loadHub(); viewingBlockDate=todayStr(); renderHome(); _hookPlannerSync(); };
+
+// Lazy cloud sync hook — waits for hub to set _saveDataGlobal first
+var _plannerHookDone = false;
+function _hookPlannerSync() {
+  if (_plannerHookDone) return;
+  if (typeof window._saveDataGlobal === 'function') {
+    _plannerHookDone = true;
+    var _hubSave = window._saveDataGlobal;
+    window._saveDataGlobal = async function() {
+      try { if(typeof save === 'function') save(); } catch(e) {}
+      return _hubSave();
+    };
+  }
+}
+setTimeout(_hookPlannerSync, 1000);
 </script>
 <!-- ===== END WAR ROOM PLANNER ===== -->
 </body></html>
