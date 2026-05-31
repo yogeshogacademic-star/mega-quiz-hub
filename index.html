@@ -1009,12 +1009,24 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                     <div class="text-xs text-slate-500 dark:text-slate-400 mb-4 font-bold">Targeted firepower. Select a Tag 1 Subject.</div>
                     <select id="srs-subject-select" onchange="onSubjectSelectChange()" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 outline-none focus:ring-2 focus:ring-indigo-500"></select>
                     <div id="srs-subject-size-row" class="hidden mb-3 flex gap-2 justify-center">
-                        <button onclick="setSRSSprintSize('subject',10)" id="srs-subject-size-10" class="srs-size-btn srs-size-active px-4 py-1.5 rounded-lg text-xs font-black border transition-all">10 Q</button>
-                        <button onclick="setSRSSprintSize('subject',32)" id="srs-subject-size-32" class="srs-size-btn px-4 py-1.5 rounded-lg text-xs font-black border transition-all">32 Q 🔥</button>
-                    </div>
-                    <button id="srs-subject-launch-btn" onclick="launchSRSSprint('subject')" class="w-full bg-emerald-50 hover:bg-emerald-400 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all">Launch Subject <span id="srs-subject-size-label">10</span>-Q</button>
+                        <button id="srs-subject-launch-btn" onclick="launchSRSSprint('subject')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all">Launch Subject Sprint (25 Q)</button>
                     <button onclick="(() => { const sel = document.getElementById('srs-subject-select').value; if(!sel){alert('Select a subject first.');return;} if(confirm('Clear ALL SRS entries for \''+sel+'\'?\n\nThis wipes all intervals and due dates. Attempt the quiz again to re-enter fresh.')) clearSubjectSRS(sel); })()" class="w-full mt-2 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-black text-[10px] uppercase tracking-widest py-2.5 rounded-xl border border-red-200 dark:border-red-800/50 transition-all">🗑️ Clear SRS for Selected Subject</button>
                     <button onclick="(() => { const sel = document.getElementById('srs-subject-select').value; if(!sel){alert('Select a subject first.');return;} if(confirm('Delete ALL attempt history for \''+sel+'\'?\n\nThis removes past quiz history for this subject AND clears its SRS data.\n\nUse this to fix ghost SRS suggestions after re-uploading a quiz.')) clearSubjectHistory(sel); })()" class="w-full mt-2 bg-orange-50 hover:bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 dark:hover:bg-orange-900/50 font-black text-[10px] uppercase tracking-widest py-2.5 rounded-xl border border-orange-200 dark:border-orange-800/50 transition-all">🕒 Clear History + SRS for Subject</button>
+                </div>
+
+                <div class="flex items-center justify-center gap-4">
+                    <span class="h-px w-full bg-slate-200 dark:bg-slate-700"></span>
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">OR</span>
+                    <span class="h-px w-full bg-slate-200 dark:bg-slate-700"></span>
+                </div>
+
+                <!-- TOPIC-WISE SRS -->
+                <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-inner">
+                    <div class="text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-1">Topic Wise SRS</div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400 mb-4 font-bold">Pick a specific topic to drill. 25 questions max per session.</div>
+                    <div id="srs-topic-list" class="max-h-72 overflow-y-auto space-y-2 pr-1">
+                        <div class="text-center text-slate-400 text-sm py-4">Loading...</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2900,6 +2912,68 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     }
 
     window.openSRSModal = () => {
+        // Build topic-wise due breakdown
+        const MATHS = ['Advanced Maths', 'Arithmetic'];
+        const getMasterMap = window.getMasterMap || (() => ({}));
+        const masterMap = getMasterMap();
+        const topicGroups = {}; // key: "Subject|||GroupLabel" → [{card}]
+
+        mistakesDb.forEach(m => {
+            if (!m.srs || m.isMastered) return;
+            const clean = masterMap[m.question];
+            const tags = clean ? clean.tags : (Array.isArray(m.tags) ? m.tags : []);
+            const subj = (tags[0] || m.subject || 'Other').trim();
+            const grp  = MATHS.includes(subj)
+                ? (tags[2] || tags[1] || 'General').trim()
+                : (tags[1] || 'General').trim();
+            const k = subj + '|||' + grp;
+            if (!topicGroups[k]) topicGroups[k] = { subj, grp, due: 0, total: 0 };
+            topicGroups[k].total++;
+            if (m.srs.nextReview <= Date.now()) topicGroups[k].due++;
+        });
+
+        // Render topic list
+        const listEl = document.getElementById('srs-topic-list');
+        if (listEl) {
+            const groups = Object.values(topicGroups).filter(g => g.total > 0)
+                .sort((a, b) => b.due - a.due || a.subj.localeCompare(b.subj));
+
+            if (groups.length === 0) {
+                listEl.innerHTML = '<div class="text-center text-slate-400 text-sm py-6">No SRS questions yet.<br>Complete R1 to start building your SRS queue.</div>';
+            } else {
+                // Group by subject
+                const bySubj = {};
+                groups.forEach(g => {
+                    if (!bySubj[g.subj]) bySubj[g.subj] = [];
+                    bySubj[g.subj].push(g);
+                });
+
+                listEl.innerHTML = Object.entries(bySubj).map(([subj, gs]) => {
+                    const totalDue = gs.reduce((s, g) => s + g.due, 0);
+                    const rows = gs.map(g => {
+                        const sEnc = encodeURIComponent(g.subj);
+                        const gEnc = encodeURIComponent(g.grp);
+                        const dueColor = g.due > 0 ? 'text-rose-500' : 'text-slate-400';
+                        return `<div class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
+                            <div>
+                                <span class="text-[12px] font-bold text-slate-700 dark:text-slate-300">${g.grp}</span>
+                                <span class="text-[10px] text-slate-400 ml-2">${g.total} total</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[11px] font-black ${dueColor}">${g.due} due</span>
+                                <button onclick="launchTopicSRS('${sEnc}','${gEnc}')" class="bg-indigo-500 hover:bg-indigo-600 text-white text-[10px] font-black px-3 py-1.5 rounded-lg transition-colors">▶ ${Math.min(g.total, 25)}</button>
+                            </div>
+                        </div>`;
+                    }).join('');
+                    return `<div class="mb-2">
+                        <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 px-3 py-1 flex justify-between">
+                            <span>${subj}</span><span class="text-rose-400">${totalDue} due</span>
+                        </div>
+                        ${rows}
+                    </div>`;
+                }).join('');
+            }
+        }
         let globalDue = 0; let subSelect = document.getElementById('srs-subject-select'); let launchBtn = document.getElementById('srs-subject-launch-btn'); subSelect.innerHTML = '';
         let subjectsWithDue = {}; let masterMap = getMasterMap(); 
 
@@ -2937,6 +3011,40 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     };
 
     window.closeSRSModal = () => { document.getElementById('screen-srs-modal').classList.add('hidden'); };
+
+    // ── TOPIC-WISE SRS SPRINT ────────────────────────────────────
+    window.launchTopicSRS = (sEnc, gEnc) => {
+        const subj = decodeURIComponent(sEnc);
+        const grp  = decodeURIComponent(gEnc);
+        const MATHS = ['Advanced Maths', 'Arithmetic'];
+        const masterMap = (window.getMasterMap || (() => ({})))();
+
+        let cards = mistakesDb.filter(m => {
+            if (!m.srs || m.isMastered) return false;
+            const clean = masterMap[m.question];
+            const tags = clean ? clean.tags : (Array.isArray(m.tags) ? m.tags : []);
+            const mSubj = (tags[0] || m.subject || '').trim();
+            const mGrp  = MATHS.includes(mSubj)
+                ? (tags[2] || tags[1] || 'General').trim()
+                : (tags[1] || 'General').trim();
+            return mSubj === subj && mGrp === grp;
+        });
+
+        if (cards.length === 0) { alert('No questions for this topic.'); return; }
+
+        // Sort: most overdue first, then shuffle within urgency tiers
+        cards.sort((a, b) => a.srs.nextReview - b.srs.nextReview);
+        const sprint = cards.slice(0, 25); // max 25
+
+        db['quiz_srs'] = {
+            title: `🎯 ${subj} — ${grp}`,
+            subject: subj,
+            timeInMinutes: 32,
+            questions: sprint
+        };
+        closeSRSModal();
+        openLobby('quiz_srs');
+    };
 
     window.launchSRSSprint = (type) => {
         let dueQs = []; let titleStr = "";
@@ -8761,6 +8869,29 @@ window.scStartRevision = (key, rev) => {
 
   // For R2+ filter to wrong/skipped from previous round
   if (rev === 'r2') {
+    // ── AUTO-REBUILD r1Wrong from history if incomplete ──────────────────
+    // This fixes the case where sync bug wiped r1QuestionsAttempted,
+    // causing the last R1 batch to overwrite (not merge) r1Wrong.
+    // We scan R1 revision history for this topic and collect all non-correct answers.
+    const _r1HistEntries = (historyDb||[]).filter(h =>
+      h.title && h.title.includes(t.name) &&
+      (h.title.includes('R1 Revision') || h.title.includes('R1 revision')) &&
+      h.reviewData
+    );
+    if (_r1HistEntries.length > 0) {
+      const _r1WrongFromHistory = new Set();
+      _r1HistEntries.forEach(h => {
+        h.reviewData.forEach(q => {
+          if (q.status !== 'correct' && q.question) _r1WrongFromHistory.add(q.question.trim());
+        });
+      });
+      if (_r1WrongFromHistory.size > (t.r1Wrong||[]).length) {
+        t.r1Wrong = [..._r1WrongFromHistory];
+        console.log(`[R2 Launch] Rebuilt r1Wrong: ${t.r1Wrong.length} questions from ${_r1HistEntries.length} history entries`);
+        scSave();
+      }
+    }
+
     if (!t.r1Wrong || t.r1Wrong.length === 0) {
       questions = []; // All correct in R1 → force empty → shows perfect modal
     } else {
@@ -9028,9 +9159,13 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
   // Store context for post-quiz callback
   window._scRevContext = { key, rev, allQuestions: questions, startIdx };
 
-  // For R1: doneOffset = already-answered questions (pre-filtered out).
-  // For R2/R3/R4: doneOffset = startIdx (index-based, unchanged behavior).
-  const doneOffset = rev === 'r1' ? (t.r1QuestionsAttempted || []).length : startIdx;
+  // For R1: doneOffset = already-answered questions.
+  // If r1QuestionsAttempted is empty but r1Progress > 0 (sync bug wiped it),
+  // use r1Progress so isFreshStart stays false and r1Wrong merges correctly.
+  const _r1AttemptedLen = (t.r1QuestionsAttempted || []).length;
+  const doneOffset = rev === 'r1'
+    ? (_r1AttemptedLen > 0 ? _r1AttemptedLen : (t.r1Progress || 0))
+    : startIdx;
   const sessionTotal = rev === 'r1' ? questions.length + doneOffset : questions.length;
 
   // Build temp quiz title showing batch info when large topic
@@ -9241,7 +9376,17 @@ function scRenderCoverage() {
   const innerR = 60, midR = 130, outerR = 210;
 
   const statusColors = { done:'#22c55e', learning:'#f59e0b', overdue:'#ef4444', not_started:'#94a3b8' };
-  const subjectColors = { 'Maths':'#6c63ff', 'Reasoning':'#3b82f6', 'GS':'#f59e0b', 'English':'#22c55e', 'default':'#94a3b8' };
+  const subjectColors = {
+    'Advanced Maths':'#6c63ff','Arithmetic':'#8b5cf6','Maths':'#6c63ff',
+    'Reasoning':'#3b82f6',
+    'Polity':'#f59e0b','Ancient History':'#f97316','Medieval History':'#fb923c',
+    'Modern History':'#fb923c','History':'#f97316',
+    'Geography':'#22c55e','Economics':'#10b981','Environment & Ecology':'#34d399',
+    'Biology':'#4ade80','Physics':'#38bdf8','Chemistry':'#67e8f9',
+    'Science & Technology':'#22d3ee',
+    'Static GK':'#e879f9','Current Affairs':'#f472b6','Art & Culture':'#c084fc',
+    'English':'#a78bfa','GS':'#facc15','default':'#6366f1'
+  };
 
   let svgPaths = '';
   const tooltip = document.getElementById('sc-sunburst-tooltip');
@@ -9402,6 +9547,31 @@ function wbGetGroup(q) {
 window.scRenderWeakBank = function() {
   const el = document.getElementById('sc-weak-bank-body');
   if (!el) return;
+
+  // Rebuild r1Wrong from history for ALL topics before rendering
+  // This recovers questions lost by sync wipe / fresh-start overwrite
+  let wbRebuilt = 0;
+  Object.entries(scDb).forEach(([key, t]) => {
+    if (!t) return;
+    const r1Entries = (historyDb||[]).filter(h =>
+      h.title && h.title.includes(t.name) &&
+      (h.title.includes('R1 Revision') || h.title.includes('R1 revision')) &&
+      h.reviewData
+    );
+    if (r1Entries.length > 0) {
+      const fromHistory = new Set();
+      r1Entries.forEach(h => {
+        h.reviewData.forEach(q => {
+          if (q.status !== 'correct' && q.question) fromHistory.add(q.question.trim());
+        });
+      });
+      if (fromHistory.size > (t.r1Wrong||[]).length) {
+        t.r1Wrong = [...fromHistory];
+        wbRebuilt++;
+      }
+    }
+  });
+  if (wbRebuilt > 0) scSave();
 
   // Build question lookup: text → full object
   const qMap = new Map();
@@ -9720,7 +9890,7 @@ function scShowConfidenceModal(key, rev) {
 
   // For R1: Show full-cycle stats (across all batches)
   if (rev === 'r1') {
-    const totalAnswered = (t.r1QuestionsAttempted || []).length; // All answered this cycle
+    const totalAnswered = (t.r1QuestionsAttempted || []).length || t.r1QsTotalRaw || t.r1Progress || 0;
     const wrongCount = (t.r1Wrong || []).length; // All wrong across all batches
     const correctCount = Math.max(0, totalAnswered - wrongCount);
 
@@ -9786,12 +9956,11 @@ window.scMarkR1Done = (key) => {
   t.r1 = true;
   t.r1Date = scToday();
   t.r1Progress = 0;
-  t.r1QuestionsAttempted = []; // CRITICAL: clear so new cycle doesn't see stale done-set
-  // BUG7 FIX: preserve r1QsTotalRaw as the baseline for new-question badge detection.
-  // Zeroing it blinds the badge until the user submits the first batch of the new cycle.
-  // We only update it during _afterSubmit (first batch, doneOffset===0), so it stays
-  // as the "questions at cycle completion" snapshot until then.
-  // (No change needed — just don't reset it here)
+  // DO NOT clear r1QuestionsAttempted here — it must persist through R2→R3→R4
+  // so that R4 graduation can graduate all cycle questions to SRS.
+  // It is cleared in two correct places:
+  //   1. scMarkRevDoneAuto (after R4 graduation fires)
+  //   2. scStartRevision (when a brand new R1 cycle begins, currentProgress===0)
   scUpdateStreak();
   scSave();
   scCloseModal();
@@ -9871,7 +10040,7 @@ window.scMarkRevDoneAuto = (key, rev) => {
           if (qObj) {
             let newCard = JSON.parse(JSON.stringify(qObj));
             newCard.subject = (qObj.tags && qObj.tags[0]) || t.subject || 'Miscellaneous';
-            newCard.srs = { reps: 1, ease: 2.5, interval: 3, nextReview: nextReview };
+            newCard.srs = { reps: 1, ease: 2.5, interval: 3, nextReview: newNextReview };
             newCard.isMastered = false;
             mistakesDb.push(newCard);
           }
