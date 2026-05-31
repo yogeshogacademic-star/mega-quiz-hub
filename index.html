@@ -880,22 +880,6 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
 
       <!-- TRACKER TAB -->
       <div id="sc-view-tracker">
-        <!-- Column headers -->
-        <div class="grid gap-0 mb-2 px-2" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 46px 46px 72px 52px 52px 52px 28px">
-          <div></div>
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 pl-2">Topic</div>
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Status</div>
-          <div class="text-[9px] font-black uppercase tracking-widest text-violet-400 text-center">Lec</div>
-          <div class="text-[9px] font-black uppercase tracking-widest text-blue-400 text-center">R1</div>
-          <div class="text-[9px] font-black uppercase tracking-widest text-emerald-400 text-center">R2</div>
-          <div class="text-[9px] font-black uppercase tracking-widest text-amber-400 text-center">R3</div>
-          <div class="text-[9px] font-black uppercase tracking-widest text-purple-400 text-center">R4</div>
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Next Due</div>
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Total</div>
-          <div class="text-[9px] font-black uppercase tracking-widest text-emerald-400 text-center">SRS</div>
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">New</div>
-          <div></div>
-        </div>
         <div id="sc-tracker-body" class="space-y-1"></div>
       </div>
 
@@ -8141,7 +8125,15 @@ function scRenderTracker() {
   });
   // Also build full SRS question set for exact matching
   const _srsQSet = new Set((mistakesDb||[]).map(m => m.question).filter(Boolean));
-  window._srsQSet = _srsQSet; // make available for row rendering
+  window._srsQSet = _srsQSet;
+
+  // Pre-build SEEN set — every question ever attempted in ANY quiz or revision
+  const _seenQSet = new Set();
+  (historyDb||[]).forEach(h => {
+    if (!h.reviewData) return;
+    h.reviewData.forEach(q => { if (q && q.question) _seenQSet.add(q.question.trim()); });
+  });
+  window._seenQSet = _seenQSet; // make available for row rendering
 
   // Group by SUBJECT first
   const subjects = {};
@@ -8176,7 +8168,22 @@ function scRenderTracker() {
   const todayStr = scToday();
   const chapters = chaptersForSubject;
 
-  let html = `<div class="flex gap-2 flex-wrap mb-4 pb-4 border-b border-slate-200 dark:border-slate-800">${tabsHtml}</div>`;
+  let html = `<div class="flex gap-2 flex-wrap mb-3 pb-3 border-b border-slate-200 dark:border-slate-800">${tabsHtml}</div>
+  <div class="grid gap-0 mb-1 px-2" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 46px 46px 72px 52px 52px 52px 28px">
+    <div></div>
+    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 pl-2">Topic</div>
+    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Status</div>
+    <div class="text-[9px] font-black uppercase tracking-widest text-violet-400 text-center">Lec</div>
+    <div class="text-[9px] font-black uppercase tracking-widest text-blue-400 text-center">R1</div>
+    <div class="text-[9px] font-black uppercase tracking-widest text-emerald-400 text-center">R2</div>
+    <div class="text-[9px] font-black uppercase tracking-widest text-amber-400 text-center">R3</div>
+    <div class="text-[9px] font-black uppercase tracking-widest text-purple-400 text-center">R4</div>
+    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Next Due</div>
+    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Total</div>
+    <div class="text-[9px] font-black uppercase tracking-widest text-emerald-400 text-center">SRS</div>
+    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">New</div>
+    <div></div>
+  </div>`;
   Object.entries(chapters).forEach(([chapter, topics]) => {
     const done = topics.filter(t => scGetStatus(t) === 'done').length;
     const pct = Math.round(done/topics.length*100);
@@ -8223,7 +8230,7 @@ function scRenderTracker() {
         else dueHtml = `<span class="text-emerald-500 text-[10px]">${due}</span>`;
       }
 
-      // ── QS COLUMNS: Total | SRS | New ──────────────────────────────────
+      // ── QS COLUMNS: Total | SRS | Untouched (never seen anywhere) ──────
       const _allTopicQs = new Set();
       Object.values(db).forEach(quiz => {
         if (!quiz || !quiz.questions || quiz.isScRevision || quiz.isSRS || quiz.isWeakBank) return;
@@ -8232,10 +8239,15 @@ function scRenderTracker() {
         });
       });
       const _totalUniq = _allTopicQs.size;
-      let _srsCount = 0;
-      _allTopicQs.forEach(qText => { if (window._srsQSet && window._srsQSet.has(qText)) _srsCount++; });
-      const _newCount = Math.max(0, _totalUniq - _srsCount);
-      const _srsPct   = _totalUniq > 0 ? Math.round(_srsCount / _totalUniq * 100) : 0;
+
+      let _srsCount = 0, _untouchedCount = 0;
+      _allTopicQs.forEach(qText => {
+        const inSRS  = window._srsQSet  && window._srsQSet.has(qText);
+        const inSeen = window._seenQSet && window._seenQSet.has(qText);
+        if (inSRS) _srsCount++;
+        else if (!inSeen) _untouchedCount++; // not in SRS AND never seen = truly new
+      });
+      const _srsPct = _totalUniq > 0 ? Math.round(_srsCount / _totalUniq * 100) : 0;
 
       const _colTotal = _totalUniq > 0
         ? `<div class="flex flex-col items-center gap-0.5">
@@ -8251,7 +8263,7 @@ function scRenderTracker() {
         : '<span class="text-slate-300 dark:text-slate-600 text-[10px]">—</span>';
 
       const _colNew = _totalUniq > 0
-        ? `<span class="text-[11px] font-black ${_newCount === 0 ? 'text-emerald-500' : _newCount <= 10 ? 'text-amber-500' : 'text-slate-500'}">${_newCount}</span>`
+        ? `<span class="text-[11px] font-black ${_untouchedCount === 0 ? 'text-emerald-500' : _untouchedCount <= 10 ? 'text-amber-500' : 'text-slate-500'}">${_untouchedCount}</span>`
         : '<span class="text-slate-300 dark:text-slate-600 text-[10px]">—</span>';
 
       // NEW badge
