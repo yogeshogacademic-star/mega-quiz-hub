@@ -903,12 +903,12 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
             <div id="sc-weekly-detail-title" class="text-xs font-black uppercase tracking-widest text-slate-500 mb-3"></div>
             <div id="sc-weekly-detail-items" class="space-y-2"></div>
           </div>
+        </div>
+      </div>
 
       <!-- WEAK BANK TAB -->
       <div id="sc-view-weakbank" class="hidden">
         <div id="sc-weak-bank-body"></div>
-      </div>
-        </div>
       </div>
 
     </div>
@@ -2909,13 +2909,13 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     window.openSRSModal = () => {
         // Build topic-wise due breakdown
         const MATHS = ['Advanced Maths', 'Arithmetic'];
-        const getMasterMap = window.getMasterMap || (() => ({}));
-        const masterMap = getMasterMap();
+        const getMasterMapFn = window.getMasterMap || (() => ({}));
+        const topicMasterMap = getMasterMapFn();
         const topicGroups = {}; // key: "Subject|||GroupLabel" → [{card}]
 
         mistakesDb.forEach(m => {
             if (!m.srs || m.isMastered) return;
-            const clean = masterMap[m.question];
+            const clean = topicMasterMap[m.question];
             const tags = clean ? clean.tags : (Array.isArray(m.tags) ? m.tags : []);
             const subj = (tags[0] || m.subject || 'Other').trim();
             const grp  = MATHS.includes(subj)
@@ -3012,11 +3012,11 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         const subj = decodeURIComponent(sEnc);
         const grp  = decodeURIComponent(gEnc);
         const MATHS = ['Advanced Maths', 'Arithmetic'];
-        const masterMap = (window.getMasterMap || (() => ({})))();
+        const ltsMap = (window.getMasterMap || (() => ({})))();
 
         let cards = mistakesDb.filter(m => {
             if (!m.srs || m.isMastered) return false;
-            const clean = masterMap[m.question];
+            const clean = ltsMap[m.question];
             const tags = clean ? clean.tags : (Array.isArray(m.tags) ? m.tags : []);
             const mSubj = (tags[0] || m.subject || '').trim();
             const mGrp  = MATHS.includes(mSubj)
