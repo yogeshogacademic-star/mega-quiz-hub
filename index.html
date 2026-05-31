@@ -10128,18 +10128,18 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-body); mi
 body::before { content:''; position:fixed; inset:0; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E"); pointer-events:none; z-index:0; opacity:0.4; }
 
 /* NAV */
-.nav { background:rgba(7,11,20,0.95); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:50; padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between; }
-.nav-logo { font-family:var(--font-display); font-size:16px; font-weight:800; letter-spacing:0.02em; background:linear-gradient(135deg,#4f6ef7,#7c3aed); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-.nav-tabs { display:flex; gap:2px; background:var(--bg3); padding:3px; border-radius:12px; border:1px solid var(--border); }
-.tab-btn { padding:6px 16px; border-radius:9px; font-size:11px; font-weight:900; font-family:var(--font-body); text-transform:uppercase; letter-spacing:0.06em; cursor:pointer; border:none; background:transparent; color:var(--muted2); transition:all 0.18s; }
-.tab-btn.active { background:linear-gradient(135deg,#4f6ef7,#7c3aed); color:white; box-shadow:0 2px 12px rgba(79,110,247,0.35); }
-.nav-right { display:flex; align-items:center; gap:10px; }
+.wr-nav { background:rgba(7,11,20,0.95); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:50; padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between; }
+.wr-nav-logo { font-family:var(--font-display); font-size:16px; font-weight:800; letter-spacing:0.02em; background:linear-gradient(135deg,#4f6ef7,#7c3aed); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.wr-nav-tabs { display:flex; gap:2px; background:var(--bg3); padding:3px; border-radius:12px; border:1px solid var(--border); }
+.wr-tab-btn { padding:6px 16px; border-radius:9px; font-size:11px; font-weight:900; font-family:var(--font-body); text-transform:uppercase; letter-spacing:0.06em; cursor:pointer; border:none; background:transparent; color:var(--muted2); transition:all 0.18s; }
+.wr-tab-btn.active { background:linear-gradient(135deg,#4f6ef7,#7c3aed); color:white; box-shadow:0 2px 12px rgba(79,110,247,0.35); }
+.wr-nav-right { display:flex; align-items:center; gap:10px; }
 .streak-pill { background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.25); color:#fbbf24; padding:4px 12px; border-radius:999px; font-size:12px; font-weight:900; }
 .theme-btn { background:var(--bg3); border:1px solid var(--border); color:var(--muted2); padding:6px 10px; border-radius:9px; cursor:pointer; font-size:13px; }
 
 /* SCREENS */
-.screen { display:none; padding:24px; max-width:1100px; margin:0 auto; position:relative; z-index:1; }
-.screen.active { display:block; }
+.wr-screen { display:none; padding:24px; max-width:1100px; margin:0 auto; position:relative; z-index:1; }
+.wr-screen.active { display:block; }
 
 /* CARDS */
 .card { background:var(--bg2); border:1px solid var(--border); border-radius:18px; padding:20px; }
@@ -10262,7 +10262,7 @@ select.inp option { background:var(--bg3); }
 
 /* LIGHT MODE */
 body.light { --bg:#f0f4fc; --bg2:#ffffff; --bg3:#f8faff; --border:#e2e8f5; --border2:#c9d5e8; --text:#1e293b; --muted:#94a3b8; --muted2:#64748b; }
-body.light .nav { background:rgba(240,244,252,0.95); }
+body.light .wr-nav { background:rgba(240,244,252,0.95); }
 body.light select.inp option { background:white; }
 
 </style>
@@ -10271,25 +10271,19 @@ body.light select.inp option { background:white; }
 
 
 <!-- NAV -->
-<nav class="nav">
-  <div style="display:flex;align-items:center;gap:12px">
-        <button onclick="window.showScreen && window.showScreen('dashboard')" style="background:transparent;border:none;color:#64748b;font-size:11px;font-weight:900;cursor:pointer;text-transform:uppercase;letter-spacing:0.08em;font-family:'Nunito Sans',sans-serif">← Hub</button>
-        <div class="nav-logo">⚔️ WAR ROOM</div>
-      </div>
-  <div class="nav-tabs">
-    <button class="tab-btn active" onclick="switchTab('home',this)">🏠 Home</button>
-    <button class="tab-btn" onclick="switchTab('calendar',this)">📅 Calendar</button>
-    <button class="tab-btn" onclick="switchTab('log',this)">✍️ Log</button>
-    <button class="tab-btn" onclick="switchTab('stats',this)">📊 Stats</button>
+<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #1a2236;background:#0d1321;position:sticky;top:0;z-index:40">
+  <button onclick="window.showScreen && window.showScreen('dashboard')" style="background:transparent;border:none;color:#64748b;font-size:11px;font-weight:900;cursor:pointer;text-transform:uppercase;letter-spacing:0.08em;font-family:'Nunito Sans',sans-serif;display:flex;align-items:center;gap:4px">← Hub</button>
+  <div style="display:flex;gap:2px;background:#111827;padding:3px;border-radius:12px;border:1px solid #1a2236">
+    <button class="wr-tab-btn active" onclick="switchTab('home',this)">🏠 Home</button>
+    <button class="wr-tab-btn" onclick="switchTab('calendar',this)">📅 Calendar</button>
+    <button class="wr-tab-btn" onclick="switchTab('log',this)">✍️ Log</button>
+    <button class="wr-tab-btn" onclick="switchTab('stats',this)">📊 Stats</button>
   </div>
-  <div class="nav-right">
-    <div id="nav-streak" class="streak-pill" style="display:none"></div>
-    <button class="theme-btn" onclick="toggleTheme()">🌙</button>
-  </div>
-</nav>
+  <div id="nav-streak" class="streak-pill" style="display:none"></div>
+</div>
 
 <!-- ══════════════════════ HOME ══════════════════════ -->
-<div id="screen-home" class="screen active">
+<div id="screen-home" class="wr-screen active">
 
   <!-- ROW 1: Ring + Today + RightNow + Streak -->
   <div class="g4" style="margin-bottom:14px">
@@ -10380,7 +10374,7 @@ body.light select.inp option { background:white; }
 </div>
 
 <!-- ══════════════════════ CALENDAR ══════════════════════ -->
-<div id="screen-calendar" class="screen">
+<div id="screen-calendar" class="wr-screen">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
     <div>
       <div style="font-family:var(--font-display);font-size:22px;font-weight:800" id="cal-month-title"></div>
@@ -10427,7 +10421,7 @@ body.light select.inp option { background:white; }
 </div>
 
 <!-- ══════════════════════ LOG ══════════════════════ -->
-<div id="screen-log" class="screen">
+<div id="screen-log" class="wr-screen">
   <div style="max-width:540px;margin:0 auto">
     <div style="font-family:var(--font-display);font-size:22px;font-weight:800;margin-bottom:4px">Log Session</div>
     <div style="font-size:12px;color:var(--muted);font-weight:700;margin-bottom:22px">What did you actually study today?</div>
@@ -10504,7 +10498,7 @@ body.light select.inp option { background:white; }
 </div>
 
 <!-- ══════════════════════ STATS ══════════════════════ -->
-<div id="screen-stats" class="screen">
+<div id="screen-stats" class="wr-screen">
   <div style="font-family:var(--font-display);font-size:22px;font-weight:800;margin-bottom:20px">Analytics</div>
 
   <div class="g2" style="margin-bottom:14px">
@@ -10719,8 +10713,8 @@ function lHandleCustom(){
 
 // ════════════════ TABS ════════════════
 function switchTab(tab,btn){
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.wr-screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.wr-tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('screen-'+tab).classList.add('active');
   btn.classList.add('active');
   if(tab==='home') renderHome();
@@ -11325,8 +11319,8 @@ function lHandleCustom(){
 
 // ════════════════ TABS ════════════════
 function switchTab(tab,btn){
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.wr-screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.wr-tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('screen-'+tab).classList.add('active');
   btn.classList.add('active');
   if(tab==='home') renderHome();
