@@ -9148,7 +9148,9 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
     if (rev === 'r1') {
       const srsMap = new Map();
       mistakesDb.forEach(m => { if (m.question) srsMap.set(m.question, m); });
-      const doneSoFar = t.r1Progress || 0;
+      // NEW CYCLE: if all 4 cycles done, r1Progress is stale — reset to 0
+      const _allDone = !!(t.r1 && t.r2 && t.r3 && t.r4);
+      const doneSoFar = _allDone ? 0 : (t.r1Progress || 0);
       if (doneSoFar > 0 && doneSoFar < questions.length) {
         const remaining = questions.slice(doneSoFar);
         questions = remaining.filter(q => !srsMap.has(q.question));
