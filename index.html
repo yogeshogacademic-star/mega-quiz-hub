@@ -2123,7 +2123,16 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
         let mockTrackerCloud = []; try { mockTrackerCloud = JSON.parse(localStorage.getItem('ssc_mock_tracker')||'[]'); } catch{}
         let scDataCloud = {}; try { scDataCloud = JSON.parse(localStorage.getItem('sc_syllabus_v1')||'{}'); } catch{}
         let plannerCloud = {}; try { plannerCloud = JSON.parse(localStorage.getItem('warroom_v1')||'{}'); } catch{}
-        const payload = { subjects: SUBJECTS, db: cleanDb, syllabusData: scDataCloud, syllabusLastSave: parseInt(localStorage.getItem('sc_syllabus_lastSave')||'0'), history: historyDb, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, mockTracker: mockTrackerCloud, plannerData: plannerCloud, savedAt: nowTs };
+        // Strip reviewData before cloud upload — reduces payload from ~5MB to ~1MB
+        // reviewData stays safe in local IndexedDB, only summaries go to cloud
+        const historyForCloud = historyDb.map(h => ({
+            ts: h.ts, date: h.date, title: h.title, subject: h.subject,
+            score: h.score, accuracy: h.accuracy, candidateName: h.candidateName,
+            attemptNumber: h.attemptNumber, totalCorrect: h.totalCorrect,
+            totalWrong: h.totalWrong, totalSkipped: h.totalSkipped
+            // reviewData intentionally excluded — too large for cloud
+        }));
+        const payload = { subjects: SUBJECTS, db: cleanDb, syllabusData: scDataCloud, syllabusLastSave: parseInt(localStorage.getItem('sc_syllabus_lastSave')||'0'), history: historyForCloud, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, mockTracker: mockTrackerCloud, plannerData: plannerCloud, savedAt: nowTs };
         // Expose saveData globally for syllabus functions in other script blocks
         window._saveDataGlobal = saveData;
         try {
@@ -2358,6 +2367,14 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                 const localKeys = new Set((historyDb || []).map(makeKey));
                 const newFromCloud = data.history.filter(h => !localKeys.has(makeKey(h)));
                 if (newFromCloud.length > 0) {
+                    // Cloud attempts may have no reviewData — restore from local if we have it
+                    const localReviewMap = new Map((historyDb||[]).map(h=>[makeKey(h), h.reviewData]));
+                    newFromCloud.forEach(h => {
+                        if (!h.reviewData) {
+                            const rd = localReviewMap.get(makeKey(h));
+                            if (rd) h.reviewData = rd;
+                        }
+                    });
                     historyDb = [...(historyDb || []), ...newFromCloud]
                         .sort((a,b) => (b.ts||0)-(a.ts||0)||(b.attemptNumber||0)-(a.attemptNumber||0));
                     if (historyDb.length > 500) historyDb.length = 500;
