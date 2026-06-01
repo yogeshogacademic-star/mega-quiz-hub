@@ -1547,7 +1547,10 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                 if (!term || searchStr.includes(term)) {
                     matchCount++; uniqueTracker.add(q.question);
                     let tagsToMap = Array.isArray(q.tags) ? q.tags : (q.tags ? [String(q.tags)] : ["Miscellaneous"]);
-                    let tagsHTML = tagsToMap.map(t => `<span class="inline-block px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-[9px] mb-1 mr-1">${t}</span>`).join('');
+                    // Show tag[0] (subject) + tag[1] (chapter) only — skip deeper tags
+let tagsHTML = '';
+if (tagsToMap.length > 0) tagsHTML += `<span class="inline-block px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-[9px] mb-1 mr-1 font-bold">${tagsToMap[0]}</span>`;
+if (tagsToMap.length > 1) tagsHTML += `<span class="inline-block px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-[9px] mb-1 mr-1">${tagsToMap[1]}</span>`;
                     let imgBadge = q.image ? `<span class="inline-block px-2 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400 text-[9px] mb-1 mr-1">🖼️ Image</span>` : '';
                     let safeId = 'edit_db_' + window.editCounter++; window.editRegistry[safeId] = q.question;
                     html += `<div class="bg-white dark:bg-slate-900 rounded-xl p-4 grid grid-cols-12 gap-4 items-center border border-slate-200 dark:border-slate-800 shadow-sm hover:border-blue-400 transition-colors"><div class="col-span-2 text-xs font-bold text-slate-500 truncate" title="${sourceTitle}">${sourceTitle}</div><div class="col-span-2 flex flex-wrap max-h-12 overflow-hidden">${imgBadge}${tagsHTML}</div><div class="col-span-7 text-sm font-bold text-slate-800 dark:text-slate-200 truncate" title="${q.question.replace(/"/g, '&quot;')}">${q.question}</div><div class="col-span-1 text-center"><button onclick="openGlobalEditModalBySafeId('${safeId}')" class="bg-amber-100 hover:bg-amber-200 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 p-2 rounded-lg font-black text-xs transition-colors shadow-sm w-full">✏️</button></div></div>`;
@@ -2978,28 +2981,41 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                     bySubj[g.subj].push(g);
                 });
 
+                // Collapsed by subject — click to expand
+                const safeSubjId = s => 'srs-subj-' + s.replace(/[^a-z0-9]/gi,'_');
                 listEl.innerHTML = Object.entries(bySubj).map(([subj, gs]) => {
                     const totalDue = gs.reduce((s, g) => s + g.due, 0);
+                    const totalAll = gs.reduce((s, g) => s + g.total, 0);
+                    const sid = safeSubjId(subj);
+                    const dueColor = totalDue > 0 ? '#f43f5e' : '#94a3b8';
                     const rows = gs.map(g => {
                         const sEnc = encodeURIComponent(g.subj);
                         const gEnc = encodeURIComponent(g.grp);
-                        const dueColor = g.due > 0 ? 'text-rose-500' : 'text-slate-400';
+                        const dc = g.due > 0 ? 'text-rose-500' : 'text-slate-400';
                         return `<div class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
                             <div>
                                 <span class="text-[12px] font-bold text-slate-700 dark:text-slate-300">${g.grp}</span>
                                 <span class="text-[10px] text-slate-400 ml-2">${g.total} total</span>
                             </div>
                             <div class="flex items-center gap-2">
-                                <span class="text-[11px] font-black ${dueColor}">${g.due} due</span>
+                                <span class="text-[11px] font-black ${dc}">${g.due} due</span>
                                 <button onclick="launchTopicSRS('${sEnc}','${gEnc}')" class="bg-indigo-500 hover:bg-indigo-600 text-white text-[10px] font-black px-3 py-1.5 rounded-lg transition-colors">▶ ${Math.min(g.total, 25)}</button>
                             </div>
                         </div>`;
                     }).join('');
-                    return `<div class="mb-2">
-                        <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 px-3 py-1 flex justify-between">
-                            <span>${subj}</span><span class="text-rose-400">${totalDue} due</span>
+                    return `<div class="mb-1 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+                        <div onclick="var el=document.getElementById('${sid}');var arr=document.getElementById('${sid}_arr');if(el.style.display==='none'){el.style.display='block';arr.textContent='▾';}else{el.style.display='none';arr.textContent='▸';}"
+                             class="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors select-none">
+                            <div class="flex items-center gap-2">
+                                <span id="${sid}_arr" class="text-[10px] text-slate-400 font-black">▸</span>
+                                <span class="text-[12px] font-black text-slate-700 dark:text-slate-200">${subj}</span>
+                                <span class="text-[10px] text-slate-400">${totalAll} total</span>
+                            </div>
+                            <span class="text-[12px] font-black" style="color:${dueColor}">${totalDue} due</span>
                         </div>
-                        ${rows}
+                        <div id="${sid}" style="display:none">
+                            ${rows}
+                        </div>
                     </div>`;
                 }).join('');
             }
