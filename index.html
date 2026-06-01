@@ -8973,13 +8973,10 @@ window.scStartRevision = (key, rev) => {
       }
     }
 
-    // NEW CYCLE DETECTION: if all 4 cycles done and new questions exist,
-    // r1Progress from old cycle is stale — must ignore it for new question filtering
+    // NEW CYCLE: if all 4 cycles done, r1Progress is stale from old cycle
+    // Must ignore it so new questions aren't skipped
     const _allCyclesDone = !!(t.r1 && t.r2 && t.r3 && t.r4);
-    const _totalQsNow = questions.length; // before SRS filter
-    const _newCycleStart = _allCyclesDone && (t.r1QsTotalRaw||0) > 0 && (_totalQsNow + (Object.keys(srsMap||{}).length > 0 ? 1 : 0)) > (t.r1QsTotalRaw||0);
-
-    const doneSoFar = _newCycleStart ? 0 : (t.r1Progress || 0);
+    const doneSoFar = _allCyclesDone ? 0 : (t.r1Progress || 0);
     if (doneSoFar > 0 && doneSoFar < questions.length) {
       // INDEX-SKIP on FULL pool first (before SRS filter)
       // Then SRS-filter only the REMAINING questions
