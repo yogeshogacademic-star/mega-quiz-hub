@@ -2102,7 +2102,14 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
         }, 0);
         const lastKnownCount = parseInt(localStorage.getItem('megaLastKnownCount') || '0');
 
-        if (lastKnownCount > 0 && totalQLocal < lastKnownCount * 0.5) {
+        if (lastKnownCount > 0 && totalQLocal === 0) {
+            // DB not loaded yet — skip save silently, don't block cloud
+            console.warn('⚠️ Save skipped: quiz DB not loaded yet. Will retry after load.');
+            showSyncStatus('error');
+            return;
+        }
+        if (lastKnownCount > 0 && totalQLocal < lastKnownCount * 0.3) {
+            // Only block if local count is less than 30% of known — much safer threshold
             console.warn(`⛔ SAVE BLOCKED: local has ${totalQLocal}q but last known was ${lastKnownCount}q.`);
             showSyncStatus('blocked');
             const warn = document.createElement('div');
@@ -2309,6 +2316,13 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                     if (typeof scLoad === 'function') scLoad();
                     console.log('[Syllabus Sync] Merged cloud progress (MAX per topic).');
                 }
+                // Always push merged syllabus back to cloud so ALL devices get latest
+                setTimeout(() => {
+                    if (typeof window._saveDataGlobal === 'function') {
+                        console.log('[Syllabus Sync] Pushing merged progress back to cloud...');
+                        window._saveDataGlobal().catch(()=>{});
+                    }
+                }, 2000);
             }
         }
         if (data.mockTracker && Array.isArray(data.mockTracker) && data.mockTracker.length > 0) {
@@ -2366,8 +2380,10 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
         // ── PUSH LOCAL DATA TO CLOUD if this device has things cloud doesn't ──
         // This makes sync truly bidirectional — both devices always share everything
         const _needPush = _tagsFixed > 0 || _localHasNewHistory;
-        if (_needPush) {
-            console.log(`[Sync] Local has newer data — pushing to cloud so other devices get it...`);
+        // Always push after fetch if local has anything cloud doesn't
+        // This ensures every device always becomes the source of truth
+        if (_needPush || _tagsFixed > 0) {
+            console.log('[Sync] Pushing local data to cloud to share with all devices...');
             setTimeout(() => saveData(), 2500);
         }
         return true;
@@ -10079,6 +10095,10 @@ window.scSetConfidence = (key, rev, level) => {
 // ── CLOUD SYNC ──
 window.scSyncToCloud = () => {
   localStorage.setItem(SC_KEY, JSON.stringify(scDb));
+  // Immediately push to cloud so other devices get syllabus progress
+  if (typeof window._saveDataGlobal === 'function') {
+    window._saveDataGlobal().catch(()=>{});
+  }
 };
 </script>
 
