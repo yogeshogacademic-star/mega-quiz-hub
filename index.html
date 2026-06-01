@@ -2348,6 +2348,8 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                         .sort((a,b) => (b.attemptNumber||0) - (a.attemptNumber||0));
                     if (historyDb.length > 500) historyDb.length = 500;
                     console.log(`[Sync] +${newFromCloud.length} attempt(s) from cloud → local.`);
+                    // PERSIST to IndexedDB so it survives page refresh
+                    try { await idbKeyval.set('megaQuizHistory_v5', historyDb); console.log('[Sync] History saved to IndexedDB ✅'); } catch(e) { console.warn('[Sync] IndexedDB save failed:', e); }
                 }
             }
             // Check if local has attempts cloud doesn't — if yes, push to cloud
