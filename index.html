@@ -9786,16 +9786,18 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
   if (!t) return;
 
   // Collect wrong/skipped questions from this batch
+  // Use quizState directly — does NOT depend on reviewData
   const wrongQuestions = [];
-  if (historyDb && historyDb.length > 0) {
-    const lastAttempt = historyDb[0];
-    if (lastAttempt && lastAttempt.reviewData) {
-      lastAttempt.reviewData.forEach(q => {
-        if (q.status === 'wrong' || q.status === 'skipped') {
-          wrongQuestions.push(q.question);
-        }
-      });
-    }
+  if (window.quizState && window.activeQuestions) {
+    window.activeQuestions.forEach(function(q, i) {
+      var sel = window.quizState.answers ? window.quizState.answers[i] : undefined;
+      var isWrong = sel === undefined || !(q.options && q.options[sel] && q.options[sel].correct);
+      if (isWrong && q.question) wrongQuestions.push(q.question);
+    });
+  } else if (historyDb && historyDb.length > 0 && historyDb[0].reviewData) {
+    historyDb[0].reviewData.forEach(q => {
+      if (q.status === 'wrong' || q.status === 'skipped') wrongQuestions.push(q.question);
+    });
   }
 
   // Update progress (cumulative: offset + this batch size)
@@ -9835,12 +9837,23 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
   }
 
   // Track answered questions for after-R4 SRS graduation.
-  // Always accumulate — reset to [] happens in scStartRevision on a fresh cycle start.
-  if (rev === 'r1' && historyDb && historyDb.length > 0 && historyDb[0].reviewData) {
-    const answeredQs = historyDb[0].reviewData.map(q => q.question);
+  // Use _scRevContext directly — does NOT depend on reviewData (which may be missing on cross-device sync)
+  if (rev === 'r1' && window._scRevContext && window._scRevContext.rev === 'r1') {
+    const batchQs = (window._scRevContext.allQuestions || [])
+      .slice(startIdx, startIdx + total)
+      .map(q => q.question)
+      .filter(Boolean);
     const existing = t.r1QuestionsAttempted || [];
-    t.r1QuestionsAttempted = [...new Set([...existing, ...answeredQs])];
+    t.r1QuestionsAttempted = [...new Set([...existing, ...batchQs])];
     scSave();
+  }
+  // Also update r1Progress from context — does NOT depend on reviewData
+  if (rev === 'r1' && window._scRevContext) {
+    const newProgress = (window._scRevContext.doneOffset || 0) + total;
+    if (newProgress > (t.r1Progress || 0)) {
+      t.r1Progress = newProgress;
+      scSave();
+    }
   }
 
   // Store wrong/skipped for next revision round.
