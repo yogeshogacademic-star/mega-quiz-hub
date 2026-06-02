@@ -2237,18 +2237,30 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
         db = data.db;
         const _tagsFixed = repairAllTags(); // fix any corrupted tags from cloud
 
-        // ── MISTAKES (SRS): keep whichever set has more data — prevents wipe of local SRS progress ──
+        // ── MISTAKES (SRS): smart merge — keep card with more recent sprint progress ──
         const cloudMistakes = data.mistakes || [];
-        if (cloudMistakes.length >= mistakesDb.length) {
-            // Cloud has equal or more — merge: cloud as base, local entries win on same question
+        {
             const localMap = new Map((mistakesDb || []).map(m => [m.question, m]));
-            const merged = [...cloudMistakes];
-            merged.forEach((m, i) => { if (localMap.has(m.question)) merged[i] = localMap.get(m.question); });
-            // Add any local entries not in cloud
-            (mistakesDb || []).forEach(m => { if (!cloudMistakes.find(c => c.question === m.question)) merged.push(m); });
+            const cloudMap = new Map(cloudMistakes.map(m => [m.question, m]));
+            const allKeys = new Set([...localMap.keys(), ...cloudMap.keys()]);
+            const merged = [];
+            allKeys.forEach(q => {
+                const local = localMap.get(q);
+                const cloud = cloudMap.get(q);
+                if (!local) { merged.push(cloud); return; }
+                if (!cloud) { merged.push(local); return; }
+                // Pick card with more SRS progress — higher reps = more reviews done
+                const localReps = (local.srs && local.srs.reps) || 0;
+                const cloudReps = (cloud.srs && cloud.srs.reps) || 0;
+                if (localReps > cloudReps) { merged.push(local); return; }
+                if (cloudReps > localReps) { merged.push(cloud); return; }
+                // Same reps — pick card with LATER nextReview (more recently reviewed = interval advanced)
+                const localNext = (local.srs && local.srs.nextReview) || 0;
+                const cloudNext = (cloud.srs && cloud.srs.nextReview) || 0;
+                merged.push(localNext >= cloudNext ? local : cloud);
+            });
             mistakesDb = merged;
         }
-        // else: local has more entries — keep local, don't overwrite with smaller cloud set
 
         // ── NOTES: merge cloud + local so neither set loses notes ──
         const cloudNotes = data.notes || {};
