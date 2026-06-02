@@ -3258,6 +3258,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         activeQuestions = baseQuestions.map((q, i) => ({...q, originalIndex: i}));
         if (lobbySettings.shuffle) window.shuffleArray(activeQuestions);
        renderQuizView();
+        window._quizStartTime = Date.now();
         let mins = lobbySettings.timeMode === 'custom' ? (parseInt(document.getElementById('custom-time-input').value) || quiz.timeInMinutes) : (lobbySettings.timeMode === 'default' ? quiz.timeInMinutes : parseInt(lobbySettings.timeMode));
         if(lobbyQuizMode === 'wrong' && lobbySettings.timeMode === 'default') { let scale = baseQuestions.length / quiz.questions.length; mins = Math.max(1, Math.ceil(mins * scale)); }
 
@@ -3527,6 +3528,21 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         if (historyDb.length > 500) historyDb.length = 500;
         
         saveData(); updateSRSBadge(); showScreen('results'); window.scrollTo(0,0); filterReview('all'); _afterSubmit(correct, wrong, skipped, activeQuestions.length);
+        // Auto-log to War Room
+        try {
+          if(typeof window._wrAutoLog === 'function') {
+            const _dur = window._quizStartTime ? Math.round((Date.now()-window._quizStartTime)/60000) : 0;
+            const _isSRS = currentQuizId && (currentQuizId.startsWith('quiz_srs') || (db[currentQuizId] && db[currentQuizId].isSRS));
+            if(_isSRS) {
+              // SRS sprint — get subject breakdown
+              const _subjMap = {};
+              activeQuestions.forEach(function(q){ const s=q.tags&&q.tags[0]?q.tags[0]:'Other'; _subjMap[s]=(_subjMap[s]||0)+1; });
+              window._wrAutoLog({ type:'srs', title:'SRS Sprint', subject:'SRS', cards:activeQuestions.length, correct:correct, subjects:_subjMap, duration:_dur, ts:Date.now() });
+            } else {
+              window._wrAutoLog({ type:'quiz', title:displayTitle, subject:db[currentQuizId]?db[currentQuizId].subject:'Mixed', questions:activeQuestions.length, correct:correct, score:parseFloat(score.toFixed(2)), duration:_dur, ts:Date.now() });
+            }
+          }
+        } catch(e) {}
 
         // ── AUTO-SAVE SAFETY NET: immediately flush to IndexedDB so phone can't lose this attempt ──
         updateLocalCache().then(() => {
@@ -6871,6 +6887,10 @@ window.retryWrong = function() {
       </div>
       <div class="mt-field-row three">
         <div><label class="mt-label">Date</label><input class="mt-input" id="mt-date" type="date"/></div>
+        <div style="display:flex;gap:8px">
+          <div style="flex:1"><label class="mt-label">Start Time</label><input class="mt-input" id="mt-start-time" type="time" value="09:00"/></div>
+          <div style="flex:1"><label class="mt-label">End Time</label><input class="mt-input" id="mt-end-time" type="time" value="10:00"/></div>
+        </div>
         <div><label class="mt-label">Tag (write anything)</label><input class="mt-input" id="mt-tag" type="text" placeholder="e.g. Live, Paid, Re-attempt..."/></div>
         <div><label class="mt-label">Difficulty</label>
           <select class="mt-input" id="mt-diff"><option>Easy</option><option selected>Medium</option><option>Hard</option></select>
@@ -7172,17 +7192,29 @@ window.retryWrong = function() {
       rank:rankNum||null, rankTotal:rankTotal||null, percentile,
       takeaway:document.getElementById('mt-takeaway').value.trim(),
       sections, wrongs:document.getElementById('mt-wrongs').value.trim(),
-      net:mtNet(sections,sectList)
+      net:mtNet(sections,sectList),
+      startTime:document.getElementById('mt-start-time')?.value||'09:00',
+      endTime:document.getElementById('mt-end-time')?.value||'10:00'
     };
     mtMocks.push(mock);
     mtMocks.sort((a,b)=>a.date.localeCompare(b.date));
     mtSave(); mtResetLogForm(); mtUpdateFilters(); mtUpdateHeaderStats();
     mtToast(`✅ ${mtCurrentType==='full'?'Full Mock':'Sectional ('+mock.subject+')'} saved!`);
+    // Auto-log to War Room
+    try {
+      if(typeof window._wrAutoLog === 'function') {
+        const _st = mock.startTime||'09:00', _et = mock.endTime||'10:00';
+        const _dur = Math.max(1, Math.round(((parseInt(_et.split(':')[0])*60+parseInt(_et.split(':')[1]))-(parseInt(_st.split(':')[0])*60+parseInt(_st.split(':')[1])))));
+        window._wrAutoLog({ type:'mock', title:(mock.type==='full'?'Full Mock':'Sectional: '+mock.subject)+' — '+mock.platform+' #'+mock.mockno, subject:mock.type==='full'?'Mock Test':mock.subject, platform:mock.platform, mockno:mock.mockno, net:mock.net, duration:_dur, hrs:Math.round(_dur/60*10)/10, startTime:_st, endTime:_et, ts:Date.now() });
+      }
+    } catch(e) {}
     mtResetToStep1();
   };
 
   function mtResetLogForm(){
     ['mt-platform','mt-mockno','mt-wrongs','mt-takeaway','mt-rank-num','mt-rank-total','mt-tag'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    const _st=document.getElementById('mt-start-time'); if(_st) _st.value='09:00';
+    const _et=document.getElementById('mt-end-time'); if(_et) _et.value='10:00';
     const d=document.getElementById('mt-date'); if(d) d.value=new Date().toISOString().split('T')[0];
     const df=document.getElementById('mt-diff'); if(df) df.value='Medium';
   }
@@ -10678,6 +10710,7 @@ function fmtDate(s){ const d=new Date(s+'T00:00:00'); return d.toLocaleDateStrin
 function fmtShort(s){ const d=new Date(s+'T00:00:00'); return d.toLocaleDateString('en-IN',{day:'numeric',month:'short'}); }
 function subColor(s){ return SUB_COLORS[s]||'#94a3b8'; }
 function t2m(t){ if(!t) return 0; const[h,m]=t.split(':').map(Number); return h*60+m; }
+function to12hr(t){ if(!t)return ''; const [h,m]=t.split(':').map(Number); const ap=h>=12?'PM':'AM'; const hr=h%12||12; return hr+':'+(m<10?'0'+m:m)+' '+ap; }
 function hDisp(h){ if(!h||h<=0) return '0h'; const hrs=Math.floor(h),mins=Math.round((h-hrs)*60); return mins>0?`${hrs}h ${mins}m`:`${hrs}h`; }
 function getWeekStart(s){ const d=new Date(s+'T00:00:00'); const day=d.getDay(); const diff=day===0?-6:1-day; d.setDate(d.getDate()+diff); return dateStr(d); }
 function getWeekDates(ws){ return Array.from({length:7},(_,i)=>{ const d=new Date(ws+'T00:00:00'); d.setDate(d.getDate()+i); return dateStr(d); }); }
@@ -10720,6 +10753,8 @@ function loadHub(){
       const scDb=JSON.parse(raw);
       Object.values(scDb).forEach(t=>{
         if(!t.subject||!t.name) return;
+        // Only add chapter-level topics (not subtopics) to avoid showing Cone, Cylinder etc
+        if(t.isSubTopic) return;
         if(!hubData[t.subject]) hubData[t.subject]=[];
         if(!hubData[t.subject].includes(t.name)) hubData[t.subject].push(t.name);
       });
@@ -10867,17 +10902,28 @@ function renderTodayLogList(){
   if(!el) return;
   const logs=D.logs[todayStr()]||[];
   if(!logs.length){ el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;font-weight:700">No sessions logged yet today</div>'; return; }
-  el.innerHTML=[...logs].reverse().map(l=>`
-    <div style="display:flex;align-items:center;gap:10px;padding:11px 13px;border-radius:12px;border:1px solid var(--border);background:var(--bg3);margin-bottom:7px">
-      <div style="width:9px;height:9px;border-radius:50%;background:${subColor(l.subject)};flex-shrink:0"></div>
+  const sorted = [...logs].sort((a,b)=>(b.ts||0)-(a.ts||0));
+  el.innerHTML = sorted.map(l=>{
+    const isAuto = l.auto;
+    const icon = l.type==='srs' ? '🧠' : l.type==='mock' ? '📝' : l.type==='quiz' ? '⚡' : '✍️';
+    const badge = isAuto ? `<span style="font-size:8px;background:rgba(99,102,241,0.15);color:#818cf8;padding:1px 6px;border-radius:999px;font-weight:900;margin-left:4px">AUTO</span>` : '';
+    const timeStr = l.time || (l.start&&l.end ? l.start+'–'+l.end : '');
+    const detail = l.type==='srs' && l.subjects ? Object.entries(l.subjects).map(([s,n])=>s+': '+n).join(' · ') :
+                   l.type==='quiz' ? l.questions+'q · '+Math.round((l.correct||0)/(l.questions||1)*100)+'%' :
+                   l.type==='mock' ? 'Net: '+l.net+' · '+to12hr(l.startTime)+'–'+to12hr(l.endTime) :
+                   (l.subject+(l.chapter?' · '+l.chapter:''));
+    return `<div style="display:flex;align-items:center;gap:10px;padding:11px 13px;border-radius:12px;border:1px solid ${isAuto?'rgba(99,102,241,0.2)':'var(--border)'};background:${isAuto?'rgba(99,102,241,0.05)':'var(--bg3)'};margin-bottom:7px">
+      <div style="font-size:16px;flex-shrink:0">${icon}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:900">${l.label}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:2px;font-weight:700">${l.subject}${l.start&&l.end?' · '+l.start+'–'+l.end:''}</div>
-        ${noteHtml(l.note)}
+        <div style="font-size:12px;font-weight:900">${l.title||l.label||l.subject}${badge}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px;font-weight:700">${detail}${timeStr?' · 🕐 '+to12hr(timeStr.split('–')[0]):''}</div>
       </div>
-      <div style="font-size:13px;font-weight:900;color:${subColor(l.subject)};flex-shrink:0">${hDisp(l.hrs)}</div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:13px;font-weight:900;color:${subColor(l.subject||'Other')}">${l.duration?l.duration+'min':hDisp(l.hrs)}</div>
+      </div>
       <button onclick="deleteLog('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 4px">×</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function deleteLog(date,id){
@@ -10980,14 +11026,18 @@ function renderHomeTasks(blocks,logs){
     if(bLogged>=b.plannedHrs){cls='green';icon='✓';}
     else if(bLogged>0){cls='yellow';icon='◑';}
     const priCls=b.priority==='high'?'pri-high':b.priority==='low'?'pri-low':'pri-med';
-    return `<div class="task-row ${cls}">
-      <div class="task-circle" style="color:${subColor(b.subject)};border-color:${subColor(b.subject)}60">${icon}</div>
+    const isDone = b.done || bLogged>=b.plannedHrs;
+    const checkColor = isDone ? 'var(--green)' : subColor(b.subject);
+    return `<div class="task-row ${isDone?'green':cls}" style="${isDone?'opacity:0.7':''}">
+      <div onclick="markBlockDone('${b.date}',${b.id})" style="cursor:pointer;width:22px;height:22px;border-radius:6px;border:2px solid ${checkColor};display:flex;align-items:center;justify-content:center;flex-shrink:0;background:${isDone?checkColor:'transparent'};transition:all 0.2s">
+        ${isDone?'<span style="color:white;font-size:13px;font-weight:900">✓</span>':''}
+      </div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:900">${b.label}</div>
+        <div style="font-size:12px;font-weight:900;${isDone?'text-decoration:line-through;color:var(--muted)':''}">${b.label}</div>
         <div style="display:flex;align-items:center;gap:5px;margin-top:3px;flex-wrap:wrap">
           <span style="font-size:9px;background:${subColor(b.subject)}20;color:${subColor(b.subject)};padding:2px 7px;border-radius:999px;font-weight:900">${b.subject}</span>
           <span class="pri ${priCls}">${b.priority}</span>
-          <span style="font-size:9px;color:var(--muted);font-weight:700">🕐 ${b.start}–${b.end}</span>
+          <span style="font-size:9px;color:var(--muted);font-weight:700">🕐 ${to12hr(b.start)}–${to12hr(b.end)}</span>
         </div>
       </div>
       <div style="text-align:right;flex-shrink:0">
@@ -11002,6 +11052,12 @@ function renderHomeTasks(blocks,logs){
 function deleteBlock(date,id){
   D.blocks[date]=(D.blocks[date]||[]).filter(b=>b.id!==id);
   updateDebt(date); save(); renderHome(); renderCalendar(); renderDayDetail(date);
+}
+function markBlockDone(date,id){
+  const block=(D.blocks[date]||[]).find(b=>b.id===id);
+  if(!block) return;
+  block.done = !block.done;
+  save(); renderHome(); renderDayDetail(date);
 }
 
 function renderHomeSubjProgress(wd){
@@ -11239,8 +11295,60 @@ function init(){
   viewingBlockDate=todayStr();
   setInterval(()=>{ if(document.getElementById('screen-home').classList.contains('active')) renderHome(); },60000);
 }
+window.markBlockDone = markBlockDone;
+// ── WAR ROOM AUTO-LOG ─────────────────────────────────────
+window._wrAutoLog = function(entry) {
+  try {
+    // Only log if D is loaded (plannerInit has run)
+    if(typeof D === 'undefined' || typeof save === 'function' === false) return;
+    // Only log if planner has been initialized
+    if(!window._plannerLoaded) { 
+      // Queue for later
+      window._wrLogQueue = window._wrLogQueue || [];
+      window._wrLogQueue.push(entry);
+      return;
+    }
+    const today = new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
+    if(!D.logs[today]) D.logs[today] = [];
+    // Add auto entry with type marker
+    D.logs[today].push({
+      id: Date.now(),
+      date: today,
+      type: entry.type || 'auto',
+      title: entry.title || '',
+      subject: entry.subject || '',
+      chapter: entry.chapter || '',
+      topic: entry.topic || '',
+      hrs: entry.duration ? Math.round(entry.duration/60*10)/10 : (entry.hrs||0),
+      duration: entry.duration || 0,
+      questions: entry.questions || 0,
+      correct: entry.correct || 0,
+      score: entry.score || 0,
+      cards: entry.cards || 0,
+      subjects: entry.subjects || {},
+      mockPlatform: entry.platform || '',
+      mockNo: entry.mockno || '',
+      net: entry.net || 0,
+      auto: true,
+      ts: entry.ts || Date.now(),
+      time: new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})
+    });
+    save();
+    // Re-render if War Room is open
+    if(document.getElementById('screen-planner') && !document.getElementById('screen-planner').classList.contains('hidden')) {
+      if(typeof renderHome === 'function') renderHome();
+    }
+  } catch(e) { console.warn('War Room auto-log error:', e); }
+};
+
 window.plannerInit = function(){
   load(); loadHub(); viewingBlockDate=todayStr();
+  window._plannerLoaded = true;
+  // Flush queued auto-logs
+  if(window._wrLogQueue && window._wrLogQueue.length > 0) {
+    window._wrLogQueue.forEach(function(e){ window._wrAutoLog(e); });
+    window._wrLogQueue = [];
+  }
   // Populate subject dropdowns from hubData
   ['b-subject','l-subject'].forEach(function(id){
     var el=document.getElementById(id);
