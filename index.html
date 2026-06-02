@@ -9213,7 +9213,7 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
   }
 
   // Store context for post-quiz callback
-  window._scRevContext = { key, rev, allQuestions: questions, startIdx };
+  window._scRevContext = { key, rev, allQuestions: questions, startIdx, doneOffset: rev === 'r1' ? (((t.r1QuestionsAttempted||[]).length > 0 ? (t.r1QuestionsAttempted||[]).length : (t.r1Progress||0))) : startIdx };
 
   // For R1: doneOffset = already-answered questions.
   // If r1QuestionsAttempted is empty but r1Progress > 0 (sync bug wiped it),
@@ -9875,7 +9875,8 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
   // Store wrong/skipped for next revision round.
   // Fresh-start detection: R1 uses doneOffset===0; R2/R3/R4 use startIdx===0.
   const nextRevWrongKey = { r1:'r1Wrong', r2:'r2Wrong', r3:'r3Wrong', r4:'r4Wrong' }[rev];
-  const isFreshStart = rev === 'r1' ? doneOffset === 0 : startIdx === 0;
+  // isFreshStart: R1 uses r1Progress (reliable) not doneOffset (often 0 due to sync)
+  const isFreshStart = rev === 'r1' ? (t.r1Progress || 0) === 0 : startIdx === 0;
   if (nextRevWrongKey) {
     if (isFreshStart) {
       t[nextRevWrongKey] = wrongQuestions; // Fresh start — replace previous
