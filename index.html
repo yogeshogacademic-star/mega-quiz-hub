@@ -11256,7 +11256,16 @@ window.plannerInit = function(){
 };
 
 // Expose planner save globally so hub cloud sync picks it up
-window._plannerSave = function() { try { if(typeof save === 'function') save(); } catch(e) {} };
+window._plannerSave = function() {
+  try {
+    // Only save if D has actual data — prevents overwriting with empty D
+    // before plannerInit has run load()
+    if(typeof save === 'function' && typeof D !== 'undefined') {
+      const hasData = Object.keys(D.blocks||{}).length > 0 || Object.keys(D.logs||{}).length > 0;
+      if(hasData) save();
+    }
+  } catch(e) {}
+};
 
 // Poll until _saveDataGlobal exists then wrap it once
 var _plannerHookDone = false;
