@@ -3545,6 +3545,11 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         if (historyDb.length > 500) historyDb.length = 500;
         
         saveData(); updateSRSBadge(); showScreen('results'); window.scrollTo(0,0); filterReview('all'); _afterSubmit(correct, wrong, skipped, activeQuestions.length);
+        // Extra push for iPhone — force cloud sync 3s after results appear
+        // Fixes: iPhone sprints not reaching cloud when user closes app quickly
+        setTimeout(function() {
+          if(typeof window._saveDataGlobal === 'function') window._saveDataGlobal().catch(function(){});
+        }, 3000);
         // Auto-log to War Room
         try {
           if(typeof window._wrAutoLog === 'function') {
