@@ -2380,15 +2380,26 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
     // Only merge if cloud has MORE data — never overwrite local with empty/less data
     if(_cl>0||_cb>0){
         const _m=JSON.parse(JSON.stringify(data.plannerData));
-        // Always keep local entries that cloud doesn't have
-        Object.keys((_lp.logs)||{}).forEach(d=>{if(!_m.logs[d])_m.logs[d]=_lp.logs[d];});
-        Object.keys((_lp.blocks)||{}).forEach(d=>{if(!_m.blocks[d])_m.blocks[d]=_lp.blocks[d];});
-        // Only write if merged result has more data than what we currently have
-        const mergedLogs=Object.keys(_m.logs||{}).length;
-        const mergedBlocks=Object.keys(_m.blocks||{}).length;
-        if(mergedLogs>=_ll&&mergedBlocks>=_lb){
-            localStorage.setItem('warroom_v1',JSON.stringify(_m));
-        }
+        // Merge logs day by day — combine entries within same day, never drop any
+        Object.keys((_lp.logs)||{}).forEach(d=>{
+            if(!_m.logs[d]){
+                _m.logs[d]=_lp.logs[d]; // day missing from cloud — add it
+            } else {
+                // Day exists in both — merge individual entries by id
+                const cloudIds = new Set((_m.logs[d]||[]).map(e=>e.id));
+                (_lp.logs[d]||[]).forEach(e=>{ if(!cloudIds.has(e.id)) _m.logs[d].push(e); });
+            }
+        });
+        // Merge blocks day by day — same approach
+        Object.keys((_lp.blocks)||{}).forEach(d=>{
+            if(!_m.blocks[d]){
+                _m.blocks[d]=_lp.blocks[d];
+            } else {
+                const cloudIds = new Set((_m.blocks[d]||[]).map(e=>e.id));
+                (_lp.blocks[d]||[]).forEach(e=>{ if(!cloudIds.has(e.id)) _m.blocks[d].push(e); });
+            }
+        });
+        localStorage.setItem('warroom_v1',JSON.stringify(_m));
     }
 }catch(e){console.warn('Planner sync:',e);}}
         const cloudQCount = Object.values(db).reduce((a,subj) => {
