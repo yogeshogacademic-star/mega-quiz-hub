@@ -2105,10 +2105,16 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
         const lastKnownCount = parseInt(localStorage.getItem('megaLastKnownCount') || '0');
 
         if (lastKnownCount > 0 && totalQLocal === 0) {
-            // DB not loaded yet — skip save silently, don't block cloud
-            console.warn('⚠️ Save skipped: quiz DB not loaded yet. Will retry after load.');
-            showSyncStatus('error');
-            return;
+            // DB not loaded yet — but still push SRS data if we have it
+            // SRS sprint updates mistakesDb which is always loaded
+            if (mistakesDb && mistakesDb.length > 0) {
+                console.warn('⚠️ Quiz DB not loaded but SRS data exists — pushing partial save (SRS+history+syllabus)');
+                // Continue with save — cleanDb will be empty but SRS/history/syllabus will sync
+            } else {
+                console.warn('⚠️ Save skipped: quiz DB not loaded yet. Will retry after load.');
+                showSyncStatus('error');
+                return;
+            }
         }
         if (lastKnownCount > 0 && totalQLocal < lastKnownCount * 0.3) {
             // Only block if local count is less than 30% of known — much safer threshold
@@ -2467,7 +2473,18 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
         await tryCloudSync(0);
 
         // Auto-retry when browser comes back online
-        window.addEventListener('online', () => {
+        // Sync when page becomes visible again (fixes iPhone background suspension)
+document.addEventListener('visibilitychange', function() {
+  if(document.visibilityState === 'visible') {
+    setTimeout(function() {
+      if(typeof window._saveDataGlobal === 'function') {
+        window._saveDataGlobal().catch(function(){});
+      }
+    }, 2000);
+  }
+});
+
+window.addEventListener('online', () => {
             const el = document.getElementById('sync-status');
             if (el && el.textContent.includes('Offline')) tryCloudSync(0);
         });
