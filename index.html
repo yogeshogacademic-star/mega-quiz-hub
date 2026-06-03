@@ -10478,23 +10478,28 @@ body.light select.inp option { background:white; }
     <div id="h-week-perf" style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-around"></div>
   </div>
 
-  <!-- Weekly Planner -->
+  <!-- Weekly Checklist -->
   <div class="card" style="margin-bottom:14px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <div>
         <div style="font-size:14px;font-weight:900;color:var(--text)" id="h-week-label">This Week</div>
         <div style="font-size:11px;color:var(--muted);font-weight:700;margin-top:2px" id="h-week-dates"></div>
       </div>
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:6px;align-items:center">
         <button onclick="wrWeekNav(-1)" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted2);padding:4px 10px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:900">←</button>
         <button onclick="wrWeekNav(0)" style="background:var(--bg3);border:1px solid var(--border);color:var(--accent);padding:4px 10px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:900">Today</button>
         <button onclick="wrWeekNav(1)" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted2);padding:4px 10px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:900">→</button>
       </div>
     </div>
-    <div id="h-week-days"></div>
+    <!-- Add item row -->
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <input id="h-checklist-input" class="inp" style="flex:1;padding:8px 12px;font-size:12px" placeholder="Add a goal for this week...">
+      <button onclick="wrChecklistAdd()" style="background:linear-gradient(135deg,#4f6ef7,#7c3aed);border:none;color:white;padding:8px 14px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:900">+</button>
+    </div>
+    <div id="h-checklist-list"></div>
   </div>
 
-  <!-- ROW 2: Tasks + Subject Progress -->
+  <!-- ROW 2: Tasks + Today Logged -->
   <div class="g2" style="margin-bottom:14px">
 
     <!-- Today Tasks -->
@@ -10523,15 +10528,6 @@ body.light select.inp option { background:white; }
       <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:14px">All sessions — auto + manual</div>
       <div id="h-today-logged-list">
         <div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;font-weight:700">Nothing logged yet today 📋</div>
-      </div>
-    </div>
-
-    <!-- Subject Progress -->
-    <div class="card">
-      <div style="font-size:14px;font-weight:900;color:var(--text);margin-bottom:4px">Subject Hours</div>
-      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:14px">This week — incl. SRS by subject</div>
-      <div id="h-subj-progress">
-        <div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;font-weight:700">Log sessions to see breakdown 📊</div>
       </div>
     </div>
 
@@ -10874,7 +10870,7 @@ function getWeekDates(ws){ return Array.from({length:7},(_,i)=>{ const d=new Dat
 
 // ════════════════ STORAGE ════════════════
 function save(){ localStorage.setItem(STORE,JSON.stringify(D)); }
-function load(){ const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);}catch(e){} D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||50; }
+function load(){ const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);}catch(e){} D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||50; D.checklist=D.checklist||{}; }
 
 // ════════════════ HUB DATA ════════════════
 const PLANNER_SUBJECTS = {
@@ -11226,10 +11222,7 @@ function renderHome(){
   // Today Logged feed
   renderHomeTodayLogged();
 
-  // Subject progress
-  renderHomeSubjProgress(wd);
-
-  // Weekly planner
+  // Weekly planner / checklist
   renderWeeklyPlanner();
 
   // Weekly performance
@@ -11345,7 +11338,7 @@ function renderHomeTodayLogged(){
   }
   listEl.innerHTML=sorted.map(l=>{
     const isAuto=l.auto;
-    const icon=l.type==='srs'?'🧠':l.type==='mock'?'📝':l.type==='quiz'?'⚡':'✍️';
+    const icon=l.type==='srs'?'🧠':l.type==='mock'?'📝':l.type==='quiz'?'⚡':l.type==='lecture'?(l.isRevision?'🔄':'🎬'):l.type==='revision'?'📚':'✍️';
     const badge=isAuto?`<span style="font-size:8px;background:rgba(99,102,241,0.15);color:#818cf8;padding:1px 6px;border-radius:999px;font-weight:900;margin-left:4px">AUTO</span>`:'';
     let detail='';
     if(l.type==='srs'){
@@ -11356,10 +11349,15 @@ function renderHomeTodayLogged(){
       detail=`${l.questions||0}q · ${l.correct||0} correct · ${Math.round((l.correct||0)/(l.questions||1)*100)}%`;
     } else if(l.type==='mock'){
       detail=`Net: ${l.net||0} · ${to12hr(l.startTime||'09:00')}–${to12hr(l.endTime||'10:00')}`;
+    } else if(l.type==='lecture'){
+      detail=(l.isRevision?'🔄 Rev':'#'+l.lectureNo)+' · '+l.chapter+' · '+l.subject;
+    } else if(l.type==='revision'){
+      detail=l.subject+(l.chapter?' · '+l.chapter:'');
     } else {
       detail=l.subject+(l.chapter?' · '+l.chapter:'');
     }
     const timeStr=l.time||(l.start&&l.end?l.start+'–'+l.end:'');
+    const delBtn=!isAuto?`<button onclick="deleteLog('${l.date}',${l.id});renderHomeTodayLogged();renderHome()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 4px;line-height:1;flex-shrink:0" title="Delete">×</button>`:'';
     return `<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:11px;border:1px solid ${isAuto?'rgba(99,102,241,0.2)':'var(--border)'};background:${isAuto?'rgba(99,102,241,0.05)':'var(--bg3)'};margin-bottom:7px">
       <div style="font-size:15px;flex-shrink:0;margin-top:1px">${icon}</div>
       <div style="flex:1;min-width:0">
@@ -11367,6 +11365,7 @@ function renderHomeTodayLogged(){
         <div style="font-size:10px;color:var(--muted);margin-top:3px;font-weight:700;line-height:1.5">${detail}${timeStr?' · 🕐 '+to12hr(timeStr.split('–')[0]):''}</div>
       </div>
       <div style="font-size:12px;font-weight:900;color:${subColor(l.subject||'Other')};flex-shrink:0;white-space:nowrap">${l.duration?l.duration+'m':hDisp(l.hrs)}</div>
+      ${delBtn}
     </div>`;
   }).join('');
 }
@@ -11790,80 +11789,68 @@ function renderWeeklyPlanner(){
   const today=todayStr();
   const base=new Date(today+'T00:00:00');
   base.setDate(base.getDate()+wrPlannerWeekOffset*7);
-  const baseStr=dateStr(base);
-  const ws=getWeekStart(baseStr);
+  const ws=getWeekStart(dateStr(base));
   const wd=getWeekDates(ws);
   const isCurrentWeek=wrPlannerWeekOffset===0;
-
-  // Header
   const wsDate=new Date(ws+'T00:00:00');
   const weDate=new Date(wd[6]+'T00:00:00');
   const fmt=d=>d.toLocaleDateString('en-IN',{day:'numeric',month:'short'});
-  document.getElementById('h-week-label').textContent=isCurrentWeek?'This Week':wrPlannerWeekOffset===-1?'Last Week':wrPlannerWeekOffset===1?'Next Week':'Week of '+fmt(wsDate);
-  document.getElementById('h-week-dates').textContent=fmt(wsDate)+' – '+fmt(weDate);
+  const lbl=document.getElementById('h-week-label');
+  const dts=document.getElementById('h-week-dates');
+  if(lbl) lbl.textContent=isCurrentWeek?'This Week':wrPlannerWeekOffset===-1?'Last Week':wrPlannerWeekOffset===1?'Next Week':'Week of '+fmt(wsDate);
+  if(dts) dts.textContent=fmt(wsDate)+' \u2013 '+fmt(weDate);
+  renderChecklist();
+}
 
-  const el=document.getElementById('h-week-days');
+function wrChecklistKey(){
+  const today=todayStr();
+  const base=new Date(today+'T00:00:00');
+  base.setDate(base.getDate()+wrPlannerWeekOffset*7);
+  return getWeekStart(dateStr(base));
+}
+
+function wrChecklistAdd(){
+  const inp=document.getElementById('h-checklist-input');
+  if(!inp) return;
+  const text=inp.value.trim();
+  if(!text) return;
+  if(!D.checklist) D.checklist={};
+  const key=wrChecklistKey();
+  if(!D.checklist[key]) D.checklist[key]=[];
+  D.checklist[key].push({id:Date.now(),text,done:false});
+  inp.value=''; save(); renderChecklist();
+}
+
+function wrChecklistToggle(key,id){
+  if(!D.checklist||!D.checklist[key]) return;
+  const item=D.checklist[key].find(x=>x.id===id);
+  if(item) item.done=!item.done;
+  save(); renderChecklist();
+}
+
+function wrChecklistDelete(key,id){
+  if(!D.checklist||!D.checklist[key]) return;
+  D.checklist[key]=D.checklist[key].filter(x=>x.id!==id);
+  save(); renderChecklist();
+}
+
+function renderChecklist(){
+  const el=document.getElementById('h-checklist-list');
   if(!el) return;
-  const dayNames=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-  el.innerHTML=wd.map((ds,i)=>{
-    const isToday=ds===today;
-    const isPast=ds<today;
-    const blocks=D.blocks[ds]||[];
-    const logs=D.logs[ds]||[];
-    const plannedHrs=blocks.reduce((a,b)=>a+b.plannedHrs,0);
-    const loggedHrs=logs.reduce((a,l)=>a+l.hrs,0);
-    const pct=plannedHrs>0?Math.min(100,Math.round((loggedHrs/plannedHrs)*100)):0;
-    const d=new Date(ds+'T00:00:00');
-    const dateNum=d.getDate();
-    const allDone=blocks.length>0&&blocks.every(b=>b.done||loggedHrs>=plannedHrs);
-
-    // Day header
-    let dayHeaderBg='var(--bg3)';
-    let dayHeaderColor='var(--muted2)';
-    if(isToday){ dayHeaderBg='rgba(79,110,247,0.15)'; dayHeaderColor='#818cf8'; }
-    else if(isPast&&loggedHrs>0){ dayHeaderBg='rgba(16,185,129,0.08)'; dayHeaderColor='#4ade80'; }
-
-    const autoLogs=logs.filter(l=>l.auto);
-    const autoIconStr=autoLogs.length?(()=>{
-      const hasSRS=autoLogs.some(l=>l.type==='srs');
-      const hasQuiz=autoLogs.some(l=>l.type==='quiz');
-      const hasMock=autoLogs.some(l=>l.type==='mock');
-      const hasRev=autoLogs.some(l=>l.type==='revision');
-      const hasLec=autoLogs.some(l=>l.type==='lecture');
-      return (hasSRS?'🧠':'')+(hasQuiz?'⚡':'')+(hasMock?'📝':'')+(hasRev?'📚':'')+(hasLec?'🎬':'');
-    })():'';
-
-    const blocksHtml=blocks.length?[...blocks].sort((a,b)=>t2m(a.start)-t2m(b.start)).map(b=>{
-      const isDone=b.done||(isPast&&loggedHrs>=plannedHrs);
-      return `<div onclick="markBlockDone('${b.date}',${b.id})" style="display:flex;align-items:center;gap:7px;padding:7px 10px;border-radius:9px;border:1px solid ${isDone?'rgba(16,185,129,0.25)':'var(--border)'};background:${isDone?'rgba(16,185,129,0.06)':'var(--bg)'};margin-bottom:5px;cursor:pointer;transition:all 0.15s">
-        <div style="width:18px;height:18px;border-radius:5px;border:2px solid ${isDone?'#10b981':subColor(b.subject)};display:flex;align-items:center;justify-content:center;flex-shrink:0;background:${isDone?'#10b981':'transparent'}">
-          ${isDone?'<span style="color:white;font-size:10px;font-weight:900">✓</span>':''}
-        </div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:11px;font-weight:900;${isDone?'text-decoration:line-through;color:var(--muted)':''};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.label}</div>
-          <div style="font-size:9px;color:var(--muted);font-weight:700">${to12hr(b.start)}–${to12hr(b.end)} · ${hDisp(b.plannedHrs)}</div>
-        </div>
-        <button onclick="event.stopPropagation();deleteBlock('${b.date}',${b.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:1px 3px">×</button>
-      </div>`;
-    }).join(''):`<div style="text-align:center;padding:8px 0;color:var(--muted);font-size:10px;font-weight:700">${isPast?'No blocks logged':'Empty — plan it!'}</div>`;
-
-    return `<div style="border:1px solid ${isToday?'rgba(79,110,247,0.4)':'var(--border)'};border-radius:14px;overflow:hidden;margin-bottom:10px">
-      <div style="padding:9px 12px;background:${dayHeaderBg};display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="calSelectDate('${ds}');switchTab('calendar',document.querySelector('[onclick=\\'switchTab(\\\\x22calendar\\\\x22,this)\\\\x27]'))">
-        <div style="display:flex;align-items:center;gap:8px">
-          <div style="font-size:13px;font-weight:900;color:${dayHeaderColor}">${dayNames[i]} <span style="font-size:11px;opacity:0.7">${dateNum}</span></div>
-          ${isToday?'<span style="font-size:8px;background:rgba(79,110,247,0.2);color:#818cf8;padding:1px 6px;border-radius:999px;font-weight:900">TODAY</span>':''}
-          ${autoIconStr?`<span style="font-size:10px">${autoIconStr}</span>`:''}
-        </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          ${loggedHrs>0?`<span style="font-size:10px;font-weight:900;color:#4ade80">${hDisp(loggedHrs)}</span>`:''}
-          ${plannedHrs>0?`<span style="font-size:9px;color:var(--muted);font-weight:700">/ ${hDisp(plannedHrs)}</span>`:''}
-          <button onclick="event.stopPropagation();viewingBlockDate='${ds}';openBlockModal()" style="background:rgba(79,110,247,0.15);border:1px solid rgba(79,110,247,0.25);color:#818cf8;font-size:9px;font-weight:900;padding:2px 7px;border-radius:6px;cursor:pointer">+</button>
-        </div>
-      </div>
-      ${plannedHrs>0?`<div style="height:3px;background:var(--border)"><div style="height:100%;width:${pct}%;background:${pct>=100?'#10b981':pct>=60?'#4f6ef7':'#f59e0b'};transition:width 0.3s"></div></div>`:''}
-      <div style="padding:10px 10px 6px">${blocksHtml}</div>
-    </div>`;
-  }).join('');
+  if(!D.checklist) D.checklist={};
+  const key=wrChecklistKey();
+  const items=D.checklist[key]||[];
+  if(!items.length){
+    el.innerHTML='<div style="text-align:center;padding:12px;color:var(--muted);font-size:11px;font-weight:700">No goals yet \u2014 add one above</div>';
+    return;
+  }
+  el.innerHTML=items.map(item=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--border)">
+    <div onclick="wrChecklistToggle('${key}',${item.id})" style="width:20px;height:20px;border-radius:6px;border:2px solid ${item.done?'#10b981':'var(--border2)'};background:${item.done?'#10b981':'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:all 0.15s">
+      ${item.done?'<span style="color:white;font-size:11px;font-weight:900">\u2713</span>':''}
+    </div>
+    <div style="flex:1;font-size:12px;font-weight:700;${item.done?'text-decoration:line-through;color:var(--muted)':''}">${item.text}</div>
+    <button onclick="wrChecklistDelete('${key}',${item.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px;line-height:1">\xd7</button>
+  </div>`).join('');
 }
 
 // ════════════════ WEEKLY PERFORMANCE ════════════════
