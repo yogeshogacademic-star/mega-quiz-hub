@@ -9504,10 +9504,16 @@ window.scStartRevision = (key, rev) => {
       }
     }
 
+    // Use r1QuestionsAttempted (text-based) to exclude already-seen questions.
+    // This is immune to pool order changes and SRS-filtered position drift.
+    // Falls back to index-slice if r1QuestionsAttempted is empty (sync wiped it).
+    const attemptedSet = new Set(t.r1QuestionsAttempted || []);
     const doneSoFar = t.r1Progress || 0;
-    if (doneSoFar > 0 && doneSoFar < questions.length) {
-      // INDEX-SKIP on FULL pool first (before SRS filter)
-      // Then SRS-filter only the REMAINING questions
+    if (attemptedSet.size > 0) {
+      // Primary: filter by actual question texts seen
+      questions = questions.filter(q => !srsMap.has(q.question) && !attemptedSet.has(q.question));
+    } else if (doneSoFar > 0 && doneSoFar < questions.length) {
+      // Fallback: index-slice (r1QuestionsAttempted was wiped by sync)
       const remaining = questions.slice(doneSoFar);
       questions = remaining.filter(q => !srsMap.has(q.question));
     } else if (doneSoFar >= questions.length) {
@@ -9676,8 +9682,13 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
     if (rev === 'r1') {
       const srsMap = new Map();
       mistakesDb.forEach(m => { if (m.question) srsMap.set(m.question, m); });
+      const attemptedSet = new Set(t.r1QuestionsAttempted || []);
       const doneSoFar = t.r1Progress || 0;
-      if (doneSoFar > 0 && doneSoFar < questions.length) {
+      if (attemptedSet.size > 0) {
+        // Primary: filter by actual question texts seen — immune to pool/SRS drift
+        questions = questions.filter(q => !srsMap.has(q.question) && !attemptedSet.has(q.question));
+      } else if (doneSoFar > 0 && doneSoFar < questions.length) {
+        // Fallback: index-slice (r1QuestionsAttempted was wiped by sync)
         const remaining = questions.slice(doneSoFar);
         questions = remaining.filter(q => !srsMap.has(q.question));
       } else if (doneSoFar >= questions.length) {
@@ -10506,11 +10517,11 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
   }
 
   // Track answered questions for after-R4 SRS graduation.
-  // Use _scRevContext — works on ANY device, no reviewData needed
+  // Use activeQuestions directly — always available at submit time on any device.
+  // _scRevContext.allQuestions is NOT used here because it's a window variable
+  // that dies when the app is closed between batches (phone multi-session bug).
   if (rev === 'r1') {
-    const batchQs = window._scRevContext && window._scRevContext.allQuestions
-      ? window._scRevContext.allQuestions.slice(0, total).map(q => q.question).filter(Boolean)
-      : (window.activeQuestions || []).map(q => q.question).filter(Boolean);
+    const batchQs = (window.activeQuestions || []).map(q => q.question).filter(Boolean);
     const existing = t.r1QuestionsAttempted || [];
     t.r1QuestionsAttempted = [...new Set([...existing, ...batchQs])];
     scSave();
