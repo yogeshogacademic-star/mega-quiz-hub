@@ -2372,7 +2372,7 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                 if (data.syllabusLastSave) localStorage.setItem('sc_syllabus_lastSave', data.syllabusLastSave.toString());
                 if (typeof scLoad === 'function') scLoad();
             } else {
-                const progressFields = ['r1Progress','r2Progress','r3Progress','r4Progress','r1QsTotalRaw','r2QsTotal','r3QsTotal','r4QsTotal'];
+                const progressFields = ['r1Progress','r2Progress','r3Progress','r4Progress','r2QsTotal','r3QsTotal','r4QsTotal'];
                 const flagFields     = ['r1','r2','r3','r4','lec'];
                 const wrongFields    = ['r1Wrong','r2Wrong','r3Wrong','r4Wrong'];
                 const dateFields     = ['lecDate','r1Date','r2Date','r3Date','r4Date'];
@@ -2385,6 +2385,10 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                             merged[key][f] = cloudSyllabusData[key][f]; changed = true;
                         }
                     });
+                    // BUG5 FIX: r1QsTotalRaw — take MAX (more questions discovered = better)
+                    if ((cloudSyllabusData[key].r1QsTotalRaw||0) > (merged[key].r1QsTotalRaw||0)) {
+                        merged[key].r1QsTotalRaw = cloudSyllabusData[key].r1QsTotalRaw; changed = true;
+                    }
                     flagFields.forEach(f => {
                         if (cloudSyllabusData[key][f] && !merged[key][f]) {
                             merged[key][f] = cloudSyllabusData[key][f]; changed = true;
@@ -2395,20 +2399,45 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                             merged[key][f] = cloudSyllabusData[key][f]; changed = true;
                         }
                     });
+                    // BUG1 FIX: wrongFields — UNION both arrays, never discard either device's wrong questions
                     wrongFields.forEach(f => {
-                        const ca = cloudSyllabusData[key][f]||[], la = merged[key][f]||[];
-                        if (ca.length > la.length) { merged[key][f] = ca; changed = true; }
+                        const ca = cloudSyllabusData[key][f]||[];
+                        const la = merged[key][f]||[];
+                        if (ca.length > 0) {
+                            const union = [...new Set([...la, ...ca])];
+                            if (union.length > la.length) { merged[key][f] = union; changed = true; }
+                        }
                     });
+                    // SAFE FIX: r1QuestionsAttempted — only take cloud data if cloud has MORE progress
+                    // Union is dangerous: if user intentionally restarted R1 (cleared array),
+                    // union would restore old cloud data and corrupt the fresh cycle
+                    const cloudQA = cloudSyllabusData[key].r1QuestionsAttempted || [];
+                    const localQA = merged[key].r1QuestionsAttempted || [];
+                    const cloudR1Progress = cloudSyllabusData[key].r1Progress || 0;
+                    const localR1Progress = merged[key].r1Progress || 0;
+                    if (cloudQA.length > 0 && cloudR1Progress > localR1Progress) {
+                        // Cloud is ahead — take cloud's list (more questions done)
+                        merged[key].r1QuestionsAttempted = cloudQA; changed = true;
+                    } else if (cloudQA.length > 0 && cloudR1Progress === localR1Progress && cloudQA.length > localQA.length) {
+                        // Same progress but cloud has more questions tracked — union safely
+                        const union = [...new Set([...localQA, ...cloudQA])];
+                        if (union.length > localQA.length) { merged[key].r1QuestionsAttempted = union; changed = true; }
+                    }
+                    // wbAttempts — keep whichever device has more attempts (longer array)
+                    const cloudWb = cloudSyllabusData[key].wbAttempts || [];
+                    const localWb = merged[key].wbAttempts || [];
+                    if (cloudWb.length > localWb.length) {
+                        merged[key].wbAttempts = cloudWb; changed = true;
+                    }
                 });
                 if (changed) {
                     localStorage.setItem('sc_syllabus_v1', JSON.stringify(merged));
                     if (typeof scLoad === 'function') scLoad();
-                    console.log('[Syllabus Sync] Merged cloud progress (MAX per topic).');
+                    console.log('[Syllabus Sync] Merged cloud progress (UNION wrong queues + r1QuestionsAttempted).');
                 }
                 // Always push merged syllabus back to cloud so ALL devices get latest
                 setTimeout(() => {
                     if (typeof window._saveDataGlobal === 'function') {
-                        console.log('[Syllabus Sync] Pushing merged progress back to cloud...');
                         window._saveDataGlobal().catch(()=>{});
                     }
                 }, 2000);
@@ -3641,7 +3670,8 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                         // R1 correct → enter SRS @ 3 days
                         let newCard = JSON.parse(JSON.stringify(q));
                         newCard.subject = assignedSubject;
-                        newCard.srs = { reps: 1, ease: 2.5, interval: 3, nextReview: Date.now() + (3 * 24 * 60 * 60 * 1000) };
+                        const _entryInterval = 4 + Math.random() * 3; // Days 4–7 random spread
+                        newCard.srs = { reps: 1, ease: 2.5, interval: Math.round(_entryInterval * 10) / 10, nextReview: Date.now() + (_entryInterval * 24 * 60 * 60 * 1000) };
                         newCard.isMastered = false;
                         mistakesDb.push(newCard);
                     }
@@ -3692,9 +3722,92 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
 
         // ── WEAK BANK: pure practice — skip history, SRS, all saves ──
         if (db[currentQuizId] && db[currentQuizId].isWeakBank) {
+          const _wbSubj = db[currentQuizId]._weakSubj || '';
+          const _wbCat  = db[currentQuizId]._weakCat  || '';
+          const _wbStartTime = window._quizStartTime ? new Date(window._quizStartTime).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'}) : '';
+          const _wbEndTime   = new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'});
+          const _wbDur = window._quizStartTime ? Math.round((Date.now()-window._quizStartTime)/60000) : 0;
+
+          // Build correct/wrong sets from this attempt
+          const _wbCorrectSet = new Set();
+          const _wbWrongArr   = [];
+          activeQuestions.forEach((q, i) => {
+            const sel = quizState.answers[i];
+            let isCorrect = false;
+            if (q.type === 'typing' || q.exactAnswer !== undefined) {
+              isCorrect = sel !== undefined && String(sel).toLowerCase().trim() === String(q.exactAnswer||'').toLowerCase().trim();
+            } else {
+              isCorrect = sel !== undefined && q.options && q.options[sel] && q.options[sel].correct;
+            }
+            if (isCorrect) _wbCorrectSet.add(q.question);
+            else _wbWrongArr.push(q.question);
+          });
+
+          // Save attempt to scDb
+          const _wbTopicKey = Object.keys(scDb||{}).find(k => {
+            const t = scDb[k];
+            return t && !t.isSubTopic && t.subject === _wbSubj && (t.name === _wbCat || scMatchesTopic({tags:[_wbSubj,_wbCat]}, t.name, t.subject));
+          });
+          // Update r1Wrong — remove questions got correct
+          let _wbNewR1WrongCount = 0;
+          if (_wbTopicKey && scDb[_wbTopicKey]) {
+            const t = scDb[_wbTopicKey];
+            const before = (t.r1Wrong||[]).length;
+            t.r1Wrong = (t.r1Wrong||[]).filter(q => !_wbCorrectSet.has(q));
+            _wbNewR1WrongCount = t.r1Wrong.length;
+            // Store attempt record
+            if (!t.wbAttempts) t.wbAttempts = [];
+            t.wbAttempts.push({ ts:Date.now(), total:activeQuestions.length, correct:_wbCorrectSet.size, wrong:_wbWrongArr.length, wrongQuestions:_wbWrongArr });
+            if (t.wbAttempts.length > 20) t.wbAttempts = t.wbAttempts.slice(-20);
+            scSave();
+          }
+
+          // Show result screen first
           updateSRSBadge(); showScreen('results'); window.scrollTo(0,0); filterReview('all');
-          setTimeout(() => { delete db['quiz_weak_bank_current']; }, 5000); // clean up after results viewed
-          return; // nothing saved, nothing updated
+
+          // Inject result modal after short delay
+          setTimeout(() => {
+            const _wbTotal = activeQuestions.length;
+            const _wbHrs = Math.round(_wbDur/60*10)/10 || 0.1;
+            const accColor = _wbCorrectSet.size/_wbTotal >= 0.75 ? '#4ade80' : _wbCorrectSet.size/_wbTotal >= 0.5 ? '#fbbf24' : '#f87171';
+            const sEnc = encodeURIComponent(_wbSubj);
+            const cEnc = encodeURIComponent(_wbCat);
+            const modalDiv = document.createElement('div');
+            modalDiv.id = 'wb-result-modal';
+            modalDiv.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+            modalDiv.innerHTML = `<div style="background:#0f172a;border:1px solid #1e293b;border-radius:22px;padding:24px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;">
+              <div style="text-align:center;margin-bottom:20px">
+                <div style="font-size:13px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Weak Bank Practice</div>
+                <div style="font-size:20px;font-weight:900;color:white">${_wbCat}</div>
+                <div style="font-size:11px;color:#64748b;margin-top:2px">${_wbSubj}${_wbStartTime?' · '+_wbStartTime+'–'+_wbEndTime:''}</div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+                <div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:14px;padding:16px;text-align:center">
+                  <div style="font-size:28px;font-weight:900;color:#4ade80">${_wbCorrectSet.size}</div>
+                  <div style="font-size:10px;font-weight:900;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Correct ✓</div>
+                </div>
+                <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:14px;padding:16px;text-align:center">
+                  <div style="font-size:28px;font-weight:900;color:#f87171">${_wbWrongArr.length}</div>
+                  <div style="font-size:10px;font-weight:900;color:#64748b;text-transform:uppercase;letter-spacing:0.06em">Still Wrong ✗</div>
+                </div>
+              </div>
+              <div style="background:rgba(79,110,247,0.08);border:1px solid rgba(79,110,247,0.2);border-radius:12px;padding:12px;text-align:center;margin-bottom:16px">
+                <span style="font-size:22px;font-weight:900;color:${accColor}">${Math.round(_wbCorrectSet.size/_wbTotal*100)}%</span>
+                <span style="font-size:11px;color:#64748b;margin-left:6px">${_wbTotal} questions · ${_wbDur}min</span>
+                ${_wbNewR1WrongCount > 0 ? `<div style="font-size:10px;color:#818cf8;margin-top:4px;font-weight:700">${_wbNewR1WrongCount} still in weak bank</div>` : `<div style="font-size:10px;color:#4ade80;margin-top:4px;font-weight:700">🎉 Topic cleared from weak bank!</div>`}
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+                ${_wbWrongArr.length > 0 ? `<button onclick="document.getElementById('wb-result-modal').remove();scLaunchWeakGroupQuestions('${sEnc}','${cEnc}','wrong')" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#f87171;font-size:12px;font-weight:900;padding:12px;border-radius:12px;cursor:pointer;width:100%">❌ Only Wrong Again (${_wbWrongArr.length})</button>` : ''}
+                <button onclick="document.getElementById('wb-result-modal').remove();scLaunchWeakGroupQuestions('${sEnc}','${cEnc}','all')" style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#818cf8;font-size:12px;font-weight:900;padding:12px;border-radius:12px;cursor:pointer;width:100%">🔄 All ${_wbTotal} Again</button>
+                <button onclick="document.getElementById('wb-result-modal').remove();wbPrefillLog('${sEnc}','${cEnc}',${_wbHrs},'${_wbStartTime}','${_wbEndTime}')" style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25);color:#4ade80;font-size:12px;font-weight:900;padding:12px;border-radius:12px;cursor:pointer;width:100%">📝 Log this session</button>
+                <button onclick="document.getElementById('wb-result-modal').remove();showScreen('syllabus-command')" style="background:transparent;border:1px solid #1e293b;color:#64748b;font-size:12px;font-weight:700;padding:10px;border-radius:12px;cursor:pointer;width:100%">✅ Done</button>
+              </div>
+            </div>`;
+            document.body.appendChild(modalDiv);
+          }, 600);
+
+          setTimeout(() => { delete db['quiz_weak_bank_current']; }, 5000);
+          return; // nothing saved to historyDb/SRS
         }
 
         historyDb.unshift({ ts: Date.now(), date: new Date().toLocaleDateString(), title: displayTitle, subject: db[currentQuizId] ? db[currentQuizId].subject : "Mixed", score: parseFloat(score.toFixed(2)), accuracy: Math.round((correct / activeQuestions.length) * 100) || 0, candidateName: candName, attemptNumber: currentAttemptNum, totalCorrect: correct, totalWrong: wrong, totalSkipped: skipped, reviewData: historicalReviewData });
@@ -3718,7 +3831,10 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         // Auto-log to War Room
         try {
           if(typeof window._wrAutoLog === 'function') {
-            const _dur = window._quizStartTime ? Math.round((Date.now()-window._quizStartTime)/60000) : 0;
+            const _endTs = Date.now();
+            const _dur = window._quizStartTime ? Math.round((_endTs - window._quizStartTime)/60000) : 0;
+            const _startStr = window._quizStartTime ? new Date(window._quizStartTime).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'}) : '';
+            const _endStr = new Date(_endTs).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'});
             const _isSRS = currentQuizId && (currentQuizId.startsWith('quiz_srs') || (db[currentQuizId] && db[currentQuizId].isSRS));
             if(_isSRS) {
               // SRS sprint — get subject+topic breakdown (nested map)
@@ -3736,9 +3852,9 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                 const isCorrect = ansIdx !== undefined && q.options && q.options[ansIdx] && q.options[ansIdx].correct === true;
                 if(isCorrect) _topicMap[s][t].correct++;
               });
-              window._wrAutoLog({ type:'srs', title:'SRS Sprint', subject:'SRS', cards:activeQuestions.length, correct:correct, subjects:_subjMap, topicMap:_topicMap, duration:_dur, ts:Date.now() });
+              window._wrAutoLog({ type:'srs', title:'SRS Sprint', subject:'SRS', cards:activeQuestions.length, correct:correct, subjects:_subjMap, topicMap:_topicMap, duration:_dur, startTime:_startStr, endTime:_endStr, ts:Date.now() });
             } else {
-              window._wrAutoLog({ type:'quiz', title:displayTitle, subject:db[currentQuizId]?db[currentQuizId].subject:'Mixed', questions:activeQuestions.length, correct:correct, score:parseFloat(score.toFixed(2)), duration:_dur, ts:Date.now() });
+              window._wrAutoLog({ type:'quiz', title:displayTitle, subject:db[currentQuizId]?db[currentQuizId].subject:'Mixed', questions:activeQuestions.length, correct:correct, score:parseFloat(score.toFixed(2)), duration:_dur, startTime:_startStr, endTime:_endStr, ts:Date.now() });
             }
           }
         } catch(e) {}
@@ -8325,7 +8441,7 @@ function scInitDefault() {
   scSave();
 }
 
-function scToday() { return new Date().toISOString().split('T')[0]; }
+function scToday() { return new Date().toLocaleDateString('en-CA', {timeZone:'Asia/Kolkata'}); }
 function scAddDays(date, days) { const d = new Date(date); d.setDate(d.getDate()+days); return d.toISOString().split('T')[0]; }
 function scDaysAgo(date) { if(!date) return 9999; return Math.floor((Date.now() - new Date(date).getTime()) / 86400000); }
 function scDaysUntil(date) { if(!date) return 9999; return Math.ceil((new Date(date).getTime() - Date.now()) / 86400000); }
@@ -9940,6 +10056,26 @@ window.scRenderWeakBank = function() {
       const dotHtml = '●'.repeat(dots) + '○'.repeat(5 - dots);
       const sEnc = encodeURIComponent(subj);
       const cEnc = encodeURIComponent(cat);
+
+      // Find last attempt for this topic
+      let lastAttempt = null;
+      Object.values(scDb||{}).forEach(t => {
+        if (!t || !t.wbAttempts || !t.wbAttempts.length) return;
+        const last = t.wbAttempts[t.wbAttempts.length - 1];
+        if (!last || !last.wrongQuestions || !last.wrongQuestions.length) return;
+        // Match by checking first wrong question's tags
+        const _qm = new Map();
+        Object.values(db).forEach(quiz => {
+          if (!quiz || !quiz.questions || quiz.isScRevision || quiz.isSRS || quiz.isWeakBank) return;
+          quiz.questions.forEach(q => { if (q && q.question) _qm.set(q.question.trim(), q); });
+        });
+        const _qObj = _qm.get(last.wrongQuestions[0]);
+        if (_qObj) { const g = wbGetGroup(_qObj); if (g.subj===subj && g.cat===cat) lastAttempt=last; }
+      });
+
+      const lastHtml = lastAttempt ? `<div style="display:flex;gap:8px;align-items:center;margin-top:4px"><span style="font-size:9px;font-weight:900;color:#4ade80">✓${lastAttempt.correct}</span><span style="font-size:9px;font-weight:900;color:#f87171">✗${lastAttempt.wrong}</span><span style="font-size:9px;color:#64748b">${Math.round(lastAttempt.correct/lastAttempt.total*100)}% last attempt</span></div>` : '';
+      const wrongBtn = lastAttempt && lastAttempt.wrong > 0 ? `<button onclick="scLaunchWeakGroupQuestions('${sEnc}','${cEnc}','wrong')" class="bg-rose-900/30 hover:bg-rose-900/50 border border-rose-800 text-rose-400 font-black text-[9px] uppercase tracking-widest px-3 py-2 rounded-xl transition-colors">✗ Wrong (${lastAttempt.wrong})</button>` : '';
+
       html += `
         <div class="flex items-center justify-between px-5 py-3 border-t border-slate-50 dark:border-slate-800/40 hover:bg-rose-50/30 dark:hover:bg-rose-900/10 transition-colors">
           <div>
@@ -9948,14 +10084,14 @@ window.scRenderWeakBank = function() {
               <span class="text-[10px] font-black text-rose-500">${qSet.size} wrong</span>
               <span class="text-[9px] text-rose-300 tracking-widest">${dotHtml}</span>
             </div>
+            ${lastHtml}
           </div>
-          <button onclick="scLaunchWeakGroup('${sEnc}','${cEnc}')"
-            class="bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white font-black text-[10px] uppercase tracking-widest px-4 py-2.5 rounded-xl transition-colors shadow-sm">
-            ► Practice
-          </button>
+          <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+            ${wrongBtn}
+            <button onclick="scLaunchWeakGroup('${sEnc}','${cEnc}')" class="bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white font-black text-[10px] uppercase tracking-widest px-4 py-2.5 rounded-xl transition-colors shadow-sm">► All ${qSet.size}</button>
+          </div>
         </div>`;
     });
-
     html += `</div>`;
   });
 
@@ -10013,6 +10149,117 @@ window.scLaunchWeakGroup = function(sEnc, cEnc) {
   openQuizLobby(tempId);
 };
 
+// Launch weak group with specific question set (all or only wrong from last attempt)
+window.scLaunchWeakGroupQuestions = function(sEnc, cEnc, mode) {
+  const subj = decodeURIComponent(sEnc);
+  const cat  = decodeURIComponent(cEnc);
+
+  const qMap = new Map();
+  Object.values(db).forEach(quiz => {
+    if (!quiz || !quiz.questions || quiz.isScRevision || quiz.isSRS || quiz.isWeakBank) return;
+    quiz.questions.forEach(q => {
+      if (q?.question && !qMap.has(q.question.trim())) qMap.set(q.question.trim(), q);
+    });
+  });
+
+  let questionTexts = [];
+  if (mode === 'wrong') {
+    // Get last attempt's wrong questions for this topic
+    const topicKey = Object.keys(scDb||{}).find(k => {
+      const t = scDb[k];
+      return t && !t.isSubTopic && t.subject === subj;
+    });
+    // Find by matching cat in wbAttempts
+    let lastWrong = [];
+    Object.values(scDb||{}).forEach(t => {
+      if (!t || !t.wbAttempts || !t.wbAttempts.length) return;
+      const last = t.wbAttempts[t.wbAttempts.length - 1];
+      if (last && last.wrongQuestions && last.wrongQuestions.length > 0) {
+        // Check if this topic matches
+        const qObj = qMap.get(last.wrongQuestions[0]);
+        if (qObj) {
+          const g = wbGetGroup(qObj);
+          if (g.subj === subj && g.cat === cat) lastWrong = last.wrongQuestions;
+        }
+      }
+    });
+    questionTexts = lastWrong;
+  } else {
+    // All r1Wrong questions for this group
+    const seen = new Set();
+    Object.values(scDb||{}).forEach(t => {
+      if (!t || !Array.isArray(t.r1Wrong)) return;
+      t.r1Wrong.forEach(qText => {
+        const qObj = qMap.get(qText.trim());
+        if (!qObj) return;
+        const g = wbGetGroup(qObj);
+        if (g.subj === subj && g.cat === cat && !seen.has(qText.trim())) {
+          seen.add(qText.trim()); questionTexts.push(qText.trim());
+        }
+      });
+    });
+  }
+
+  if (questionTexts.length === 0) { alert('No questions found.'); return; }
+
+  const questions = questionTexts.map(t => qMap.get(t)).filter(Boolean);
+  // Shuffle
+  for (let i = questions.length-1; i>0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [questions[i],questions[j]] = [questions[j],questions[i]];
+  }
+
+  const tempId = 'quiz_weak_bank_current';
+  db[tempId] = { title:`${cat} — Weak Bank`, subject:subj, questions, isWeakBank:true, _weakSubj:subj, _weakCat:cat };
+  openQuizLobby(tempId);
+};
+
+// Pre-fill War Zone log form from Weak Bank result
+window.wbPrefillLog = function(sEnc, cEnc, hrs, startTime, endTime) {
+  const subj = decodeURIComponent(sEnc);
+  const cat  = decodeURIComponent(cEnc);
+  // Navigate to War Zone → Log tab
+  showScreen('planner');
+  setTimeout(() => {
+    if (typeof window.plannerInit === 'function' && !window._plannerLoaded) window.plannerInit();
+    const logTabBtn = document.querySelector('[onclick="switchTab(\'log\',this)"]');
+    if (logTabBtn && typeof switchTab === 'function') switchTab('log', logTabBtn);
+    setTimeout(() => {
+      // Set mode to Log Completed
+      if (typeof selectLogMode === 'function') selectLogMode('done');
+      // Fill subject
+      const subjEl = document.getElementById('l-subject');
+      if (subjEl) { subjEl.value = subj; if (typeof lUpdateChapters === 'function') lUpdateChapters(); }
+      setTimeout(() => {
+        // Fill chapter/topic
+        const chapEl = document.getElementById('l-chapter');
+        if (chapEl) chapEl.value = cat;
+        // Fill custom label
+        const customEl = document.getElementById('l-custom');
+        if (customEl) customEl.value = 'Weak Bank — ' + cat;
+        // Fill hours
+        const hrsEl = document.getElementById('l-hours');
+        if (hrsEl) hrsEl.value = hrs || 0.5;
+        // Fill start/end time (convert from locale string to HH:MM for time input)
+        const toInputTime = (str) => {
+          if (!str) return '';
+          // str like "09:15 AM" → convert to 24h "09:15"
+          const m = str.match(/(\d+):(\d+)\s*(AM|PM)/i);
+          if (!m) return '';
+          let h = parseInt(m[1]), min = m[2], ap = m[3].toUpperCase();
+          if (ap === 'PM' && h !== 12) h += 12;
+          if (ap === 'AM' && h === 12) h = 0;
+          return String(h).padStart(2,'0') + ':' + min;
+        };
+        const startEl = document.getElementById('l-start');
+        const endEl   = document.getElementById('l-end');
+        if (startEl) startEl.value = toInputTime(startTime);
+        if (endEl)   endEl.value   = toInputTime(endTime);
+      }, 100);
+    }, 200);
+  }, 300);
+};
+
 // ── OPEN ENTRY POINT ──
 window.openSyllabusCommand = () => {
   scLoad();
@@ -10048,7 +10295,18 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
   if (window.quizState && window.activeQuestions) {
     window.activeQuestions.forEach(function(q, i) {
       const sel = window.quizState.answers ? window.quizState.answers[i] : undefined;
-      const isWrong = sel === undefined || !(q.options && q.options[sel] && q.options[sel].correct);
+      let isWrong;
+      if (q.type === 'typing' || q.exactAnswer !== undefined) {
+        // Typing question: sel is the typed string, compare to exactAnswer
+        if (sel === undefined) {
+          isWrong = true; // skipped
+        } else {
+          isWrong = String(sel).toLowerCase().trim() !== String(q.exactAnswer || '').toLowerCase().trim();
+        }
+      } else {
+        // MCQ: sel is option index
+        isWrong = sel === undefined || !(q.options && q.options[sel] && q.options[sel].correct);
+      }
       if (isWrong && q.question) wrongQuestions.push(q.question);
     });
   } else if (historyDb && historyDb.length > 0 && historyDb[0].reviewData) {
@@ -10303,19 +10561,21 @@ window.scMarkRevDoneAuto = (key, rev) => {
       const inSRS = mistIdx !== undefined && mistakesDb[mistIdx];
 
       if (r4WrongSet.has(qText)) {
-        // WRONG in R4 = still struggling after full cycle → 10 min penalty
+        // WRONG in R4 = still struggling → Days 1–3 spread (not 10min — real test needs time)
         if (inSRS) {
           // Keep reps — don't reset to 0 (card retains history)
-          mistakesDb[mistIdx].srs.interval = 1;
+          const _wrongInterval = 1 + Math.random() * 2; // Days 1–3
+          mistakesDb[mistIdx].srs.interval = Math.round(_wrongInterval * 10) / 10;
           mistakesDb[mistIdx].srs.ease = Math.max(1.3, mistakesDb[mistIdx].srs.ease - 0.2);
-          mistakesDb[mistIdx].srs.nextReview = now + (10 * 60 * 1000);
+          mistakesDb[mistIdx].srs.nextReview = now + (_wrongInterval * 24 * 60 * 60 * 1000);
           mistakesDb[mistIdx].isMastered = false;
         } else {
           const qObj = qObjMap.get(qText);
           if (qObj) {
             let newCard = JSON.parse(JSON.stringify(qObj));
             newCard.subject = (qObj.tags && qObj.tags[0]) || t.subject || 'Miscellaneous';
-            newCard.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: now + (10 * 60 * 1000) };
+            const _newWrongInterval = 1 + Math.random() * 2; // Days 1–3
+            newCard.srs = { reps: 0, ease: 2.5, interval: Math.round(_newWrongInterval * 10) / 10, nextReview: now + (_newWrongInterval * 24 * 60 * 60 * 1000) };
             newCard.isMastered = false;
             mistakesDb.push(newCard);
           }
@@ -10338,7 +10598,8 @@ window.scMarkRevDoneAuto = (key, rev) => {
           if (qObj) {
             let newCard = JSON.parse(JSON.stringify(qObj));
             newCard.subject = (qObj.tags && qObj.tags[0]) || t.subject || 'Miscellaneous';
-            newCard.srs = { reps: 1, ease: 2.5, interval: 3, nextReview: newNextReview };
+            const _r4Interval = 4 + Math.random() * 3; // Days 4–7 random spread
+            newCard.srs = { reps: 1, ease: 2.5, interval: Math.round(_r4Interval * 10) / 10, nextReview: now + (_r4Interval * 24 * 60 * 60 * 1000) };
             newCard.isMastered = false;
             mistakesDb.push(newCard);
           }
@@ -10358,13 +10619,12 @@ window.scMarkRevDoneAuto = (key, rev) => {
   }
   
   scUpdateStreak();
-  scSave();
+  scSave(); // 4s debounced cloud push
   if (typeof window._wrAutoLog === 'function') window._wrAutoLog({ type:'revision', title:rev.toUpperCase()+' — '+t.name, subject:t.subject||'', chapter:t.name, rev:rev.toUpperCase(), ts:Date.now() });
   if (document.getElementById('screen-syllabus-command') && !document.getElementById('screen-syllabus-command').classList.contains('hidden')) {
     scRender();
   }
-  // Sync to cloud after every revision completion
-  if (typeof window._saveDataGlobal === 'function') window._saveDataGlobal();
+  // Note: saveData() already called above for R4 graduation; scSave debounce handles non-R4 cloud push
 };
 
 // Remove old scSetConfidence function
@@ -11401,7 +11661,7 @@ function renderTodayLogList(){
       <div style="font-size:15px;flex-shrink:0">${icon}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;font-weight:900;${isCan?'text-decoration:line-through;color:var(--muted)':''}">${l.title||l.label||l.subject}${statusBadge}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:2px;font-weight:700">${detail}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px;font-weight:700">${detail}${l.startTime&&l.endTime?' · 🕐 '+to12hr(l.startTime)+'–'+to12hr(l.endTime):l.time?' · 🕐 '+l.time:l.start&&l.end?' · 🕐 '+to12hr(l.start)+'–'+to12hr(l.end):''}</div>
       </div>
       ${hrsDisp}
       <div style="display:flex;gap:4px;flex-shrink:0;align-items:center">${actionBtns}</div>
@@ -11639,7 +11899,7 @@ function renderHomeTodayLogged(){
       <div style="font-size:15px;flex-shrink:0">${icon}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;font-weight:900;${isCan?'text-decoration:line-through;color:var(--muted)':''}">${l.title||l.label||l.subject}${statusBadge}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:3px;font-weight:700;line-height:1.5">${detail}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px;font-weight:700;line-height:1.5">${detail}${l.startTime&&l.endTime?' · 🕐 '+to12hr(l.startTime)+'–'+to12hr(l.endTime):l.time?' · 🕐 '+l.time:l.start&&l.end?' · 🕐 '+to12hr(l.start)+'–'+to12hr(l.end):''}</div>
       </div>
       ${hrsDisp}
       <div style="display:flex;gap:3px;flex-shrink:0;align-items:center">${actionBtns}</div>
@@ -11807,7 +12067,7 @@ function logCard(l){
       <div style="font-size:15px;flex-shrink:0;margin-top:1px">${icon}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;font-weight:900">${l.title||l.label||l.subject}<span style="font-size:8px;background:rgba(99,102,241,0.15);color:#818cf8;padding:1px 6px;border-radius:999px;font-weight:900;margin-left:4px">AUTO</span></div>
-        <div style="font-size:10px;color:var(--muted);margin-top:3px;font-weight:700;line-height:1.5">${detail}${l.time?' · 🕐 '+l.time:''}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px;font-weight:700;line-height:1.5">${detail}${l.startTime&&l.endTime?' · 🕐 '+to12hr(l.startTime)+'–'+to12hr(l.endTime):l.time?' · 🕐 '+l.time:''}</div>
       </div>
       <div style="font-size:12px;font-weight:900;color:${subColor(l.subject||'Other')};flex-shrink:0">${l.duration?l.duration+'m':hDisp(l.hrs)}</div>
     </div>`;
@@ -12423,14 +12683,24 @@ function editLog(date,id){
 // ── WAR ROOM AUTO-LOG ─────────────────────────────────────
 window._wrAutoLog = function(entry) {
   try {
-    // Only log if D is loaded (plannerInit has run)
     if(typeof D === 'undefined' || typeof save !== 'function') return;
-    // Only log if planner has been initialized
-    if(!window._plannerLoaded) { 
-      // Queue for later
-      window._wrLogQueue = window._wrLogQueue || [];
-      window._wrLogQueue.push(entry);
-      return;
+    // Auto-init planner if not loaded yet — so logs are never lost even if War Zone not opened
+    if(!window._plannerLoaded) {
+      if(typeof load === 'function' && typeof loadHub === 'function') {
+        load(); loadHub();
+        window._plannerLoaded = true;
+        // Flush any queued logs first
+        if(window._wrLogQueue && window._wrLogQueue.length > 0) {
+          const q = window._wrLogQueue.slice();
+          window._wrLogQueue = [];
+          q.forEach(function(e){ window._wrAutoLog(e); });
+        }
+      } else {
+        // Hub not ready yet — queue for later
+        window._wrLogQueue = window._wrLogQueue || [];
+        window._wrLogQueue.push(entry);
+        return;
+      }
     }
     const today = new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
     if(!D.logs[today]) D.logs[today] = [];
@@ -12456,7 +12726,9 @@ window._wrAutoLog = function(entry) {
       net: entry.net || 0,
       auto: true,
       ts: entry.ts || Date.now(),
-      time: new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})
+      startTime: entry.startTime || '',
+      endTime: entry.endTime || '',
+      time: entry.endTime || new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})
     });
     save();
     if(typeof updateStreak === 'function') updateStreak();
