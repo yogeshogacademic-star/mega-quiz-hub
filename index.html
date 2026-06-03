@@ -10357,6 +10357,8 @@ select.inp option { background:var(--bg3); }
 .btn-ghost { background:transparent; border:1.5px solid var(--border2); color:var(--muted2); }
 .btn-ghost:hover { border-color:var(--accent); color:var(--accent); }
 .btn-danger { background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); color:#f87171; }
+.log-type-btn { padding:8px 18px; border-radius:10px; font-size:12px; font-weight:900; cursor:pointer; border:1.5px solid var(--border); background:transparent; color:var(--muted2); transition:all 0.15s; }
+.log-type-btn.active { background:linear-gradient(135deg,#4f6ef7,#7c3aed); color:white; border-color:transparent; box-shadow:0 2px 10px rgba(79,110,247,0.3); }
 
 /* MODAL */
 .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,0.75); backdrop-filter:blur(8px); z-index:200; display:flex; align-items:center; justify-content:center; padding:16px; }
@@ -10539,6 +10541,16 @@ body.light select.inp option { background:white; }
       <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:10px">Today — by subject & topic</div>
       <div id="h-srs-drilldown"></div>
     </div>
+
+    <!-- Lecture Progress -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <div style="font-size:14px;font-weight:900;color:var(--text)">Lecture Progress</div>
+        <div id="h-lec-total" style="font-size:11px;font-weight:900;color:#fbbf24"></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:10px">All time — fresh + revisions</div>
+      <div id="h-lec-progress"></div>
+    </div>
   </div>
 
   <!-- Alerts -->
@@ -10596,37 +10608,66 @@ body.light select.inp option { background:white; }
 <div id="screen-log" class="wr-screen">
   <div style="max-width:540px;margin:0 auto">
     <div style="font-family:var(--font-display);font-size:22px;font-weight:800;margin-bottom:4px">Log Session</div>
-    <div style="font-size:12px;color:var(--muted);font-weight:700;margin-bottom:22px">What did you actually study today?</div>
+    <div style="font-size:12px;color:var(--muted);font-weight:700;margin-bottom:16px">What did you actually study today?</div>
+
+    <!-- Session Type Selector -->
+    <div style="display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap">
+      <button class="log-type-btn active" data-type="study" onclick="selectLogType(this,'study')">✍️ Study</button>
+      <button class="log-type-btn" data-type="lecture" onclick="selectLogType(this,'lecture')">🎬 Lecture</button>
+    </div>
 
     <div class="card">
-      <!-- Subject -->
+      <!-- Subject (shared) -->
       <div style="margin-bottom:14px">
         <label class="inp-lbl">Subject</label>
-        <select id="l-subject" class="inp" onchange="lUpdateChapters()">
+        <select id="l-subject" class="inp" onchange="lUpdateChapters();lAutoFillLectureNo()">
           <option value="">— Select Subject —</option>
         </select>
       </div>
-      <!-- Chapter = tag1 -->
+      <!-- Chapter = tag1 (shared) -->
       <div style="margin-bottom:14px" id="l-chapter-wrap">
-        <label class="inp-lbl">Chapter</label>
-        <select id="l-chapter" class="inp">
-          <option value="">— Select Chapter —</option>
+        <label class="inp-lbl">Topic</label>
+        <select id="l-chapter" class="inp" onchange="lAutoFillLectureNo()">
+          <option value="">— Select Topic —</option>
         </select>
       </div>
-      <!-- Topic = manual -->
-      <div style="margin-bottom:14px">
-        <label class="inp-lbl">Topic <span style="color:var(--muted);font-weight:600;text-transform:none;letter-spacing:0">(type exactly what you did)</span></label>
-        <input id="l-topic" class="inp" placeholder="e.g. Profit & Loss Type 3, Mensuration Cylinder...">
+
+      <!-- ── STUDY fields ── -->
+      <div id="l-study-fields">
+        <div style="margin-bottom:14px">
+          <label class="inp-lbl">What you did <span style="color:var(--muted);font-weight:600;text-transform:none;letter-spacing:0">(type exactly)</span></label>
+          <input id="l-topic" class="inp" placeholder="e.g. Profit & Loss Type 3, Mensuration Cylinder...">
+        </div>
+        <div class="divider"><span>or custom</span></div>
+        <div style="margin-bottom:14px">
+          <label class="inp-lbl">Custom Entry</label>
+          <input id="l-custom" class="inp" placeholder="Mock Test 12 / PYQ 2019 / Full Revision..." oninput="lHandleCustom()">
+        </div>
       </div>
 
-      <div class="divider"><span>or custom</span></div>
-
-      <div style="margin-bottom:14px">
-        <label class="inp-lbl">Custom Entry</label>
-        <input id="l-custom" class="inp" placeholder="Mock Test 12 / PYQ 2019 / Full Revision..." oninput="lHandleCustom()">
+      <!-- ── LECTURE fields ── -->
+      <div id="l-lecture-fields" style="display:none">
+        <!-- Fresh / Revision toggle -->
+        <div style="margin-bottom:14px">
+          <label class="inp-lbl">Lecture Type</label>
+          <div style="display:flex;gap:8px">
+            <button class="lec-type-btn" data-val="fresh" onclick="selectLecType(this,'fresh')" style="flex:1;padding:9px;border-radius:10px;border:2px solid #4f6ef7;background:rgba(79,110,247,0.15);color:#818cf8;font-size:12px;font-weight:900;cursor:pointer">🎬 Fresh</button>
+            <button class="lec-type-btn" data-val="revision" onclick="selectLecType(this,'revision')" style="flex:1;padding:9px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--muted2);font-size:12px;font-weight:900;cursor:pointer">🔄 Revision</button>
+          </div>
+        </div>
+        <!-- Lecture No (fresh only) -->
+        <div style="margin-bottom:14px" id="l-lecno-wrap">
+          <label class="inp-lbl">Lecture No <span style="color:var(--green);font-weight:700;text-transform:none;letter-spacing:0" id="l-lecno-hint"></span></label>
+          <input type="number" id="l-lecno" class="inp" min="1" placeholder="e.g. 5">
+        </div>
+        <!-- Lecture Name -->
+        <div style="margin-bottom:14px">
+          <label class="inp-lbl" id="l-lecname-lbl">Lecture Name</label>
+          <input id="l-lecname" class="inp" placeholder="e.g. Marked Price & Discount, CI Type 2...">
+        </div>
       </div>
 
-      <!-- Time + Hours -->
+      <!-- Time + Hours (shared) -->
       <div class="g2" style="gap:10px;margin-bottom:14px">
         <div>
           <label class="inp-lbl">Start Time</label>
@@ -10642,7 +10683,7 @@ body.light select.inp option { background:white; }
         <input type="number" id="l-hours" class="inp" step="0.5" min="0.5" max="14" placeholder="e.g. 1.5">
       </div>
 
-      <!-- Priority -->
+      <!-- Priority (shared) -->
       <div style="margin-bottom:14px">
         <label class="inp-lbl">Priority</label>
         <div style="display:flex;gap:8px">
@@ -10652,9 +10693,9 @@ body.light select.inp option { background:white; }
         </div>
       </div>
 
-      <!-- Note -->
+      <!-- Note (shared) -->
       <div style="margin-bottom:18px">
-        <label class="inp-lbl">Note <span style="color:var(--muted);font-weight:600;text-transform:none;letter-spacing:0">(optional — what was tough, what clicked)</span></label>
+        <label class="inp-lbl">Note <span style="color:var(--muted);font-weight:600;text-transform:none;letter-spacing:0">(optional)</span></label>
         <input id="l-note" class="inp" placeholder='e.g. "Struggled with CI/SI, revision needed"'>
       </div>
 
@@ -10879,8 +10920,52 @@ function lUpdateChapters(){
   const s=document.getElementById('l-subject').value;
   const chs=hubData[s]||[];
   const el=document.getElementById('l-chapter');
-  el.innerHTML='<option value="">— Select Chapter —</option>';
+  el.innerHTML='<option value="">— Select Topic —</option>';
   chs.forEach(c=>el.innerHTML+=`<option value="${c}">${c}</option>`);
+}
+
+// ── LECTURE FORM CONTROLS ──
+let _logType='study';
+let _lecType='fresh';
+
+function selectLogType(btn, type){
+  document.querySelectorAll('.log-type-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  _logType=type;
+  document.getElementById('l-study-fields').style.display=type==='study'?'':'none';
+  document.getElementById('l-lecture-fields').style.display=type==='lecture'?'':'none';
+  if(type==='lecture') lAutoFillLectureNo();
+}
+
+function selectLecType(btn, type){
+  _lecType=type;
+  document.querySelectorAll('.lec-type-btn').forEach(b=>{
+    b.style.background=b.dataset.val===type?'rgba(79,110,247,0.15)':'transparent';
+    b.style.borderColor=b.dataset.val===type?'#4f6ef7':'var(--border)';
+    b.style.color=b.dataset.val===type?'#818cf8':'var(--muted2)';
+    b.style.borderWidth=b.dataset.val===type?'2px':'1px';
+  });
+  const noWrap=document.getElementById('l-lecno-wrap');
+  const lbl=document.getElementById('l-lecname-lbl');
+  if(noWrap) noWrap.style.display=type==='fresh'?'':'none';
+  if(lbl) lbl.textContent=type==='revision'?'Lecture / Video Name':'Lecture Name';
+  if(type==='fresh') lAutoFillLectureNo();
+}
+
+function lAutoFillLectureNo(){
+  if(_logType!=='lecture'||_lecType!=='fresh') return;
+  const subj=document.getElementById('l-subject').value;
+  const ch=document.getElementById('l-chapter').value;
+  if(!subj||!ch) return;
+  let maxNo=0;
+  Object.values(D.logs).forEach(dayLogs=>dayLogs.forEach(l=>{
+    if(l.type==='lecture'&&!l.isRevision&&l.subject===subj&&l.chapter===ch&&(l.lectureNo||0)>maxNo) maxNo=l.lectureNo;
+  }));
+  const next=maxNo+1;
+  const el=document.getElementById('l-lecno');
+  const hint=document.getElementById('l-lecno-hint');
+  if(el) el.value=next;
+  if(hint) hint.textContent=maxNo>0?`(last was #${maxNo})`:'(first lecture)';
 }
 function lHandleCustom(){
   const v=document.getElementById('l-custom').value.trim();
@@ -10958,29 +11043,43 @@ function lCalcHours(){
 function saveLog(){
   const subj=document.getElementById('l-subject').value;
   const ch=document.getElementById('l-chapter').value;
-  const topic=document.getElementById('l-topic').value.trim();
-  const custom=document.getElementById('l-custom').value.trim();
+  const note=document.getElementById('l-note').value.trim();
   const start=document.getElementById('l-start').value;
   const end=document.getElementById('l-end').value;
   const hrs=parseFloat(document.getElementById('l-hours').value);
-  const note=document.getElementById('l-note').value.trim();
-  if(!custom&&!subj){ alert('Select a subject or enter a custom task'); return; }
   if(!hrs||hrs<=0){ alert('Enter valid hours'); return; }
-  const label=custom||(topic||ch||subj);
-  const log={ id:Date.now(), date:todayStr(), subject:custom?'Custom':subj, chapter:ch, topic, custom, label, start, end, hrs, note, priority:selectedPri, time:new Date().toISOString() };
+
+  let log;
+  if(_logType==='lecture'){
+    if(!subj||!ch){ alert('Select subject and topic for lecture'); return; }
+    const lecNo=_lecType==='fresh'?parseInt(document.getElementById('l-lecno').value||'1'):null;
+    const lecName=document.getElementById('l-lecname').value.trim();
+    if(!lecName){ alert('Enter lecture name'); return; }
+    const isRevision=_lecType==='revision';
+    const label=isRevision?'🔄 Rev: '+lecName:'🎬 Lec #'+lecNo+': '+lecName;
+    log={ id:Date.now(), date:todayStr(), type:'lecture', subject:subj, chapter:ch, lectureNo:lecNo, lectureName:lecName, isRevision, label, start, end, hrs, note, priority:selectedPri, time:new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'}) };
+  } else {
+    const topic=document.getElementById('l-topic').value.trim();
+    const custom=document.getElementById('l-custom').value.trim();
+    if(!custom&&!subj){ alert('Select a subject or enter a custom task'); return; }
+    const label=custom||(topic||ch||subj);
+    log={ id:Date.now(), date:todayStr(), subject:custom?'Custom':subj, chapter:ch, topic, custom, label, start, end, hrs, note, priority:selectedPri, time:new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'}) };
+  }
+
   if(!D.logs[todayStr()]) D.logs[todayStr()]=[];
   D.logs[todayStr()].push(log);
   updateDebt(log.date);
   updateStreak();
   save();
+
   // Reset
-  ['l-subject','l-chapter','l-topic','l-custom','l-hours','l-note','l-start','l-end'].forEach(id=>{ const el=document.getElementById(id); if(el.tagName==='SELECT') el.value=''; else el.value=''; });
-  document.getElementById('l-chapter').innerHTML='<option value="">— Select Chapter —</option>';
+  ['l-subject','l-chapter','l-topic','l-custom','l-hours','l-note','l-start','l-end','l-lecno','l-lecname'].forEach(id=>{ const el=document.getElementById(id); if(!el) return; if(el.tagName==='SELECT') el.value=''; else el.value=''; });
+  document.getElementById('l-chapter').innerHTML='<option value="">— Select Topic —</option>';
   document.getElementById('l-hrs-auto').textContent='';
+  const hint=document.getElementById('l-lecno-hint'); if(hint) hint.textContent='';
   renderTodayLogList(); renderHome();
   const btn=document.querySelector('[onclick="saveLog()"]');
-  btn.textContent='✅ Logged!'; btn.style.background='linear-gradient(135deg,#10b981,#059669)';
-  setTimeout(()=>{ btn.textContent='✅ LOG IT'; btn.style.background=''; },2000);
+  if(btn){ btn.textContent='✅ Logged!'; btn.style.background='linear-gradient(135deg,#10b981,#059669)'; setTimeout(()=>{ btn.textContent='✅ LOG IT'; btn.style.background=''; },2000); }
 }
 
 function updateDebt(date){
@@ -11000,9 +11099,9 @@ function renderTodayLogList(){
   const sorted = [...logs].sort((a,b)=>(b.ts||0)-(a.ts||0));
   el.innerHTML = sorted.map(l=>{
     const isAuto = l.auto;
-    const icon = l.type==='srs' ? '🧠' : l.type==='mock' ? '📝' : l.type==='quiz' ? '⚡' : '✍️';
     const badge = isAuto ? `<span style="font-size:8px;background:rgba(99,102,241,0.15);color:#818cf8;padding:1px 6px;border-radius:999px;font-weight:900;margin-left:4px">AUTO</span>` : '';
     const timeStr = l.time || (l.start&&l.end ? l.start+'–'+l.end : '');
+    const icon = l.type==='srs' ? '🧠' : l.type==='mock' ? '📝' : l.type==='quiz' ? '⚡' : l.type==='lecture' ? (l.isRevision?'🔄':'🎬') : '✍️';
     const detail = l.type==='srs' ? (()=>{
                      const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;
                      const subjStr=l.subjects&&Object.keys(l.subjects).length?'<br><span style="font-size:9px;color:var(--muted)">'+Object.entries(l.subjects).map(([s,n])=>s+': '+n).join(' · ')+'</span>':'';
@@ -11010,6 +11109,7 @@ function renderTodayLogList(){
                    })() :
                    l.type==='quiz' ? l.questions+'q · '+Math.round((l.correct||0)/(l.questions||1)*100)+'%' :
                    l.type==='mock' ? 'Net: '+l.net+' · '+to12hr(l.startTime)+'–'+to12hr(l.endTime) :
+                   l.type==='lecture' ? (l.isRevision?'🔄 '+l.chapter:('#'+l.lectureNo+' · '+l.chapter))+' · '+l.subject :
                    (l.subject+(l.chapter?' · '+l.chapter:''));
     return `<div style="display:flex;align-items:center;gap:10px;padding:11px 13px;border-radius:12px;border:1px solid ${isAuto?'rgba(99,102,241,0.2)':'var(--border)'};background:${isAuto?'rgba(99,102,241,0.05)':'var(--bg3)'};margin-bottom:7px">
       <div style="font-size:16px;flex-shrink:0">${icon}</div>
@@ -11116,6 +11216,9 @@ function renderHome(){
 
   // SRS drill-down
   renderSRSDrillDown();
+
+  // Lecture progress
+  renderLectureProgress();
 
   // Ring sub target
   const ringSubEl=document.getElementById('h-ring-sub');
@@ -11299,7 +11402,8 @@ function renderCalendar(){
         const hasQuiz=dayLogs.some(l=>l.type==='quiz');
         const hasMock=dayLogs.some(l=>l.type==='mock');
         const hasRev=dayLogs.some(l=>l.type==='revision');
-        const icons=(hasSRS?'🧠':'')+(hasQuiz?'⚡':'')+(hasMock?'📝':'')+(hasRev?'📚':'');
+        const hasLec=dayLogs.some(l=>l.type==='lecture');
+        const icons=(hasSRS?'🧠':'')+(hasQuiz?'⚡':'')+(hasMock?'📝':'')+(hasRev?'📚':'')+(hasLec?'🎬':'');
         return icons?`<div style="font-size:7px;line-height:1;margin-top:2px">${icons}</div>`:`<div class="cal-dot" style="background:${hrs>=6?'#10b981':hrs>=3?'#f59e0b':'#4f6ef7'}"></div>`;
       })():''}
     </div>`;
@@ -11387,7 +11491,7 @@ function renderBlocksInDetail(blocks, el){
 
 function logCard(l){
   if(l.auto){
-    const icon=l.type==='srs'?'🧠':l.type==='mock'?'📝':l.type==='quiz'?'⚡':l.type==='revision'?'📚':'✍️';
+    const icon=l.type==='srs'?'🧠':l.type==='mock'?'📝':l.type==='quiz'?'⚡':l.type==='revision'?'📚':l.type==='lecture'?(l.isRevision?'🔄':'🎬'):'✍️';
     let detail='';
     if(l.type==='srs'){
       const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;
@@ -11399,6 +11503,8 @@ function logCard(l){
       detail=`Net: ${l.net||0} · ${to12hr(l.startTime||'09:00')}–${to12hr(l.endTime||'10:00')}`;
     } else if(l.type==='revision'){
       detail=l.subject+(l.chapter&&l.chapter!==l.subject?' · '+l.chapter:'');
+    } else if(l.type==='lecture'){
+      detail=l.subject+' · '+l.chapter+(l.isRevision?'':' · #'+l.lectureNo);
     } else { detail=l.subject||''; }
     return `<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid rgba(99,102,241,0.2);background:rgba(99,102,241,0.05);margin-bottom:7px">
       <div style="font-size:15px;flex-shrink:0;margin-top:1px">${icon}</div>
@@ -11562,7 +11668,8 @@ function renderWeeklyPlanner(){
       const hasQuiz=autoLogs.some(l=>l.type==='quiz');
       const hasMock=autoLogs.some(l=>l.type==='mock');
       const hasRev=autoLogs.some(l=>l.type==='revision');
-      return (hasSRS?'🧠':'')+(hasQuiz?'⚡':'')+(hasMock?'📝':'')+(hasRev?'📚':'');
+      const hasLec=autoLogs.some(l=>l.type==='lecture');
+      return (hasSRS?'🧠':'')+(hasQuiz?'⚡':'')+(hasMock?'📝':'')+(hasRev?'📚':'')+(hasLec?'🎬':'');
     })():'';
 
     const blocksHtml=blocks.length?[...blocks].sort((a,b)=>t2m(a.start)-t2m(b.start)).map(b=>{
@@ -11688,7 +11795,98 @@ function renderSRSDrillDown(){
   el.innerHTML=html;
 }
 
-// ════════════════ EDIT BLOCK / LOG ════════════════
+// ════════════════ LECTURE PROGRESS ════════════════
+function renderLectureProgress(){
+  const el=document.getElementById('h-lec-progress');
+  const totEl=document.getElementById('h-lec-total');
+  if(!el) return;
+
+  // Aggregate all lecture logs across all dates
+  const tree={}; // { subject: { chapter: { fresh:[{lectureNo,lectureName,date}], revisions:[{lectureName,date}] } } }
+  Object.entries(D.logs).forEach(([date,logs])=>{
+    logs.forEach(l=>{
+      if(l.type!=='lecture') return;
+      const s=l.subject||'Other'; const c=l.chapter||'General';
+      if(!tree[s]) tree[s]={};
+      if(!tree[s][c]) tree[s][c]={fresh:[],revisions:[]};
+      if(l.isRevision){
+        tree[s][c].revisions.push({name:l.lectureName||l.label,date});
+      } else {
+        // avoid duplicate lecture numbers (keep latest)
+        const existing=tree[s][c].fresh.findIndex(x=>x.no===l.lectureNo);
+        if(existing>=0) tree[s][c].fresh[existing]={no:l.lectureNo,name:l.lectureName,date};
+        else tree[s][c].fresh.push({no:l.lectureNo,name:l.lectureName,date});
+      }
+    });
+  });
+
+  if(!Object.keys(tree).length){
+    el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:11px;font-weight:700">No lectures logged yet 🎬<br><span style="font-size:10px">Use Log → 🎬 Lecture to start tracking</span></div>';
+    if(totEl) totEl.textContent='';
+    return;
+  }
+
+  let totalFresh=0, totalRevs=0;
+  let html='';
+
+  Object.entries(tree).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([subj,chapters])=>{
+    html+=`<div style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+        <div style="width:8px;height:8px;border-radius:50%;background:${subColor(subj)};flex-shrink:0"></div>
+        <div style="font-size:12px;font-weight:900;color:${subColor(subj)}">${subj}</div>
+      </div>`;
+
+    Object.entries(chapters).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([chap,data])=>{
+      const freshSorted=[...data.fresh].sort((a,b)=>(a.no||0)-(b.no||0));
+      const freshCount=freshSorted.length;
+      const revCount=data.revisions.length;
+      totalFresh+=freshCount; totalRevs+=revCount;
+
+      html+=`<div style="margin-left:14px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div style="font-size:11px;font-weight:900;color:var(--text)">${chap}</div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span style="font-size:10px;font-weight:900;color:#fbbf24">${freshCount} lectures</span>
+            ${revCount>0?`<span style="font-size:9px;background:rgba(99,102,241,0.15);color:#818cf8;padding:1px 6px;border-radius:999px;font-weight:900">🔄 ${revCount} rev</span>`:''}
+          </div>
+        </div>`;
+
+      // Fresh lectures list
+      freshSorted.forEach(lec=>{
+        const d=new Date(lec.date+'T00:00:00');
+        const dateStr=d.toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+        // Check if this lecture has a revision
+        const hasRev=data.revisions.length>0;
+        html+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);margin-bottom:4px">
+          <span style="font-size:9px;font-weight:900;color:#4f6ef7;background:rgba(79,110,247,0.12);padding:1px 6px;border-radius:5px;flex-shrink:0">#${lec.no}</span>
+          <div style="flex:1;font-size:11px;font-weight:700;color:var(--text)">${lec.name||'—'}</div>
+          <span style="font-size:9px;color:var(--muted);font-weight:700;flex-shrink:0">✅ ${dateStr}</span>
+        </div>`;
+      });
+
+      // Revisions
+      if(data.revisions.length){
+        html+=`<div style="margin-top:4px;margin-left:4px">`;
+        data.revisions.forEach(rev=>{
+          const d=new Date(rev.date+'T00:00:00');
+          const dateStr=d.toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+          html+=`<div style="display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:8px;background:rgba(99,102,241,0.05);border:1px solid rgba(99,102,241,0.15);margin-bottom:3px">
+            <span style="font-size:10px">🔄</span>
+            <div style="flex:1;font-size:10px;font-weight:700;color:var(--muted2)">${rev.name||'Revision'}</div>
+            <span style="font-size:9px;color:var(--muted);font-weight:700">${dateStr}</span>
+          </div>`;
+        });
+        html+=`</div>`;
+      }
+
+      html+=`</div>`;
+    });
+    html+=`</div>`;
+  });
+
+  el.innerHTML=html;
+  if(totEl) totEl.textContent=totalFresh+' lectures · '+totalRevs+' revisions';
+}
 function editBlock(date,id){
   const b=(D.blocks[date]||[]).find(x=>x.id===id);
   if(!b) return;
