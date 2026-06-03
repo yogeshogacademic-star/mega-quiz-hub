@@ -3973,6 +3973,11 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         }
 
         saveData(); updateSRSBadge(); showScreen('results'); window.scrollTo(0,0); filterReview('all'); _afterSubmit(correct, wrong, skipped, activeQuestions.length);
+        // PHONE SAFETY: immediately flush mistakesDb to IndexedDB after R1 batch
+        // Prevents SRS loss if phone closes app before async saveData POST completes
+        if (db[currentQuizId] && db[currentQuizId].isScRevision && db[currentQuizId].scRev === 'r1') {
+            idbKeyval.set('megaQuizMistakes_v5', mistakesDb).catch(function(){});
+        }
         // Belt-and-suspenders: push SRS data at 3s and 10s after sprint
         // Fixes iPhone closing app quickly before first push completes
         setTimeout(function() {
