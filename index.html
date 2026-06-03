@@ -2429,37 +2429,117 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                 console.warn('Mock tracker merge error:', e);
             }
         }
-        if(data.plannerData&&typeof data.plannerData==='object'){try{
-    const _lp=JSON.parse(localStorage.getItem('warroom_v1')||'{}');
-    const _cl=Object.keys((data.plannerData.logs)||{}).length;
-    const _ll=Object.keys((_lp.logs)||{}).length;
-    const _cb=Object.keys((data.plannerData.blocks)||{}).length;
-    const _lb=Object.keys((_lp.blocks)||{}).length;
-    // Only merge if cloud has MORE data — never overwrite local with empty/less data
-    if(_cl>0||_cb>0){
-        const _m=JSON.parse(JSON.stringify(data.plannerData));
-        // Merge logs day by day — combine entries within same day, never drop any
-        Object.keys((_lp.logs)||{}).forEach(d=>{
-            if(!_m.logs[d]){
-                _m.logs[d]=_lp.logs[d]; // day missing from cloud — add it
-            } else {
-                // Day exists in both — merge individual entries by id
-                const cloudIds = new Set((_m.logs[d]||[]).map(e=>e.id));
-                (_lp.logs[d]||[]).forEach(e=>{ if(!cloudIds.has(e.id)) _m.logs[d].push(e); });
+        if(data.plannerData && typeof data.plannerData === 'object'){ try {
+            const _lp = JSON.parse(localStorage.getItem('warroom_v1') || '{}');
+            const cloud = data.plannerData;
+            const merged = JSON.parse(JSON.stringify(cloud));
+            merged.logs = merged.logs || {};
+            merged.blocks = merged.blocks || {};
+            merged.debt = merged.debt || {};
+            merged.streak = merged.streak || { count:0, last:'' };
+            merged.checklist = merged.checklist || {};
+
+            // LOGS: merge day-by-day, id-by-id, latest ts wins, auto-log dedup
+            const localLogs = _lp.logs || {};
+            Object.keys(localLogs).forEach(d => {
+                if (!merged.logs[d]) {
+                    merged.logs[d] = localLogs[d];
+                } else {
+                    const dayMap = {};
+                    merged.logs[d].forEach(e => { dayMap[e.id] = e; });
+                    localLogs[d].forEach(e => {
+                        if (!dayMap[e.id]) {
+                            merged.logs[d].push(e);
+                        } else {
+                            // Latest ts wins - most recently updated entry takes precedence
+                            const localTs = e.ts || e.id || 0;
+                            const cloudTs = (dayMap[e.id].ts || dayMap[e.id].id || 0);
+                            if (localTs > cloudTs) {
+                                const idx = merged.logs[d].findIndex(x => x.id === e.id);
+                                if (idx !== -1) merged.logs[d][idx] = e;
+                            }
+                        }
+                    });
+                    // Dedup auto-logs: same sprint on both devices has same ts
+                    const seenAutoTs = new Set();
+                    merged.logs[d] = merged.logs[d].filter(e => {
+                        if (!e.auto) return true;
+                        const key = e.type + '|' + (e.ts || e.id);
+                        if (seenAutoTs.has(key)) return false;
+                        seenAutoTs.add(key);
+                        return true;
+                    });
+                }
+            });
+
+            // BLOCKS: same merge logic
+            const localBlocks = _lp.blocks || {};
+            Object.keys(localBlocks).forEach(d => {
+                if (!merged.blocks[d]) {
+                    merged.blocks[d] = localBlocks[d];
+                } else {
+                    const dayMap = {};
+                    merged.blocks[d].forEach(b => { dayMap[b.id] = b; });
+                    localBlocks[d].forEach(b => {
+                        if (!dayMap[b.id]) {
+                            merged.blocks[d].push(b);
+                        }
+                        // blocks: cloud wins on conflict (last-writer-wins via cloud)
+                    });
+                }
+            });
+
+            // STREAK: keep higher count, or same count with more recent date
+            const localStreak = _lp.streak || { count:0, last:'' };
+            if ((localStreak.count || 0) > (merged.streak.count || 0)) {
+                merged.streak = localStreak;
+            } else if ((localStreak.count || 0) === (merged.streak.count || 0)) {
+                if ((localStreak.last || '') > (merged.streak.last || '')) {
+                    merged.streak.last = localStreak.last;
+                }
             }
-        });
-        // Merge blocks day by day — same approach
-        Object.keys((_lp.blocks)||{}).forEach(d=>{
-            if(!_m.blocks[d]){
-                _m.blocks[d]=_lp.blocks[d];
-            } else {
-                const cloudIds = new Set((_m.blocks[d]||[]).map(e=>e.id));
-                (_lp.blocks[d]||[]).forEach(e=>{ if(!cloudIds.has(e.id)) _m.blocks[d].push(e); });
+
+            // TARGET: keep non-default value, local wins if both non-default
+            const localTarget = _lp.target || 50;
+            if (localTarget !== 50 && (merged.target === 50 || !merged.target)) {
+                merged.target = localTarget;
             }
-        });
-        localStorage.setItem('warroom_v1',JSON.stringify(_m));
-    }
-}catch(e){console.warn('Planner sync:',e);}}
+
+            // DEBT: keep higher debt per day
+            const localDebt = _lp.debt || {};
+            Object.keys(localDebt).forEach(d => {
+                if (!merged.debt[d] || localDebt[d] > merged.debt[d]) {
+                    merged.debt[d] = localDebt[d];
+                }
+            });
+
+            // CHECKLIST: merge week-by-week, done=true always wins
+            const localCL = _lp.checklist || {};
+            Object.keys(localCL).forEach(wk => {
+                if (!merged.checklist[wk]) {
+                    merged.checklist[wk] = localCL[wk];
+                } else {
+                    const ckMap = {};
+                    merged.checklist[wk].forEach(item => { ckMap[item.id] = item; });
+                    localCL[wk].forEach(item => {
+                        if (!ckMap[item.id]) {
+                            merged.checklist[wk].push(item);
+                        } else if (item.done && !ckMap[item.id].done) {
+                            const idx = merged.checklist[wk].findIndex(x => x.id === item.id);
+                            if (idx !== -1) merged.checklist[wk][idx] = item;
+                        }
+                    });
+                }
+            });
+
+            localStorage.setItem('warroom_v1', JSON.stringify(merged));
+
+            // Hot-reload if War Room is open
+            if (window._plannerLoaded && typeof load === 'function') {
+                load();
+                if (typeof renderHome === 'function') renderHome();
+            }
+        } catch(e) { console.warn('[War Room Sync] Merge error:', e); }}
         const cloudQCount = Object.values(db).reduce((a,subj) => {
             if(!subj || typeof subj !== 'object') return a;
             return a + Object.values(subj).reduce((b,topic)=>b+(Array.isArray(topic)?topic.length:0),0);
@@ -3651,9 +3731,10 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                 if(!_topicMap[s]) _topicMap[s]={};
                 if(!_topicMap[s][t]) _topicMap[s][t]={count:0,correct:0};
                 _topicMap[s][t].count++;
-                // match correct by index — quizState.answers indexed same as activeQuestions
-                const ans=window.quizState&&window.quizState.answers?window.quizState.answers[qi]:null;
-                if(ans==='correct') _topicMap[s][t].correct++;
+                // Derive correctness from options array — quizState.answers stores option index (integer)
+                const ansIdx = window.quizState&&window.quizState.answers?window.quizState.answers[qi]:undefined;
+                const isCorrect = ansIdx !== undefined && q.options && q.options[ansIdx] && q.options[ansIdx].correct === true;
+                if(isCorrect) _topicMap[s][t].correct++;
               });
               window._wrAutoLog({ type:'srs', title:'SRS Sprint', subject:'SRS', cards:activeQuestions.length, correct:correct, subjects:_subjMap, topicMap:_topicMap, duration:_dur, ts:Date.now() });
             } else {
@@ -10600,6 +10681,13 @@ body.light select.inp option { background:white; }
       </div>
     </div>
 
+    <!-- Today Quiz Activity -->
+    <div class="card">
+      <div style="font-size:14px;font-weight:900;color:var(--text);margin-bottom:4px">Today's Attempts</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:10px">Every quiz, SRS, R1–R4 today</div>
+      <div id="h-today-attempts"></div>
+    </div>
+
     <!-- SRS Drill-down -->
     <div class="card">
       <div style="font-size:14px;font-weight:900;color:var(--text);margin-bottom:4px">SRS Drill-down</div>
@@ -10840,6 +10928,13 @@ body.light select.inp option { background:white; }
     <div id="s-mock-meta" style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:12px"></div>
     <div id="s-mock-summary"></div>
   </div>
+
+  <!-- Weekly All Activity -->
+  <div class="card">
+    <div style="font-size:14px;font-weight:900;margin-bottom:2px">📋 All Attempts This Week</div>
+    <div id="s-all-meta" style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:12px"></div>
+    <div id="s-all-summary"></div>
+  </div>
 </div>
 
 <!-- ══════════════════════ BLOCK MODAL ══════════════════════ -->
@@ -10938,7 +11033,18 @@ function getWeekStart(s){ const d=new Date(s+'T00:00:00'); const day=d.getDay();
 function getWeekDates(ws){ return Array.from({length:7},(_,i)=>{ const d=new Date(ws+'T00:00:00'); d.setDate(d.getDate()+i); return dateStr(d); }); }
 
 // ════════════════ STORAGE ════════════════
-function save(){ localStorage.setItem(STORE,JSON.stringify(D)); }
+function save(){
+  localStorage.setItem(STORE, JSON.stringify(D));
+  // Debounced cloud push — every War Room change reaches cloud within 2s
+  // Uses _hubSave directly (not _saveDataGlobal) to avoid infinite loop:
+  // save() → _saveDataGlobal → _plannerSave → save() → loop
+  clearTimeout(window._wrCloudTimer);
+  window._wrCloudTimer = setTimeout(function(){
+    // _hubSave is the original hub saveData, stored before _plannerSave wraps it
+    const pushFn = window._wrHubSave || window._saveDataGlobal;
+    if(typeof pushFn === 'function') pushFn().catch(function(){});
+  }, 2000);
+}
 function load(){ const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);}catch(e){} D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||50; D.checklist=D.checklist||{}; }
 
 // ════════════════ HUB DATA ════════════════
@@ -11201,7 +11307,7 @@ function logPause(date, id){
   const now=Date.now();
   l.segments=l.segments||[];
   if(l.startTs) l.segments.push({from:l.startTs, to:now});
-  l.status='paused'; l.startTs=null;
+  l.status='paused'; l.startTs=null; l.ts=now;
   l.hrs=Math.round(l.segments.reduce((a,s)=>(a+(s.to-s.from)),0)/3600000*100)/100;
   save(); renderTodayLogList(); renderHomeTodayLogged();
 }
@@ -11209,7 +11315,7 @@ function logPause(date, id){
 function logResume(date, id){
   const l=(D.logs[date]||[]).find(x=>x.id===id); if(!l) return;
   if(l.status!=='paused') return;
-  l.status='doing'; l.startTs=Date.now();
+  l.status='doing'; l.startTs=Date.now(); l.ts=Date.now();
   save(); renderTodayLogList(); renderHomeTodayLogged();
 }
 
@@ -11219,7 +11325,7 @@ function logDone(date, id){
   const now=Date.now();
   l.segments=l.segments||[];
   if(l.startTs) l.segments.push({from:l.startTs, to:now});
-  l.status='done'; l.startTs=null;
+  l.status='done'; l.startTs=null; l.ts=now;
   l.hrs=Math.round(l.segments.reduce((a,s)=>(a+(s.to-s.from)),0)/3600000*100)/100;
   if(l.hrs<=0) l.hrs=0.1;
   updateDebt(date); updateStreak();
@@ -11228,7 +11334,7 @@ function logDone(date, id){
 
 function logCancel(date, id){
   const l=(D.logs[date]||[]).find(x=>x.id===id); if(!l) return;
-  l.status='cancelled'; l.hrs=0; l.startTs=null;
+  l.status='cancelled'; l.hrs=0; l.startTs=null; l.ts=Date.now();
   updateDebt(date);
   save(); renderTodayLogList(); renderHomeTodayLogged(); renderHome();
 }
@@ -11380,6 +11486,9 @@ function renderHome(){
 
   // Today Logged feed
   renderHomeTodayLogged();
+
+  // Today Attempts from historyDb
+  renderTodayAttempts();
 
   // Weekly planner / checklist
   renderWeeklyPlanner();
@@ -11780,6 +11889,7 @@ function renderStats(){
   renderStatsSRS(wd);
   renderStatsLectures(wd);
   renderStatsMocks(wd);
+  renderStatsAllAttempts(wd);
 }
 
 function renderStatsSRS(wd){
@@ -12205,6 +12315,67 @@ function renderLectureProgress(){
   el.innerHTML=html;
   if(totEl) totEl.textContent=totalFresh+' lectures · '+totalRevs+' revisions';
 }
+
+// ════════════════ TODAY ATTEMPTS (Home) ════════════════
+function renderTodayAttempts(){
+  const el=document.getElementById('h-today-attempts');
+  if(!el) return;
+  if(!window.historyDb||!Array.isArray(window.historyDb)){ el.innerHTML='<div style="text-align:center;padding:14px;color:var(--muted);font-size:11px;font-weight:700">Hub not loaded yet</div>'; return; }
+  const today=todayStr();
+  const todayStart=new Date(today+'T00:00:00').getTime();
+  const todayEnd=todayStart+86400000;
+  const entries=window.historyDb.filter(h=>h.ts&&h.ts>=todayStart&&h.ts<todayEnd).sort((a,b)=>(b.ts||0)-(a.ts||0));
+  if(!entries.length){ el.innerHTML='<div style="text-align:center;padding:14px;color:var(--muted);font-size:11px;font-weight:700">No attempts today yet 📚</div>'; return; }
+  el.innerHTML=entries.map(h=>{
+    const icon=h.title&&(h.title.includes('SRS')||h.title.includes('Sprint'))?'🧠':h.title&&/R[1-4]/.test(h.title)?'🔄':h.title&&h.title.includes('Mock')?'📝':'⚡';
+    const acc=h.accuracy||0;
+    const accColor=acc>=75?'#4ade80':acc>=50?'#fbbf24':'#f87171';
+    const t=h.ts?new Date(h.ts).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'}):'';
+    return `<div style="display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);margin-bottom:6px">
+      <div style="font-size:14px;flex-shrink:0">${icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${h.title||'Quiz'}</div>
+        <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:1px">${h.subject||''}${t?' · 🕐 '+t:''}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:13px;font-weight:900;color:${accColor}">${acc}%</div>
+        <div style="font-size:9px;color:var(--muted);font-weight:700">${h.totalCorrect||0}/${(h.totalCorrect||0)+(h.totalWrong||0)+(h.totalSkipped||0)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════ WEEKLY ALL ATTEMPTS (Stats) ════════════════
+function renderStatsAllAttempts(wd){
+  const metaEl=document.getElementById('s-all-meta');
+  const el=document.getElementById('s-all-summary');
+  if(!el) return;
+  if(!window.historyDb||!Array.isArray(window.historyDb)){ if(metaEl) metaEl.textContent='Hub not loaded'; el.innerHTML=''; return; }
+  const wsStart=new Date(wd[0]+'T00:00:00').getTime();
+  const weEnd=new Date(wd[6]+'T00:00:00').getTime()+86400000;
+  const entries=window.historyDb.filter(h=>h.ts&&h.ts>=wsStart&&h.ts<weEnd).sort((a,b)=>(b.ts||0)-(a.ts||0));
+  if(!entries.length){ if(metaEl) metaEl.textContent='No attempts this week'; el.innerHTML='<div style="text-align:center;padding:14px;color:var(--muted);font-size:11px;font-weight:700">Do more quizzes! ⚡</div>'; return; }
+  if(metaEl) metaEl.textContent=entries.length+' attempt'+(entries.length!==1?'s':'')+' · Avg '+Math.round(entries.reduce((a,h)=>a+(h.accuracy||0),0)/entries.length)+'%';
+  el.innerHTML=entries.map(h=>{
+    const icon=h.title&&(h.title.includes('SRS')||h.title.includes('Sprint'))?'🧠':h.title&&/R[1-4]/.test(h.title)?'🔄':h.title&&h.title.includes('Mock')?'📝':'⚡';
+    const acc=h.accuracy||0;
+    const accColor=acc>=75?'#4ade80':acc>=50?'#fbbf24':'#f87171';
+    const d=h.ts?new Date(h.ts).toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'}):(h.date||'');
+    const t=h.ts?new Date(h.ts).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'}):'';
+    return `<div style="display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:11px;background:var(--bg3);border:1px solid var(--border);margin-bottom:7px">
+      <div style="font-size:14px;flex-shrink:0">${icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${h.title||'Quiz'}</div>
+        <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:2px">${h.subject||''} · ${d}${t?' · '+t:''}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:13px;font-weight:900;color:${accColor}">${acc}%</div>
+        <div style="font-size:9px;color:var(--muted);font-weight:700">${h.totalCorrect||0}C ${h.totalWrong||0}W ${h.totalSkipped||0}S</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function editBlock(date,id){
   const b=(D.blocks[date]||[]).find(x=>x.id===id);
   if(!b) return;
@@ -12253,7 +12424,7 @@ function editLog(date,id){
 window._wrAutoLog = function(entry) {
   try {
     // Only log if D is loaded (plannerInit has run)
-    if(typeof D === 'undefined' || typeof save === 'function' === false) return;
+    if(typeof D === 'undefined' || typeof save !== 'function') return;
     // Only log if planner has been initialized
     if(!window._plannerLoaded) { 
       // Queue for later
@@ -12289,6 +12460,7 @@ window._wrAutoLog = function(entry) {
     });
     save();
     if(typeof updateStreak === 'function') updateStreak();
+    if(typeof renderTodayAttempts === 'function') renderTodayAttempts();
     // Re-render if War Room is open
     if(document.getElementById('screen-planner') && !document.getElementById('screen-planner').classList.contains('hidden')) {
       if(typeof renderHome === 'function') renderHome();
@@ -12324,7 +12496,7 @@ window._plannerSave = function() {
     // Only save if D has actual data — prevents overwriting with empty D
     // before plannerInit has run load()
     if(typeof save === 'function' && typeof D !== 'undefined') {
-      const hasData = Object.keys(D.blocks||{}).length > 0 || Object.keys(D.logs||{}).length > 0;
+      const hasData = Object.keys(D.blocks||{}).length > 0 || Object.keys(D.logs||{}).length > 0 || Object.keys(D.checklist||{}).length > 0 || (D.streak&&D.streak.count>0);
       if(hasData) save();
     }
   } catch(e) {}
@@ -12337,6 +12509,7 @@ function _hookPlannerSync() {
   if (typeof window._saveDataGlobal === 'function') {
     _plannerHookDone = true;
     var _hubSave = window._saveDataGlobal;
+    window._wrHubSave = _hubSave; // store original for save() debounce (avoids infinite loop)
     window._saveDataGlobal = async function() {
       window._plannerSave();
       return _hubSave();
