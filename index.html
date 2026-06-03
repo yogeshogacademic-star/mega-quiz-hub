@@ -2791,6 +2791,12 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
               }
 
               await idbKeyval.set('megaQuizDB_v5', rawData);
+              // Also update in-memory db so hub doesn't overwrite IDB with old tags
+              if (typeof db !== 'undefined') {
+                for (const quizId of Object.keys(rawData)) {
+                  if (db[quizId]) db[quizId] = rawData[quizId];
+                }
+              }
               totalFixed += fixed;
               console.log(`[TagMigration] "${migration.name}" — ${fixed} questions fixed ✅`);
             }
