@@ -2153,6 +2153,7 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
             });
             // no-cors returns opaque response — assume success if no exception thrown
             showSyncStatus('synced');
+            window._lastCloudPushTs = nowTs; // track when we last successfully pushed
             localStorage.setItem('megaLastCloudSave', nowTs.toString());
             localStorage.setItem('megaLastKnownCount', totalQLocal.toString());
         } catch (error) {
@@ -2249,15 +2250,15 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                 const cloud = cloudMap.get(q);
                 if (!local) { merged.push(cloud); return; }
                 if (!cloud) { merged.push(local); return; }
-                // Pick card with more SRS progress — higher reps = more reviews done
-                const localReps = (local.srs && local.srs.reps) || 0;
-                const cloudReps = (cloud.srs && cloud.srs.reps) || 0;
-                if (localReps > cloudReps) { merged.push(local); return; }
-                if (cloudReps > localReps) { merged.push(cloud); return; }
-                // Same reps — pick card with LATER nextReview (more recently reviewed = interval advanced)
+                // Primary: pick card with LATER nextReview — more recently reviewed on any device
                 const localNext = (local.srs && local.srs.nextReview) || 0;
                 const cloudNext = (cloud.srs && cloud.srs.nextReview) || 0;
-                merged.push(localNext >= cloudNext ? local : cloud);
+                if (localNext > cloudNext) { merged.push(local); return; }
+                if (cloudNext > localNext) { merged.push(cloud); return; }
+                // Tiebreak: higher reps = more correct answers done
+                const localReps = (local.srs && local.srs.reps) || 0;
+                const cloudReps = (cloud.srs && cloud.srs.reps) || 0;
+                merged.push(localReps >= cloudReps ? local : cloud);
             });
             mistakesDb = merged;
         }
@@ -2501,6 +2502,8 @@ document.addEventListener('visibilitychange', function() {
   if(document.visibilityState === 'visible') {
     setTimeout(function() {
       if(typeof window._saveDataGlobal === 'function') {
+        // Always push on return to foreground — ensures mobile sprint reaches cloud
+        // even if the post-sprint push was lost due to weak signal or app suspension
         window._saveDataGlobal().catch(function(){});
       }
     }, 2000);
@@ -3114,6 +3117,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
 
         let cards = mistakesDb.filter(m => {
             if (!m.srs || m.isMastered) return false;
+            if (m.srs.nextReview > Date.now()) return false; // ← only due cards
             const clean = ltsMap[m.question];
             const tags = clean ? clean.tags : (Array.isArray(m.tags) ? m.tags : []);
             const mSubj = (tags[0] || m.subject || '').trim();
@@ -3123,7 +3127,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
             return mSubj === subj && mGrp === grp;
         });
 
-        if (cards.length === 0) { alert('No questions for this topic.'); return; }
+        if (cards.length === 0) { alert(`No due cards for ${grp} right now. Check back later!`); return; }
 
         // Sort: most overdue first, then shuffle within urgency tiers
         cards.sort((a, b) => a.srs.nextReview - b.srs.nextReview);
@@ -3142,14 +3146,8 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     window.launchSRSSprint = (type) => {
         let dueQs = []; let titleStr = "";
 
-        // BUG FIX: exclude questions graded in the most recent sprint session
-        // so wrong-answered cards (nextReview = now+10min) don't immediately re-appear
-        const lastSprintEntry = historyDb.find(h => h.title && h.title.includes('Sprint'));
-        const recentlyGraded = new Set(
-            (lastSprintEntry && Array.isArray(lastSprintEntry.reviewData))
-                ? lastSprintEntry.reviewData.map(r => r.question)
-                : []
-        );
+        // BUG FIX: use in-memory set of last sprint's questions (cloud history strips reviewData)
+        const recentlyGraded = window._lastSprintGraded || new Set();
 
         if(type === 'global') {
             dueQs = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now() && !m.isMastered && !recentlyGraded.has(m.question));
@@ -3517,14 +3515,13 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                     if (status === 'correct') {
                         let m = mistakesDb[mistIdx];
                         m.srs.reps += 1;
-                        if (m.srs.reps === 1)      m.srs.interval = 1;
-                        else if (m.srs.reps === 2) m.srs.interval = 3;
+                        if (m.srs.reps === 1)      m.srs.interval = 3;
+                        else if (m.srs.reps === 2) m.srs.interval = 7;
                         else                       m.srs.interval = Math.ceil(m.srs.interval * m.srs.ease);
                         m.srs.ease = Math.min(3.0, m.srs.ease + 0.1);
                         m.srs.nextReview = Date.now() + (m.srs.interval * 24 * 60 * 60 * 1000);
                         if (m.srs.interval >= 30) m.isMastered = true;
                     } else {
-                        mistakesDb[mistIdx].srs.reps = 0;
                         mistakesDb[mistIdx].srs.interval = 1;
                         mistakesDb[mistIdx].srs.ease = Math.max(1.3, mistakesDb[mistIdx].srs.ease - 0.2);
                         mistakesDb[mistIdx].srs.nextReview = Date.now() + (10 * 60 * 1000);
@@ -3566,7 +3563,12 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
 
         historyDb.unshift({ ts: Date.now(), date: new Date().toLocaleDateString(), title: displayTitle, subject: db[currentQuizId] ? db[currentQuizId].subject : "Mixed", score: parseFloat(score.toFixed(2)), accuracy: Math.round((correct / activeQuestions.length) * 100) || 0, candidateName: candName, attemptNumber: currentAttemptNum, totalCorrect: correct, totalWrong: wrong, totalSkipped: skipped, reviewData: historicalReviewData });
         if (historyDb.length > 500) historyDb.length = 500;
-        
+
+        // BUG3 FIX: store graded questions in memory so recentlyGraded works even after cloud strips reviewData
+        if(currentQuizId && currentQuizId.startsWith('quiz_srs')){
+            window._lastSprintGraded = new Set(activeQuestions.map(q => q.question));
+        }
+
         saveData(); updateSRSBadge(); showScreen('results'); window.scrollTo(0,0); filterReview('all'); _afterSubmit(correct, wrong, skipped, activeQuestions.length);
         // Extra push for iPhone — force cloud sync 3s after results appear
         // Fixes: iPhone sprints not reaching cloud when user closes app quickly
@@ -3768,8 +3770,8 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
 
         if (status === 'correct') {
             m.srs.reps += 1;
-            if (m.srs.reps === 1)      m.srs.interval = 1;
-            else if (m.srs.reps === 2) m.srs.interval = 3;
+            if (m.srs.reps === 1)      m.srs.interval = 3;
+            else if (m.srs.reps === 2) m.srs.interval = 7;
             else                       m.srs.interval = Math.ceil(m.srs.interval * m.srs.ease);
             m.srs.ease = Math.min(3.0, m.srs.ease + 0.1);
             m.srs.nextReview = Date.now() + (m.srs.interval * 24 * 60 * 60 * 1000);
@@ -3777,8 +3779,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
             // NOTE: Sprint correct does NOT remove from r1Wrong/r2Wrong/r3Wrong
             // R1/R2/R3/R4 cycles are independent from SRS sprints
         } else {
-            // Wrong or Skipped — real 10-minute penalty
-            m.srs.reps = 0;
+            // Wrong or Skipped — 10-minute penalty, keep reps so interval doesn't regress to scratch
             m.srs.interval = 1;
             m.srs.ease = Math.max(1.3, m.srs.ease - 0.2);
             m.srs.nextReview = Date.now() + (10 * 60 * 1000);
