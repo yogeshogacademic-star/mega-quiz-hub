@@ -2760,7 +2760,7 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
             for (const migration of TAG_MIGRATIONS) {
               const needsFix = Object.values(rawData)
                 .flatMap(q => q.questions || [])
-                .some(q => migration.check(q));
+                .some(q => migration.check(q) && !q.tags?.[2]);
 
               if (!needsFix) {
                 console.log(`[TagMigration] "${migration.name}" — already clean ✅`);
@@ -2783,7 +2783,7 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                   const tLow = (text || '').toLowerCase();
                   if (migration.OFF_TOPIC.some(kw => tLow.includes(kw))) continue; // remove off-topic
                   const { t2, t3 } = classifyQ(text, migration.RULES);
-                  q.tags = ["Polity", "Polity", t2, t3];
+                  q.tags = ["Polity", "Parliament", t2, t3];
                   fixed++;
                   cleaned.push(q);
                 }
