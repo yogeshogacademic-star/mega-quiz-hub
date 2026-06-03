@@ -2662,7 +2662,154 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
 
         await tryCloudSync(0);
 
-        // Auto-retry when browser comes back online
+        // ── UNIVERSAL TAG MIGRATION RUNNER ──────────────────────────────
+        // Runs AFTER sync so clean data overwrites stale cloud data
+        // Add new migrations to TAG_MIGRATIONS array as needed
+        // Self-disabling: once no matching questions found → exits instantly
+        (async function universalTagMigration() {
+          try {
+            const TAG_MIGRATIONS = [
+              {
+                name: "Parliament → 14 clean sub-topics",
+                check: q => q.tags?.[1] === 'Parliament',
+                OFF_TOPIC: ["right to information","citizen charter","prevention of atrocities","civil rights act","untouchability","lok adalat","protection of civil rights","scheduled castes and scheduled tribes (prevention"],
+                RULES: [
+                  { t2: "Parliamentary System – Features & Comparison", t3: "Parliamentary vs Presidential System", kw: ["presidential form","presidential system","characteristic of presidential","american president","head of government is also the head"] },
+                  { t2: "Parliamentary System – Features & Comparison", t3: "India vs UK Parliament", kw: ["differ from that model","british model","westminster","differs from british","british parliament","how does our model differ"] },
+                  { t2: "Parliamentary System – Features & Comparison", t3: "Responsible Government & Collective Responsibility", kw: ["collective responsibility","responsible government","cabinet form of government","principle underlying the cabinet","prevents executive despotism","smooth governance"] },
+                  { t2: "Parliamentary System – Features & Comparison", t3: "Merits & Demerits of Parliamentary System", kw: ["drawback of the parliamentary","advantage of the parliamentary","parliamentary system prevent","parliamentary system ensure","key advantages of the parliamentary","major drawback"] },
+                  { t2: "Constitutional Basis of Parliament", t3: "Article 255 – Recommendations & Assent", kw: ["article 255","legal implication of article 255"] },
+                  { t2: "Constitutional Basis of Parliament", t3: "Parliament & Constitutional Provisions", kw: ["article 79","part v of the constitution","parts of the indian constitution outlines the powers"] },
+                  { t2: "Constitutional Basis of Parliament", t3: "Parliament on State List – Art 249, 252, 253", kw: ["state list","union parliament may legislate","parliament may legislate on any item in the state","legislate on a subject in the state list","passing a law under the state list","article 249"] },
+                  { t2: "Composition & Structure", t3: "Bicameralism – Rationale & Criticism", kw: ["bicameralism","strength or chief benefit of bicameral"] },
+                  { t2: "Composition & Structure", t3: "Rajya Sabha – Composition & Seats", kw: ["highest number of seats in the council of states","rajya sabha consists of","members of council of states are elected","representation of states in council of states","fourth schedule.*fixed the number.*rajya sabha","first session of the rajya sabha","not subject to dissolution","rajya sabha.*term of six years","jaishankar.*rajya sabha","1/3.*retire","one-third.*retire"] },
+                  { t2: "Composition & Structure", t3: "Lok Sabha – Composition & Seats", kw: ["maximum strength of the lok sabha","less than two lok sabha","state wise seat allocation in lok sabha","basis for the allocation of seats.*lok sabha","which part of independent india.*first election","first.*election.*universal adult franchise","shortest span.*lok sabha","tenure of which lok sabha was about 6 years","term of the lok sabha","coalition party government","first pro-tem speaker","pro-tem speaker","who was the first speaker","how many seats are reserved for scheduled castes","overseas indians.*franchise","eligible to vote in lok sabha","electoral system of india for lok sabha","systems of representation.*election.*lok sabha","leader of the lok sabha","what is the quorum","composition of.*parliament.*not correct","not.*function of the parliament","parliament of india is primarily based","category.*president.*nominates","nominated.*rajya sabha","12 members.*nominated"] },
+                  { t2: "Composition & Structure", t3: "President as Part of Parliament", kw: ["president.*not be a member of either","president.*shall not be a member","stated in the constitution.*president shall not be a member"] },
+                  { t2: "Membership – Qualifications & Disqualifications", t3: "Anti-Defection Law – 10th Schedule", kw: ["10th schedule","tenth schedule","anti-defection","defection","merger of a political party","not covered by the anti-defection","law specifies that a nominated"] },
+                  { t2: "Membership – Qualifications & Disqualifications", t3: "Disqualification of MPs", kw: ["not a condition for the disqualification","not.*disqualified to continue","absence from parliament without permission","after how many days of absence","office of profit","security amount.*candidate","candidate.*loses.*security","minimum age.*election.*lok sabha","qualification.*member of rajya sabha"] },
+                  { t2: "Membership – Qualifications & Disqualifications", t3: "Role of Speaker in Disqualification", kw: ["question arises as to whether.*mp","question pertaining to the disqualification.*defection","final authority.*disqualif","disqualification.*lok sabha.*ground of defection","whether a member of the house of the people has become subject"] },
+                  { t2: "Duration, Sessions & Sittings", t3: "Quorum", kw: ["quorum"] },
+                  { t2: "Duration, Sessions & Sittings", t3: "Joint Sitting – Art 108", kw: ["joint sit","joint session","joint meeting","article 108","deadlock between.*lok sabha.*rajya sabha","resolv.*deadlock","over which.*lok sabha.*rajya sabha held joint","president summons.*joint session.*lok sabha dissolved"] },
+                  { t2: "Duration, Sessions & Sittings", t3: "Prorogation, Dissolution & Summoning", kw: ["prorogation","prorogue","summoning","summons","convocation","sine die","sitting of house.*terminated","authorized to prorogue","president.*dissolve lok sabha","power to dissolve the lok sabha","dissolution of lok sabha","during a national emergency.*extend the term","how many sessions of parliament are held"] },
+                  { t2: "Duration, Sessions & Sittings", t3: "Lapse of Bills on Dissolution", kw: ["bill pending in the lok sabha lapses","lapse.*bill.*dissolution","pending.*lok sabha.*lapses"] },
+                  { t2: "Presiding Officers", t3: "Speaker During Dissolution", kw: ["dissolution.*speaker.*not vacate","speaker.*not vacate.*office","speaker shall not vacate","on dissolution.*speaker","dissolution.*house of the people.*speaker"] },
+                  { t2: "Presiding Officers", t3: "Speaker's Casting Vote", kw: ["casting vote","cast.*vote.*speaker","which article.*casting vote"] },
+                  { t2: "Presiding Officers", t3: "Speaker – Election & Removal", kw: ["election of the speaker","fixes the date of election of the speaker","removal of.*speaker","how can the speaker.*be removed","resolution for removal of speaker","speaker.*removed","removal.*speaker.*under consideration","notice.*resolution.*removal.*speaker","in india lok sabha speaker is","office of the speaker","vacation.*speaker"] },
+                  { t2: "Presiding Officers", t3: "Speaker – Powers & Functions", kw: ["power of the speaker","not.*power of the speaker","powers of the speaker","speaker.*power","speaker.*function","speaker may permit","speaker.*mother tongue","lok sabha secretariat comes under.*supervision","power to recruit.*secretarial staff"] },
+                  { t2: "Presiding Officers", t3: "Deputy Speaker", kw: ["deputy speaker","panel of chairperson","panel of chair"] },
+                  { t2: "Presiding Officers", t3: "Chairman of Rajya Sabha & Comparison", kw: ["chairman.*rajya sabha","presides over.*lok sabha","who.*presides.*lok sabha","presides over.*joint","who.*presides.*joint","secretary general of the lok sabha"] },
+                  { t2: "Types of Bills & Legislative Procedure", t3: "Money Bill – Art 110", kw: ["money bill","article 110","money.*bill.*returned.*14","rajya sabha.*withhold.*money bill","money bill.*endorsed","article.*money bill shall not be introduced.*council","no money bill can be introduced.*state legislative assembly","cannot be introduced first in the rajya sabha"] },
+                  { t2: "Types of Bills & Legislative Procedure", t3: "Finance Bill vs Money Bill", kw: ["finance bill and money bill","finance bill.*money bill","bill.*merely involves expenditure.*not include.*article 110"] },
+                  { t2: "Types of Bills & Legislative Procedure", t3: "Constitutional Amendment Bill – Art 368", kw: ["amendment.*constitution.*bill","constitution amendment bill","constitutional amendment bill","bill for amendment of the constitution","to pass a constitutional amendment bill"] },
+                  { t2: "Types of Bills & Legislative Procedure", t3: "Ordinary Bill – Stages & Procedure", kw: ["ordinary bill","stage.*bill.*lok sabha","general discussion on a bill","introducing an ordinary bill","motion.*cannot be made.*introducing an ordinary bill","government bill.*parliament.*correct","when a non-minister proposes","private member's bill","private member.*bill"] },
+                  { t2: "Types of Bills & Legislative Procedure", t3: "Exclusive Powers of Lok Sabha", kw: ["exclusive power.*lok sabha","exclusive.*lok sabha","lok sabha.*exclusive","ratify.*emergency.*lok sabha"] },
+                  { t2: "Types of Bills & Legislative Procedure", t3: "Rajya Sabha Special Powers – Art 249 & 312", kw: ["rajya sabha.*equal powers","rajya sabha has equal","council of states has exclusive","rajya sabha.*exclusive","exclusive jurisdiction.*rajya sabha","article 312","all india services.*rajya sabha","power to create new all-india services","failure of government in rajya sabha"] },
+                  { t2: "Types of Bills & Legislative Procedure", t3: "Legislative Council – State Legislature", kw: ["legislative council","vidhan parishad","abolition and creation of.*legislative council","can be created or can be abolished","larger in size than half","legislative council.*detain.*ordinary bills"] },
+                  { t2: "Financial Procedure & Budget", t3: "Vote on Account", kw: ["vote on account","advance grant.*temporary.*running requirements","executive is given an advance grant"] },
+                  { t2: "Financial Procedure & Budget", t3: "Consolidated Fund of India", kw: ["consolidated fund","who has the right to issue money from the consolidated fund","taxes can neither be levied nor collected"] },
+                  { t2: "Financial Procedure & Budget", t3: "Contingency Fund", kw: ["contingency fund","which article.*contingency fund","president.*contingency fund"] },
+                  { t2: "Financial Procedure & Budget", t3: "CAG – Role & Functions", kw: ["comptroller","cag","muddiman committee","separation of accounts from"] },
+                  { t2: "Financial Procedure & Budget", t3: "Budget – Presentation & Stages", kw: ["union budget","annual budget","annual financial statement","finance minister.*lays.*annual financial","economic survey","guillotine","cut motion","object of.*cut motion","rule of lapse","expenditure.*not charged on the consolidated fund","demands for grants","demand for grant","which.*responsible.*preparation and presentation.*union budget","when.*annual union budget is not passed","correct sequence.*budget"] },
+                  { t2: "Parliamentary Privileges & Contempt", t3: "Privilege Motion & Breach of Privilege", kw: ["privilege motion","breach of privilege","privilege.*minister","raised against a minister"] },
+                  { t2: "Parliamentary Privileges & Contempt", t3: "Contempt of Parliament", kw: ["contempt.*parliament","contempt of the house"] },
+                  { t2: "Parliamentary Privileges & Contempt", t3: "Privileges of MPs – Art 105", kw: ["parliamentary privilege","privilege.*member.*parliament","privileges of the members of the parliament","not.*collective privilege","article 105","provisions deals with.*privileges and immunities","freedom of speech.*parliament","freedom from arrest"] },
+                  { t2: "Parliamentary Devices & Floor Procedures", t3: "Question Hour – Starred & Unstarred", kw: ["question hour","starred question","unstarred question","oral answer","short notice question","first hour.*sitting.*house.*asking and answering","not correct.*respect.*questions","types of questions.*lok sabha"] },
+                  { t2: "Parliamentary Devices & Floor Procedures", t3: "Zero Hour", kw: ["zero hour"] },
+                  { t2: "Parliamentary Devices & Floor Procedures", t3: "Adjournment Motion", kw: ["adjournment motion","subject matter of an adjournment"] },
+                  { t2: "Parliamentary Devices & Floor Procedures", t3: "No-Confidence Motion", kw: ["no-confidence motion","no confidence motion","motion of no-confidence","what happens if a no-confidence motion","no mention of.*no-confidence"] },
+                  { t2: "Parliamentary Devices & Floor Procedures", t3: "Censure Motion", kw: ["censure motion","censure.*motion"] },
+                  { t2: "Parliamentary Devices & Floor Procedures", t3: "Motions – General", kw: ["statements about.*motions.*correct","which one.*motions.*correct","calling attention","closure motion","half-an-hour discussion","half hour discussion","issue whether a commitment made by a minister.*floor of the house"] },
+                  { t2: "Parliamentary Devices & Floor Procedures", t3: "Parliamentary Control over Executive", kw: ["instrument of parliamentary control over the executive","not.*instrument of parliamentary control","review.*independent regulators.*parliament"] },
+                  { t2: "Parliamentary Committees", t3: "Public Accounts Committee (PAC)", kw: ["public accounts committee","public account.*committee","committee on public accounts","public accounts committee submits","scrutinizes.*reports to.*house","statements about public accounts committee"] },
+                  { t2: "Parliamentary Committees", t3: "Estimates Committee", kw: ["estimates committee","committee on estimates","functions of the committee on estimates"] },
+                  { t2: "Parliamentary Committees", t3: "Committee on Public Undertakings", kw: ["public undertakings","committee on public undertakings"] },
+                  { t2: "Parliamentary Committees", t3: "Ethics Committee", kw: ["ethics committee","conduct of members.*parliament"] },
+                  { t2: "Parliamentary Committees", t3: "Financial Committees – General", kw: ["financial committees of indian parliament","which.*financial committees","members of the rajya sabha are not associated","rajya sabha.*not associated.*estimates"] },
+                  { t2: "Parliamentary Committees", t3: "Standing Committees & DRSCs", kw: ["standing committee","parliamentary standing committees.*tenure","no members from the upper house","does not consist of members from.*upper house","committees.*not consist of members from.*rajya sabha","parliamentary committee has not been set up","appointment of the members of the parliamentary committees","delegation of power to make rules","delegated legislation"] },
+                  { t2: "President's Role in Parliament", t3: "President's Address – Art 86 & 87", kw: ["president.*addresses.*parliament","article 87","president of india addresses the parliament under article 87"] },
+                  { t2: "President's Role in Parliament", t3: "Assent to Bills & Veto Powers", kw: ["president.*assent","article 111","assent.*bill","president.*withhold","pocket veto","suspensive veto","absolute veto","president's authority to address"] },
+                  { t2: "President's Role in Parliament", t3: "Ordinance-Making Power – Art 123", kw: ["ordinance","article 123","ordinance can amend","president.*ordinance"] },
+                  { t2: "Types of Majority in Parliament", t3: "Special Majority – Constitutional Amendment", kw: ["special majority","two-thirds majority","2/3.*majority"] },
+                  { t2: "Types of Majority in Parliament", t3: "Simple & Effective Majority", kw: ["simple majority","absolute majority","effective majority","winning candidate must get at least"] },
+                  { t2: "Composition & Structure", t3: "General – Parliament Structure", kw: [] }
+                ]
+              }
+              // ADD FUTURE MIGRATIONS HERE:
+              // { name: "Judiciary → clean tags", check: q => q.tags?.[1] === 'Judiciary', OFF_TOPIC: [], RULES: [] },
+            ];
+
+            function classifyQ(qText, rules) {
+              const t = (qText || "").toLowerCase();
+              for (const rule of rules) {
+                if (rule.kw.length === 0) return { t2: rule.t2, t3: rule.t3 };
+                for (const kw of rule.kw) {
+                  try {
+                    if (kw.includes('.*') ? new RegExp(kw).test(t) : t.includes(kw))
+                      return { t2: rule.t2, t3: rule.t3 };
+                  } catch(e) {}
+                }
+              }
+              return { t2: "General", t3: "General" };
+            }
+
+            const rawData = await idbKeyval.get('megaQuizDB_v5');
+            if (!rawData) return;
+
+            let totalFixed = 0;
+
+            for (const migration of TAG_MIGRATIONS) {
+              const needsFix = Object.values(rawData)
+                .flatMap(q => q.questions || [])
+                .some(q => migration.check(q));
+
+              if (!needsFix) {
+                console.log(`[TagMigration] "${migration.name}" — already clean ✅`);
+                continue;
+              }
+
+              console.log(`[TagMigration] Running "${migration.name}"...`);
+              let fixed = 0;
+              const seenTexts = new Set();
+
+              for (const quizId of Object.keys(rawData)) {
+                const quiz = rawData[quizId];
+                if (!quiz.questions) continue;
+                const cleaned = [];
+                for (const q of quiz.questions) {
+                  if (!migration.check(q)) { cleaned.push(q); continue; }
+                  const text = q.question?.trim();
+                  if (seenTexts.has(text)) continue; // remove duplicate
+                  seenTexts.add(text);
+                  const tLow = (text || '').toLowerCase();
+                  if (migration.OFF_TOPIC.some(kw => tLow.includes(kw))) continue; // remove off-topic
+                  const { t2, t3 } = classifyQ(text, migration.RULES);
+                  q.tags = ["Polity", "Polity", t2, t3];
+                  fixed++;
+                  cleaned.push(q);
+                }
+                quiz.questions = cleaned;
+              }
+
+              await idbKeyval.set('megaQuizDB_v5', rawData);
+              totalFixed += fixed;
+              console.log(`[TagMigration] "${migration.name}" — ${fixed} questions fixed ✅`);
+            }
+
+            if (totalFixed > 0) {
+              // Push clean data to cloud immediately
+              setTimeout(() => {
+                if (typeof window._saveDataGlobal === 'function') {
+                  window._saveDataGlobal().catch(() => {});
+                  console.log('[TagMigration] Clean data pushed to cloud ☁️');
+                }
+              }, 3000);
+            }
+
+          } catch(e) {
+            console.warn('[TagMigration] Skipped silently:', e);
+          }
+        })();
+        // ── END UNIVERSAL TAG MIGRATION RUNNER ──────────────────────────
         // Sync when page becomes visible again (fixes iPhone background suspension)
 document.addEventListener('visibilitychange', function() {
   if(document.visibilityState === 'visible') {
