@@ -3584,7 +3584,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
               const _topicMap = {}; // { subject: { topic: {count,correct} } }
               activeQuestions.forEach(function(q,qi){
                 const s=q.tags&&q.tags[0]?q.tags[0]:'Other';
-                const t=q.tags&&q.tags[1]?q.tags[1]:'General';
+                const t=q.tags&&q.tags[1]?q.tags[1]:(q.tags&&q.tags[0]?q.tags[0]:'General');
                 _subjMap[s]=(_subjMap[s]||0)+1;
                 if(!_topicMap[s]) _topicMap[s]={};
                 if(!_topicMap[s][t]) _topicMap[s][t]={count:0,correct:0};
@@ -5698,6 +5698,7 @@ window.generateQuantNotes = () => {
     function fcLaunchQuiz(modeLabel){
         fcQuizIdx = 0;
         fcFlipped = false;
+        window._fcStartTime = Date.now();
         document.getElementById('fc-main-view').classList.add('hidden');
         document.getElementById('fc-quiz-done').classList.add('hidden');
         document.getElementById('fc-quiz-runner').classList.remove('hidden');
@@ -5783,6 +5784,13 @@ window.generateQuantNotes = () => {
             const got  = fcQuizQueue.filter(c => fcGetProgress(c.id).correct > (fcProgress[c.id]?.correct - (result==='got'?1:0) || 0)).length;
             document.getElementById('fc-done-msg').textContent = `You went through ${fcQuizQueue.length} cards.`;
             const correct = fcQuizQueue.filter(c => { const p=fcGetProgress(c.id); return p.correct>0; }).length;
+            // Auto-log to War Room
+            try {
+              if(typeof window._wrAutoLog === 'function'){
+                const _fcDur = window._fcStartTime ? Math.round((Date.now()-window._fcStartTime)/60000) : 0;
+                window._wrAutoLog({ type:'flashcard', title:'Flashcards — '+(fcLastQuizMode||'Mix'), subject:'Flashcards', cards:fcQuizQueue.length, correct:got, duration:_fcDur, ts:Date.now() });
+              }
+            } catch(e) {}
             document.getElementById('fc-done-stats').innerHTML = `
                 <div class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/30 rounded-2xl px-6 py-3 text-center">
                     <div class="text-2xl font-black text-emerald-600 dark:text-emerald-400">${fcCards.filter(c=>fcIsMastered(c.id)).length}</div>
@@ -10863,7 +10871,7 @@ function fmtDate(s){ const d=new Date(s+'T00:00:00'); return d.toLocaleDateStrin
 function fmtShort(s){ const d=new Date(s+'T00:00:00'); return d.toLocaleDateString('en-IN',{day:'numeric',month:'short'}); }
 function subColor(s){ return SUB_COLORS[s]||'#94a3b8'; }
 function t2m(t){ if(!t) return 0; const[h,m]=t.split(':').map(Number); return h*60+m; }
-function to12hr(t){ if(!t)return ''; const [h,m]=t.split(':').map(Number); const ap=h>=12?'PM':'AM'; const hr=h%12||12; return hr+':'+(m<10?'0'+m:m)+' '+ap; }
+function to12hr(t){ if(!t)return ''; if(t.includes('AM')||t.includes('PM')) return t; const [h,m]=t.split(':').map(Number); if(isNaN(h)||isNaN(m)) return t; const ap=h>=12?'PM':'AM'; const hr=h%12||12; return hr+':'+(m<10?'0'+m:m)+' '+ap; }
 function hDisp(h){ if(!h||h<=0) return '0h'; const hrs=Math.floor(h),mins=Math.round((h-hrs)*60); return mins>0?`${hrs}h ${mins}m`:`${hrs}h`; }
 function getWeekStart(s){ const d=new Date(s+'T00:00:00'); const day=d.getDay(); const diff=day===0?-6:1-day; d.setDate(d.getDate()+diff); return dateStr(d); }
 function getWeekDates(ws){ return Array.from({length:7},(_,i)=>{ const d=new Date(ws+'T00:00:00'); d.setDate(d.getDate()+i); return dateStr(d); }); }
@@ -11057,53 +11065,133 @@ function lCalcHours(){
   if(s&&e){ const h=(t2m(e)-t2m(s))/60; if(h>0){ document.getElementById('l-hours').value=Math.round(h*4)/4; document.getElementById('l-hrs-auto').textContent='(auto-calculated)'; } }
 }
 
+// ── LOG MODE ──
+let _logMode = 'start';
+
+function selectLogMode(mode){
+  _logMode = mode;
+  const startBtn = document.getElementById('l-mode-start');
+  const doneBtn  = document.getElementById('l-mode-done');
+  const timeFields = document.getElementById('l-time-fields');
+  const submitBtn  = document.getElementById('l-submit-btn');
+  if(startBtn){ startBtn.style.border=mode==='start'?'2px solid #4f6ef7':'1px solid var(--border)'; startBtn.style.background=mode==='start'?'rgba(79,110,247,0.15)':'transparent'; startBtn.style.color=mode==='start'?'#818cf8':'var(--muted2)'; }
+  if(doneBtn) { doneBtn.style.border=mode==='done'?'2px solid #4f6ef7':'1px solid var(--border)'; doneBtn.style.background=mode==='done'?'rgba(79,110,247,0.15)':'transparent'; doneBtn.style.color=mode==='done'?'#818cf8':'var(--muted2)'; }
+  if(timeFields) timeFields.style.display = mode==='done' ? '' : 'none';
+  if(submitBtn)  submitBtn.textContent = mode==='start' ? '\u25b6 START NOW' : '\u2705 LOG IT';
+}
+
 function saveLog(){
-  const subj=document.getElementById('l-subject').value;
-  const ch=document.getElementById('l-chapter').value;
-  const note=document.getElementById('l-note').value.trim();
-  const start=document.getElementById('l-start').value;
-  const end=document.getElementById('l-end').value;
-  const hrs=parseFloat(document.getElementById('l-hours').value);
-  if(!hrs||hrs<=0){ alert('Enter valid hours'); return; }
+  const subj = document.getElementById('l-subject').value;
+  const ch   = document.getElementById('l-chapter').value;
+  const note = document.getElementById('l-note').value.trim();
+  const now  = Date.now();
+  const timeLabel = new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'});
 
   let log;
   if(_logType==='lecture'){
     if(!subj||!ch){ alert('Select subject and topic for lecture'); return; }
-    const lecNo=_lecType==='fresh'?parseInt(document.getElementById('l-lecno').value||'1'):null;
-    const lecName=document.getElementById('l-lecname').value.trim();
+    const lecNo   = _lecType==='fresh' ? parseInt(document.getElementById('l-lecno').value||'1') : null;
+    const lecName = document.getElementById('l-lecname').value.trim();
     if(!lecName){ alert('Enter lecture name'); return; }
-    const isRevision=_lecType==='revision';
-    const label=isRevision?'🔄 Rev: '+lecName:'🎬 Lec #'+lecNo+': '+lecName;
-    log={ id:Date.now(), date:todayStr(), type:'lecture', subject:subj, chapter:ch, lectureNo:lecNo, lectureName:lecName, isRevision, label, start, end, hrs, note, priority:selectedPri, time:new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'}) };
+    const isRevision = _lecType==='revision';
+    const label = isRevision ? 'Rev: '+lecName : 'Lec #'+lecNo+': '+lecName;
+    if(_logMode==='start'){
+      log={ id:now, date:todayStr(), type:'lecture', status:'doing', subject:subj, chapter:ch, lectureNo:lecNo, lectureName:lecName, isRevision, label, hrs:0, note, priority:selectedPri, startTs:now, segments:[], time:timeLabel };
+    } else {
+      const start=document.getElementById('l-start').value;
+      const end=document.getElementById('l-end').value;
+      const hrs=parseFloat(document.getElementById('l-hours').value);
+      if(!hrs||hrs<=0){ alert('Enter valid hours'); return; }
+      log={ id:now, date:todayStr(), type:'lecture', status:'done', subject:subj, chapter:ch, lectureNo:lecNo, lectureName:lecName, isRevision, label, start, end, hrs, note, priority:selectedPri, startTs:now, segments:[], time:timeLabel };
+    }
   } else {
-    const topic=document.getElementById('l-topic').value.trim();
-    const custom=document.getElementById('l-custom').value.trim();
+    const topic = document.getElementById('l-topic').value.trim();
+    const custom= document.getElementById('l-custom').value.trim();
     if(!custom&&!subj){ alert('Select a subject or enter a custom task'); return; }
-    const label=custom||(topic||ch||subj);
-    log={ id:Date.now(), date:todayStr(), subject:custom?'Custom':subj, chapter:ch, topic, custom, label, start, end, hrs, note, priority:selectedPri, time:new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'}) };
+    const label = custom||(topic||ch||subj);
+    if(_logMode==='start'){
+      log={ id:now, date:todayStr(), status:'doing', subject:custom?'Custom':subj, chapter:ch, topic, custom, label, hrs:0, note, priority:selectedPri, startTs:now, segments:[], time:timeLabel };
+    } else {
+      const start=document.getElementById('l-start').value;
+      const end=document.getElementById('l-end').value;
+      const hrs=parseFloat(document.getElementById('l-hours').value);
+      if(!hrs||hrs<=0){ alert('Enter valid hours'); return; }
+      log={ id:now, date:todayStr(), status:'done', subject:custom?'Custom':subj, chapter:ch, topic, custom, label, start, end, hrs, note, priority:selectedPri, startTs:now, segments:[], time:timeLabel };
+    }
   }
 
   if(!D.logs[todayStr()]) D.logs[todayStr()]=[];
   D.logs[todayStr()].push(log);
-  updateDebt(log.date);
-  updateStreak();
+  if(log.status==='done'){ updateDebt(log.date); updateStreak(); }
   save();
-
-  // Reset
-  ['l-subject','l-chapter','l-topic','l-custom','l-hours','l-note','l-start','l-end','l-lecno','l-lecname'].forEach(id=>{ const el=document.getElementById(id); if(!el) return; if(el.tagName==='SELECT') el.value=''; else el.value=''; });
+  ['l-subject','l-chapter','l-topic','l-custom','l-hours','l-note','l-start','l-end','l-lecno','l-lecname'].forEach(id=>{ const el=document.getElementById(id); if(!el) return; el.tagName==='SELECT'?el.value='':el.value=''; });
   document.getElementById('l-chapter').innerHTML='<option value="">— Select Topic —</option>';
-  document.getElementById('l-hrs-auto').textContent='';
+  const hAuto=document.getElementById('l-hrs-auto'); if(hAuto) hAuto.textContent='';
   const hint=document.getElementById('l-lecno-hint'); if(hint) hint.textContent='';
   renderTodayLogList(); renderHome();
-  const btn=document.querySelector('[onclick="saveLog()"]');
-  if(btn){ btn.textContent='✅ Logged!'; btn.style.background='linear-gradient(135deg,#10b981,#059669)'; setTimeout(()=>{ btn.textContent='✅ LOG IT'; btn.style.background=''; },2000); }
+  const btn=document.getElementById('l-submit-btn');
+  if(btn){ const orig=btn.textContent; btn.textContent='Saved!'; btn.style.background='linear-gradient(135deg,#10b981,#059669)'; setTimeout(()=>{ btn.textContent=orig; btn.style.background=''; },2000); }
 }
+
+// ── SESSION STATUS ACTIONS ──
+function logPause(date, id){
+  const l=(D.logs[date]||[]).find(x=>x.id===id); if(!l) return;
+  if(l.status!=='doing') return;
+  const now=Date.now();
+  l.segments=l.segments||[];
+  if(l.startTs) l.segments.push({from:l.startTs, to:now});
+  l.status='paused'; l.startTs=null;
+  l.hrs=Math.round(l.segments.reduce((a,s)=>(a+(s.to-s.from)),0)/3600000*100)/100;
+  save(); renderTodayLogList(); renderHomeTodayLogged();
+}
+
+function logResume(date, id){
+  const l=(D.logs[date]||[]).find(x=>x.id===id); if(!l) return;
+  if(l.status!=='paused') return;
+  l.status='doing'; l.startTs=Date.now();
+  save(); renderTodayLogList(); renderHomeTodayLogged();
+}
+
+function logDone(date, id){
+  const l=(D.logs[date]||[]).find(x=>x.id===id); if(!l) return;
+  if(l.status==='done'||l.status==='cancelled') return;
+  const now=Date.now();
+  l.segments=l.segments||[];
+  if(l.startTs) l.segments.push({from:l.startTs, to:now});
+  l.status='done'; l.startTs=null;
+  l.hrs=Math.round(l.segments.reduce((a,s)=>(a+(s.to-s.from)),0)/3600000*100)/100;
+  if(l.hrs<=0) l.hrs=0.1;
+  updateDebt(date); updateStreak();
+  save(); renderTodayLogList(); renderHomeTodayLogged(); renderHome();
+}
+
+function logCancel(date, id){
+  const l=(D.logs[date]||[]).find(x=>x.id===id); if(!l) return;
+  l.status='cancelled'; l.hrs=0; l.startTs=null;
+  updateDebt(date);
+  save(); renderTodayLogList(); renderHomeTodayLogged(); renderHome();
+}
+
+// Live timer — updates every 30s for active sessions
+setInterval(()=>{
+  document.querySelectorAll('[data-liveid]').forEach(el=>{
+    const id=parseInt(el.dataset.liveid);
+    const date=el.dataset.livedate;
+    const l=(D.logs[date]||[]).find(x=>x.id===id);
+    if(!l||l.status!=='doing'||!l.startTs) return;
+    const pastMs=(l.segments||[]).reduce((a,s)=>a+(s.to-s.from),0);
+    const currMs=Date.now()-l.startTs;
+    const totalMin=Math.floor((pastMs+currMs)/60000);
+    const h=Math.floor(totalMin/60), m=totalMin%60;
+    el.textContent=(h>0?h+'h ':'')+m+'m';
+  });
+}, 15000);
 
 function updateDebt(date){
   const blocks=D.blocks[date]||[];
   const logs=D.logs[date]||[];
   const planned=blocks.reduce((a,b)=>a+b.plannedHrs,0);
-  const logged=logs.reduce((a,l)=>a+l.hrs,0);
+  const logged=logs.filter(l=>!l.status||l.status==='done').reduce((a,l)=>a+l.hrs,0);
   const debt=Math.max(0,planned-logged);
   if(debt>0) D.debt[date]=debt; else delete D.debt[date];
 }
@@ -11113,36 +11201,46 @@ function renderTodayLogList(){
   if(!el) return;
   const logs=D.logs[todayStr()]||[];
   if(!logs.length){ el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;font-weight:700">No sessions logged yet today</div>'; return; }
-  const sorted = [...logs].sort((a,b)=>(b.ts||0)-(a.ts||0));
-  el.innerHTML = sorted.map(l=>{
-    const isAuto = l.auto;
-    const badge = isAuto ? `<span style="font-size:8px;background:rgba(99,102,241,0.15);color:#818cf8;padding:1px 6px;border-radius:999px;font-weight:900;margin-left:4px">AUTO</span>` : '';
-    const timeStr = l.time || (l.start&&l.end ? l.start+'–'+l.end : '');
-    const icon = l.type==='srs' ? '🧠' : l.type==='mock' ? '📝' : l.type==='quiz' ? '⚡' : l.type==='lecture' ? (l.isRevision?'🔄':'🎬') : '✍️';
-    const detail = l.type==='srs' ? (()=>{
-                     const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;
-                     const subjStr=l.subjects&&Object.keys(l.subjects).length?'<br><span style="font-size:9px;color:var(--muted)">'+Object.entries(l.subjects).map(([s,n])=>s+': '+n).join(' · ')+'</span>':'';
-                     return `${l.cards||0} cards · ${l.correct||0}/${l.cards||0} · ${acc}%`+subjStr;
-                   })() :
-                   l.type==='quiz' ? l.questions+'q · '+Math.round((l.correct||0)/(l.questions||1)*100)+'%' :
-                   l.type==='mock' ? 'Net: '+l.net+' · '+to12hr(l.startTime)+'–'+to12hr(l.endTime) :
-                   l.type==='lecture' ? (l.isRevision?'🔄 '+l.chapter:('#'+l.lectureNo+' · '+l.chapter))+' · '+l.subject :
-                   (l.subject+(l.chapter?' · '+l.chapter:''));
-    return `<div style="display:flex;align-items:center;gap:10px;padding:11px 13px;border-radius:12px;border:1px solid ${isAuto?'rgba(99,102,241,0.2)':'var(--border)'};background:${isAuto?'rgba(99,102,241,0.05)':'var(--bg3)'};margin-bottom:7px">
-      <div style="font-size:16px;flex-shrink:0">${icon}</div>
+  const sorted=[...logs].sort((a,b)=>(b.id||0)-(a.id||0));
+  el.innerHTML=sorted.map(l=>{
+    const isAuto=l.auto;
+    const status=l.status||(isAuto?'done':'done');
+    const icon=l.type==='srs'?'🧠':l.type==='mock'?'📝':l.type==='quiz'?'⚡':l.type==='lecture'?(l.isRevision?'🔄':'🎬'):'✍️';
+    let statusBadge='';
+    if(!isAuto){
+      if(status==='doing') statusBadge='<span style="font-size:8px;background:rgba(245,158,11,0.2);color:#fbbf24;padding:1px 6px;border-radius:999px;font-weight:900;margin-left:4px">DOING</span>';
+      else if(status==='paused') statusBadge='<span style="font-size:8px;background:rgba(99,102,241,0.15);color:#818cf8;padding:1px 6px;border-radius:999px;font-weight:900;margin-left:4px">PAUSED</span>';
+      else if(status==='cancelled') statusBadge='<span style="font-size:8px;background:rgba(239,68,68,0.15);color:#f87171;padding:1px 6px;border-radius:999px;font-weight:900;margin-left:4px">CANCELLED</span>';
+    } else {
+      statusBadge='<span style="font-size:8px;background:rgba(99,102,241,0.15);color:#818cf8;padding:1px 6px;border-radius:999px;font-weight:900;margin-left:4px">AUTO</span>';
+    }
+    const pastMs=(l.segments||[]).reduce((a,s)=>a+(s.to-s.from),0);
+    const currMs=(status==='doing'&&l.startTs)?(Date.now()-l.startTs):0;
+    const totalMin=Math.floor((pastMs+currMs)/60000);
+    const hh=Math.floor(totalMin/60), mm=totalMin%60;
+    const liveStr=(hh>0?hh+'h ':'')+mm+'m';
+    const detail=l.type==='srs'?(()=>{const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;const sj=l.subjects&&Object.keys(l.subjects).length?'<br><span style="font-size:9px;color:var(--muted)">'+Object.entries(l.subjects).map(([s,n])=>s+': '+n).join(' · ')+'</span>':'';return l.cards+'cards\xb7'+l.correct+'/'+l.cards+'\xb7'+acc+'%'+sj;})():l.type==='quiz'?l.questions+'q\xb7'+Math.round((l.correct||0)/(l.questions||1)*100)+'%':l.type==='mock'?'Net:'+l.net+'\xb7'+to12hr(l.startTime)+'-'+to12hr(l.endTime):l.type==='lecture'?(l.isRevision?'Rev\xb7'+l.chapter:'Lec#'+l.lectureNo+'\xb7'+l.chapter)+'\xb7'+l.subject:(l.subject+(l.chapter?'\xb7'+l.chapter:''));
+    const isCan=status==='cancelled';
+    const borderC=isAuto?'rgba(99,102,241,0.2)':status==='doing'?'rgba(245,158,11,0.25)':status==='paused'?'rgba(99,102,241,0.25)':isCan?'rgba(239,68,68,0.15)':'var(--border)';
+    const bgC=isAuto?'rgba(99,102,241,0.05)':status==='doing'?'rgba(245,158,11,0.04)':status==='paused'?'rgba(99,102,241,0.04)':isCan?'rgba(239,68,68,0.03)':'var(--bg3)';
+    let actionBtns='';
+    if(!isAuto){
+      if(status==='doing') actionBtns=`<button onclick="logPause('${l.date}',${l.id})" style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#818cf8;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Pause</button><button onclick="logDone('${l.date}',${l.id})" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#4ade80;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Done</button><button onclick="logCancel('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px">x</button>`;
+      else if(status==='paused') actionBtns=`<button onclick="logResume('${l.date}',${l.id})" style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);color:#fbbf24;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Resume</button><button onclick="logDone('${l.date}',${l.id})" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#4ade80;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Done</button><button onclick="logCancel('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px">x</button>`;
+      else actionBtns=`<button onclick="deleteLog('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 4px">x</button><button onclick="editLog('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:2px">edit</button>`;
+    }
+    const hrsDisp=(status==='doing'||status==='paused')?`<span data-liveid="${l.id}" data-livedate="${l.date}" style="font-size:12px;font-weight:900;color:#fbbf24;flex-shrink:0">${liveStr||'0m'}</span>`:`<span style="font-size:12px;font-weight:900;color:${isCan?'var(--muted)':subColor(l.subject||'Other')};flex-shrink:0;${isCan?'text-decoration:line-through':''}">${hDisp(l.hrs)}</span>`;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;border:1px solid ${borderC};background:${bgC};margin-bottom:7px;${isCan?'opacity:0.5':''}">
+      <div style="font-size:15px;flex-shrink:0">${icon}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:900">${l.title||l.label||l.subject}${badge}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:2px;font-weight:700">${detail}${timeStr?' · 🕐 '+to12hr(timeStr.split('–')[0]):''}</div>
+        <div style="font-size:12px;font-weight:900;${isCan?'text-decoration:line-through;color:var(--muted)':''}">${l.title||l.label||l.subject}${statusBadge}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px;font-weight:700">${detail}</div>
       </div>
-      <div style="text-align:right;flex-shrink:0">
-        <div style="font-size:13px;font-weight:900;color:${subColor(l.subject||'Other')}">${l.duration?l.duration+'min':hDisp(l.hrs)}</div>
-      </div>
-      <button onclick="deleteLog('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 4px">×</button>
-      ${!isAuto?`<button onclick="editLog('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:2px 2px" title="Edit">✏️</button>`:''}
+      ${hrsDisp}
+      <div style="display:flex;gap:4px;flex-shrink:0;align-items:center">${actionBtns}</div>
     </div>`;
   }).join('');
 }
-
 function deleteLog(date,id){
   D.logs[date]=(D.logs[date]||[]).filter(l=>l.id!==id);
   updateDebt(date); save(); renderTodayLogList(); renderHome();
@@ -11329,43 +11427,52 @@ function renderHomeTodayLogged(){
   const totEl=document.getElementById('h-today-logged-total');
   if(!listEl) return;
   const logs=D.logs[todayStr()]||[];
-  const sorted=[...logs].sort((a,b)=>(b.ts||0)-(a.ts||0));
-  const totalHrs=logs.reduce((a,l)=>a+l.hrs,0);
+  const sorted=[...logs].sort((a,b)=>(b.id||0)-(a.id||0));
+  const totalHrs=logs.filter(l=>!l.status||l.status==='done').reduce((a,l)=>a+l.hrs,0);
   if(totEl) totEl.textContent=logs.length?hDisp(totalHrs):'';
-  if(!sorted.length){
-    listEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;font-weight:700">Nothing logged yet today 📋</div>';
-    return;
-  }
+  if(!sorted.length){ listEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;font-weight:700">Nothing logged yet today</div>'; return; }
   listEl.innerHTML=sorted.map(l=>{
     const isAuto=l.auto;
+    const status=l.status||(isAuto?'done':'done');
     const icon=l.type==='srs'?'🧠':l.type==='mock'?'📝':l.type==='quiz'?'⚡':l.type==='lecture'?(l.isRevision?'🔄':'🎬'):l.type==='revision'?'📚':'✍️';
-    const badge=isAuto?`<span style="font-size:8px;background:rgba(99,102,241,0.15);color:#818cf8;padding:1px 6px;border-radius:999px;font-weight:900;margin-left:4px">AUTO</span>`:'';
-    let detail='';
-    if(l.type==='srs'){
-      const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;
-      const subjStr=l.subjects&&Object.keys(l.subjects).length?Object.entries(l.subjects).map(([s,n])=>s+': '+n).join(' · '):'';
-      detail=`${l.cards||0} cards · ${l.correct||0}/${l.cards||0} · ${acc}%`+(subjStr?`<br><span style="color:var(--muted);font-size:9px">${subjStr}</span>`:'');
-    } else if(l.type==='quiz'){
-      detail=`${l.questions||0}q · ${l.correct||0} correct · ${Math.round((l.correct||0)/(l.questions||1)*100)}%`;
-    } else if(l.type==='mock'){
-      detail=`Net: ${l.net||0} · ${to12hr(l.startTime||'09:00')}–${to12hr(l.endTime||'10:00')}`;
-    } else if(l.type==='lecture'){
-      detail=(l.isRevision?'🔄 Rev':'#'+l.lectureNo)+' · '+l.chapter+' · '+l.subject;
-    } else if(l.type==='revision'){
-      detail=l.subject+(l.chapter?' · '+l.chapter:'');
+    let statusBadge='';
+    if(!isAuto){
+      if(status==='doing') statusBadge='<span style="font-size:8px;background:rgba(245,158,11,0.2);color:#fbbf24;padding:1px 6px;border-radius:999px;font-weight:900;margin-left:4px">DOING</span>';
+      else if(status==='paused') statusBadge='<span style="font-size:8px;background:rgba(99,102,241,0.15);color:#818cf8;padding:1px 6px;border-radius:999px;font-weight:900;margin-left:4px">PAUSED</span>';
+      else if(status==='cancelled') statusBadge='<span style="font-size:8px;background:rgba(239,68,68,0.15);color:#f87171;padding:1px 6px;border-radius:999px;font-weight:900;margin-left:4px">CANCELLED</span>';
     } else {
-      detail=l.subject+(l.chapter?' · '+l.chapter:'');
+      statusBadge='<span style="font-size:8px;background:rgba(99,102,241,0.15);color:#818cf8;padding:1px 6px;border-radius:999px;font-weight:900;margin-left:4px">AUTO</span>';
     }
-    const timeStr=l.time||(l.start&&l.end?l.start+'–'+l.end:'');
-    const delBtn=!isAuto?`<button onclick="deleteLog('${l.date}',${l.id});renderHomeTodayLogged();renderHome()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 4px;line-height:1;flex-shrink:0" title="Delete">×</button>`:'';
-    return `<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:11px;border:1px solid ${isAuto?'rgba(99,102,241,0.2)':'var(--border)'};background:${isAuto?'rgba(99,102,241,0.05)':'var(--bg3)'};margin-bottom:7px">
-      <div style="font-size:15px;flex-shrink:0;margin-top:1px">${icon}</div>
+    const pastMs=(l.segments||[]).reduce((a,s)=>a+(s.to-s.from),0);
+    const currMs=(status==='doing'&&l.startTs)?(Date.now()-l.startTs):0;
+    const totalMin=Math.floor((pastMs+currMs)/60000);
+    const hh=Math.floor(totalMin/60), mm=totalMin%60;
+    const liveStr=(hh>0?hh+'h ':'')+mm+'m';
+    let detail='';
+    if(l.type==='srs'){const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;const sj=l.subjects&&Object.keys(l.subjects).length?Object.entries(l.subjects).map(([s,n])=>s+':'+n).join(' · '):'';detail=l.cards+' cards · '+l.correct+'/'+l.cards+' · '+acc+'%'+(sj?'<br><span style="font-size:9px;color:var(--muted)">'+sj+'</span>':'');}
+    else if(l.type==='quiz') detail=l.questions+'q · '+l.correct+' correct · '+Math.round((l.correct||0)/(l.questions||1)*100)+'%';
+    else if(l.type==='mock') detail='Net: '+l.net+' · '+to12hr(l.startTime||'09:00')+'–'+to12hr(l.endTime||'10:00');
+    else if(l.type==='lecture') detail=(l.isRevision?'Rev':'Lec #'+l.lectureNo)+' · '+l.chapter+' · '+l.subject;
+    else if(l.type==='revision') detail=l.subject+(l.chapter?' · '+l.chapter:'');
+    else detail=l.subject+(l.chapter?' · '+l.chapter:'');
+    const isCan=status==='cancelled';
+    const borderC=isAuto?'rgba(99,102,241,0.2)':status==='doing'?'rgba(245,158,11,0.25)':status==='paused'?'rgba(99,102,241,0.25)':isCan?'rgba(239,68,68,0.15)':'var(--border)';
+    const bgC=isAuto?'rgba(99,102,241,0.05)':status==='doing'?'rgba(245,158,11,0.04)':status==='paused'?'rgba(99,102,241,0.04)':isCan?'rgba(239,68,68,0.03)':'var(--bg3)';
+    let actionBtns='';
+    if(!isAuto){
+      if(status==='doing') actionBtns=`<button onclick="logPause('${l.date}',${l.id})" style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#818cf8;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Pause</button> <button onclick="logDone('${l.date}',${l.id})" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#4ade80;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Done</button> <button onclick="logCancel('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px">x</button>`;
+      else if(status==='paused') actionBtns=`<button onclick="logResume('${l.date}',${l.id})" style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);color:#fbbf24;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Resume</button> <button onclick="logDone('${l.date}',${l.id})" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#4ade80;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Done</button> <button onclick="logCancel('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px">x</button>`;
+      else actionBtns=`<button onclick="deleteLog('${l.date}',${l.id});renderHomeTodayLogged();renderHome()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 4px">×</button>`;
+    }
+    const hrsDisp=(status==='doing'||status==='paused')?`<span data-liveid="${l.id}" data-livedate="${l.date}" style="font-size:12px;font-weight:900;color:#fbbf24;flex-shrink:0;white-space:nowrap">${liveStr||'0m'}</span>`:`<span style="font-size:12px;font-weight:900;color:${isCan?'var(--muted)':subColor(l.subject||'Other')};flex-shrink:0;white-space:nowrap;${isCan?'text-decoration:line-through':''}">${hDisp(l.hrs)}</span>`;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:11px;border:1px solid ${borderC};background:${bgC};margin-bottom:7px;${isCan?'opacity:0.5':''}">
+      <div style="font-size:15px;flex-shrink:0">${icon}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:900">${l.title||l.label||l.subject}${badge}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:3px;font-weight:700;line-height:1.5">${detail}${timeStr?' · 🕐 '+to12hr(timeStr.split('–')[0]):''}</div>
+        <div style="font-size:12px;font-weight:900;${isCan?'text-decoration:line-through;color:var(--muted)':''}">${l.title||l.label||l.subject}${statusBadge}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px;font-weight:700;line-height:1.5">${detail}</div>
       </div>
-      <div style="font-size:12px;font-weight:900;color:${subColor(l.subject||'Other')};flex-shrink:0;white-space:nowrap">${l.duration?l.duration+'m':hDisp(l.hrs)}</div>
-      ${delBtn}
+      ${hrsDisp}
+      <div style="display:flex;gap:3px;flex-shrink:0;align-items:center">${actionBtns}</div>
     </div>`;
   }).join('');
 }
@@ -11511,7 +11618,7 @@ function renderBlocksInDetail(blocks, el){
 
 function logCard(l){
   if(l.auto){
-    const icon=l.type==='srs'?'🧠':l.type==='mock'?'📝':l.type==='quiz'?'⚡':l.type==='revision'?'📚':l.type==='lecture'?(l.isRevision?'🔄':'🎬'):'✍️';
+    const icon=l.type==='srs'?'🧠':l.type==='mock'?'📝':l.type==='quiz'?'⚡':l.type==='revision'?'📚':l.type==='lecture'?(l.isRevision?'🔄':'🎬'):l.type==='flashcard'?'🃏':'✍️';
     let detail='';
     if(l.type==='srs'){
       const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;
@@ -11544,6 +11651,7 @@ function logCard(l){
         ${noteHtml(l.note)}
       </div>
       <div style="font-size:13px;font-weight:900;color:${subColor(l.subject)};flex-shrink:0">${hDisp(l.hrs)}</div>
+      <button onclick="deleteLog('${l.date}',${l.id});renderDayDetail('${l.date}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 4px" title="Delete">×</button>
     </div>
   </div>`;
 }
@@ -11928,6 +12036,7 @@ function renderSRSDrillDown(){
         <div style="font-size:10px;color:var(--muted);font-weight:700">${subjTotal} cards</div>
       </div>`;
     Object.entries(topics).forEach(([topic,data])=>{
+      if(topic==='—') return; // skip blank topics from old logs
       const acc=data.count?Math.round(data.correct/data.count*100):0;
       const pct=subjTotal?Math.round(data.count/subjTotal*100):0;
       html+=`<div style="margin-left:13px;margin-bottom:4px">
