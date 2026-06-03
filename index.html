@@ -8592,7 +8592,7 @@ function scInitDefault() {
       };
     });
   });
-  // Patch existing topics that are missing fields added after initial creation
+  // Patch existing topics missing fields added after initial creation
   // Safe: only fills undefined fields, never overwrites existing data
   Object.values(scDb).forEach(t => {
     if (!Array.isArray(t.r1Wrong))              t.r1Wrong = [];
@@ -9581,7 +9581,7 @@ function scShowContinueModal(key, rev, done, total, questions, isBooster) {
         <div class="h-full bg-violet-500 rounded-full" style="width:${Math.round(done/total*100)}%"></div>
       </div>
       <div class="flex gap-3">
-        <button onclick="scLaunchRevQuiz('${key}','${rev}',null,${done},${isBooster || false});scCloseModal()" class="flex-1 bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">▶ Continue (${total-done} Qs)</button>
+        <button onclick="scLaunchRevQuiz('${key}','${rev}',null,${rev==='r1'?0:done},${isBooster || false});scCloseModal()" class="flex-1 bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">▶ Continue (${total-done} Qs)</button>
         <button onclick="scLaunchRevQuiz('${key}','${rev}',null,0,${isBooster || false});scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-black py-3 rounded-xl text-sm transition-colors">↺ Start Fresh</button>
       </div>
       <button onclick="scCloseModal()" class="mt-3 text-xs text-slate-400 hover:text-slate-600 font-bold">Cancel</button>
