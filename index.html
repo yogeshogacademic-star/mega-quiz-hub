@@ -3579,10 +3579,21 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
             const _dur = window._quizStartTime ? Math.round((Date.now()-window._quizStartTime)/60000) : 0;
             const _isSRS = currentQuizId && (currentQuizId.startsWith('quiz_srs') || (db[currentQuizId] && db[currentQuizId].isSRS));
             if(_isSRS) {
-              // SRS sprint — get subject breakdown
+              // SRS sprint — get subject+topic breakdown (nested map)
               const _subjMap = {};
-              activeQuestions.forEach(function(q){ const s=q.tags&&q.tags[0]?q.tags[0]:'Other'; _subjMap[s]=(_subjMap[s]||0)+1; });
-              window._wrAutoLog({ type:'srs', title:'SRS Sprint', subject:'SRS', cards:activeQuestions.length, correct:correct, subjects:_subjMap, duration:_dur, ts:Date.now() });
+              const _topicMap = {}; // { subject: { topic: {count,correct} } }
+              activeQuestions.forEach(function(q,qi){
+                const s=q.tags&&q.tags[0]?q.tags[0]:'Other';
+                const t=q.tags&&q.tags[1]?q.tags[1]:'General';
+                _subjMap[s]=(_subjMap[s]||0)+1;
+                if(!_topicMap[s]) _topicMap[s]={};
+                if(!_topicMap[s][t]) _topicMap[s][t]={count:0,correct:0};
+                _topicMap[s][t].count++;
+                // match correct by index — quizState.answers indexed same as activeQuestions
+                const ans=window.quizState&&window.quizState.answers?window.quizState.answers[qi]:null;
+                if(ans==='correct') _topicMap[s][t].correct++;
+              });
+              window._wrAutoLog({ type:'srs', title:'SRS Sprint', subject:'SRS', cards:activeQuestions.length, correct:correct, subjects:_subjMap, topicMap:_topicMap, duration:_dur, ts:Date.now() });
             } else {
               window._wrAutoLog({ type:'quiz', title:displayTitle, subject:db[currentQuizId]?db[currentQuizId].subject:'Mixed', questions:activeQuestions.length, correct:correct, score:parseFloat(score.toFixed(2)), duration:_dur, ts:Date.now() });
             }
@@ -8785,6 +8796,7 @@ window.scTickLec = (key) => {
     t.lec = true; t.lecDate = scToday();
     t.trackingMode = t.trackingMode || 'unit';
     scSave(); scRender();
+    if (typeof window._wrAutoLog === 'function') window._wrAutoLog({ type:'revision', title:'Lecture — '+t.name, subject:t.subject||'', chapter:t.name, rev:'LEC', ts:Date.now() });
     if (typeof window._saveDataGlobal === 'function') window._saveDataGlobal();
   }
 };
@@ -10096,14 +10108,10 @@ window.scMarkR1Done = (key) => {
   t.r1 = true;
   t.r1Date = scToday();
   t.r1Progress = 0;
-  // DO NOT clear r1QuestionsAttempted here — it must persist through R2→R3→R4
-  // so that R4 graduation can graduate all cycle questions to SRS.
-  // It is cleared in two correct places:
-  //   1. scMarkRevDoneAuto (after R4 graduation fires)
-  //   2. scStartRevision (when a brand new R1 cycle begins, currentProgress===0)
   scUpdateStreak();
   scSave();
   scCloseModal();
+  if (typeof window._wrAutoLog === 'function') window._wrAutoLog({ type:'revision', title:'R1 — '+t.name, subject:t.subject||'', chapter:t.name, rev:'R1', ts:Date.now() });
   if (document.getElementById('screen-syllabus-command') && !document.getElementById('screen-syllabus-command').classList.contains('hidden')) {
     scRender();
   }
@@ -10201,6 +10209,7 @@ window.scMarkRevDoneAuto = (key, rev) => {
   
   scUpdateStreak();
   scSave();
+  if (typeof window._wrAutoLog === 'function') window._wrAutoLog({ type:'revision', title:rev.toUpperCase()+' — '+t.name, subject:t.subject||'', chapter:t.name, rev:rev.toUpperCase(), ts:Date.now() });
   if (document.getElementById('screen-syllabus-command') && !document.getElementById('screen-syllabus-command').classList.contains('hidden')) {
     scRender();
   }
@@ -10420,13 +10429,14 @@ body.light select.inp option { background:white; }
         </svg>
         <div class="ring-inner">
           <div class="ring-num" id="h-ring-num">0</div>
-          <div class="ring-sub">/ 50 hrs</div>
+          <div class="ring-sub" id="h-ring-sub">/ 50 hrs</div>
         </div>
       </div>
       <div>
         <div class="label label-accent">This Week</div>
         <div id="h-avg" style="font-size:12px;font-weight:700;color:var(--muted2)">Avg 0h/day</div>
         <div id="h-needed" style="font-size:11px;font-weight:900;color:var(--yellow);margin-top:5px"></div>
+        <button onclick="editWeeklyTarget()" style="margin-top:8px;background:rgba(79,110,247,0.1);border:1px solid rgba(79,110,247,0.25);color:#818cf8;font-size:9px;font-weight:900;padding:3px 9px;border-radius:999px;cursor:pointer;letter-spacing:0.06em">✏️ TARGET</button>
       </div>
     </div>
 
@@ -10461,6 +10471,27 @@ body.light select.inp option { background:white; }
     </div>
   </div>
 
+  <!-- Weekly Performance Row -->
+  <div class="card" style="margin-bottom:14px;padding:12px 16px">
+    <div id="h-week-perf" style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-around"></div>
+  </div>
+
+  <!-- Weekly Planner -->
+  <div class="card" style="margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div>
+        <div style="font-size:14px;font-weight:900;color:var(--text)" id="h-week-label">This Week</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:700;margin-top:2px" id="h-week-dates"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="wrWeekNav(-1)" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted2);padding:4px 10px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:900">←</button>
+        <button onclick="wrWeekNav(0)" style="background:var(--bg3);border:1px solid var(--border);color:var(--accent);padding:4px 10px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:900">Today</button>
+        <button onclick="wrWeekNav(1)" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted2);padding:4px 10px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:900">→</button>
+      </div>
+    </div>
+    <div id="h-week-days"></div>
+  </div>
+
   <!-- ROW 2: Tasks + Subject Progress -->
   <div class="g2" style="margin-bottom:14px">
 
@@ -10481,13 +10512,32 @@ body.light select.inp option { background:white; }
       </div>
     </div>
 
+    <!-- Today Logged Feed -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <div style="font-size:14px;font-weight:900;color:var(--text)">Today Logged</div>
+        <div id="h-today-logged-total" style="font-size:12px;font-weight:900;color:var(--green)"></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:14px">All sessions — auto + manual</div>
+      <div id="h-today-logged-list">
+        <div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;font-weight:700">Nothing logged yet today 📋</div>
+      </div>
+    </div>
+
     <!-- Subject Progress -->
     <div class="card">
       <div style="font-size:14px;font-weight:900;color:var(--text);margin-bottom:4px">Subject Hours</div>
-      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:14px">This week — studied subjects only</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:14px">This week — incl. SRS by subject</div>
       <div id="h-subj-progress">
         <div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;font-weight:700">Log sessions to see breakdown 📊</div>
       </div>
+    </div>
+
+    <!-- SRS Drill-down -->
+    <div class="card">
+      <div style="font-size:14px;font-weight:900;color:var(--text);margin-bottom:4px">SRS Drill-down</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:10px">Today — by subject & topic</div>
+      <div id="h-srs-drilldown"></div>
     </div>
   </div>
 
@@ -10953,7 +11003,11 @@ function renderTodayLogList(){
     const icon = l.type==='srs' ? '🧠' : l.type==='mock' ? '📝' : l.type==='quiz' ? '⚡' : '✍️';
     const badge = isAuto ? `<span style="font-size:8px;background:rgba(99,102,241,0.15);color:#818cf8;padding:1px 6px;border-radius:999px;font-weight:900;margin-left:4px">AUTO</span>` : '';
     const timeStr = l.time || (l.start&&l.end ? l.start+'–'+l.end : '');
-    const detail = l.type==='srs' && l.subjects ? Object.entries(l.subjects).map(([s,n])=>s+': '+n).join(' · ') :
+    const detail = l.type==='srs' ? (()=>{
+                     const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;
+                     const subjStr=l.subjects&&Object.keys(l.subjects).length?'<br><span style="font-size:9px;color:var(--muted)">'+Object.entries(l.subjects).map(([s,n])=>s+': '+n).join(' · ')+'</span>':'';
+                     return `${l.cards||0} cards · ${l.correct||0}/${l.cards||0} · ${acc}%`+subjStr;
+                   })() :
                    l.type==='quiz' ? l.questions+'q · '+Math.round((l.correct||0)/(l.questions||1)*100)+'%' :
                    l.type==='mock' ? 'Net: '+l.net+' · '+to12hr(l.startTime)+'–'+to12hr(l.endTime) :
                    (l.subject+(l.chapter?' · '+l.chapter:''));
@@ -10967,6 +11021,7 @@ function renderTodayLogList(){
         <div style="font-size:13px;font-weight:900;color:${subColor(l.subject||'Other')}">${l.duration?l.duration+'min':hDisp(l.hrs)}</div>
       </div>
       <button onclick="deleteLog('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 4px">×</button>
+      ${!isAuto?`<button onclick="editLog('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:2px 2px" title="Edit">✏️</button>`:''}
     </div>`;
   }).join('');
 }
@@ -11047,8 +11102,24 @@ function renderHome(){
   // Tasks
   renderHomeTasks(tBlocks,tLogs);
 
+  // Today Logged feed
+  renderHomeTodayLogged();
+
   // Subject progress
   renderHomeSubjProgress(wd);
+
+  // Weekly planner
+  renderWeeklyPlanner();
+
+  // Weekly performance
+  renderWeekPerf(wd);
+
+  // SRS drill-down
+  renderSRSDrillDown();
+
+  // Ring sub target
+  const ringSubEl=document.getElementById('h-ring-sub');
+  if(ringSubEl) ringSubEl.textContent='/ '+(D.target||50)+' hrs';
 
   // Alerts
   renderAlerts(today);
@@ -11089,6 +11160,7 @@ function renderHomeTasks(blocks,logs){
         <div style="font-size:12px;font-weight:900;color:var(--muted2)">${hDisp(b.plannedHrs)}</div>
         ${bLogged>0?`<div style="font-size:9px;color:var(--green);font-weight:900">done ${hDisp(bLogged)}</div>`:''}
       </div>
+      <button onclick="editBlock('${b.date}',${b.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:2px 4px" title="Edit">✏️</button>
       <button onclick="deleteBlock('${b.date}',${b.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 5px">×</button>
     </div>`;
   }).join('');
@@ -11109,7 +11181,17 @@ function renderHomeSubjProgress(wd){
   const el=document.getElementById('h-subj-progress');
   if(!el) return;
   const sh={};
-  wd.forEach(d=>(D.logs[d]||[]).forEach(l=>{ if(l.subject&&l.subject!=='Custom') sh[l.subject]=(sh[l.subject]||0)+l.hrs; }));
+  wd.forEach(d=>(D.logs[d]||[]).forEach(l=>{
+    if(l.type==='srs' && l.subjects && Object.keys(l.subjects).length>0){
+      // Expand SRS subjects map — distribute hrs proportionally across subjects
+      const totalCards=Object.values(l.subjects).reduce((a,n)=>a+n,0)||1;
+      Object.entries(l.subjects).forEach(([s,n])=>{
+        if(s&&s!=='Custom'&&s!=='Other') sh[s]=(sh[s]||0)+Math.round((n/totalCards)*l.hrs*10)/10;
+      });
+    } else if(l.subject&&l.subject!=='Custom'&&l.subject!=='SRS'){
+      sh[l.subject]=(sh[l.subject]||0)+l.hrs;
+    }
+  }));
   const sorted=Object.entries(sh).sort((a,b)=>b[1]-a[1]);
   if(!sorted.length){ el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;font-weight:700">Log sessions to see breakdown 📊</div>'; return; }
   const max=sorted[0][1];
@@ -11121,6 +11203,46 @@ function renderHomeSubjProgress(wd){
         <div style="font-size:12px;font-weight:900;color:${subColor(s)}">${hDisp(h)}</div>
       </div>
       <div class="subj-bar-track"><div class="subj-bar-fill" style="width:${pct}%;background:${subColor(s)}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function renderHomeTodayLogged(){
+  const listEl=document.getElementById('h-today-logged-list');
+  const totEl=document.getElementById('h-today-logged-total');
+  if(!listEl) return;
+  const logs=D.logs[todayStr()]||[];
+  const sorted=[...logs].sort((a,b)=>(b.ts||0)-(a.ts||0));
+  const totalHrs=logs.reduce((a,l)=>a+l.hrs,0);
+  if(totEl) totEl.textContent=logs.length?hDisp(totalHrs):'';
+  if(!sorted.length){
+    listEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;font-weight:700">Nothing logged yet today 📋</div>';
+    return;
+  }
+  listEl.innerHTML=sorted.map(l=>{
+    const isAuto=l.auto;
+    const icon=l.type==='srs'?'🧠':l.type==='mock'?'📝':l.type==='quiz'?'⚡':'✍️';
+    const badge=isAuto?`<span style="font-size:8px;background:rgba(99,102,241,0.15);color:#818cf8;padding:1px 6px;border-radius:999px;font-weight:900;margin-left:4px">AUTO</span>`:'';
+    let detail='';
+    if(l.type==='srs'){
+      const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;
+      const subjStr=l.subjects&&Object.keys(l.subjects).length?Object.entries(l.subjects).map(([s,n])=>s+': '+n).join(' · '):'';
+      detail=`${l.cards||0} cards · ${l.correct||0}/${l.cards||0} · ${acc}%`+(subjStr?`<br><span style="color:var(--muted);font-size:9px">${subjStr}</span>`:'');
+    } else if(l.type==='quiz'){
+      detail=`${l.questions||0}q · ${l.correct||0} correct · ${Math.round((l.correct||0)/(l.questions||1)*100)}%`;
+    } else if(l.type==='mock'){
+      detail=`Net: ${l.net||0} · ${to12hr(l.startTime||'09:00')}–${to12hr(l.endTime||'10:00')}`;
+    } else {
+      detail=l.subject+(l.chapter?' · '+l.chapter:'');
+    }
+    const timeStr=l.time||(l.start&&l.end?l.start+'–'+l.end:'');
+    return `<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:11px;border:1px solid ${isAuto?'rgba(99,102,241,0.2)':'var(--border)'};background:${isAuto?'rgba(99,102,241,0.05)':'var(--bg3)'};margin-bottom:7px">
+      <div style="font-size:15px;flex-shrink:0;margin-top:1px">${icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:900">${l.title||l.label||l.subject}${badge}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px;font-weight:700;line-height:1.5">${detail}${timeStr?' · 🕐 '+to12hr(timeStr.split('–')[0]):''}</div>
+      </div>
+      <div style="font-size:12px;font-weight:900;color:${subColor(l.subject||'Other')};flex-shrink:0;white-space:nowrap">${l.duration?l.duration+'m':hDisp(l.hrs)}</div>
     </div>`;
   }).join('');
 }
@@ -11171,7 +11293,15 @@ function renderCalendar(){
     const isSel=ds===calSelectedDate;
     html+=`<div class="cal-cell${isToday?' today':''}${isSel?' selected':''}" style="background:${bg}" onclick="calSelectDate('${ds}')">
       <span>${d}</span>
-      ${hrs>0?`<div class="cal-dot" style="background:${hrs>=6?'#10b981':hrs>=3?'#f59e0b':'#4f6ef7'}"></div>`:''}
+      ${hrs>0?(()=>{
+        const dayLogs=D.logs[ds]||[];
+        const hasSRS=dayLogs.some(l=>l.type==='srs');
+        const hasQuiz=dayLogs.some(l=>l.type==='quiz');
+        const hasMock=dayLogs.some(l=>l.type==='mock');
+        const hasRev=dayLogs.some(l=>l.type==='revision');
+        const icons=(hasSRS?'🧠':'')+(hasQuiz?'⚡':'')+(hasMock?'📝':'')+(hasRev?'📚':'');
+        return icons?`<div style="font-size:7px;line-height:1;margin-top:2px">${icons}</div>`:`<div class="cal-dot" style="background:${hrs>=6?'#10b981':hrs>=3?'#f59e0b':'#4f6ef7'}"></div>`;
+      })():''}
     </div>`;
   }
   // Remaining
@@ -11256,6 +11386,29 @@ function renderBlocksInDetail(blocks, el){
 }
 
 function logCard(l){
+  if(l.auto){
+    const icon=l.type==='srs'?'🧠':l.type==='mock'?'📝':l.type==='quiz'?'⚡':l.type==='revision'?'📚':'✍️';
+    let detail='';
+    if(l.type==='srs'){
+      const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;
+      const subjStr=l.subjects&&Object.keys(l.subjects).length?Object.entries(l.subjects).map(([s,n])=>s+': '+n).join(' · '):'';
+      detail=`${l.cards||0} cards · ${l.correct||0}/${l.cards||0} · ${acc}%`+(subjStr?`<br><span style="font-size:9px;color:var(--muted)">${subjStr}</span>`:'');
+    } else if(l.type==='quiz'){
+      detail=`${l.questions||0}q · ${l.correct||0} correct · ${Math.round((l.correct||0)/(l.questions||1)*100)}%`;
+    } else if(l.type==='mock'){
+      detail=`Net: ${l.net||0} · ${to12hr(l.startTime||'09:00')}–${to12hr(l.endTime||'10:00')}`;
+    } else if(l.type==='revision'){
+      detail=l.subject+(l.chapter&&l.chapter!==l.subject?' · '+l.chapter:'');
+    } else { detail=l.subject||''; }
+    return `<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid rgba(99,102,241,0.2);background:rgba(99,102,241,0.05);margin-bottom:7px">
+      <div style="font-size:15px;flex-shrink:0;margin-top:1px">${icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:900">${l.title||l.label||l.subject}<span style="font-size:8px;background:rgba(99,102,241,0.15);color:#818cf8;padding:1px 6px;border-radius:999px;font-weight:900;margin-left:4px">AUTO</span></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px;font-weight:700;line-height:1.5">${detail}${l.time?' · 🕐 '+l.time:''}</div>
+      </div>
+      <div style="font-size:12px;font-weight:900;color:${subColor(l.subject||'Other')};flex-shrink:0">${l.duration?l.duration+'m':hDisp(l.hrs)}</div>
+    </div>`;
+  }
   return `<div style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg3);margin-bottom:7px">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="width:8px;height:8px;border-radius:50%;background:${subColor(l.subject)};flex-shrink:0"></div>
@@ -11311,7 +11464,14 @@ function renderStats(){
 
   // Subject breakdown
   const sh={};
-  wd.forEach(d=>(D.logs[d]||[]).forEach(l=>{ sh[l.subject||'Custom']=(sh[l.subject||'Custom']||0)+l.hrs; }));
+  wd.forEach(d=>(D.logs[d]||[]).forEach(l=>{
+    if(l.type==='srs'&&l.subjects&&Object.keys(l.subjects).length>0){
+      const totalCards=Object.values(l.subjects).reduce((a,n)=>a+n,0)||1;
+      Object.entries(l.subjects).forEach(([s,n])=>{ if(s&&s!=='Custom'&&s!=='Other') sh[s]=(sh[s]||0)+Math.round((n/totalCards)*l.hrs*10)/10; });
+    } else if(l.subject&&l.subject!=='Custom'&&l.subject!=='SRS'){
+      sh[l.subject]=(sh[l.subject]||0)+l.hrs;
+    }
+  }));
   const ss=Object.entries(sh).sort((a,b)=>b[1]-a[1]);
   const sTotal=ss.reduce((a,[,h])=>a+h,0);
   const sbEl=document.getElementById('s-subj-breakdown');
@@ -11341,6 +11501,238 @@ function init(){
   setInterval(()=>{ if(document.getElementById('screen-home').classList.contains('active')) renderHome(); },60000);
 }
 window.markBlockDone = markBlockDone;
+// ════════════════ WEEKLY TARGET EDIT ════════════════
+function editWeeklyTarget(){
+  const v=prompt('Set weekly study target (hours):',D.target||50);
+  if(v===null) return;
+  const n=parseFloat(v);
+  if(isNaN(n)||n<=0){ alert('Enter a valid number'); return; }
+  D.target=n;
+  save(); renderHome();
+}
+
+// ════════════════ WEEKLY PLANNER ════════════════
+let wrPlannerWeekOffset=0;
+function wrWeekNav(dir){
+  if(dir===0) wrPlannerWeekOffset=0;
+  else wrPlannerWeekOffset+=dir;
+  renderWeeklyPlanner();
+}
+
+function renderWeeklyPlanner(){
+  const today=todayStr();
+  const base=new Date(today+'T00:00:00');
+  base.setDate(base.getDate()+wrPlannerWeekOffset*7);
+  const baseStr=dateStr(base);
+  const ws=getWeekStart(baseStr);
+  const wd=getWeekDates(ws);
+  const isCurrentWeek=wrPlannerWeekOffset===0;
+
+  // Header
+  const wsDate=new Date(ws+'T00:00:00');
+  const weDate=new Date(wd[6]+'T00:00:00');
+  const fmt=d=>d.toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+  document.getElementById('h-week-label').textContent=isCurrentWeek?'This Week':wrPlannerWeekOffset===-1?'Last Week':wrPlannerWeekOffset===1?'Next Week':'Week of '+fmt(wsDate);
+  document.getElementById('h-week-dates').textContent=fmt(wsDate)+' – '+fmt(weDate);
+
+  const el=document.getElementById('h-week-days');
+  if(!el) return;
+  const dayNames=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  el.innerHTML=wd.map((ds,i)=>{
+    const isToday=ds===today;
+    const isPast=ds<today;
+    const blocks=D.blocks[ds]||[];
+    const logs=D.logs[ds]||[];
+    const plannedHrs=blocks.reduce((a,b)=>a+b.plannedHrs,0);
+    const loggedHrs=logs.reduce((a,l)=>a+l.hrs,0);
+    const pct=plannedHrs>0?Math.min(100,Math.round((loggedHrs/plannedHrs)*100)):0;
+    const d=new Date(ds+'T00:00:00');
+    const dateNum=d.getDate();
+    const allDone=blocks.length>0&&blocks.every(b=>b.done||loggedHrs>=plannedHrs);
+
+    // Day header
+    let dayHeaderBg='var(--bg3)';
+    let dayHeaderColor='var(--muted2)';
+    if(isToday){ dayHeaderBg='rgba(79,110,247,0.15)'; dayHeaderColor='#818cf8'; }
+    else if(isPast&&loggedHrs>0){ dayHeaderBg='rgba(16,185,129,0.08)'; dayHeaderColor='#4ade80'; }
+
+    const autoLogs=logs.filter(l=>l.auto);
+    const autoIconStr=autoLogs.length?(()=>{
+      const hasSRS=autoLogs.some(l=>l.type==='srs');
+      const hasQuiz=autoLogs.some(l=>l.type==='quiz');
+      const hasMock=autoLogs.some(l=>l.type==='mock');
+      const hasRev=autoLogs.some(l=>l.type==='revision');
+      return (hasSRS?'🧠':'')+(hasQuiz?'⚡':'')+(hasMock?'📝':'')+(hasRev?'📚':'');
+    })():'';
+
+    const blocksHtml=blocks.length?[...blocks].sort((a,b)=>t2m(a.start)-t2m(b.start)).map(b=>{
+      const isDone=b.done||(isPast&&loggedHrs>=plannedHrs);
+      return `<div onclick="markBlockDone('${b.date}',${b.id})" style="display:flex;align-items:center;gap:7px;padding:7px 10px;border-radius:9px;border:1px solid ${isDone?'rgba(16,185,129,0.25)':'var(--border)'};background:${isDone?'rgba(16,185,129,0.06)':'var(--bg)'};margin-bottom:5px;cursor:pointer;transition:all 0.15s">
+        <div style="width:18px;height:18px;border-radius:5px;border:2px solid ${isDone?'#10b981':subColor(b.subject)};display:flex;align-items:center;justify-content:center;flex-shrink:0;background:${isDone?'#10b981':'transparent'}">
+          ${isDone?'<span style="color:white;font-size:10px;font-weight:900">✓</span>':''}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;font-weight:900;${isDone?'text-decoration:line-through;color:var(--muted)':''};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.label}</div>
+          <div style="font-size:9px;color:var(--muted);font-weight:700">${to12hr(b.start)}–${to12hr(b.end)} · ${hDisp(b.plannedHrs)}</div>
+        </div>
+        <button onclick="event.stopPropagation();deleteBlock('${b.date}',${b.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:1px 3px">×</button>
+      </div>`;
+    }).join(''):`<div style="text-align:center;padding:8px 0;color:var(--muted);font-size:10px;font-weight:700">${isPast?'No blocks logged':'Empty — plan it!'}</div>`;
+
+    return `<div style="border:1px solid ${isToday?'rgba(79,110,247,0.4)':'var(--border)'};border-radius:14px;overflow:hidden;margin-bottom:10px">
+      <div style="padding:9px 12px;background:${dayHeaderBg};display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="calSelectDate('${ds}');switchTab('calendar',document.querySelector('[onclick=\\'switchTab(\\\\x22calendar\\\\x22,this)\\\\x27]'))">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="font-size:13px;font-weight:900;color:${dayHeaderColor}">${dayNames[i]} <span style="font-size:11px;opacity:0.7">${dateNum}</span></div>
+          ${isToday?'<span style="font-size:8px;background:rgba(79,110,247,0.2);color:#818cf8;padding:1px 6px;border-radius:999px;font-weight:900">TODAY</span>':''}
+          ${autoIconStr?`<span style="font-size:10px">${autoIconStr}</span>`:''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${loggedHrs>0?`<span style="font-size:10px;font-weight:900;color:#4ade80">${hDisp(loggedHrs)}</span>`:''}
+          ${plannedHrs>0?`<span style="font-size:9px;color:var(--muted);font-weight:700">/ ${hDisp(plannedHrs)}</span>`:''}
+          <button onclick="event.stopPropagation();viewingBlockDate='${ds}';openBlockModal()" style="background:rgba(79,110,247,0.15);border:1px solid rgba(79,110,247,0.25);color:#818cf8;font-size:9px;font-weight:900;padding:2px 7px;border-radius:6px;cursor:pointer">+</button>
+        </div>
+      </div>
+      ${plannedHrs>0?`<div style="height:3px;background:var(--border)"><div style="height:100%;width:${pct}%;background:${pct>=100?'#10b981':pct>=60?'#4f6ef7':'#f59e0b'};transition:width 0.3s"></div></div>`:''}
+      <div style="padding:10px 10px 6px">${blocksHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════ WEEKLY PERFORMANCE ════════════════
+function renderWeekPerf(wd){
+  const el=document.getElementById('h-week-perf');
+  if(!el) return;
+  let qCount=0,qCorrect=0,qTotal=0,srsCount=0,srsCorrect=0,srsCards=0,mockCount=0;
+  wd.forEach(d=>(D.logs[d]||[]).forEach(l=>{
+    if(l.type==='quiz'){ qCount++; qCorrect+=(l.correct||0); qTotal+=(l.questions||0); }
+    else if(l.type==='srs'){ srsCount++; srsCorrect+=(l.correct||0); srsCards+=(l.cards||0); }
+    else if(l.type==='mock'){ mockCount++; }
+  }));
+  const qAcc=qTotal?Math.round(qCorrect/qTotal*100):0;
+  const srsAcc=srsCards?Math.round(srsCorrect/srsCards*100):0;
+  const items=[
+    { icon:'⚡', label:'Quizzes', val:qCount, sub:qCount?`Avg ${qAcc}%`:'—', color:'#fbbf24' },
+    { icon:'🧠', label:'SRS', val:srsCount, sub:srsCount?`${srsCards} cards · ${srsAcc}%`:'—', color:'#818cf8' },
+    { icon:'📝', label:'Mocks', val:mockCount, sub:'', color:'#34d399' },
+  ];
+  el.innerHTML=items.map(it=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+    <div style="font-size:18px">${it.icon}</div>
+    <div>
+      <div style="font-size:11px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em">${it.label}</div>
+      <div style="font-size:16px;font-weight:900;color:${it.color};line-height:1">${it.val}</div>
+      ${it.sub?`<div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:1px">${it.sub}</div>`:''}
+    </div>
+  </div>`).join('<div style="width:1px;background:var(--border);align-self:stretch"></div>');
+}
+
+// ════════════════ SRS DRILL-DOWN (Today) ════════════════
+function renderSRSDrillDown(){
+  const today=todayStr();
+  const srsLogs=(D.logs[today]||[]).filter(l=>l.type==='srs');
+  const el=document.getElementById('h-srs-drilldown');
+  if(!el) return;
+  if(!srsLogs.length){ el.innerHTML='<div style="text-align:center;padding:16px;color:var(--muted);font-size:11px;font-weight:700">No SRS sprints today</div>'; return; }
+
+  // Aggregate topicMap across all SRS sprints today
+  const combined={}; // { subject: { topic: {count,correct} } }
+  srsLogs.forEach(l=>{
+    if(l.topicMap){
+      Object.entries(l.topicMap).forEach(([subj,topics])=>{
+        if(!combined[subj]) combined[subj]={};
+        Object.entries(topics).forEach(([topic,data])=>{
+          if(!combined[subj][topic]) combined[subj][topic]={count:0,correct:0};
+          combined[subj][topic].count+=(data.count||0);
+          combined[subj][topic].correct+=(data.correct||0);
+        });
+      });
+    } else if(l.subjects){
+      // Fallback for old logs without topicMap
+      Object.entries(l.subjects).forEach(([subj,n])=>{
+        if(!combined[subj]) combined[subj]={};
+        if(!combined[subj]['—']) combined[subj]['—']={count:0,correct:0};
+        combined[subj]['—'].count+=n;
+      });
+    }
+  });
+
+  const totalCards=srsLogs.reduce((a,l)=>a+(l.cards||0),0);
+  const totalCorrect=srsLogs.reduce((a,l)=>a+(l.correct||0),0);
+  const totalAcc=totalCards?Math.round(totalCorrect/totalCards*100):0;
+
+  let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div style="font-size:11px;font-weight:900;color:var(--muted)">TODAY'S SRS</div>
+    <div style="font-size:12px;font-weight:900;color:#818cf8">${totalCards} cards · ${totalAcc}%</div>
+  </div>`;
+
+  Object.entries(combined).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([subj,topics])=>{
+    const subjTotal=Object.values(topics).reduce((a,t)=>a+t.count,0);
+    html+=`<div style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+        <div style="width:7px;height:7px;border-radius:50%;background:${subColor(subj)};flex-shrink:0"></div>
+        <div style="font-size:11px;font-weight:900;color:${subColor(subj)}">${subj}</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:700">${subjTotal} cards</div>
+      </div>`;
+    Object.entries(topics).forEach(([topic,data])=>{
+      const acc=data.count?Math.round(data.correct/data.count*100):0;
+      const pct=subjTotal?Math.round(data.count/subjTotal*100):0;
+      html+=`<div style="margin-left:13px;margin-bottom:4px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+          <div style="font-size:10px;font-weight:700;color:var(--muted2)">${topic}</div>
+          <div style="font-size:10px;font-weight:900;color:${acc>=70?'#4ade80':acc>=50?'#fbbf24':'#f87171'}">${data.count}q · ${acc}%</div>
+        </div>
+        <div style="height:3px;background:var(--border);border-radius:2px"><div style="height:100%;width:${acc}%;background:${acc>=70?'#10b981':acc>=50?'#f59e0b':'#ef4444'};border-radius:2px"></div></div>
+      </div>`;
+    });
+    html+='</div>';
+  });
+  el.innerHTML=html;
+}
+
+// ════════════════ EDIT BLOCK / LOG ════════════════
+function editBlock(date,id){
+  const b=(D.blocks[date]||[]).find(x=>x.id===id);
+  if(!b) return;
+  viewingBlockDate=date;
+  openBlockModal();
+  setTimeout(()=>{
+    document.getElementById('b-subject').value=b.subject||'';
+    bUpdateChapters();
+    setTimeout(()=>{
+      document.getElementById('b-chapter').value=b.chapter||'';
+      document.getElementById('b-topic').value=b.topic||'';
+      document.getElementById('b-custom').value=b.custom||'';
+      document.getElementById('b-start').value=b.start||'';
+      document.getElementById('b-end').value=b.end||'';
+      document.querySelectorAll('.bpri-btn').forEach(btn=>{ btn.style.opacity=btn.dataset.val===b.priority?'1':'0.35'; selectedBPri=b.priority||'medium'; });
+      // Swap save button to update mode
+      const saveBtn=document.querySelector('[onclick="saveBlock()"]');
+      if(saveBtn){ saveBtn.textContent='✅ UPDATE BLOCK'; saveBtn.onclick=()=>{ deleteBlock(date,id); saveBlock(); }; }
+    },50);
+  },50);
+}
+
+function editLog(date,id){
+  const l=(D.logs[date]||[]).find(x=>x.id===id);
+  if(!l) return;
+  switchTab('log',document.querySelector('[onclick="switchTab(\'log\',this)"]'));
+  setTimeout(()=>{
+    document.getElementById('l-subject').value=l.subject||'';
+    lUpdateChapters();
+    setTimeout(()=>{
+      document.getElementById('l-chapter').value=l.chapter||'';
+      document.getElementById('l-topic').value=l.topic||'';
+      document.getElementById('l-custom').value=l.custom||'';
+      document.getElementById('l-start').value=l.start||'';
+      document.getElementById('l-end').value=l.end||'';
+      document.getElementById('l-hours').value=l.hrs||'';
+      document.getElementById('l-note').value=l.note||'';
+      document.querySelectorAll('.pri-select-btn').forEach(btn=>{ btn.style.opacity=btn.dataset.val===l.priority?'1':'0.35'; selectedPri=l.priority||'medium'; });
+      const saveBtn=document.querySelector('[onclick="saveLog()"]');
+      if(saveBtn){ saveBtn.textContent='✅ UPDATE LOG'; saveBtn.onclick=()=>{ deleteLog(date,id); saveLog(); }; }
+    },50);
+  },100);
+}
+
 // ── WAR ROOM AUTO-LOG ─────────────────────────────────────
 window._wrAutoLog = function(entry) {
   try {
@@ -11371,6 +11763,7 @@ window._wrAutoLog = function(entry) {
       score: entry.score || 0,
       cards: entry.cards || 0,
       subjects: entry.subjects || {},
+      topicMap: entry.topicMap || {},
       mockPlatform: entry.platform || '',
       mockNo: entry.mockno || '',
       net: entry.net || 0,
@@ -11379,6 +11772,7 @@ window._wrAutoLog = function(entry) {
       time: new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})
     });
     save();
+    if(typeof updateStreak === 'function') updateStreak();
     // Re-render if War Room is open
     if(document.getElementById('screen-planner') && !document.getElementById('screen-planner').classList.contains('hidden')) {
       if(typeof renderHome === 'function') renderHome();
