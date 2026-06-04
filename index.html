@@ -8885,12 +8885,28 @@ function scRenderTracker() {
     const done = topics.filter(t => scGetStatus(t) === 'done').length;
     const pct = Math.round(done/topics.length*100);
 
-    // Sort: priority first, then by status
+    // Custom topic order per chapter — tiebreaker when priority+status are equal
+    const SC_TOPIC_ORDER = {
+      'Percentage': ['Basics and Conversion','Percentage Calculation','Ratio and Percentage','Percentage Change','Percentage Deviation','Price and Consumption','Mixture and Concentration','Income and Savings','Percentage in Geometry','Weighted Average','Marks and Passing','Successive Percentage Change','Population and Depreciation','Income Expenditure Savings','Election and Voting','Venn and Set Theory','Miscellaneous Percentage'],
+      // Add more chapters below as needed:
+      // 'Profit & Loss': ['Basic Concepts', 'CP SP Problems', ...],
+    };
+
+    // Sort: priority first, then by status, then by custom order
     topics.sort((a,b) => {
       if (a.priority && !b.priority) return -1;
       if (!a.priority && b.priority) return 1;
       const sOrder = { overdue:0, learning:1, not_started:2, done:3 };
-      return (sOrder[scGetStatus(a)]||2) - (sOrder[scGetStatus(b)]||2);
+      const sDiff = (sOrder[scGetStatus(a)]||2) - (sOrder[scGetStatus(b)]||2);
+      if (sDiff !== 0) return sDiff;
+      // Tiebreaker: custom order
+      const chapterOrder = SC_TOPIC_ORDER[chapter] || SC_TOPIC_ORDER[a.chapter] || [];
+      const ai = chapterOrder.indexOf(a.name);
+      const bi = chapterOrder.indexOf(b.name);
+      if (ai === -1 && bi === -1) return 0;
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
     });
 
     html += `
