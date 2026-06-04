@@ -9888,87 +9888,95 @@ window.scRenameTopic = (key) => {
 window.scReorderTopics = (chapter, subject) => {
   const keys = Object.keys(scDb).filter(k => !scDb[k].isSubTopic && scDb[k].chapter === chapter && scDb[k].subject === subject);
   keys.sort((a,b) => (scDb[a]._order??999)-(scDb[b]._order??999));
-  let items = keys.map(k => ({key:k, name:scDb[k].name}));
-  const render = () => {
-    document.getElementById('sc-modal-content').innerHTML = `
-    <div>
-      <div class="font-black text-slate-800 dark:text-slate-100 mb-1">Reorder Topics</div>
-      <div class="text-xs text-slate-400 mb-3">${chapter}</div>
-      <div class="space-y-1 mb-4" id="sc-reorder-list">
-        ${items.map((item,i) => `
-        <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl">
-          <span class="flex-1 text-sm font-bold text-slate-700 dark:text-slate-200">${item.name}</span>
-          <button onclick="scReorderMove('topics',${i},-1)" class="text-slate-400 hover:text-violet-500 font-black px-2 py-1 rounded ${i===0?'opacity-30 pointer-events-none':''}" >↑</button>
-          <button onclick="scReorderMove('topics',${i},1)" class="text-slate-400 hover:text-violet-500 font-black px-2 py-1 rounded ${i===items.length-1?'opacity-30 pointer-events-none':''}" >↓</button>
-        </div>`).join('')}
-      </div>
-      <div class="flex gap-3">
-        <button onclick="scReorderSave('topics')" class="flex-1 bg-violet-600 text-white font-black py-2.5 rounded-xl text-sm">Save Order</button>
-        <button onclick="scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 font-black py-2.5 rounded-xl text-sm">Cancel</button>
-      </div>
-    </div>`;
-    document.getElementById('sc-modal').classList.remove('hidden');
-  };
-  window._scReorderItems = items;
-  window._scReorderType = 'topics';
-  render();
-  window._scReorderRender = render;
+  window._scReorderItems = keys.map(k => ({key:k, name:scDb[k].name}));
+  scShowReorderModal('Reorder Topics', chapter);
 };
 
 window.scReorderSubTopics = (parentKey) => {
   const t = scDb[parentKey];
   if (!t) return;
-  const subKeys = Object.keys(scDb).filter(k => scDb[k].isSubTopic && scDb[k].parentKey === parentKey);
-  // Also include subtopics from db questions not yet in scDb
   const availSubs = scGetAvailableSubTopics(t.name, t.subject);
-  const allNames = [...new Set([...subKeys.map(k=>scDb[k].name), ...availSubs])];
+  const subKeys = Object.keys(scDb).filter(k => scDb[k].isSubTopic && scDb[k].parentKey === parentKey);
+  const allNames = [...new Set([...availSubs, ...subKeys.map(k=>scDb[k].name)])];
   allNames.sort((a,b) => {
     const ka = parentKey+'>>>>'+a, kb = parentKey+'>>>>'+b;
     return ((scDb[ka]&&scDb[ka]._order!=null)?scDb[ka]._order:999) - ((scDb[kb]&&scDb[kb]._order!=null)?scDb[kb]._order:999);
   });
-  let items = allNames.map(name => ({key: parentKey+'>>>>'+name, name}));
-  const render = () => {
-    document.getElementById('sc-modal-content').innerHTML = `
-    <div>
-      <div class="font-black text-slate-800 dark:text-slate-100 mb-1">Reorder Sub-Topics</div>
-      <div class="text-xs text-slate-400 mb-3">${t.name}</div>
-      <div class="space-y-1 mb-4">
-        ${items.map((item,i) => `
-        <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl">
-          <span class="flex-1 text-sm font-bold text-slate-700 dark:text-slate-200">${item.name}</span>
-          <button onclick="scReorderMove('subs',${i},-1)" class="text-slate-400 hover:text-violet-500 font-black px-2 py-1 rounded ${i===0?'opacity-30 pointer-events-none':''}" >↑</button>
-          <button onclick="scReorderMove('subs',${i},1)" class="text-slate-400 hover:text-violet-500 font-black px-2 py-1 rounded ${i===items.length-1?'opacity-30 pointer-events-none':''}" >↓</button>
-        </div>`).join('')}
-      </div>
-      <div class="flex gap-3">
-        <button onclick="scReorderSave('subs')" class="flex-1 bg-violet-600 text-white font-black py-2.5 rounded-xl text-sm">Save Order</button>
-        <button onclick="scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slateald-800 text-slate-600 font-black py-2.5 rounded-xl text-sm">Cancel</button>
-      </div>
-    </div>`;
-    document.getElementById('sc-modal').classList.remove('hidden');
-  };
-  window._scReorderItems = items;
-  window._scReorderType = 'subs';
-  render();
-  window._scReorderRender = render;
+  window._scReorderItems = allNames.map(name => ({key: parentKey+'>>>>'+name, name}));
+  scShowReorderModal('Reorder Sub-Topics', t.name);
 };
 
-window.scReorderMove = (type, idx, dir) => {
+window.scShowReorderModal = (title, subtitle) => {
+  const items = window._scReorderItems;
+  const listHtml = items.map((item,i) => `
+    <div draggable="true" data-idx="${i}" class="sc-drag-item flex items-center gap-2 px-3 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 cursor-grab active:cursor-grabbing select-none">
+      <span class="text-slate-400 text-base mr-1">⠿</span>
+      <span class="flex-1 text-sm font-bold text-slate-700 dark:text-slate-200">${item.name}</span>
+      <button onclick="scReorderMove(${i},-1)" class="text-slate-300 hover:text-violet-500 font-black text-lg px-1 ${i===0?'opacity-20 pointer-events-none':''}">↑</button>
+      <button onclick="scReorderMove(${i},1)" class="text-slate-300 hover:text-violet-500 font-black text-lg px-1 ${i===items.length-1?'opacity-20 pointer-events-none':''}">↓</button>
+    </div>`).join('');
+
+  document.getElementById('sc-modal-content').innerHTML = `
+    <div style="max-height:80vh;display:flex;flex-direction:column;">
+      <div class="flex items-center justify-between mb-1">
+        <div class="font-black text-slate-800 dark:text-slate-100">${title}</div>
+        <button onclick="scCloseModal()" class="text-slate-400 hover:text-red-500 font-black text-xl">×</button>
+      </div>
+      <div class="text-xs text-slate-400 mb-3">${subtitle}</div>
+      <div id="sc-drag-list" class="space-y-1 overflow-y-auto flex-1 pr-1" style="max-height:55vh">${listHtml}</div>
+      <div class="flex gap-3 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+        <button onclick="scReorderSave()" class="flex-1 bg-violet-600 text-white font-black py-2.5 rounded-xl text-sm">Save Order</button>
+        <button onclick="scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 font-black py-2.5 rounded-xl text-sm">Cancel</button>
+      </div>
+    </div>`;
+  document.getElementById('sc-modal').classList.remove('hidden');
+
+  // ── Drag & Drop logic ──
+  let dragIdx = null;
+  const list = document.getElementById('sc-drag-list');
+  list.querySelectorAll('.sc-drag-item').forEach(el => {
+    el.addEventListener('dragstart', e => {
+      dragIdx = parseInt(el.dataset.idx);
+      el.style.opacity = '0.4';
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    el.addEventListener('dragend', e => { el.style.opacity = '1'; });
+    el.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      list.querySelectorAll('.sc-drag-item').forEach(d => d.style.background = '');
+      el.style.background = 'rgba(139,92,246,0.15)';
+    });
+    el.addEventListener('dragleave', e => { el.style.background = ''; });
+    el.addEventListener('drop', e => {
+      e.preventDefault();
+      el.style.background = '';
+      const dropIdx = parseInt(el.dataset.idx);
+      if (dragIdx === null || dragIdx === dropIdx) return;
+      const itms = window._scReorderItems;
+      const moved = itms.splice(dragIdx, 1)[0];
+      itms.splice(dropIdx, 0, moved);
+      scShowReorderModal(title, subtitle);
+    });
+  });
+};
+
+window.scReorderMove = (idx, dir) => {
   const items = window._scReorderItems;
   const newIdx = idx + dir;
   if (newIdx < 0 || newIdx >= items.length) return;
   [items[idx], items[newIdx]] = [items[newIdx], items[idx]];
-  window._scReorderRender();
+  const modal = document.getElementById('sc-modal-content');
+  const title = modal.querySelector('.font-black')?.textContent || '';
+  const subtitle = modal.querySelectorAll('.text-xs')[0]?.textContent || '';
+  scShowReorderModal(title, subtitle);
 };
 
-window.scReorderSave = (type) => {
+window.scReorderSave = () => {
   const items = window._scReorderItems;
   items.forEach((item, i) => {
-    if (!scDb[item.key]) {
-      scDb[item.key] = { isSubTopic: true, _order: i };
-    } else {
-      scDb[item.key]._order = i;
-    }
+    if (!scDb[item.key]) scDb[item.key] = { isSubTopic: true, _order: i };
+    else scDb[item.key]._order = i;
   });
   scSave();
   scCloseModal();
