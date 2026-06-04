@@ -8885,12 +8885,14 @@ function scRenderTracker() {
     const done = topics.filter(t => scGetStatus(t) === 'done').length;
     const pct = Math.round(done/topics.length*100);
 
-    // Sort: priority first, then by status
+    // Sort: priority first, then status, then _order (custom user order)
     topics.sort((a,b) => {
       if (a.priority && !b.priority) return -1;
       if (!a.priority && b.priority) return 1;
       const sOrder = { overdue:0, learning:1, not_started:2, done:3 };
-      return (sOrder[scGetStatus(a)]||2) - (sOrder[scGetStatus(b)]||2);
+      const sDiff = (sOrder[scGetStatus(a)]||2) - (sOrder[scGetStatus(b)]||2);
+      if (sDiff !== 0) return sDiff;
+      return (a._order ?? 999) - (b._order ?? 999);
     });
 
     html += `
@@ -9249,8 +9251,7 @@ function scGetAvailableSubTopics(topicName, subject) {
   // Sub-topics are at tags[2] (Tag 3 in editor) for all subjects
   const subj = subject || scGetSubjectFor(topicName);
   if (!SC_MATHS_SUBJECTS.includes(subj)) return []; // GS subjects have no sub-topics
-  const subs = []; // Array preserves first-seen order from JSON import
-  const seen = new Set();
+  const subs = []; const seen = new Set();
   Object.values(db).forEach(quiz => {
     if (!quiz || !quiz.questions) return;
     quiz.questions.forEach(q => {
@@ -9260,7 +9261,15 @@ function scGetAvailableSubTopics(topicName, subject) {
       }
     });
   });
-  return subs; // Order preserved from JSON import sequence — no sort
+  // Sort by _order from scDb if set, else preserve import order
+  const parentKey = Object.keys(scDb).find(k => !scDb[k].isSubTopic && scDb[k].name === topicName && scDb[k].subject === subj);
+  return subs.sort((a, b) => {
+    const ka = parentKey ? parentKey + '>>>>' + a : null;
+    const kb = parentKey ? parentKey + '>>>>' + b : null;
+    const oa = (ka && scDb[ka] && scDb[ka]._order != null) ? scDb[ka]._order : 999;
+    const ob = (kb && scDb[kb] && scDb[kb]._order != null) ? scDb[kb]._order : 999;
+    return oa - ob;
+  });
 }
 
 function scShowTrackingModeModal(key, subTopics) {
@@ -9839,6 +9848,7 @@ window.scOpenTopicMenu = (key) => {
       <div class="space-y-2">
         <button onclick="scTogglePriority('${key}')" class="w-full text-left px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 hover:bg-amber-100 text-amber-700 dark:text-amber-400 font-bold text-sm transition-colors">${t.priority ? '☆ Remove Priority' : '⭐ Mark as Priority'}</button>
         <button onclick="scEditNotes('${key}')" class="w-full text-left px-4 py-3 rounded-xl bg-blue-50 dark:bg-blue-900/10 hover:bg-blue-100 text-blue-700 dark:text-blue-400 font-bold text-sm transition-colors">📝 ${t.notes ? 'Edit Notes' : 'Add Notes'}</button>
+        ${SC_MATHS_SUBJECTS.includes(t.subject) ? '<button onclick="scReorderSubTopics(\''+key+'\''+')" class="w-full text-left px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/10 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-400 font-bold text-sm transition-colors">↕ Reorder Sub-Topics</button>' : ''}
         <button onclick="scRenameTopic('${key}')" class="w-full text-left px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-sm transition-colors">✏️ Rename Topic</button>
         <button onclick="scDeleteTopic('${key}')" class="w-full text-left px-4 py-3 rounded-xl bg-red-50 dark:bg-red-900/10 hover:bg-red-100 text-red-600 dark:text-red-400 font-bold text-sm transition-colors">🗑️ Delete Topic</button>
       </div>
@@ -9873,6 +9883,96 @@ window.scRenameTopic = (key) => {
         <button onclick="scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black py-2.5 rounded-xl text-sm">Cancel</button>
       </div>
     </div>`;
+};
+
+window.scReorderTopics = (chapter, subject) => {
+  const keys = Object.keys(scDb).filter(k => !scDb[k].isSubTopic && scDb[k].chapter === chapter && scDb[k].subject === subject);
+  keys.sort((a,b) => (scDb[a]._order??999)-(scDb[b]._order??999));
+  let items = keys.map(k => ({key:k, name:scDb[k].name}));
+  const render = () => {
+    document.getElementById('sc-modal-content').innerHTML = `
+    <div>
+      <div class="font-black text-slate-800 dark:text-slate-100 mb-1">Reorder Topics</div>
+      <div class="text-xs text-slate-400 mb-3">${chapter}</div>
+      <div class="space-y-1 mb-4" id="sc-reorder-list">
+        ${items.map((item,i) => `
+        <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl">
+          <span class="flex-1 text-sm font-bold text-slate-700 dark:text-slate-200">${item.name}</span>
+          <button onclick="scReorderMove('topics',${i},-1)" class="text-slate-400 hover:text-violet-500 font-black px-2 py-1 rounded ${i===0?'opacity-30 pointer-events-none':''}" >↑</button>
+          <button onclick="scReorderMove('topics',${i},1)" class="text-slate-400 hover:text-violet-500 font-black px-2 py-1 rounded ${i===items.length-1?'opacity-30 pointer-events-none':''}" >↓</button>
+        </div>`).join('')}
+      </div>
+      <div class="flex gap-3">
+        <button onclick="scReorderSave('topics')" class="flex-1 bg-violet-600 text-white font-black py-2.5 rounded-xl text-sm">Save Order</button>
+        <button onclick="scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 font-black py-2.5 rounded-xl text-sm">Cancel</button>
+      </div>
+    </div>`;
+    document.getElementById('sc-modal').classList.remove('hidden');
+  };
+  window._scReorderItems = items;
+  window._scReorderType = 'topics';
+  render();
+  window._scReorderRender = render;
+};
+
+window.scReorderSubTopics = (parentKey) => {
+  const t = scDb[parentKey];
+  if (!t) return;
+  const subKeys = Object.keys(scDb).filter(k => scDb[k].isSubTopic && scDb[k].parentKey === parentKey);
+  // Also include subtopics from db questions not yet in scDb
+  const availSubs = scGetAvailableSubTopics(t.name, t.subject);
+  const allNames = [...new Set([...subKeys.map(k=>scDb[k].name), ...availSubs])];
+  allNames.sort((a,b) => {
+    const ka = parentKey+'>>>>'+a, kb = parentKey+'>>>>'+b;
+    return ((scDb[ka]&&scDb[ka]._order!=null)?scDb[ka]._order:999) - ((scDb[kb]&&scDb[kb]._order!=null)?scDb[kb]._order:999);
+  });
+  let items = allNames.map(name => ({key: parentKey+'>>>>'+name, name}));
+  const render = () => {
+    document.getElementById('sc-modal-content').innerHTML = `
+    <div>
+      <div class="font-black text-slate-800 dark:text-slate-100 mb-1">Reorder Sub-Topics</div>
+      <div class="text-xs text-slate-400 mb-3">${t.name}</div>
+      <div class="space-y-1 mb-4">
+        ${items.map((item,i) => `
+        <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl">
+          <span class="flex-1 text-sm font-bold text-slate-700 dark:text-slate-200">${item.name}</span>
+          <button onclick="scReorderMove('subs',${i},-1)" class="text-slate-400 hover:text-violet-500 font-black px-2 py-1 rounded ${i===0?'opacity-30 pointer-events-none':''}" >↑</button>
+          <button onclick="scReorderMove('subs',${i},1)" class="text-slate-400 hover:text-violet-500 font-black px-2 py-1 rounded ${i===items.length-1?'opacity-30 pointer-events-none':''}" >↓</button>
+        </div>`).join('')}
+      </div>
+      <div class="flex gap-3">
+        <button onclick="scReorderSave('subs')" class="flex-1 bg-violet-600 text-white font-black py-2.5 rounded-xl text-sm">Save Order</button>
+        <button onclick="scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slateald-800 text-slate-600 font-black py-2.5 rounded-xl text-sm">Cancel</button>
+      </div>
+    </div>`;
+    document.getElementById('sc-modal').classList.remove('hidden');
+  };
+  window._scReorderItems = items;
+  window._scReorderType = 'subs';
+  render();
+  window._scReorderRender = render;
+};
+
+window.scReorderMove = (type, idx, dir) => {
+  const items = window._scReorderItems;
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= items.length) return;
+  [items[idx], items[newIdx]] = [items[newIdx], items[idx]];
+  window._scReorderRender();
+};
+
+window.scReorderSave = (type) => {
+  const items = window._scReorderItems;
+  items.forEach((item, i) => {
+    if (!scDb[item.key]) {
+      scDb[item.key] = { isSubTopic: true, _order: i };
+    } else {
+      scDb[item.key]._order = i;
+    }
+  });
+  scSave();
+  scCloseModal();
+  scRender();
 };
 
 window.scDeleteTopic = (key) => {
@@ -9918,6 +10018,7 @@ window.scEditChapter = (chapter, subject) => {
       <div class="font-black text-slate-800 dark:text-slate-100 mb-4">${chapter}</div>
       <div class="space-y-2">
         <button onclick="scAddTopic('${safeChapter}','${subject}')" class="w-full text-left px-4 py-3 rounded-xl bg-violet-50 dark:bg-violet-900/10 hover:bg-violet-100 text-violet-700 dark:text-violet-400 font-bold text-sm">+ Add Topic</button>
+        <button onclick="scReorderTopics('${safeChapter}','${subject}')" class="w-full text-left px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/10 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-400 font-bold text-sm">↕ Reorder Topics</button>
         <button onclick="scRenameChapter('${safeChapter}','${subject}')" class="w-full text-left px-4 py-3 rounded-xl bg-blue-50 dark:bg-blue-900/10 hover:bg-blue-100 text-blue-700 dark:text-blue-400 font-bold text-sm">✏️ Rename Chapter</button>
         <button onclick="if(confirm('Delete entire chapter \'${chapter}\'?')){Object.keys(scDb).filter(k=>k.startsWith('${safeChapter}|||')).forEach(k=>delete scDb[k]);scSave();scCloseModal();scRender();}" class="w-full text-left px-4 py-3 rounded-xl bg-red-50 dark:bg-red-900/10 hover:bg-red-100 text-red-600 dark:text-red-400 font-bold text-sm">🗑️ Delete Chapter</button>
         <button onclick="scCloseModal()" class="w-full text-left px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 text-slate-600 dark:text-slate-400 font-bold text-sm">Cancel</button>
