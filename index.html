@@ -2408,20 +2408,32 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                             if (union.length > la.length) { merged[key][f] = union; changed = true; }
                         }
                     });
-                    // SAFE FIX: r1QuestionsAttempted — only take cloud data if cloud has MORE progress
-                    // Union is dangerous: if user intentionally restarted R1 (cleared array),
-                    // union would restore old cloud data and corrupt the fresh cycle
+                    // SAFE FIX v2: r1QuestionsAttempted — UNION is the safe default.
+                    // Never let empty/smaller cloud array wipe a populated local array
+                    // (the old "cloud progress higher → take cloud" rule wiped local
+                    //  when a stale cloud state had higher r1Progress but empty QA).
+                    // Union preserves every question seen on ANY device. The only risk
+                    // (restored data after intentional restart) is handled because fresh
+                    // R1 start clears BOTH r1Progress=0 AND the array, and cloud won't
+                    // have higher progress than a fresh local 0 unless cloud genuinely
+                    // has unsynced work — in which case union is correct anyway.
                     const cloudQA = cloudSyllabusData[key].r1QuestionsAttempted || [];
                     const localQA = merged[key].r1QuestionsAttempted || [];
-                    const cloudR1Progress = cloudSyllabusData[key].r1Progress || 0;
-                    const localR1Progress = merged[key].r1Progress || 0;
-                    if (cloudQA.length > 0 && cloudR1Progress > localR1Progress) {
-                        // Cloud is ahead — take cloud's list (more questions done)
-                        merged[key].r1QuestionsAttempted = cloudQA; changed = true;
-                    } else if (cloudQA.length > 0 && cloudR1Progress === localR1Progress && cloudQA.length > localQA.length) {
-                        // Same progress but cloud has more questions tracked — union safely
+                    const cloudRestartTs = cloudSyllabusData[key].r1RestartTs || 0;
+                    const localRestartTs = merged[key].r1RestartTs || 0;
+                    if (localRestartTs > cloudRestartTs && localRestartTs > 0) {
+                        // Local was restarted more recently — keep local, ignore stale cloud QA
+                        // (do nothing — local already has the fresh array)
+                    } else if (cloudRestartTs > localRestartTs && cloudRestartTs > 0) {
+                        // Cloud was restarted more recently — take cloud's fresh array
+                        merged[key].r1QuestionsAttempted = cloudQA;
+                        merged[key].r1RestartTs = cloudRestartTs; changed = true;
+                    } else if (cloudQA.length > 0 || localQA.length > 0) {
+                        // Same/no restart — UNION preserves every question seen on any device
                         const union = [...new Set([...localQA, ...cloudQA])];
-                        if (union.length > localQA.length) { merged[key].r1QuestionsAttempted = union; changed = true; }
+                        if (union.length > localQA.length) {
+                            merged[key].r1QuestionsAttempted = union; changed = true;
+                        }
                     }
                     // wbAttempts — keep whichever device has more attempts (longer array)
                     const cloudWb = cloudSyllabusData[key].wbAttempts || [];
@@ -8885,14 +8897,12 @@ function scRenderTracker() {
     const done = topics.filter(t => scGetStatus(t) === 'done').length;
     const pct = Math.round(done/topics.length*100);
 
-    // Sort: priority first, then status, then _order (custom user order)
+    // Sort: priority first, then by status
     topics.sort((a,b) => {
       if (a.priority && !b.priority) return -1;
       if (!a.priority && b.priority) return 1;
       const sOrder = { overdue:0, learning:1, not_started:2, done:3 };
-      const sDiff = (sOrder[scGetStatus(a)]||2) - (sOrder[scGetStatus(b)]||2);
-      if (sDiff !== 0) return sDiff;
-      return (a._order ?? 999) - (b._order ?? 999);
+      return (sOrder[scGetStatus(a)]||2) - (sOrder[scGetStatus(b)]||2);
     });
 
     html += `
@@ -9251,25 +9261,16 @@ function scGetAvailableSubTopics(topicName, subject) {
   // Sub-topics are at tags[2] (Tag 3 in editor) for all subjects
   const subj = subject || scGetSubjectFor(topicName);
   if (!SC_MATHS_SUBJECTS.includes(subj)) return []; // GS subjects have no sub-topics
-  const subs = []; const seen = new Set();
+  const subs = new Set();
   Object.values(db).forEach(quiz => {
     if (!quiz || !quiz.questions) return;
     quiz.questions.forEach(q => {
       if (scMatchesTopic(q, topicName, subj) && q.tags && q.tags[2]) {
-        const t2 = q.tags[2].trim();
-        if (!seen.has(t2)) { seen.add(t2); subs.push(t2); }
+        subs.add(q.tags[2].trim()); // Trim whitespace
       }
     });
   });
-  // Sort by _order from scDb if set, else preserve import order
-  const parentKey = Object.keys(scDb).find(k => !scDb[k].isSubTopic && scDb[k].name === topicName && scDb[k].subject === subj);
-  return subs.sort((a, b) => {
-    const ka = parentKey ? parentKey + '>>>>' + a : null;
-    const kb = parentKey ? parentKey + '>>>>' + b : null;
-    const oa = (ka && scDb[ka] && scDb[ka]._order != null) ? scDb[ka]._order : 999;
-    const ob = (kb && scDb[kb] && scDb[kb]._order != null) ? scDb[kb]._order : 999;
-    return oa - ob;
-  });
+  return [...subs].sort(); // Sort for consistent ordering
 }
 
 function scShowTrackingModeModal(key, subTopics) {
@@ -9424,7 +9425,13 @@ window.scStartRevision = (key, rev) => {
       t[progressRounds[i]] = 0;
     }
     // Also reset r1QuestionsAttempted on fresh R1
-    if (rev === 'r1') t.r1QuestionsAttempted = [];
+    if (rev === 'r1') {
+      t.r1QuestionsAttempted = [];
+      // Stamp restart time so cloud merge knows this was an intentional fresh start
+      // and won't union-restore stale cloud QA from before this restart
+      t.r1RestartTs = Date.now();
+    }
+    scSave();
   }
 
   // Collect questions — deduplicate by question text to avoid same Q from multiple files
@@ -9541,20 +9548,31 @@ window.scStartRevision = (key, rev) => {
 
     // Use r1QuestionsAttempted (text-based) to exclude already-seen questions.
     // This is immune to pool order changes and SRS-filtered position drift.
-    // Falls back to index-slice if r1QuestionsAttempted is empty (sync wiped it).
-    const attemptedSet = new Set(t.r1QuestionsAttempted || []);
     const doneSoFar = t.r1Progress || 0;
+    // SELF-HEAL: if r1QuestionsAttempted is empty but r1Progress>0 (sync wiped it),
+    // reconstruct the seen-list from R1 revision history before filtering.
+    if ((t.r1QuestionsAttempted || []).length === 0 && doneSoFar > 0) {
+      const _hist = (historyDb||[]).filter(h =>
+        h.title && h.title.includes(t.name) &&
+        (h.title.includes('R1 Revision') || h.title.includes('R1 revision')) &&
+        h.reviewData && h.reviewData.length > 0
+      );
+      const _rebuilt = new Set();
+      _hist.forEach(h => h.reviewData.forEach(q => { if (q.question) _rebuilt.add(q.question); }));
+      if (_rebuilt.size > 0) {
+        t.r1QuestionsAttempted = [..._rebuilt];
+        console.log(`[R1 Self-Heal] Rebuilt r1QuestionsAttempted: ${_rebuilt.size} questions from ${_hist.length} history entries`);
+        scSave();
+      }
+    }
+    const attemptedSet = new Set(t.r1QuestionsAttempted || []);
     if (attemptedSet.size > 0) {
-      // Primary: filter by actual question texts seen
+      // Primary: filter by actual question texts seen — immune to drift
       questions = questions.filter(q => !srsMap.has(q.question) && !attemptedSet.has(q.question));
-    } else if (doneSoFar > 0 && doneSoFar < questions.length) {
-      // Fallback: index-slice (r1QuestionsAttempted was wiped by sync)
-      const remaining = questions.slice(doneSoFar);
-      questions = remaining.filter(q => !srsMap.has(q.question));
     } else if (doneSoFar >= questions.length) {
       questions = []; // all done → completion modal
     } else {
-      // Fresh start — just remove SRS questions
+      // True fresh start (progress=0, nothing attempted) — just remove SRS questions
       questions = questions.filter(q => !srsMap.has(q.question));
     }
   }
@@ -9717,18 +9735,30 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
     if (rev === 'r1') {
       const srsMap = new Map();
       mistakesDb.forEach(m => { if (m.question) srsMap.set(m.question, m); });
-      const attemptedSet = new Set(t.r1QuestionsAttempted || []);
       const doneSoFar = t.r1Progress || 0;
+      // SELF-HEAL: rebuild r1QuestionsAttempted from history if sync wiped it
+      if ((t.r1QuestionsAttempted || []).length === 0 && doneSoFar > 0) {
+        const _hist = (historyDb||[]).filter(h =>
+          h.title && h.title.includes(t.name) &&
+          (h.title.includes('R1 Revision') || h.title.includes('R1 revision')) &&
+          h.reviewData && h.reviewData.length > 0
+        );
+        const _rebuilt = new Set();
+        _hist.forEach(h => h.reviewData.forEach(q => { if (q.question) _rebuilt.add(q.question); }));
+        if (_rebuilt.size > 0) {
+          t.r1QuestionsAttempted = [..._rebuilt];
+          console.log(`[R1 Self-Heal] Rebuilt r1QuestionsAttempted: ${_rebuilt.size} from history`);
+          scSave();
+        }
+      }
+      const attemptedSet = new Set(t.r1QuestionsAttempted || []);
       if (attemptedSet.size > 0) {
         // Primary: filter by actual question texts seen — immune to pool/SRS drift
         questions = questions.filter(q => !srsMap.has(q.question) && !attemptedSet.has(q.question));
-      } else if (doneSoFar > 0 && doneSoFar < questions.length) {
-        // Fallback: index-slice (r1QuestionsAttempted was wiped by sync)
-        const remaining = questions.slice(doneSoFar);
-        questions = remaining.filter(q => !srsMap.has(q.question));
       } else if (doneSoFar >= questions.length) {
         questions = [];
       } else {
+        // True fresh start — just remove SRS questions
         questions = questions.filter(q => !srsMap.has(q.question));
       }
       startIdx = 0;
@@ -9848,7 +9878,6 @@ window.scOpenTopicMenu = (key) => {
       <div class="space-y-2">
         <button onclick="scTogglePriority('${key}')" class="w-full text-left px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 hover:bg-amber-100 text-amber-700 dark:text-amber-400 font-bold text-sm transition-colors">${t.priority ? '☆ Remove Priority' : '⭐ Mark as Priority'}</button>
         <button onclick="scEditNotes('${key}')" class="w-full text-left px-4 py-3 rounded-xl bg-blue-50 dark:bg-blue-900/10 hover:bg-blue-100 text-blue-700 dark:text-blue-400 font-bold text-sm transition-colors">📝 ${t.notes ? 'Edit Notes' : 'Add Notes'}</button>
-        ${SC_MATHS_SUBJECTS.includes(t.subject) ? '<button onclick="scReorderSubTopics(\''+key+'\''+')" class="w-full text-left px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/10 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-400 font-bold text-sm transition-colors">↕ Reorder Sub-Topics</button>' : ''}
         <button onclick="scRenameTopic('${key}')" class="w-full text-left px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-sm transition-colors">✏️ Rename Topic</button>
         <button onclick="scDeleteTopic('${key}')" class="w-full text-left px-4 py-3 rounded-xl bg-red-50 dark:bg-red-900/10 hover:bg-red-100 text-red-600 dark:text-red-400 font-bold text-sm transition-colors">🗑️ Delete Topic</button>
       </div>
@@ -9883,104 +9912,6 @@ window.scRenameTopic = (key) => {
         <button onclick="scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black py-2.5 rounded-xl text-sm">Cancel</button>
       </div>
     </div>`;
-};
-
-window.scReorderTopics = (chapter, subject) => {
-  const keys = Object.keys(scDb).filter(k => !scDb[k].isSubTopic && scDb[k].chapter === chapter && scDb[k].subject === subject);
-  keys.sort((a,b) => (scDb[a]._order??999)-(scDb[b]._order??999));
-  window._scReorderItems = keys.map(k => ({key:k, name:scDb[k].name}));
-  scShowReorderModal('Reorder Topics', chapter);
-};
-
-window.scReorderSubTopics = (parentKey) => {
-  const t = scDb[parentKey];
-  if (!t) return;
-  const availSubs = scGetAvailableSubTopics(t.name, t.subject);
-  const subKeys = Object.keys(scDb).filter(k => scDb[k].isSubTopic && scDb[k].parentKey === parentKey);
-  const allNames = [...new Set([...availSubs, ...subKeys.map(k=>scDb[k].name)])];
-  allNames.sort((a,b) => {
-    const ka = parentKey+'>>>>'+a, kb = parentKey+'>>>>'+b;
-    return ((scDb[ka]&&scDb[ka]._order!=null)?scDb[ka]._order:999) - ((scDb[kb]&&scDb[kb]._order!=null)?scDb[kb]._order:999);
-  });
-  window._scReorderItems = allNames.map(name => ({key: parentKey+'>>>>'+name, name}));
-  scShowReorderModal('Reorder Sub-Topics', t.name);
-};
-
-window.scShowReorderModal = (title, subtitle) => {
-  const items = window._scReorderItems;
-  const listHtml = items.map((item,i) => `
-    <div draggable="true" data-idx="${i}" class="sc-drag-item flex items-center gap-2 px-3 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 cursor-grab active:cursor-grabbing select-none">
-      <span class="text-slate-400 text-base mr-1">⠿</span>
-      <span class="flex-1 text-sm font-bold text-slate-700 dark:text-slate-200">${item.name}</span>
-      <button onclick="scReorderMove(${i},-1)" class="text-slate-300 hover:text-violet-500 font-black text-lg px-1 ${i===0?'opacity-20 pointer-events-none':''}">↑</button>
-      <button onclick="scReorderMove(${i},1)" class="text-slate-300 hover:text-violet-500 font-black text-lg px-1 ${i===items.length-1?'opacity-20 pointer-events-none':''}">↓</button>
-    </div>`).join('');
-
-  document.getElementById('sc-modal-content').innerHTML = `
-    <div style="max-height:80vh;display:flex;flex-direction:column;">
-      <div class="flex items-center justify-between mb-1">
-        <div class="font-black text-slate-800 dark:text-slate-100">${title}</div>
-        <button onclick="scCloseModal()" class="text-slate-400 hover:text-red-500 font-black text-xl">×</button>
-      </div>
-      <div class="text-xs text-slate-400 mb-3">${subtitle}</div>
-      <div id="sc-drag-list" class="space-y-1 overflow-y-auto flex-1 pr-1" style="max-height:55vh">${listHtml}</div>
-      <div class="flex gap-3 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
-        <button onclick="scReorderSave()" class="flex-1 bg-violet-600 text-white font-black py-2.5 rounded-xl text-sm">Save Order</button>
-        <button onclick="scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 font-black py-2.5 rounded-xl text-sm">Cancel</button>
-      </div>
-    </div>`;
-  document.getElementById('sc-modal').classList.remove('hidden');
-
-  // ── Drag & Drop logic ──
-  let dragIdx = null;
-  const list = document.getElementById('sc-drag-list');
-  list.querySelectorAll('.sc-drag-item').forEach(el => {
-    el.addEventListener('dragstart', e => {
-      dragIdx = parseInt(el.dataset.idx);
-      el.style.opacity = '0.4';
-      e.dataTransfer.effectAllowed = 'move';
-    });
-    el.addEventListener('dragend', e => { el.style.opacity = '1'; });
-    el.addEventListener('dragover', e => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      list.querySelectorAll('.sc-drag-item').forEach(d => d.style.background = '');
-      el.style.background = 'rgba(139,92,246,0.15)';
-    });
-    el.addEventListener('dragleave', e => { el.style.background = ''; });
-    el.addEventListener('drop', e => {
-      e.preventDefault();
-      el.style.background = '';
-      const dropIdx = parseInt(el.dataset.idx);
-      if (dragIdx === null || dragIdx === dropIdx) return;
-      const itms = window._scReorderItems;
-      const moved = itms.splice(dragIdx, 1)[0];
-      itms.splice(dropIdx, 0, moved);
-      scShowReorderModal(title, subtitle);
-    });
-  });
-};
-
-window.scReorderMove = (idx, dir) => {
-  const items = window._scReorderItems;
-  const newIdx = idx + dir;
-  if (newIdx < 0 || newIdx >= items.length) return;
-  [items[idx], items[newIdx]] = [items[newIdx], items[idx]];
-  const modal = document.getElementById('sc-modal-content');
-  const title = modal.querySelector('.font-black')?.textContent || '';
-  const subtitle = modal.querySelectorAll('.text-xs')[0]?.textContent || '';
-  scShowReorderModal(title, subtitle);
-};
-
-window.scReorderSave = () => {
-  const items = window._scReorderItems;
-  items.forEach((item, i) => {
-    if (!scDb[item.key]) scDb[item.key] = { isSubTopic: true, _order: i };
-    else scDb[item.key]._order = i;
-  });
-  scSave();
-  scCloseModal();
-  scRender();
 };
 
 window.scDeleteTopic = (key) => {
@@ -10026,7 +9957,6 @@ window.scEditChapter = (chapter, subject) => {
       <div class="font-black text-slate-800 dark:text-slate-100 mb-4">${chapter}</div>
       <div class="space-y-2">
         <button onclick="scAddTopic('${safeChapter}','${subject}')" class="w-full text-left px-4 py-3 rounded-xl bg-violet-50 dark:bg-violet-900/10 hover:bg-violet-100 text-violet-700 dark:text-violet-400 font-bold text-sm">+ Add Topic</button>
-        <button onclick="scReorderTopics('${safeChapter}','${subject}')" class="w-full text-left px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/10 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-400 font-bold text-sm">↕ Reorder Topics</button>
         <button onclick="scRenameChapter('${safeChapter}','${subject}')" class="w-full text-left px-4 py-3 rounded-xl bg-blue-50 dark:bg-blue-900/10 hover:bg-blue-100 text-blue-700 dark:text-blue-400 font-bold text-sm">✏️ Rename Chapter</button>
         <button onclick="if(confirm('Delete entire chapter \'${chapter}\'?')){Object.keys(scDb).filter(k=>k.startsWith('${safeChapter}|||')).forEach(k=>delete scDb[k]);scSave();scCloseModal();scRender();}" class="w-full text-left px-4 py-3 rounded-xl bg-red-50 dark:bg-red-900/10 hover:bg-red-100 text-red-600 dark:text-red-400 font-bold text-sm">🗑️ Delete Chapter</button>
         <button onclick="scCloseModal()" class="w-full text-left px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 text-slate-600 dark:text-slate-400 font-bold text-sm">Cancel</button>
@@ -10915,6 +10845,12 @@ window.scMarkRevDoneAuto = (key, rev) => {
 
     // CRITICAL: Persist mistakesDb changes (new SRS cards created above)
     if (typeof saveData === 'function') saveData();
+    // PHONE SAFETY: immediately flush graduated SRS cards to IndexedDB.
+    // Prevents the Sphere/Hemisphere bug where R4-graduated questions were
+    // lost if the phone closed the app before the async saveData POST completed.
+    if (typeof idbKeyval !== 'undefined') {
+      idbKeyval.set('megaQuizMistakes_v5', mistakesDb).catch(function(){});
+    }
   }
   
   scUpdateStreak();
