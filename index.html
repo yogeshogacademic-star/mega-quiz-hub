@@ -8885,28 +8885,12 @@ function scRenderTracker() {
     const done = topics.filter(t => scGetStatus(t) === 'done').length;
     const pct = Math.round(done/topics.length*100);
 
-    // Custom topic order per chapter — tiebreaker when priority+status are equal
-    const SC_TOPIC_ORDER = {
-      'Percentage': ['Basics and Conversion','Percentage Calculation','Ratio and Percentage','Percentage Change','Percentage Deviation','Price and Consumption','Mixture and Concentration','Income and Savings','Percentage in Geometry','Weighted Average','Marks and Passing','Successive Percentage Change','Population and Depreciation','Income Expenditure Savings','Election and Voting','Venn and Set Theory','Miscellaneous Percentage'],
-      // Add more chapters below as needed:
-      // 'Profit & Loss': ['Basic Concepts', 'CP SP Problems', ...],
-    };
-
-    // Sort: priority first, then by status, then by custom order
+    // Sort: priority first, then by status
     topics.sort((a,b) => {
       if (a.priority && !b.priority) return -1;
       if (!a.priority && b.priority) return 1;
       const sOrder = { overdue:0, learning:1, not_started:2, done:3 };
-      const sDiff = (sOrder[scGetStatus(a)]||2) - (sOrder[scGetStatus(b)]||2);
-      if (sDiff !== 0) return sDiff;
-      // Tiebreaker: custom order
-      const chapterOrder = SC_TOPIC_ORDER[chapter] || SC_TOPIC_ORDER[a.chapter] || [];
-      const ai = chapterOrder.indexOf(a.name);
-      const bi = chapterOrder.indexOf(b.name);
-      if (ai === -1 && bi === -1) return 0;
-      if (ai === -1) return 1;
-      if (bi === -1) return -1;
-      return ai - bi;
+      return (sOrder[scGetStatus(a)]||2) - (sOrder[scGetStatus(b)]||2);
     });
 
     html += `
@@ -9265,16 +9249,18 @@ function scGetAvailableSubTopics(topicName, subject) {
   // Sub-topics are at tags[2] (Tag 3 in editor) for all subjects
   const subj = subject || scGetSubjectFor(topicName);
   if (!SC_MATHS_SUBJECTS.includes(subj)) return []; // GS subjects have no sub-topics
-  const subs = new Set();
+  const subs = []; // Array preserves first-seen order from JSON import
+  const seen = new Set();
   Object.values(db).forEach(quiz => {
     if (!quiz || !quiz.questions) return;
     quiz.questions.forEach(q => {
       if (scMatchesTopic(q, topicName, subj) && q.tags && q.tags[2]) {
-        subs.add(q.tags[2].trim()); // Trim whitespace
+        const t2 = q.tags[2].trim();
+        if (!seen.has(t2)) { seen.add(t2); subs.push(t2); }
       }
     });
   });
-  return [...subs].sort(); // Sort for consistent ordering
+  return subs; // Order preserved from JSON import sequence — no sort
 }
 
 function scShowTrackingModeModal(key, subTopics) {
