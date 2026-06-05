@@ -11674,7 +11674,43 @@ function save(){
     if(typeof pushFn === 'function') pushFn().catch(function(){});
   }, 2000);
 }
-function load(){ const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);}catch(e){} D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||50; D.checklist=D.checklist||{}; D.sleepLog=D.sleepLog||{}; D.wakeTarget=D.wakeTarget||'05:00'; D.sleepTarget=D.sleepTarget||'23:30'; D.weeklyTasks=D.weeklyTasks||[]; D.wtWeekStart=D.wtWeekStart||''; D.wtArchive=D.wtArchive||[]; wtCheckWeekReset(); }
+function load(){ const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);}catch(e){} D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||50; D.checklist=D.checklist||{}; D.sleepLog=D.sleepLog||{}; D.wakeTarget=D.wakeTarget||'05:00'; D.sleepTarget=D.sleepTarget||'23:30'; D.weeklyTasks=D.weeklyTasks||[]; D.wtWeekStart=D.wtWeekStart||''; D.wtArchive=D.wtArchive||[]; wtMigrateMockDates(); wtCheckWeekReset(); }
+
+// One-time migration: move mock logs that were stored under the wrong date
+// (logged before the date-fix) to their true mock date from the mock tracker.
+function wtMigrateMockDates(){
+  try {
+    if(localStorage.getItem('wtMockDatesMigrated')==='1') return;
+    let mocks=[];
+    try { mocks=JSON.parse(localStorage.getItem('ssc_mock_tracker')||'[]'); } catch(e){ mocks=[]; }
+    if(!mocks.length){ return; }
+    // Build lookup: platform+mockno → real date
+    const realDate={};
+    mocks.forEach(m=>{ if(m.platform&&m.mockno&&m.date) realDate[(m.platform+'#'+m.mockno).toLowerCase()]=m.date; });
+    let moved=0;
+    Object.keys(D.logs).forEach(dateKey=>{
+      const keep=[];
+      (D.logs[dateKey]||[]).forEach(lg=>{
+        if(lg.type==='mock'){
+          const k=((lg.mockPlatform||lg.platform||'')+'#'+(lg.mockNo||lg.mockno||'')).toLowerCase();
+          const rd=realDate[k];
+          if(rd && rd!==dateKey){
+            // move to correct date
+            D.logs[rd]=D.logs[rd]||[];
+            lg.date=rd;
+            D.logs[rd].push(lg);
+            moved++;
+            return; // don't keep under old date
+          }
+        }
+        keep.push(lg);
+      });
+      D.logs[dateKey]=keep;
+    });
+    localStorage.setItem('wtMockDatesMigrated','1');
+    if(moved>0){ save(); console.log('[Mock Migration] Moved '+moved+' mock logs to correct dates'); }
+  } catch(e){ console.warn('Mock migration error', e); }
+}
 
 // ════════════════ HUB DATA ════════════════
 const PLANNER_SUBJECTS = {
@@ -12094,7 +12130,7 @@ function renderHome(){
   const nxtBlock=tBlocks.filter(b=>t2m(b.start)>nowM).sort((a,b)=>t2m(a.start)-t2m(b.start))[0];
   const rnEl=document.getElementById('h-rightnow');
   if(curBlock){
-    rnEl.innerHTML=`<div class="glow" style="padding:9px 11px;border-radius:11px;border-left:3px solid ${subColor(curBlock.subject)};background:${subColor(curBlock.subject)}18"><div style="font-size:13px;font-weight:900">${curBlock.label}</div><div style="font-size:10px;color:var(--muted);margin-top:2px">${curBlock.start}–${curBlock.end} · ${hDisp(curBlock.plannedHrs)}</div></div>`;
+    rnEl.innerHTML=`<div class="glow" style="padding:9px 11px;border-radius:11px;border-left:3px solid ${subColor(curBlock.subject)};background:${subColor(curBlock.subject)}18"><div style="font-size:13px;font-weight:900">${curBlock.label}</div><div style="font-size:10px;color:var(--muted);margin-top:2px">${to12hr(curBlock.start)}–${to12hr(curBlock.end)} · ${hDisp(curBlock.plannedHrs)}</div></div>`;
   } else {
     rnEl.innerHTML=`<div style="color:var(--muted);font-size:12px;font-weight:700;padding:8px 0">No block scheduled now</div>`;
   }
@@ -12442,7 +12478,7 @@ function renderBlockCards(blocks){
       <div style="width:8px;height:8px;border-radius:50%;background:${subColor(b.subject)};flex-shrink:0"></div>
       <div style="flex:1">
         <div style="font-size:12px;font-weight:900">${b.label}</div>
-        <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:2px">${b.start}–${b.end} · ${hDisp(b.plannedHrs)}</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:2px">${to12hr(b.start)}–${to12hr(b.end)} · ${hDisp(b.plannedHrs)}</div>
       </div>
       <span class="pri ${b.priority==='high'?'pri-high':b.priority==='low'?'pri-low':'pri-med'}">${b.priority}</span>
       <button onclick="deleteBlock('${b.date}',${b.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px">×</button>
@@ -13137,7 +13173,7 @@ function taskRow(subj, t, isFocus){
   const sj=subj.replace(/'/g,"\\'");
   const star = t.done ? '' : `<button onclick="wtToggleStar('${sj}',${t.id})" style="background:none;border:none;cursor:pointer;font-size:14px;padding:0 2px">${t.starred?'⭐':'☆'}</button>`;
   return `<div style="display:flex;align-items:center;gap:7px;padding:4px 0">
-    <button onclick="wtToggleDone('${sj}',${t.id})" style="background:none;border:1.5px solid ${t.done?'#34d399':'var(--border)'};background:${t.done?'#34d399':'transparent'};width:17px;height:17px;border-radius:5px;cursor:pointer;flex-shrink:0;color:#fff;font-size:11px;line-height:1">${t.done?'✓':''}</button>
+    <button onclick="wtToggleDone('${sj}',${t.id})" style="border:2px solid ${t.done?'#34d399':'#94a3b8'};background:${t.done?'#34d399':'transparent'};width:18px;height:18px;border-radius:5px;cursor:pointer;flex-shrink:0;color:#fff;font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center">${t.done?'✓':''}</button>
     <span style="flex:1;font-size:12px;font-weight:600;color:${t.done?'var(--muted)':'var(--text)'};${t.done?'text-decoration:line-through':''}">${t.text}</span>
     ${star}
     <button onclick="wtDeleteTask('${sj}',${t.id})" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;opacity:0.5">×</button>
