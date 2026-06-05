@@ -7810,7 +7810,18 @@ window.retryWrong = function() {
     }).join('');
   };
   window.mtToggleDetail=function(id){ const el=document.getElementById(`mt-detail-${id}`); if(el) el.style.display=el.style.display==='none'?'block':'none'; };
-  window.mtDeleteMock=function(e,id){ e.stopPropagation(); if(!confirm('Delete this mock?')) return; mtMocks=mtMocks.filter(m=>m.id!==id); mtSave(); mtRenderHistory(); mtUpdateFilters(); mtUpdateHeaderStats(); mtToast('Deleted'); };
+  window.mtDeleteMock=function(e,id){ e.stopPropagation(); if(!confirm('Delete this mock?')) return; const _m=mtMocks.find(x=>x.id===id); mtMocks=mtMocks.filter(m=>m.id!==id); mtSave(); mtRenderHistory(); mtUpdateFilters(); mtUpdateHeaderStats(); mtToast('Deleted');
+    // Also remove the matching War Room auto-log so the two stay in sync
+    try {
+      if(_m && typeof D !== 'undefined' && D.logs){
+        Object.keys(D.logs).forEach(function(dk){
+          D.logs[dk]=(D.logs[dk]||[]).filter(function(lg){ return !(lg.type==='mock' && lg.mockNo===_m.mockno && lg.mockPlatform===_m.platform); });
+        });
+        if(typeof save==='function') save();
+        if(typeof renderHomeTodayLogged==='function') renderHomeTodayLogged();
+      }
+    } catch(err){}
+  };
 
   /* ANALYSIS */
   window.mtAnSwitch=function(tab,btn){
@@ -11233,10 +11244,20 @@ body.light select.inp option { background:white; }
     <!-- Today Logged Feed -->
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-        <div style="font-size:14px;font-weight:900;color:var(--text)">Today Logged</div>
+        <div style="font-size:14px;font-weight:900;color:var(--text)" id="h-logged-title">Today Logged</div>
         <div id="h-today-logged-total" style="font-size:12px;font-weight:900;color:var(--green)"></div>
       </div>
-      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:14px">All sessions — auto + manual</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+        <button onclick="wrLogDayNav(-1)" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted2);padding:3px 9px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:900">←</button>
+        <button onclick="wrLogDayNav(0)" style="background:var(--bg3);border:1px solid var(--border);color:var(--accent);padding:3px 9px;border-radius:7px;cursor:pointer;font-size:10px;font-weight:900">Today</button>
+        <button onclick="wrLogDayNav(1)" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted2);padding:3px 9px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:900">→</button>
+        <input type="date" id="h-logged-datepick" onchange="wrLogDayPick(this.value)" style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:7px;font-size:11px;font-weight:700">
+        <span id="h-logged-filter" style="display:flex;gap:3px">
+          <button onclick="wrLogFilter('all')" id="h-lf-all" style="background:var(--accent);border:none;color:#fff;padding:3px 8px;border-radius:7px;cursor:pointer;font-size:9px;font-weight:900">All</button>
+          <button onclick="wrLogFilter('manual')" id="h-lf-manual" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted2);padding:3px 8px;border-radius:7px;cursor:pointer;font-size:9px;font-weight:900">Manual</button>
+          <button onclick="wrLogFilter('auto')" id="h-lf-auto" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted2);padding:3px 8px;border-radius:7px;cursor:pointer;font-size:9px;font-weight:900">Auto</button>
+        </span>
+      </div>
       <div id="h-today-logged-list">
         <div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;font-weight:700">Nothing logged yet today 📋</div>
       </div>
@@ -12153,15 +12174,48 @@ function renderHomeSubjProgress(wd){
   }).join('');
 }
 
+// View-date + filter state for the Today Logged feed (lets you browse any day)
+window._wrLogViewDate = null; // null = today
+window._wrLogFilter = 'all';  // all | manual | auto
+window.wrLogDayNav = function(dir){
+  var base = window._wrLogViewDate || todayStr();
+  if(dir === 0){ window._wrLogViewDate = null; }
+  else {
+    var d = new Date(base + 'T00:00:00');
+    d.setDate(d.getDate() + dir);
+    window._wrLogViewDate = dateStr(d);
+  }
+  renderHomeTodayLogged();
+};
+window.wrLogDayPick = function(v){ if(v){ window._wrLogViewDate = v; renderHomeTodayLogged(); } };
+window.wrLogFilter = function(f){
+  window._wrLogFilter = f;
+  ['all','manual','auto'].forEach(function(x){
+    var b = document.getElementById('h-lf-'+x);
+    if(b){ b.style.background = (x===f)?'var(--accent)':'var(--bg3)'; b.style.color=(x===f)?'#fff':'var(--muted2)'; b.style.border=(x===f)?'none':'1px solid var(--border)'; }
+  });
+  renderHomeTodayLogged();
+};
+
 function renderHomeTodayLogged(){
   const listEl=document.getElementById('h-today-logged-list');
   const totEl=document.getElementById('h-today-logged-total');
+  const titleEl=document.getElementById('h-logged-title');
+  const pickEl=document.getElementById('h-logged-datepick');
   if(!listEl) return;
-  const logs=D.logs[todayStr()]||[];
+  const viewDate = window._wrLogViewDate || todayStr();
+  const isToday = viewDate === todayStr();
+  if(titleEl) titleEl.textContent = isToday ? 'Today Logged' : new Date(viewDate+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'}) + ' Logged';
+  if(pickEl && pickEl.value !== viewDate) pickEl.value = viewDate;
+  let logs=D.logs[viewDate]||[];
+  // Apply auto/manual filter
+  const filt = window._wrLogFilter || 'all';
+  if(filt === 'manual') logs = logs.filter(function(l){ return !l.auto; });
+  else if(filt === 'auto') logs = logs.filter(function(l){ return l.auto; });
   const sorted=[...logs].sort((a,b)=>(b.id||0)-(a.id||0));
   const totalHrs=logs.filter(l=>!l.status||l.status==='done').reduce((a,l)=>a+l.hrs,0);
   if(totEl) totEl.textContent=logs.length?hDisp(totalHrs):'';
-  if(!sorted.length){ listEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;font-weight:700">Nothing logged yet today</div>'; return; }
+  if(!sorted.length){ listEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;font-weight:700">'+(isToday?'Nothing logged yet today':'Nothing logged this day')+'</div>'; return; }
   listEl.innerHTML=sorted.map(l=>{
     const isAuto=l.auto;
     const status=l.status||(isAuto?'done':'done');
@@ -12705,10 +12759,29 @@ function renderWeekPerf(wd){
   }));
   const qAcc=qTotal?Math.round(qCorrect/qTotal*100):0;
   const srsAcc=srsCards?Math.round(srsCorrect/srsCards*100):0;
+  // Mock net avg for the week (from mtMocks by date) + last-7 net sparkline
+  let weekMockNets=[], sparkNets=[];
+  try {
+    if(typeof mtMocks !== 'undefined' && Array.isArray(mtMocks)){
+      const wkSet = new Set(wd);
+      weekMockNets = mtMocks.filter(m=>(m.type==='full'||!m.type) && wkSet.has(m.date)).map(m=>m.net);
+      sparkNets = mtMocks.filter(m=>m.type==='full'||!m.type).slice(-7).map(m=>m.net);
+    }
+  } catch(e){}
+  const mockNetAvg = weekMockNets.length ? (weekMockNets.reduce((a,b)=>a+b,0)/weekMockNets.length).toFixed(0) : null;
+  // build mini sparkline svg
+  let spark='';
+  if(sparkNets.length>1){
+    const mn=Math.min(...sparkNets), mx=Math.max(...sparkNets), rng=(mx-mn)||1;
+    const w=54,h=16;
+    const pts=sparkNets.map((n,i)=>{ const x=(i/(sparkNets.length-1))*w; const y=h-((n-mn)/rng)*h; return x.toFixed(1)+','+y.toFixed(1); }).join(' ');
+    const up=sparkNets[sparkNets.length-1]>=sparkNets[0];
+    spark='<svg width="'+w+'" height="'+h+'" style="margin-top:2px"><polyline points="'+pts+'" fill="none" stroke="'+(up?'#34d399':'#f87171')+'" stroke-width="1.5"/></svg>';
+  }
   const items=[
-    { icon:'⚡', label:'Quizzes', val:qCount, sub:qCount?`Avg ${qAcc}%`:'—', color:'#fbbf24' },
-    { icon:'🧠', label:'SRS', val:srsCount, sub:srsCount?`${srsCards} cards · ${srsAcc}%`:'—', color:'#818cf8' },
-    { icon:'📝', label:'Mocks', val:mockCount, sub:'', color:'#34d399' },
+    { icon:'⚡', label:'Quizzes', val:qCount, sub:qCount?`Avg ${qAcc}%`:'—', color:'#fbbf24', extra:'' },
+    { icon:'🧠', label:'SRS', val:srsCount, sub:srsCount?`${srsCards} cards · ${srsAcc}%`:'—', color:'#818cf8', extra:'' },
+    { icon:'📝', label:'Mocks', val:mockCount, sub:mockNetAvg!=null?`Avg net ${mockNetAvg}`:(mockCount?'':'—'), color:'#34d399', extra:spark },
   ];
   el.innerHTML=items.map(it=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
     <div style="font-size:18px">${it.icon}</div>
@@ -12716,6 +12789,7 @@ function renderWeekPerf(wd){
       <div style="font-size:11px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em">${it.label}</div>
       <div style="font-size:16px;font-weight:900;color:${it.color};line-height:1">${it.val}</div>
       ${it.sub?`<div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:1px">${it.sub}</div>`:''}
+      ${it.extra||''}
     </div>
   </div>`).join('<div style="width:1px;background:var(--border);align-self:stretch"></div>');
 }
