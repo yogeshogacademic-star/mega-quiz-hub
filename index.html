@@ -11195,6 +11195,33 @@ body.light select.inp option { background:white; }
     </div>
   </div>
 
+  <!-- Time Buckets + Sleep Row -->
+  <div class="g2" style="margin-bottom:14px">
+    <div class="card">
+      <div style="font-size:14px;font-weight:900;color:var(--text);margin-bottom:2px">⏱️ Today's Time Buckets</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:12px">Where your hours go — catch lost windows</div>
+      <div id="h-buckets"></div>
+    </div>
+    <div class="card">
+      <div style="font-size:14px;font-weight:900;color:var(--text);margin-bottom:2px">😴 Sleep & Wake</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:12px">Fix the cycle — your day starts on time</div>
+      <div id="h-sleep"></div>
+    </div>
+  </div>
+
+  <!-- Weekly Tasks (subject-wise, top-3 per subject) -->
+  <div class="card" style="margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+      <div style="font-size:14px;font-weight:900;color:var(--text)">🎯 This Week's Tasks</div>
+      <div style="display:flex;gap:6px">
+        <button onclick="wtShowArchive()" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted2);font-size:10px;font-weight:900;padding:4px 10px;border-radius:999px;cursor:pointer">📚 Past</button>
+        <button onclick="wtAddSubject()" style="background:rgba(79,110,247,0.12);border:1px solid rgba(79,110,247,0.3);color:#818cf8;font-size:10px;font-weight:900;padding:4px 11px;border-radius:999px;cursor:pointer">+ Subject</button>
+      </div>
+    </div>
+    <div id="h-wt-weeklabel" style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:12px">Pick subjects · add tasks · star top 3 each</div>
+    <div id="h-weekly-tasks"></div>
+  </div>
+
   <!-- Weekly Performance Row -->
   <div class="card" style="margin-bottom:14px;padding:12px 16px">
     <div id="h-week-perf" style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-around"></div>
@@ -11582,7 +11609,7 @@ body.light select.inp option { background:white; }
 function noteHtml(note){ return note ? '<div style="font-size:10px;color:#64748b;margin-top:3px;font-style:italic">&quot;'+note+'&quot;</div>' : ''; }
 // ════════════════ DATA ════════════════
 const STORE = 'warroom_v1';
-let D = { blocks:{}, logs:{}, debt:{}, streak:{count:0,last:''}, target:50 };
+let D = { blocks:{}, logs:{}, debt:{}, streak:{count:0,last:''}, target:50, sleepLog:{}, wakeTarget:'05:00', sleepTarget:'23:30', weeklyTasks:[], wtWeekStart:'', wtArchive:[] };
 
 const SUB_COLORS = {
   'Arithmetic':'#8b5cf6','Advanced Maths':'#6366f1','Reasoning':'#3b82f6',
@@ -11627,7 +11654,7 @@ function save(){
     if(typeof pushFn === 'function') pushFn().catch(function(){});
   }, 2000);
 }
-function load(){ const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);}catch(e){} D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||50; D.checklist=D.checklist||{}; }
+function load(){ const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);}catch(e){} D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||50; D.checklist=D.checklist||{}; D.sleepLog=D.sleepLog||{}; D.wakeTarget=D.wakeTarget||'05:00'; D.sleepTarget=D.sleepTarget||'23:30'; D.weeklyTasks=D.weeklyTasks||[]; D.wtWeekStart=D.wtWeekStart||''; D.wtArchive=D.wtArchive||[]; wtCheckWeekReset(); }
 
 // ════════════════ HUB DATA ════════════════
 const PLANNER_SUBJECTS = {
@@ -12087,6 +12114,10 @@ function renderHome(){
   // Ring sub target
   const ringSubEl=document.getElementById('h-ring-sub');
   if(ringSubEl) ringSubEl.textContent='/ '+(D.target||50)+' hrs';
+
+  renderBuckets();
+  renderSleep();
+  renderWeeklyTasks();
 
   // Alerts
   renderAlerts(today);
@@ -12748,6 +12779,338 @@ function renderChecklist(){
 }
 
 // ════════════════ WEEKLY PERFORMANCE ════════════════
+// ════════════════ TIME BUCKETS + SLEEP/WAKE (Phase 1) ════════════════
+// 4 fixed daily buckets. A session counts toward a bucket by its start clock-hour.
+const WR_BUCKETS = [
+  { key:'b9',    label:'Before 9 AM',     start:0,    end:9,    target:3 },
+  { key:'b12',   label:'Before 12 PM',    start:9,    end:12,   target:2 },
+  { key:'b18',   label:'Before 6 PM',     start:12,   end:18,   target:2 },
+  { key:'b2330', label:'Before 11:30 PM', start:18,   end:24,   target:2 },
+];
+
+// Get the start hour (0-23) of a log entry
+function wrLogStartHour(l){
+  // Prefer explicit start time string "HH:MM"
+  if(l.start && typeof l.start === 'string' && l.start.indexOf(':')>-1){
+    const h=parseInt(l.start.split(':')[0],10); if(!isNaN(h)) return h;
+  }
+  if(l.startTime && typeof l.startTime === 'string' && l.startTime.indexOf(':')>-1){
+    const h=parseInt(l.startTime.split(':')[0],10); if(!isNaN(h)) return h;
+  }
+  // Fall back to timestamp in IST
+  const ts = l.startTs || l.ts;
+  if(ts){
+    try { return parseInt(new Date(ts).toLocaleString('en-GB',{timeZone:'Asia/Kolkata',hour:'2-digit',hour12:false}).split(':')[0],10)||0; }
+    catch(e){ return new Date(ts).getHours(); }
+  }
+  return 0;
+}
+
+// Compute hours per bucket for a given date
+function wrBucketHours(date){
+  const res = {}; WR_BUCKETS.forEach(b=>res[b.key]=0);
+  (D.logs[date]||[]).forEach(l=>{
+    if(l.status==='cancelled') return;
+    const hrs = l.hrs||0; if(hrs<=0) return;
+    const hr = wrLogStartHour(l);
+    const bucket = WR_BUCKETS.find(b=>hr>=b.start && hr<b.end) || WR_BUCKETS[WR_BUCKETS.length-1];
+    res[bucket.key]+=hrs;
+  });
+  return res;
+}
+
+// Render the bucket adherence card on home
+function renderBuckets(){
+  const el=document.getElementById('h-buckets');
+  if(!el) return;
+  const today=todayStr();
+  const bh=wrBucketHours(today);
+  let totDone=0, totTarget=0;
+  const rows=WR_BUCKETS.map(b=>{
+    const done=Math.round(bh[b.key]*10)/10;
+    totDone+=done; totTarget+=b.target;
+    const pct=b.target>0?Math.min(100,Math.round(done/b.target*100)):0;
+    const col=pct>=100?'#34d399':pct>=60?'#fbbf24':'#f87171';
+    const now=new Date(); const curHr=now.getHours();
+    const isPast = curHr>=b.end; // window already closed
+    const flag = (isPast && pct<100) ? ' <span style="color:#f87171;font-weight:900">⚠ lost</span>' : (pct>=100?' ✅':'');
+    return `<div style="margin-bottom:9px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:900;margin-bottom:3px">
+        <span style="color:var(--text)">${b.label}${flag}</span>
+        <span style="color:${col}">${done} / ${b.target}h · ${pct}%</span>
+      </div>
+      <div style="background:var(--bg3);border-radius:5px;height:7px;overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:${col};border-radius:5px;transition:width .3s"></div>
+      </div>
+    </div>`;
+  }).join('');
+  const dayPct=totTarget>0?Math.round(totDone/totTarget*100):0;
+  const dayCol=dayPct>=100?'#34d399':dayPct>=70?'#fbbf24':'#f87171';
+  el.innerHTML=`${rows}
+    <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-size:13px;font-weight:900">
+      <span style="color:var(--muted)">TODAY TOTAL</span>
+      <span style="color:${dayCol}">${Math.round(totDone*10)/10} / ${totTarget}h · ${dayPct}%</span>
+    </div>`;
+}
+
+// ── SLEEP / WAKE ──
+function wrMinsLost(actual, target){
+  // both "HH:MM"; returns minutes actual is later than target (0 if earlier/on-time)
+  if(!actual||!target) return 0;
+  const [ah,am]=actual.split(':').map(Number); const [th,tm]=target.split(':').map(Number);
+  if(isNaN(ah)||isNaN(th)) return 0;
+  return Math.max(0,(ah*60+am)-(th*60+tm));
+}
+window.wrLogWake=function(manualTime){
+  const today=todayStr();
+  const t = manualTime || new Date().toLocaleTimeString('en-GB',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',hour12:false});
+  D.sleepLog[today]=D.sleepLog[today]||{};
+  D.sleepLog[today].wake=t;
+  save(); renderSleep();
+};
+window.wrLogSleep=function(manualTime){
+  // Sleep belongs to the day you went to bed (today)
+  const today=todayStr();
+  const t = manualTime || new Date().toLocaleTimeString('en-GB',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',hour12:false});
+  D.sleepLog[today]=D.sleepLog[today]||{};
+  D.sleepLog[today].sleep=t;
+  save(); renderSleep();
+};
+window.wrPromptWake=function(){
+  const v=prompt('What time did you WAKE UP today? (24h, e.g. 05:30)', D.wakeTarget||'05:00');
+  if(v && /^\d{1,2}:\d{2}$/.test(v)) wrLogWake(v);
+};
+window.wrPromptSleep=function(){
+  const v=prompt('What time did you SLEEP last night? (24h, e.g. 23:45)', D.sleepTarget||'23:30');
+  if(v && /^\d{1,2}:\d{2}$/.test(v)) wrLogSleep(v);
+};
+function renderSleep(){
+  const el=document.getElementById('h-sleep');
+  if(!el) return;
+  const today=todayStr();
+  const sl=D.sleepLog[today]||{};
+  const wakeT=D.wakeTarget||'05:00', sleepT=D.sleepTarget||'23:30';
+  let wakeHtml, sleepHtml;
+  if(sl.wake){
+    const lost=wrMinsLost(sl.wake, wakeT);
+    const c=lost>0?'#f87171':'#34d399';
+    wakeHtml=`<div style="flex:1"><div style="font-size:9px;color:var(--muted);font-weight:900;text-transform:uppercase">Woke</div>
+      <div style="font-size:15px;font-weight:900;color:var(--text)">${to12hr(sl.wake)}</div>
+      <div style="font-size:9px;font-weight:900;color:${c}">${lost>0?'⚠ '+Math.floor(lost/60)+'h '+(lost%60)+'m late':'✅ on time'}</div></div>`;
+  } else {
+    wakeHtml=`<div style="flex:1"><button onclick="wrLogWake()" style="width:100%;background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.3);color:#34d399;padding:8px;border-radius:9px;font-size:11px;font-weight:900;cursor:pointer">☀️ I Woke Up</button>
+      <button onclick="wrPromptWake()" style="width:100%;margin-top:4px;background:none;border:none;color:var(--muted);font-size:9px;font-weight:700;cursor:pointer;text-decoration:underline">forgot? enter time</button></div>`;
+  }
+  if(sl.sleep){
+    const lost=wrMinsLost(sl.sleep, sleepT);
+    const c=lost>0?'#f87171':'#34d399';
+    sleepHtml=`<div style="flex:1"><div style="font-size:9px;color:var(--muted);font-weight:900;text-transform:uppercase">Slept</div>
+      <div style="font-size:15px;font-weight:900;color:var(--text)">${to12hr(sl.sleep)}</div>
+      <div style="font-size:9px;font-weight:900;color:${c}">${lost>0?'⚠ '+Math.floor(lost/60)+'h '+(lost%60)+'m late':'✅ on time'}</div></div>`;
+  } else {
+    sleepHtml=`<div style="flex:1"><button onclick="wrLogSleep()" style="width:100%;background:rgba(129,140,248,0.12);border:1px solid rgba(129,140,248,0.3);color:#818cf8;padding:8px;border-radius:9px;font-size:11px;font-weight:900;cursor:pointer">🌙 I Slept</button>
+      <button onclick="wrPromptSleep()" style="width:100%;margin-top:4px;background:none;border:none;color:var(--muted);font-size:9px;font-weight:700;cursor:pointer;text-decoration:underline">forgot? enter time</button></div>`;
+  }
+  el.innerHTML=`<div style="display:flex;gap:12px">${wakeHtml}${sleepHtml}</div>
+    <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:8px;text-align:center">Targets: wake ${to12hr(wakeT)} · sleep ${to12hr(sleepT)} · <button onclick="wrEditSleepTargets()" style="background:none;border:none;color:var(--accent);font-size:9px;font-weight:900;cursor:pointer;text-decoration:underline">edit</button></div>`;
+}
+window.wrEditSleepTargets=function(){
+  const w=prompt('Target WAKE time (24h):', D.wakeTarget||'05:00'); if(w===null) return;
+  const s=prompt('Target SLEEP time (24h):', D.sleepTarget||'23:30'); if(s===null) return;
+  if(/^\d{1,2}:\d{2}$/.test(w)) D.wakeTarget=w;
+  if(/^\d{1,2}:\d{2}$/.test(s)) D.sleepTarget=s;
+  save(); renderSleep();
+};
+
+// ════════════════ WEEKLY TASKS — subject-wise, top-3 per subject (Phase 2) ════════════════
+// D.weeklyTasks = [ { subject:'Polity', tasks:[ {id, text, done, starred} ] } ]
+const WT_SUBJECTS = ["Mock","Arithmetic","Advanced Maths","Reasoning","English","Polity","Economics","Geography","Modern History","Ancient History","Medieval History","Art & Culture","Physics","Chemistry","Biology","Environment & Ecology","Science & Technology","Static GK","Current Affairs","Computer Knowledge"];
+
+// Returns the ISO date (YYYY-MM-DD) of the MONDAY of the current week (IST)
+function wtMondayKey(){
+  // Get today's date in IST
+  const istStr = new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'}); // YYYY-MM-DD
+  const d = new Date(istStr+'T00:00:00');
+  const day = d.getDay(); // 0=Sun,1=Mon,...6=Sat
+  const diff = (day===0) ? 6 : (day-1); // days since Monday
+  d.setDate(d.getDate()-diff);
+  return dateStr(d);
+}
+
+// On load: if a new week (Monday) has started, archive completed tasks,
+// carry unfinished tasks forward, reset the done slate.
+function wtCheckWeekReset(){
+  const thisMon = wtMondayKey();
+  if(!D.wtWeekStart){ D.wtWeekStart = thisMon; return; } // first ever run
+  if(D.wtWeekStart === thisMon) return; // same week, nothing to do
+
+  // NEW WEEK — archive a snapshot of last week
+  const completedCount = D.weeklyTasks.reduce((a,s)=>a+s.tasks.filter(t=>t.done).length,0);
+  const totalCount = D.weeklyTasks.reduce((a,s)=>a+s.tasks.length,0);
+  if(totalCount>0){
+    D.wtArchive = D.wtArchive || [];
+    D.wtArchive.unshift({
+      weekStart: D.wtWeekStart,
+      completed: completedCount,
+      total: totalCount,
+      subjects: JSON.parse(JSON.stringify(D.weeklyTasks))
+    });
+    if(D.wtArchive.length>12) D.wtArchive.length=12; // keep last 12 weeks
+  }
+
+  // Carry forward: keep subjects, drop completed tasks, keep unfinished (re-star top 3)
+  D.weeklyTasks.forEach(function(s){
+    s.tasks = s.tasks.filter(function(t){ return !t.done; });
+    // re-evaluate stars: keep at most 3 starred
+    let starred=0;
+    s.tasks.forEach(function(t){
+      if(t.starred){ if(starred<3){ starred++; } else { t.starred=false; } }
+    });
+  });
+  // Remove subjects that have no carried-over tasks (optional clean-up)
+  D.weeklyTasks = D.weeklyTasks.filter(function(s){ return s.tasks.length>0; });
+
+  D.wtWeekStart = thisMon;
+  save();
+}
+
+window.wtShowArchive=function(){
+  if(!D.wtArchive || D.wtArchive.length===0){ alert('No past weeks archived yet.'); return; }
+  let msg='📚 Past Weeks:\n\n';
+  D.wtArchive.forEach(function(w){
+    const pct = w.total? Math.round(w.completed/w.total*100):0;
+    msg+='Week of '+w.weekStart+': '+w.completed+'/'+w.total+' done ('+pct+'%)\n';
+  });
+  alert(msg);
+};
+
+window.wtAddSubject=function(){
+  const chosen = D.weeklyTasks.map(s=>s.subject);
+  const avail = WT_SUBJECTS.filter(s=>!chosen.includes(s));
+  if(avail.length===0){ alert('All subjects already added.'); return; }
+  // Build a simple numbered prompt
+  let msg='Pick a subject to add:\n\n';
+  avail.forEach((s,i)=>{ msg+=(i+1)+'. '+s+'\n'; });
+  const pick=prompt(msg+'\nEnter number (or type a custom subject name):');
+  if(!pick) return;
+  let subjName;
+  const num=parseInt(pick,10);
+  if(!isNaN(num) && num>=1 && num<=avail.length) subjName=avail[num-1];
+  else subjName=pick.trim();
+  if(!subjName) return;
+  if(D.weeklyTasks.some(s=>s.subject.toLowerCase()===subjName.toLowerCase())){ alert('Already added.'); renderWeeklyTasks(); return; }
+  D.weeklyTasks.push({ subject:subjName, tasks:[] });
+  save(); renderWeeklyTasks();
+};
+
+window.wtRemoveSubject=function(subj){
+  if(!confirm('Remove "'+subj+'" and all its tasks?')) return;
+  D.weeklyTasks=D.weeklyTasks.filter(s=>s.subject!==subj);
+  save(); renderWeeklyTasks();
+};
+
+window.wtAddTask=function(subj){
+  const txt=prompt('New task for '+subj+':');
+  if(!txt||!txt.trim()) return;
+  const s=D.weeklyTasks.find(x=>x.subject===subj); if(!s) return;
+  const starredCount=s.tasks.filter(t=>t.starred && !t.done).length;
+  const t={ id:Date.now()+Math.floor(Math.random()*1000), text:txt.trim(), done:false, starred:starredCount<3 };
+  s.tasks.push(t);
+  save(); renderWeeklyTasks();
+};
+
+window.wtToggleStar=function(subj,id){
+  const s=D.weeklyTasks.find(x=>x.subject===subj); if(!s) return;
+  const t=s.tasks.find(x=>x.id===id); if(!t) return;
+  if(!t.starred){
+    const starredCount=s.tasks.filter(x=>x.starred && !x.done).length;
+    if(starredCount>=3){ alert('Already 3 focus tasks for '+subj+'. Unstar one or finish it first.'); return; }
+  }
+  t.starred=!t.starred;
+  save(); renderWeeklyTasks();
+};
+
+window.wtToggleDone=function(subj,id){
+  const s=D.weeklyTasks.find(x=>x.subject===subj); if(!s) return;
+  const t=s.tasks.find(x=>x.id===id); if(!t) return;
+  t.done=!t.done;
+  save(); renderWeeklyTasks();
+  // If a starred (focus) task was completed, and fewer than 3 focus tasks remain, prompt next
+  if(t.done && t.starred){
+    const remainingFocus=s.tasks.filter(x=>x.starred && !x.done).length;
+    const availNext=s.tasks.filter(x=>!x.starred && !x.done);
+    if(remainingFocus<3 && availNext.length>0){
+      setTimeout(function(){
+        let msg='✅ Focus task done in '+subj+'!\n\nPick your next focus task:\n\n';
+        availNext.forEach((x,i)=>{ msg+=(i+1)+'. '+x.text+'\n'; });
+        const pick=prompt(msg+'\nEnter number (or Cancel to skip):');
+        if(pick){ const n=parseInt(pick,10); if(!isNaN(n)&&n>=1&&n<=availNext.length){ availNext[n-1].starred=true; save(); renderWeeklyTasks(); } }
+      },200);
+    }
+  }
+};
+
+window.wtDeleteTask=function(subj,id){
+  const s=D.weeklyTasks.find(x=>x.subject===subj); if(!s) return;
+  s.tasks=s.tasks.filter(x=>x.id!==id);
+  save(); renderWeeklyTasks();
+};
+
+function renderWeeklyTasks(){
+  const el=document.getElementById('h-weekly-tasks');
+  if(!el) return;
+  // Update week-of label (Monday start)
+  const lbl=document.getElementById('h-wt-weeklabel');
+  if(lbl){
+    const mon=D.wtWeekStart||wtMondayKey();
+    const mDate=new Date(mon+'T00:00:00');
+    const sun=new Date(mDate); sun.setDate(sun.getDate()+6);
+    const fmt=function(d){return d.toLocaleDateString('en-IN',{day:'numeric',month:'short'});};
+    lbl.textContent='Week of '+fmt(mDate)+' – '+fmt(sun)+' · resets Monday';
+  }
+  if(!D.weeklyTasks || D.weeklyTasks.length===0){
+    el.innerHTML='<div style="text-align:center;padding:18px;color:var(--muted);font-size:12px;font-weight:700">No subjects yet — tap "+ Subject" to start 🎯</div>';
+    return;
+  }
+  el.innerHTML=D.weeklyTasks.map(function(s){
+    const focus=s.tasks.filter(t=>t.starred && !t.done);
+    const others=s.tasks.filter(t=>!t.starred && !t.done);
+    const done=s.tasks.filter(t=>t.done);
+    const totalActive=s.tasks.filter(t=>!t.done).length;
+    const donePct=s.tasks.length? Math.round(done.length/s.tasks.length*100):0;
+
+    const focusHtml=focus.map(t=>taskRow(s.subject,t,true)).join('');
+    const othersHtml=others.map(t=>taskRow(s.subject,t,false)).join('');
+    const doneHtml=done.map(t=>taskRow(s.subject,t,false)).join('');
+
+    return `<div style="border:1px solid var(--border);border-radius:12px;padding:11px 13px;margin-bottom:10px;background:var(--bg2)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-size:13px;font-weight:900;color:var(--text)">${s.subject}
+          <span style="font-size:10px;color:var(--muted);font-weight:700">· ${done.length}/${s.tasks.length} done${s.tasks.length?' ('+donePct+'%)':''}</span></div>
+        <div style="display:flex;gap:6px">
+          <button onclick="wtAddTask('${s.subject.replace(/'/g,"\\'")}')" style="background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.3);color:#34d399;font-size:9px;font-weight:900;padding:3px 9px;border-radius:999px;cursor:pointer">+ Task</button>
+          <button onclick="wtRemoveSubject('${s.subject.replace(/'/g,"\\'")}')" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer">×</button>
+        </div>
+      </div>
+      ${focus.length?`<div style="font-size:9px;font-weight:900;color:#fbbf24;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px">🎯 Focus (top ${focus.length})</div>${focusHtml}`:''}
+      ${others.length?`<div style="font-size:9px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin:8px 0 5px">Backlog</div>${othersHtml}`:''}
+      ${done.length?`<div style="font-size:9px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin:8px 0 5px">Done</div>${doneHtml}`:''}
+      ${totalActive===0 && done.length===0?'<div style="font-size:11px;color:var(--muted);font-weight:700;padding:4px 0">No tasks yet — tap + Task</div>':''}
+    </div>`;
+  }).join('');
+}
+
+function taskRow(subj, t, isFocus){
+  const sj=subj.replace(/'/g,"\\'");
+  const star = t.done ? '' : `<button onclick="wtToggleStar('${sj}',${t.id})" style="background:none;border:none;cursor:pointer;font-size:14px;padding:0 2px">${t.starred?'⭐':'☆'}</button>`;
+  return `<div style="display:flex;align-items:center;gap:7px;padding:4px 0">
+    <button onclick="wtToggleDone('${sj}',${t.id})" style="background:none;border:1.5px solid ${t.done?'#34d399':'var(--border)'};background:${t.done?'#34d399':'transparent'};width:17px;height:17px;border-radius:5px;cursor:pointer;flex-shrink:0;color:#fff;font-size:11px;line-height:1">${t.done?'✓':''}</button>
+    <span style="flex:1;font-size:12px;font-weight:600;color:${t.done?'var(--muted)':'var(--text)'};${t.done?'text-decoration:line-through':''}">${t.text}</span>
+    ${star}
+    <button onclick="wtDeleteTask('${sj}',${t.id})" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;opacity:0.5">×</button>
+  </div>`;
+}
+
 function renderWeekPerf(wd){
   const el=document.getElementById('h-week-perf');
   if(!el) return;
