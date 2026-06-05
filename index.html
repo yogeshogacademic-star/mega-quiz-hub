@@ -7344,7 +7344,9 @@ window.retryWrong = function() {
 .wz-lbl{color:#1e293b;font-weight:700}
 .dark .wz-lbl{color:#f1f5f9}
 .wz-never-cracked{background:#fff5f5;border:1px solid #fecaca;border-radius:10px;padding:8px 12px;margin-bottom:6px;font-size:12px;font-weight:700}
-.dark .wz-lbl{color:#1e293b;font-weight:700}
+.dark .wz-lbl{color:#f1f5f9;font-weight:700}
+.dark .wz-never-cracked{background:#1e293b;border-color:#7f1d1d;color:#fca5a5}
+.dark .mt-edit-box{color:#f1f5f9}
 .dark .wz-lbl{color:#f1f5f9}
 .wz-never-cracked{background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.3)}
 .mt-edit-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:none;align-items:center;justify-content:center;padding:16px}
@@ -11328,7 +11330,7 @@ body.light select.inp option { background:white; }
         <div style="font-size:14px;font-weight:900;color:var(--text)">Lecture Progress</div>
         <div id="h-lec-total" style="font-size:11px;font-weight:900;color:#fbbf24"></div>
       </div>
-      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:10px">All time — fresh + revisions</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:10px">Today — fresh + revisions</div>
       <div id="h-lec-progress"></div>
     </div>
   </div>
@@ -13258,9 +13260,11 @@ function renderLectureProgress(){
   const totEl=document.getElementById('h-lec-total');
   if(!el) return;
 
-  // Aggregate all lecture logs across all dates
-  const tree={}; // { subject: { chapter: { fresh:[{lectureNo,lectureName,date}], revisions:[{lectureName,date}] } } }
+  // Aggregate lecture logs — TODAY ONLY (home shows what you did today)
+  const tree={}; // { subject: { chapter: { fresh:[...], revisions:[...] } } }
+  const _todayKey = todayStr();
   Object.entries(D.logs).forEach(([date,logs])=>{
+    if(date !== _todayKey) return; // only today's lectures
     logs.forEach(l=>{
       if(l.type!=='lecture') return;
       const s=l.subject||'Other'; const c=l.chapter||'General';
@@ -13278,7 +13282,7 @@ function renderLectureProgress(){
   });
 
   if(!Object.keys(tree).length){
-    el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:11px;font-weight:700">No lectures logged yet 🎬<br><span style="font-size:10px">Use Log → 🎬 Lecture to start tracking</span></div>';
+    el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:11px;font-weight:700">No lectures logged today 🎬<br><span style="font-size:10px">Use Log → 🎬 Lecture to start tracking</span></div>';
     if(totEl) totEl.textContent='';
     return;
   }
