@@ -2659,6 +2659,8 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
     async function initializeSystem() {
         if(localStorage.getItem('megaTheme') === 'dark') document.documentElement.classList.add('dark');
         await loadLocalFallback(); renderDashboard();
+        // Daily auto-backup check (downloads once per day)
+        if(typeof window.checkAutoBackup === 'function') window.checkAutoBackup();
 
         // PERMANENT FIX: recalculate lastKnownCount from actual local data
         // prevents "SAVE BLOCKED" after fresh deploys
@@ -3889,8 +3891,8 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         if (db[currentQuizId] && db[currentQuizId].isWeakBank) {
           const _wbSubj = db[currentQuizId]._weakSubj || '';
           const _wbCat  = db[currentQuizId]._weakCat  || '';
-          const _wbStartTime = window._quizStartTime ? new Date(window._quizStartTime).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'}) : '';
-          const _wbEndTime   = new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'});
+          const _wbStartTime = window._quizStartTime ? new Date(window._quizStartTime).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',hour12:true}) : '';
+          const _wbEndTime   = new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',hour12:true});
           const _wbDur = window._quizStartTime ? Math.round((Date.now()-window._quizStartTime)/60000) : 0;
 
           // Build correct/wrong sets from this attempt
@@ -4003,8 +4005,8 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
           if(typeof window._wrAutoLog === 'function') {
             const _endTs = Date.now();
             const _dur = window._quizStartTime ? Math.round((_endTs - window._quizStartTime)/60000) : 0;
-            const _startStr = window._quizStartTime ? new Date(window._quizStartTime).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'}) : '';
-            const _endStr = new Date(_endTs).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'});
+            const _startStr = window._quizStartTime ? new Date(window._quizStartTime).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',hour12:true}) : '';
+            const _endStr = new Date(_endTs).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',hour12:true});
             const _isSRS = currentQuizId && (currentQuizId.startsWith('quiz_srs') || (db[currentQuizId] && db[currentQuizId].isSRS));
             if(_isSRS) {
               // SRS sprint — get subject+topic breakdown (nested map)
@@ -5754,6 +5756,22 @@ window.generateQuantNotes = () => {
     };
 
     window.triggerRestore = () => { requireAuth(() => { document.getElementById('backup-file-input').click(); }); };
+
+    // ── DAILY AUTO-BACKUP — downloads full backup once per day automatically ──
+    window.checkAutoBackup = function() {
+        try {
+            const today = new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
+            const last = localStorage.getItem('lastAutoBackup');
+            if(last === today) return; // already backed up today
+            // Small delay so app finishes loading first
+            setTimeout(function(){
+                if(typeof window.exportBackup === 'function'){
+                    window.exportBackup();
+                    localStorage.setItem('lastAutoBackup', today);
+                }
+            }, 4000);
+        } catch(e){}
+    };
 
     initializeSystem();
 </script>
@@ -11861,7 +11879,7 @@ function saveLog(){
   const ch   = document.getElementById('l-chapter').value;
   const note = document.getElementById('l-note').value.trim();
   const now  = Date.now();
-  const timeLabel = new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'});
+  const timeLabel = new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',hour12:true});
 
   let log;
   if(_logType==='lecture'){
@@ -12877,13 +12895,25 @@ window.wrLogSleep=function(manualTime){
   save(); renderSleep();
 };
 window.wrPromptWake=function(){
-  const v=prompt('What time did you WAKE UP today? (24h, e.g. 05:30)', D.wakeTarget||'05:00');
-  if(v && /^\d{1,2}:\d{2}$/.test(v)) wrLogWake(v);
+  const v=prompt('What time did you WAKE UP today?\n(e.g. 5:30 AM)', _to12hrSafe(D.wakeTarget||'05:00'));
+  if(v){ const t24=_parse12hr(v); if(t24) wrLogWake(t24); else alert('Use format like 5:30 AM'); }
 };
 window.wrPromptSleep=function(){
-  const v=prompt('What time did you SLEEP last night? (24h, e.g. 23:45)', D.sleepTarget||'23:30');
-  if(v && /^\d{1,2}:\d{2}$/.test(v)) wrLogSleep(v);
+  const v=prompt('What time did you SLEEP last night?\n(e.g. 11:45 PM)', _to12hrSafe(D.sleepTarget||'23:30'));
+  if(v){ const t24=_parse12hr(v); if(t24) wrLogSleep(t24); else alert('Use format like 11:45 PM'); }
 };
+// Parse "5:30 AM" / "11:45 PM" / "23:30" → "HH:MM" 24h. Returns null if invalid.
+function _parse12hr(s){
+  if(!s) return null; s=s.trim().toUpperCase();
+  let m=s.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+  if(m){ let h=parseInt(m[1],10); const min=m[2]; const ap=m[3];
+    if(ap==='PM'&&h!==12) h+=12; if(ap==='AM'&&h===12) h=0;
+    return String(h).padStart(2,'0')+':'+min; }
+  m=s.match(/^(\d{1,2}):(\d{2})$/); // already 24h
+  if(m){ const h=parseInt(m[1],10); if(h>=0&&h<24) return String(h).padStart(2,'0')+':'+m[2]; }
+  return null;
+}
+function _to12hrSafe(t){ return (typeof to12hr==='function')?to12hr(t):t; }
 function renderSleep(){
   const el=document.getElementById('h-sleep');
   if(!el) return;
@@ -12915,10 +12945,11 @@ function renderSleep(){
     <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:8px;text-align:center">Targets: wake ${to12hr(wakeT)} · sleep ${to12hr(sleepT)} · <button onclick="wrEditSleepTargets()" style="background:none;border:none;color:var(--accent);font-size:9px;font-weight:900;cursor:pointer;text-decoration:underline">edit</button></div>`;
 }
 window.wrEditSleepTargets=function(){
-  const w=prompt('Target WAKE time (24h):', D.wakeTarget||'05:00'); if(w===null) return;
-  const s=prompt('Target SLEEP time (24h):', D.sleepTarget||'23:30'); if(s===null) return;
-  if(/^\d{1,2}:\d{2}$/.test(w)) D.wakeTarget=w;
-  if(/^\d{1,2}:\d{2}$/.test(s)) D.sleepTarget=s;
+  const w=prompt('Target WAKE time (e.g. 5:00 AM):', _to12hrSafe(D.wakeTarget||'05:00')); if(w===null) return;
+  const s=prompt('Target SLEEP time (e.g. 11:30 PM):', _to12hrSafe(D.sleepTarget||'23:30')); if(s===null) return;
+  const w24=_parse12hr(w), s24=_parse12hr(s);
+  if(w24) D.wakeTarget=w24;
+  if(s24) D.sleepTarget=s24;
   save(); renderSleep();
 };
 
@@ -13328,7 +13359,7 @@ function renderTodayAttempts(){
     const icon=h.title&&(h.title.includes('SRS')||h.title.includes('Sprint'))?'🧠':h.title&&/R[1-4]/.test(h.title)?'🔄':h.title&&h.title.includes('Mock')?'📝':'⚡';
     const acc=h.accuracy||0;
     const accColor=acc>=75?'#4ade80':acc>=50?'#fbbf24':'#f87171';
-    const t=h.ts?new Date(h.ts).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'}):'';
+    const t=h.ts?new Date(h.ts).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',hour12:true}):'';
     return `<div style="display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);margin-bottom:6px">
       <div style="font-size:14px;flex-shrink:0">${icon}</div>
       <div style="flex:1;min-width:0">
@@ -13359,7 +13390,7 @@ function renderStatsAllAttempts(wd){
     const acc=h.accuracy||0;
     const accColor=acc>=75?'#4ade80':acc>=50?'#fbbf24':'#f87171';
     const d=h.ts?new Date(h.ts).toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'}):(h.date||'');
-    const t=h.ts?new Date(h.ts).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'}):'';
+    const t=h.ts?new Date(h.ts).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',hour12:true}):'';
     return `<div style="display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:11px;background:var(--bg3);border:1px solid var(--border);margin-bottom:7px">
       <div style="font-size:14px;flex-shrink:0">${icon}</div>
       <div style="flex:1;min-width:0">
