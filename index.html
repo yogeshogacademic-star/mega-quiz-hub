@@ -7449,6 +7449,7 @@ window.retryWrong = function() {
       <div class="mt-two-col">
         <div class="mt-chart-wrap"><div class="mt-chart-title">📈 Score Trend</div><div style="position:relative;height:190px"><canvas id="mt-chart-trend"></canvas></div></div>
         <div class="mt-chart-wrap"><div class="mt-chart-title">🎯 Net Score vs Cutoff</div><div style="position:relative;height:190px"><canvas id="mt-chart-cutoff"></canvas></div></div>
+        <div class="mt-chart-wrap" id="mt-pct-wrap" style="display:none"><div class="mt-chart-title">📊 Percentile Trend (95 benchmark)</div><div style="position:relative;height:190px"><canvas id="mt-chart-pct"></canvas></div></div>
       </div>
       <div id="mt-gap-wrap" class="mt-chart-wrap" style="display:none"><div class="mt-chart-title">📉 Cutoff Gap Trend</div><div style="position:relative;height:160px"><canvas id="mt-chart-gap"></canvas></div></div>
       <div class="mt-chart-wrap"><div class="mt-chart-title">📊 Section Accuracy % — last 5 mocks</div><div id="mt-acc-section"></div></div>
@@ -7538,6 +7539,10 @@ window.retryWrong = function() {
       <div><label class="mt-label">GK / GS</label><input class="mt-input" id="mt-edit-gk" type="number" step="0.01" placeholder=""/></div>
       <div><label class="mt-label">Attempts</label><input class="mt-input" id="mt-edit-attempts" type="number" placeholder="e.g. 185"/></div>
     </div>
+
+    <!-- Per-section breakdown: Total / Attempted / Correct / Wrong -->
+    <div style="margin-bottom:8px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1.5px;color:#94a3b8;margin-top:8px">Section Breakdown (Total / Attempted / Correct / Wrong)</div>
+    <div id="mt-edit-sections"></div>
 
     <!-- Rank & Percentile -->
     <div style="margin-bottom:8px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1.5px;color:#94a3b8;margin-top:4px">Rank & Percentile</div>
@@ -7641,7 +7646,7 @@ window.retryWrong = function() {
     g.innerHTML='';
     sectList.forEach(s=>{
       g.innerHTML+=`<div class="mt-sect-item"><div class="mt-sect-label" style="color:${SECT_COLORS[s]}">${s}</div>
-        <input type="number" class="mt-input" id="mts-tot-${s}" placeholder="Total" min="0"/>
+        <input type="number" class="mt-input" id="mts-tot-${s}" placeholder="Total" min="0" value="25"/>
         <input type="number" class="mt-input" id="mts-att-${s}" placeholder="Attempted" min="0"/>
         <input type="number" class="mt-input" id="mts-cor-${s}" placeholder="Correct" min="0"/>
         <input type="number" class="mt-input" id="mts-wr-${s}" placeholder="Wrong" min="0"/></div>`;
@@ -7697,7 +7702,7 @@ window.retryWrong = function() {
       if(typeof window._wrAutoLog === 'function') {
         const _st = mock.startTime||'09:00', _et = mock.endTime||'10:00';
         const _dur = Math.max(1, Math.round(((parseInt(_et.split(':')[0])*60+parseInt(_et.split(':')[1]))-(parseInt(_st.split(':')[0])*60+parseInt(_st.split(':')[1])))));
-        window._wrAutoLog({ type:'mock', title:(mock.type==='full'?'Full Mock':'Sectional: '+mock.subject)+' — '+mock.platform+' #'+mock.mockno, subject:mock.type==='full'?'Mock Test':mock.subject, platform:mock.platform, mockno:mock.mockno, net:mock.net, duration:_dur, hrs:Math.round(_dur/60*10)/10, startTime:_st, endTime:_et, ts:Date.now() });
+        window._wrAutoLog({ type:'mock', title:(mock.type==='full'?'Full Mock':'Sectional: '+mock.subject)+' — '+mock.platform+' #'+mock.mockno, subject:mock.type==='full'?'Mock Test':mock.subject, platform:mock.platform, mockno:mock.mockno, net:mock.net, duration:_dur, hrs:Math.round(_dur/60*10)/10, startTime:_st, endTime:_et, date:mock.date, ts:Date.now() });
       }
     } catch(e) {}
     mtResetToStep1();
@@ -7855,6 +7860,19 @@ window.retryWrong = function() {
     const cds=[{label:'Net',data:nets,borderColor:'#16a34a',backgroundColor:'rgba(22,163,74,0.1)',tension:0.35,fill:true,pointRadius:4,pointBackgroundColor:'#16a34a'}];
     if(cutoff>0) cds.push({label:`Cutoff ${cutoff}`,data:fullMocks.map(()=>cutoff),borderColor:'#ef4444',borderDash:[6,3],pointRadius:0,borderWidth:2,fill:false});
     mkChart('mt-chart-cutoff',{type:'line',data:{labels,datasets:cds},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:cutoff>0,labels:{font:{size:10},color:tc,boxWidth:10}}},scales:{x:{ticks:{color:tc,font:{size:10},maxRotation:40,autoSkip:true},grid:{color:gc}},y:{ticks:{color:tc,font:{size:10}},grid:{color:gc}}}}});
+    // PERCENTILE TREND with fixed 95-percentile benchmark line
+    const _pctWrap=document.getElementById('mt-pct-wrap');
+    if(mocksWithPct.length>0){
+      if(_pctWrap) _pctWrap.style.display='block';
+      const pctLabels=mocksWithPct.map(m=>m.mockno);
+      const pctData=mocksWithPct.map(m=>m.percentile);
+      const benchLine=mocksWithPct.map(()=>95);
+      const pointColors=mocksWithPct.map(m=>m.percentile>=95?'#16a34a':'#f59e0b');
+      mkChart('mt-chart-pct',{type:'line',data:{labels:pctLabels,datasets:[
+        {label:'Your %ile',data:pctData,borderColor:'#6366f1',backgroundColor:'rgba(99,102,241,0.1)',tension:0.35,fill:true,pointRadius:5,pointBackgroundColor:pointColors,pointBorderColor:pointColors},
+        {label:'95 Benchmark',data:benchLine,borderColor:'#16a34a',borderDash:[6,3],pointRadius:0,borderWidth:2,fill:false}
+      ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{font:{size:10},color:tc,boxWidth:10}}},scales:{x:{ticks:{color:tc,font:{size:10},maxRotation:40,autoSkip:true},grid:{color:gc}},y:{suggestedMin:Math.min(90,Math.min(...pctData)-2),suggestedMax:100,ticks:{color:tc,font:{size:10}},grid:{color:gc}}}}});
+    } else { if(_pctWrap) _pctWrap.style.display='none'; }
     const gapEl=document.getElementById('mt-gap-wrap');
     if(cutoff>0){
       if(gapEl) gapEl.style.display='block';
@@ -8280,6 +8298,22 @@ window.retryWrong = function() {
     set('mt-edit-attempts',m.attempts||'');
     set('mt-edit-percentile-manual',m.percentileManual||'');
     const df=document.getElementById('mt-edit-diff'); if(df) df.value=m.difficulty||'Medium';
+    // Build per-section breakdown inputs (full mock = all 4 sections, sectional = just that subject)
+    const _editSects = (m.type==='sectional' && m.subject) ? [m.subject] : SECTS;
+    const _secWrap = document.getElementById('mt-edit-sections');
+    if(_secWrap){
+      _secWrap.innerHTML = _editSects.map(function(s){
+        const sec = (m.sections && m.sections[s]) ? m.sections[s] : {total:25,attempted:'',correct:'',wrong:''};
+        return '<div class="mt-sect-item" style="margin-bottom:6px"><div class="mt-sect-label" style="color:'+(SECT_COLORS[s]||'#6366f1')+'">'+s+'</div>'+
+          '<input type="number" class="mt-input" id="mt-edit-tot-'+s+'" placeholder="Total" min="0" value="'+(sec.total!=null?sec.total:25)+'"/>'+
+          '<input type="number" class="mt-input" id="mt-edit-att-'+s+'" placeholder="Attempted" min="0" value="'+(sec.attempted!=null?sec.attempted:'')+'"/>'+
+          '<input type="number" class="mt-input" id="mt-edit-cor-'+s+'" placeholder="Correct" min="0" value="'+(sec.correct!=null?sec.correct:'')+'"/>'+
+          '<input type="number" class="mt-input" id="mt-edit-wr-'+s+'" placeholder="Wrong" min="0" value="'+(sec.wrong!=null?sec.wrong:'')+'"/></div>';
+      }).join('');
+      _secWrap.style.display='grid';
+      _secWrap.style.gridTemplateColumns='repeat('+Math.min(_editSects.length,4)+',1fr)';
+      _secWrap.style.gap='8px';
+    }
     mtEditCalcPct();
     document.getElementById('mt-edit-modal').style.display='flex';
   };
@@ -8300,6 +8334,19 @@ window.retryWrong = function() {
     const manualPct=parseFloat(document.getElementById('mt-edit-percentile-manual')?.value)||null;
     const calcPct=r>0&&t>0&&r<=t?parseFloat(((t-r)/t*100).toFixed(2)):null;
     const getNum=(id)=>{ const v=parseFloat(document.getElementById(id)?.value); return isNaN(v)?null:v; };
+    // Read per-section breakdown
+    const _existing = mtMocks[idx];
+    const _editSects = (_existing.type==='sectional' && _existing.subject) ? [_existing.subject] : SECTS;
+    const _sections = {};
+    _editSects.forEach(function(s){
+      _sections[s] = {
+        total: parseInt(document.getElementById('mt-edit-tot-'+s)?.value)||0,
+        attempted: parseInt(document.getElementById('mt-edit-att-'+s)?.value)||0,
+        correct: parseInt(document.getElementById('mt-edit-cor-'+s)?.value)||0,
+        wrong: parseInt(document.getElementById('mt-edit-wr-'+s)?.value)||0
+      };
+    });
+    const _newNet = mtNet(_sections, _editSects);
     mtMocks[idx]={...mtMocks[idx],
       platform:document.getElementById('mt-edit-platform').value.trim(),
       mockno:document.getElementById('mt-edit-mockno').value.trim(),
@@ -8318,7 +8365,26 @@ window.retryWrong = function() {
       feeling:document.getElementById('mt-edit-feeling').value,
       takeaway:document.getElementById('mt-edit-takeaway').value.trim(),
       wrongs:document.getElementById('mt-edit-wrongs').value.trim(),
+      sections:_sections,
+      net:_newNet,
     };
+    // Update the matching War Room log entry (date/net/times) if it exists
+    try {
+      const _m = mtMocks[idx];
+      if(typeof D !== 'undefined' && D.logs){
+        Object.keys(D.logs).forEach(function(dateKey){
+          D.logs[dateKey] = (D.logs[dateKey]||[]).filter(function(lg){
+            return !(lg.type==='mock' && lg.mockNo===_m.mockno && lg.mockPlatform===_m.platform);
+          });
+        });
+        // Re-add under correct date
+        if(typeof window._wrAutoLog==='function'){
+          window._wrAutoLog({ type:'mock', title:(_m.type==='full'?'Full Mock':'Sectional: '+_m.subject)+' — '+_m.platform+' #'+_m.mockno, subject:_m.type==='full'?'Mock Test':_m.subject, platform:_m.platform, mockno:_m.mockno, net:_m.net, startTime:_m.startTime||'09:00', endTime:_m.endTime||'10:00', date:_m.date, ts:Date.now() });
+        }
+        if(typeof save==='function') save();
+        if(typeof renderHomeTodayLogged==='function') renderHomeTodayLogged();
+      }
+    } catch(e){}
     mtMocks.sort((a,b)=>a.date.localeCompare(b.date));
     mtSave(); mtCloseEdit(); mtRenderHistory(); mtUpdateHeaderStats(); mtToast('✅ Mock updated!');
   };
@@ -12937,7 +13003,9 @@ window._wrAutoLog = function(entry) {
         return;
       }
     }
-    const today = new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
+    // Use the entry's explicit date if provided (e.g. logging a mock for a past date),
+    // otherwise default to today in IST. This lets back-dated mocks log on their real day.
+    const today = entry.date || new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
     if(!D.logs[today]) D.logs[today] = [];
     // Add auto entry with type marker
     D.logs[today].push({
@@ -12963,7 +13031,10 @@ window._wrAutoLog = function(entry) {
       ts: entry.ts || Date.now(),
       startTime: entry.startTime || '',
       endTime: entry.endTime || '',
-      time: entry.endTime || new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})
+      // 12-hour display versions (e.g. "9:00 AM") for the log feed
+      startTime12: entry.startTime ? to12hr(entry.startTime) : '',
+      endTime12: entry.endTime ? to12hr(entry.endTime) : '',
+      time: (entry.endTime ? to12hr(entry.endTime) : '') || new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',hour12:true})
     });
     save();
     if(typeof updateStreak === 'function') updateStreak();
