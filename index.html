@@ -2162,13 +2162,22 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
         let scDataCloud = {}; try { scDataCloud = JSON.parse(localStorage.getItem('sc_syllabus_v1')||'{}'); } catch{}
         // Strip reviewData before cloud upload — reduces payload from ~5MB to ~1MB
         // reviewData stays safe in local IndexedDB, only summaries go to cloud
-        const historyForCloud = historyDb.map(h => ({
-            ts: h.ts, date: h.date, title: h.title, subject: h.subject,
-            score: h.score, accuracy: h.accuracy, candidateName: h.candidateName,
-            attemptNumber: h.attemptNumber, totalCorrect: h.totalCorrect,
-            totalWrong: h.totalWrong, totalSkipped: h.totalSkipped
-            // reviewData intentionally excluded — too large for cloud
-        }));
+        // BUG-FIX (Jun 2026): KEEP reviewData for R1 syllabus revision quizzes so the
+        // self-heal logic in scStartRevision/scLaunchRevQuiz/scMarkRevDoneAuto can
+        // reconstruct r1QuestionsAttempted on devices that loaded from cloud.
+        const historyForCloud = historyDb.map(h => {
+            const base = {
+                ts: h.ts, date: h.date, title: h.title, subject: h.subject,
+                score: h.score, accuracy: h.accuracy, candidateName: h.candidateName,
+                attemptNumber: h.attemptNumber, totalCorrect: h.totalCorrect,
+                totalWrong: h.totalWrong, totalSkipped: h.totalSkipped
+            };
+            // Preserve reviewData ONLY for R1 syllabus revisions (small payload, needed by self-heal)
+            if (h.title && (h.title.includes('R1 Revision') || h.title.includes('R1 revision')) && h.reviewData) {
+                base.reviewData = h.reviewData;
+            }
+            return base;
+        });
         const payload = { subjects: SUBJECTS, db: cleanDb, syllabusData: scDataCloud, syllabusLastSave: parseInt(localStorage.getItem('sc_syllabus_lastSave')||'0'), history: historyForCloud, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, mockTracker: mockTrackerCloud, plannerData: plannerCloud, savedAt: nowTs };
         // Expose saveData globally for syllabus functions in other script blocks
         window._saveDataGlobal = saveData;
@@ -9666,11 +9675,21 @@ window.scStartRevision = (key, rev) => {
     if (attemptedSet.size > 0) {
       // Primary: filter by actual question texts seen — immune to drift
       questions = questions.filter(q => !srsMap.has(q.question) && !attemptedSet.has(q.question));
+    } else if (doneSoFar === 0) {
+      // TRULY fresh start (progress=0 AND attempted=[])
+      questions = questions.filter(q => !srsMap.has(q.question));
     } else if (doneSoFar >= questions.length) {
       questions = []; // all done → completion modal
     } else {
-      // True fresh start (progress=0, nothing attempted) — just remove SRS questions
-      questions = questions.filter(q => !srsMap.has(q.question));
+      // BUG-FIX (Jun 2026): SYNC CONFLICT — progress > 0 but attempted=[].
+      // Self-heal from history already failed (e.g., cloud-stripped reviewData).
+      // Reconstruct attempted from deterministic pool ordering to stop wrong-Q leak
+      // and total-inflation. Best-effort recovery.
+      const srsFiltered = questions.filter(q => !srsMap.has(q.question));
+      t.r1QuestionsAttempted = srsFiltered.slice(0, doneSoFar).map(q => q.question);
+      scSave();
+      console.warn('[R1 Sync-Conflict Recovery] Reconstructed ' + t.r1QuestionsAttempted.length + ' attempted Qs from deterministic pool');
+      questions = srsFiltered.slice(doneSoFar);
     }
   }
 
@@ -9852,11 +9871,19 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
       if (attemptedSet.size > 0) {
         // Primary: filter by actual question texts seen — immune to pool/SRS drift
         questions = questions.filter(q => !srsMap.has(q.question) && !attemptedSet.has(q.question));
+      } else if (doneSoFar === 0) {
+        // TRULY fresh start (progress=0 AND attempted=[])
+        questions = questions.filter(q => !srsMap.has(q.question));
       } else if (doneSoFar >= questions.length) {
         questions = [];
       } else {
-        // True fresh start — just remove SRS questions
-        questions = questions.filter(q => !srsMap.has(q.question));
+        // BUG-FIX (Jun 2026): SYNC CONFLICT — progress > 0 but attempted=[].
+        // Reconstruct from deterministic pool order to stop wrong-Q leak + total inflation.
+        const srsFiltered = questions.filter(q => !srsMap.has(q.question));
+        t.r1QuestionsAttempted = srsFiltered.slice(0, doneSoFar).map(q => q.question);
+        scSave();
+        console.warn('[R1 Sync-Conflict Recovery scLaunchRevQuiz] Reconstructed ' + t.r1QuestionsAttempted.length + ' attempted Qs');
+        questions = srsFiltered.slice(doneSoFar);
       }
       startIdx = 0;
     }
@@ -10617,10 +10644,14 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
 
   // Collect wrong/skipped questions from this batch
   // PRIMARY: use quizState.answers — works on ANY device, no reviewData needed
+  // BUG-FIX (Jun 2026): activeQuestions/quizState are let-declared at script-global level,
+  // so they are accessible by BARE NAME, but NOT via window.* — using window.X here
+  // returned undefined and silently fell through to the history fallback, which only
+  // captured wrong/skipped — never the FULL batch — causing r1QuestionsAttempted to stay empty.
   const wrongQuestions = [];
-  if (window.quizState && window.activeQuestions) {
-    window.activeQuestions.forEach(function(q, i) {
-      const sel = window.quizState.answers ? window.quizState.answers[i] : undefined;
+  if (typeof quizState !== 'undefined' && typeof activeQuestions !== 'undefined' && activeQuestions && activeQuestions.length > 0) {
+    activeQuestions.forEach(function(q, i) {
+      const sel = quizState.answers ? quizState.answers[i] : undefined;
       let isWrong;
       if (q.type === 'typing' || q.exactAnswer !== undefined) {
         // Typing question: sel is the typed string, compare to exactAnswer
@@ -10680,10 +10711,17 @@ window._afterSubmit = function(correct, wrong, skipped, total) {
 
   // Track answered questions for after-R4 SRS graduation.
   // Use activeQuestions directly — always available at submit time on any device.
-  // _scRevContext.allQuestions is NOT used here because it's a window variable
-  // that dies when the app is closed between batches (phone multi-session bug).
+  // BUG-FIX (Jun 2026): was using window.activeQuestions which is undefined
+  // (let-declared globals don't attach to window). Now uses bare name + history fallback.
   if (rev === 'r1') {
-    const batchQs = (window.activeQuestions || []).map(q => q.question).filter(Boolean);
+    let batchQs = [];
+    if (typeof activeQuestions !== 'undefined' && activeQuestions && activeQuestions.length > 0) {
+      batchQs = activeQuestions.map(q => q.question).filter(Boolean);
+    }
+    // Safety fallback: if activeQuestions empty, derive from latest history entry's reviewData
+    if (batchQs.length === 0 && historyDb && historyDb[0] && historyDb[0].reviewData) {
+      batchQs = historyDb[0].reviewData.map(q => q.question).filter(Boolean);
+    }
     const existing = t.r1QuestionsAttempted || [];
     t.r1QuestionsAttempted = [...new Set([...existing, ...batchQs])];
     scSave();
@@ -10859,6 +10897,28 @@ window.scMarkRevDoneAuto = (key, rev) => {
   t[rev + 'Progress'] = 0;
   
   // AFTER R4 COMPLETE: Graduate all questions from cycle to SRS
+  if (rev === 'r4') {
+    // BUG-FIX (Jun 2026): R4 GRADUATION SAFETY — if r1QuestionsAttempted is empty
+    // (e.g., sync conflict wiped it), try to rebuild from history reviewData before
+    // skipping SRS graduation. Without this rebuild, the whole cycle's wrong-but-eventually-
+    // correct questions never enter SRS.
+    if (!t.r1QuestionsAttempted || t.r1QuestionsAttempted.length === 0) {
+      const _hist = (historyDb||[]).filter(h =>
+        h.title && h.title.includes(t.name) &&
+        (h.title.includes('R1 Revision') || h.title.includes('R1 revision')) &&
+        h.reviewData && h.reviewData.length > 0
+      );
+      const _rebuilt = new Set();
+      _hist.forEach(h => h.reviewData.forEach(q => { if (q.question) _rebuilt.add(q.question); }));
+      if (_rebuilt.size > 0) {
+        t.r1QuestionsAttempted = [..._rebuilt];
+        console.warn('[R4 Graduation Self-Heal] Rebuilt r1QuestionsAttempted from history: ' + _rebuilt.size + ' Qs');
+        scSave();
+      } else {
+        console.warn('[R4 Graduation] r1QuestionsAttempted is empty AND history has no reviewData — graduation skipped, no SRS feed for this cycle');
+      }
+    }
+  }
   if (rev === 'r4' && t.r1QuestionsAttempted && t.r1QuestionsAttempted.length > 0) {
     const r4WrongSet = new Set(t.r4Wrong || []);
     const now = Date.now();
@@ -13611,4 +13671,863 @@ var _hookInterval = setInterval(function() {
 setTimeout(function() { clearInterval(_hookInterval); }, 10000);
 </script>
 <!-- ===== END WAR ROOM PLANNER ===== -->
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     MEGA QUIZ HUB — PUSH 1 v2: Mock Wrong Questions (MWQ) Module
+     
+     v2 fixes (from verification audit against actual index.html):
+       - Bare-name access for let-scoped globals (db, CUSTOM_TAGS, saveCustomTags, mtToast)
+       - Uses canonical saveData() instead of raw idbKeyval.set (handles cloud sync)
+       - Uses openLobby(id) to launch quizzes (matches hub's actual API)
+       - Calls rebuildSearchCache() + renderDashboard() after commit
+       - Defensive typeof checks on every hub API
+       - Tab-row selector scoped to #screen-mock-tracker
+       - No spurious per-question subject field
+     
+     INSTALL: Paste this ENTIRE block into your index.html just before </body>.
+     Zero edits to existing code lines.
+     ════════════════════════════════════════════════════════════════════════ -->
+<script>
+(function() {
+  'use strict';
+  
+  const SUBJECT_CONFIG = {
+    'Quant': {
+      icon: '📐',
+      container: 'QUANT MOCK QUESTIONS',
+      parents: ['Arithmetic', 'Advanced Maths', 'Calculation'],
+      slug: 'quant'
+    },
+    'GS': {
+      icon: '🌍',
+      container: 'GS MOCK QUESTIONS',
+      parents: ['Polity', 'Economics', 'Geography', 'Ancient History',
+                'Medieval History', 'Modern History', 'Static GK',
+                'Current Affairs', 'Art & Culture', 'Biology', 'Physics',
+                'Chemistry', 'Science & Technology', 'Environment & Ecology'],
+      slug: 'gs'
+    },
+    'English': {
+      icon: '📖',
+      container: 'ENGLISH MOCK QUESTIONS',
+      parents: ['English'],
+      slug: 'english'
+    },
+    'Reasoning': {
+      icon: '🧠',
+      container: 'REASONING MOCK QUESTIONS',
+      parents: ['Reasoning'],
+      slug: 'reasoning'
+    }
+  };
+  
+  const MWQ = { activeSubject: null, parsedQuestions: [], taxonomyTree: null };
+  
+  // ── Safe hub API accessors (bare-name lookup, defensive try/catch) ──
+  function getDb()           { try { return (typeof db !== 'undefined') ? db : null; } catch(e) { return null; } }
+  function getCustomTags()   { try { return (typeof CUSTOM_TAGS !== 'undefined') ? CUSTOM_TAGS : null; } catch(e) { return null; } }
+  function callSaveCustom()  { try { if (typeof saveCustomTags === 'function') saveCustomTags(); } catch(e) { console.warn('[MWQ] saveCustomTags failed:', e); } }
+  function callMtToast(m)    { try { if (typeof mtToast === 'function') { mtToast(m); return true; } } catch(e){} return false; }
+  function callSaveData()    { try { if (typeof saveData === 'function') return saveData(); } catch(e) { console.warn('[MWQ] saveData failed:', e); } return Promise.resolve(); }
+  function callRebuildCache(){ try { if (typeof window.rebuildSearchCache === 'function') window.rebuildSearchCache(); } catch(e){} }
+  function callRenderDash()  { try { if (typeof renderDashboard === 'function') renderDashboard(); } catch(e){} }
+  function callOpenLobby(id) { try { if (typeof openLobby === 'function') { openLobby(id); return true; } } catch(e){} return false; }
+  
+  // ── Utils ──
+  function $$(sel, root) { return Array.from((root || document).querySelectorAll(sel)); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  
+  function mondayOfWeek(date) {
+    const d = date ? new Date(date) : new Date();
+    d.setHours(0,0,0,0);
+    const day = d.getDay();
+    d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+    return d;
+  }
+  function fmtShort(d) { return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }); }
+  function isoDate(d) {
+    const tz = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tz).toISOString().split('T')[0];
+  }
+  function weekRange(date) {
+    const mon = mondayOfWeek(date);
+    const sun = new Date(mon);
+    sun.setDate(mon.getDate() + 6);
+    return {
+      start: isoDate(mon), end: isoDate(sun),
+      display: `${fmtShort(mon)} – ${fmtShort(sun)}`,
+      displayLong: `${fmtShort(mon)} to ${fmtShort(sun)}, ${mon.getFullYear()}`,
+      year: mon.getFullYear()
+    };
+  }
+  function bucketKey(subject, weekStart) {
+    return `quiz_mock_wrong_${SUBJECT_CONFIG[subject].slug}_wk_${weekStart}`;
+  }
+  function qHash(text) {
+    const s = (text || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    let h = 0;
+    for (let i = 0; i < s.length; i++) { h = ((h << 5) - h) + s.charCodeAt(i); h |= 0; }
+    return 'h' + Math.abs(h).toString(36) + '_' + s.length;
+  }
+  function toast(msg, type) {
+    if (callMtToast(msg)) return;
+    const t = document.createElement('div');
+    t.textContent = msg;
+    const bg = type === 'error' ? '#dc2626' : type === 'warn' ? '#f59e0b' : '#1e293b';
+    t.style.cssText = `position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:${bg};color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,0.2)`;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+  }
+  
+  // ── Taxonomy from live db ──
+  function buildTaxonomy() {
+    const tree = {};
+    const dbRef = getDb() || {};
+    Object.keys(dbRef).forEach(qid => {
+      const quiz = dbRef[qid];
+      if (!quiz || !Array.isArray(quiz.questions)) return;
+      if (qid.startsWith('quiz_mock_wrong_')) return;
+      quiz.questions.forEach(q => {
+        const tags = q.tags || [];
+        if (!tags.length) return;
+        const t0 = tags[0], t1 = tags[1] || '', t2 = tags[2] || '';
+        if (!t0) return;
+        tree[t0] = tree[t0] || {};
+        tree[t0][t1] = tree[t0][t1] || new Set();
+        if (t2) tree[t0][t1].add(t2);
+      });
+    });
+    Object.keys(tree).forEach(t0 => {
+      Object.keys(tree[t0]).forEach(t1 => {
+        tree[t0][t1] = Array.from(tree[t0][t1]).sort();
+      });
+    });
+    const ct = getCustomTags();
+    if (ct && ct.tag2) {
+      Object.keys(ct.tag2).forEach(sub => {
+        tree[sub] = tree[sub] || {};
+        (ct.tag2[sub] || []).forEach(topic => { tree[sub][topic] = tree[sub][topic] || []; });
+      });
+    }
+    if (ct && ct.tag3) {
+      Object.keys(ct.tag3).forEach(topic => {
+        Object.keys(tree).forEach(t0 => {
+          if (tree[t0][topic]) {
+            const merged = new Set([...tree[t0][topic], ...(ct.tag3[topic] || [])]);
+            tree[t0][topic] = Array.from(merged).sort();
+          }
+        });
+      });
+    }
+    return tree;
+  }
+  
+  // ── Prompt generation ──
+  function generatePrompt(subject) {
+    const cfg = SUBJECT_CONFIG[subject];
+    const tree = buildTaxonomy();
+    const wk = weekRange();
+    let p = `# SSC CGL Mock Wrong-Answer Parser — ${subject} | Week ${wk.displayLong}\n\n`;
+    p += `I'm sharing screenshots of WRONG questions from my ${subject} mock tests this week. `;
+    p += `Each screenshot may contain ONE or MULTIPLE questions — read every visible question.\n\n`;
+    p += `For each question, produce a JSON object using this EXACT schema:\n\n`;
+    p += '```json\n';
+    p += `{\n  "question": "<full question text exactly as in screenshot>",\n  "options": [\n    {"text": "<A>", "correct": false},\n    {"text": "<B>", "correct": false},\n    {"text": "<C>", "correct": true},\n    {"text": "<D>", "correct": false}\n  ],\n  "tags": ["<tag[0]>", "<tag[1]>", "<tag[2]>", "<tag[3]>"],\n  "solution": "<b>Shortcut:</b> <2–3 line solution>",\n  "mockSource": "Week ${wk.display} · ${subject} Pool",\n  "needsRetag": false\n}\n`;
+    p += '```\n\n';
+    p += `## TAG RULES (CRITICAL)\n\n`;
+    p += `**tag[0]** MUST be exactly one of: ${cfg.parents.map(x => `"${x}"`).join(', ')}\n\n`;
+    p += `**tag[1]** MUST match an EXISTING topic under the chosen tag[0]. Exact spelling, exact punctuation:\n\n`;
+    cfg.parents.forEach(parent => {
+      if (!tree[parent]) return;
+      const topics = Object.keys(tree[parent]).filter(t => t).sort();
+      if (!topics.length) return;
+      p += `### Under "${parent}"\n`;
+      topics.forEach(topic => { p += `- ${topic}\n`; });
+      p += '\n';
+    });
+    p += `**tag[2]** sub-topic — match existing where possible. Sub-topic examples per topic:\n\n`;
+    cfg.parents.forEach(parent => {
+      if (!tree[parent]) return;
+      Object.keys(tree[parent]).sort().forEach(topic => {
+        if (!topic) return;
+        const subs = (tree[parent][topic] || []).filter(s => s);
+        if (!subs.length) {
+          p += `- **${parent} → ${topic}**: (no existing sub-topics, create one)\n`;
+        } else {
+          const shown = subs.slice(0, 10);
+          p += `- **${parent} → ${topic}**: ${shown.join(', ')}${subs.length > 10 ? `, ... (+${subs.length - 10} more)` : ''}\n`;
+        }
+      });
+    });
+    p += `\n**tag[3]** — question-specific concept in 2–6 words. Example: "Lok Sabha Composition", "Successive Discount Type", "Cube Diagonal Formula", "Word Pair Synonym".\n\n`;
+    p += `## FALLBACK RULES\n\n`;
+    p += `1. If a question DOES NOT fit any existing tag[1] under the chosen tag[0]: set tag[1] = "Miscellaneous" AND "needsRetag": true.\n`;
+    p += `2. If tag[2] doesn't match any existing sub-topic: create a clean new name (2–5 words) AND set "needsRetag": true.\n`;
+    p += `3. tag[3] is always question-specific — no need to match existing.\n`;
+    p += `4. Solution MUST always start with "<b>Shortcut:</b>" followed by 2–3 concise lines.\n`;
+    p += `5. Extract the FULL question text — include tables, data, conditions, line breaks.\n`;
+    p += `6. Mark exactly ONE option as "correct": true (the right answer per the mock solution).\n`;
+    p += `7. "mockSource" MUST be EXACTLY: "Week ${wk.display} · ${subject} Pool" (don't paraphrase).\n\n`;
+    p += `## OUTPUT\n\n`;
+    p += `Return ONLY a JSON array of question objects — no commentary, no markdown fences, no preamble:\n\n`;
+    p += `[\n  { ...question1... },\n  { ...question2... }\n]\n\n`;
+    p += `If I share more screenshots in follow-up messages, return a fresh JSON array each time — I'll merge them.\n\n`;
+    p += `Ready — process the screenshots and return JSON.\n`;
+    return p;
+  }
+  
+  // ── CSS injection ──
+  function injectCSS() {
+    if (document.getElementById('mwq-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'mwq-styles';
+    style.textContent = `
+      .mwq-week-panel{background:linear-gradient(135deg,#eef2ff 0%,#e0e7ff 100%);border:1.5px solid #c7d2fe;border-radius:16px;padding:18px;margin-bottom:16px}
+      .dark .mwq-week-panel{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 100%);border-color:#4338ca}
+      .mwq-week-title{font-size:11px;font-weight:900;color:#4338ca;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px}
+      .dark .mwq-week-title{color:#a5b4fc}
+      .mwq-week-range{font-size:20px;font-weight:900;color:#1e293b;margin-bottom:4px}
+      .dark .mwq-week-range{color:#f1f5f9}
+      .mwq-week-sub{font-size:12px;font-weight:700;color:#64748b;margin-bottom:14px}
+      .dark .mwq-week-sub{color:#94a3b8}
+      .mwq-subj-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+      @media(min-width:640px){.mwq-subj-grid{grid-template-columns:repeat(4,1fr)}}
+      .mwq-subj-btn{padding:14px 12px;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;font-size:13px;font-weight:900;color:#1e293b;cursor:pointer;transition:all 0.15s;display:flex;flex-direction:column;align-items:center;gap:4px;font-family:inherit}
+      .dark .mwq-subj-btn{background:#1e293b;border-color:#334155;color:#f1f5f9}
+      .mwq-subj-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(99,102,241,0.15);border-color:#6366f1}
+      .mwq-subj-btn .icon{font-size:24px}
+      .mwq-subj-btn .lbl{font-size:12px;text-transform:uppercase;letter-spacing:0.05em}
+      .mwq-subj-btn .cnt{font-size:10px;color:#94a3b8;font-weight:700}
+      .mwq-section-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin-bottom:12px}
+      .dark .mwq-section-card{background:#0f172a;border-color:#1e293b}
+      .mwq-section-title{font-size:11px;font-weight:900;color:#64748b;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:10px}
+      .dark .mwq-section-title{color:#94a3b8}
+      .mwq-history-row{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;cursor:pointer;transition:all 0.15s}
+      .dark .mwq-history-row{background:#1e293b;border-color:#334155}
+      .mwq-history-row:hover{border-color:#6366f1;transform:translateX(2px)}
+      .mwq-history-title{font-size:13px;font-weight:900;color:#1e293b}
+      .dark .mwq-history-title{color:#f1f5f9}
+      .mwq-history-sub{font-size:11px;font-weight:700;color:#94a3b8;margin-top:2px}
+      .mwq-history-count{padding:4px 10px;background:#eef2ff;color:#4338ca;border-radius:8px;font-size:12px;font-weight:900}
+      .dark .mwq-history-count{background:#312e81;color:#a5b4fc}
+      .mwq-modal{position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:9998;display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px 12px;backdrop-filter:blur(4px)}
+      .mwq-modal.mwq-open{display:flex}
+      .mwq-modal-card{background:#fff;border-radius:16px;max-width:900px;width:100%;max-height:calc(100vh - 40px);overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,0.3)}
+      .dark .mwq-modal-card{background:#0f172a;border:1px solid #334155}
+      .mwq-modal-header{padding:16px 18px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center}
+      .dark .mwq-modal-header{border-color:#1e293b}
+      .mwq-modal-title{font-size:15px;font-weight:900;color:#1e293b}
+      .dark .mwq-modal-title{color:#f1f5f9}
+      .mwq-modal-close{background:transparent;border:none;font-size:22px;cursor:pointer;color:#94a3b8;padding:0 4px}
+      .mwq-modal-body{padding:18px;overflow-y:auto;flex:1}
+      .mwq-modal-footer{padding:12px 18px;border-top:1px solid #e2e8f0;display:flex;gap:10px;justify-content:flex-end;background:#f8fafc;flex-wrap:wrap}
+      .dark .mwq-modal-footer{border-color:#1e293b;background:#0f172a}
+      .mwq-btn{padding:9px 16px;border:none;border-radius:10px;font-size:12px;font-weight:900;cursor:pointer;text-transform:uppercase;letter-spacing:0.05em;transition:all 0.15s;font-family:inherit}
+      .mwq-btn-primary{background:#6366f1;color:#fff}
+      .mwq-btn-primary:hover{background:#4f46e5}
+      .mwq-btn-secondary{background:transparent;color:#64748b;border:1.5px solid #e2e8f0}
+      .dark .mwq-btn-secondary{color:#94a3b8;border-color:#334155}
+      .mwq-btn-success{background:#10b981;color:#fff}
+      .mwq-btn-success:hover{background:#059669}
+      .mwq-prompt-area{width:100%;min-height:280px;padding:12px;border:1.5px solid #e2e8f0;border-radius:10px;font-family:"SF Mono",Menlo,monospace;font-size:11px;line-height:1.5;color:#1e293b;background:#f8fafc;resize:vertical}
+      .dark .mwq-prompt-area{background:#1e293b;border-color:#334155;color:#f1f5f9}
+      .mwq-step{display:flex;gap:10px;align-items:flex-start;margin-bottom:14px;padding:12px;background:#f1f5f9;border-radius:10px}
+      .dark .mwq-step{background:#1e293b}
+      .mwq-step-num{flex-shrink:0;width:28px;height:28px;border-radius:50%;background:#6366f1;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900}
+      .mwq-step-body{flex:1;font-size:13px;color:#1e293b;font-weight:700;line-height:1.5}
+      .dark .mwq-step-body{color:#f1f5f9}
+      .mwq-q-card{background:#fff;border:2px solid #e2e8f0;border-radius:14px;padding:14px;margin-bottom:12px;transition:border-color 0.15s}
+      .dark .mwq-q-card{background:#1e293b;border-color:#334155}
+      .mwq-q-card[data-retag="true"]{border-color:#f59e0b;background:#fffbeb}
+      .dark .mwq-q-card[data-retag="true"]{background:#451a03;border-color:#f59e0b}
+      .mwq-q-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px}
+      .mwq-q-num{font-size:11px;font-weight:900;color:#6366f1;text-transform:uppercase;letter-spacing:0.07em}
+      .mwq-q-retag{padding:3px 8px;background:#fef3c7;color:#92400e;border-radius:6px;font-size:10px;font-weight:900;text-transform:uppercase}
+      .mwq-q-del{background:transparent;border:none;color:#dc2626;font-size:11px;font-weight:900;cursor:pointer}
+      .mwq-q-text{width:100%;min-height:60px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:700;color:#1e293b;background:#f8fafc;resize:vertical;font-family:inherit;margin-bottom:8px}
+      .dark .mwq-q-text{background:#0f172a;border-color:#334155;color:#f1f5f9}
+      .mwq-q-opts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+      .mwq-q-opt{display:flex;align-items:center;gap:6px;padding:6px 8px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px}
+      .dark .mwq-q-opt{background:#0f172a;border-color:#334155}
+      .mwq-q-opt input[type="radio"]{flex-shrink:0;cursor:pointer}
+      .mwq-q-opt input[type="text"]{flex:1;border:none;background:transparent;font-size:12px;font-weight:700;color:#1e293b;outline:none;font-family:inherit}
+      .dark .mwq-q-opt input[type="text"]{color:#f1f5f9}
+      .mwq-q-opt[data-correct="true"]{border-color:#10b981;background:#ecfdf5}
+      .dark .mwq-q-opt[data-correct="true"]{background:#064e3b;border-color:#10b981}
+      .mwq-q-tags{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:8px}
+      @media(min-width:640px){.mwq-q-tags{grid-template-columns:repeat(4,1fr)}}
+      .mwq-q-tag{padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:11px;font-weight:700;color:#1e293b;background:#fff;font-family:inherit;outline:none}
+      .dark .mwq-q-tag{background:#1e293b;border-color:#334155;color:#f1f5f9}
+      .mwq-q-tag:focus{border-color:#6366f1}
+      .mwq-q-sol{width:100%;min-height:50px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-weight:700;color:#1e293b;background:#f8fafc;resize:vertical;font-family:inherit}
+      .dark .mwq-q-sol{background:#0f172a;border-color:#334155;color:#f1f5f9}
+      .mwq-stats-bar{display:flex;gap:10px;padding:10px 14px;background:#eef2ff;border-radius:10px;margin-bottom:14px;font-size:12px;font-weight:900;flex-wrap:wrap}
+      .dark .mwq-stats-bar{background:#1e1b4b}
+      .mwq-stat-item{color:#4338ca}
+      .dark .mwq-stat-item{color:#a5b4fc}
+      .mwq-stat-retag{color:#92400e}
+      .dark .mwq-stat-retag{color:#fbbf24}
+    `;
+    document.head.appendChild(style);
+  }
+  
+  // ── UI injection ──
+  function injectUI() {
+    const sample = document.querySelector('#screen-mock-tracker .mt-tab');
+    const tabRow = sample ? sample.parentElement : null;
+    if (!tabRow) return false;
+    
+    if (!document.getElementById('mt-tab-mwq')) {
+      const btn = document.createElement('button');
+      btn.id = 'mt-tab-mwq';
+      btn.className = 'mt-tab';
+      btn.innerHTML = '📸 Wrong Quizzes';
+      btn.onclick = function(e) { e.preventDefault(); activateTab(); };
+      tabRow.appendChild(btn);
+    }
+    
+    if (!document.getElementById('mt-view-mwq')) {
+      const anyView = document.querySelector('#screen-mock-tracker .mt-view');
+      if (anyView && anyView.parentElement) {
+        const view = document.createElement('div');
+        view.id = 'mt-view-mwq';
+        view.className = 'mt-view';
+        view.innerHTML = `
+          <div class="mwq-week-panel">
+            <div class="mwq-week-title">📅 Current Week</div>
+            <div class="mwq-week-range" id="mwq-week-range">—</div>
+            <div class="mwq-week-sub">Process wrong-question screenshots into weekly quizzes. They appear in your main dashboard under the existing mock-question containers and flow to syllabus via tags.</div>
+            <div class="mwq-subj-grid" id="mwq-subj-grid"></div>
+          </div>
+          <div class="mwq-section-card">
+            <div class="mwq-section-title">📚 Past Weekly Quizzes</div>
+            <div id="mwq-history-list" style="font-size:12px;color:#94a3b8;font-weight:700">Loading...</div>
+          </div>
+        `;
+        anyView.parentElement.appendChild(view);
+      }
+    }
+    
+    if (!document.getElementById('mwq-prompt-modal')) {
+      const m = document.createElement('div');
+      m.id = 'mwq-prompt-modal';
+      m.className = 'mwq-modal';
+      m.innerHTML = `
+        <div class="mwq-modal-card">
+          <div class="mwq-modal-header">
+            <div class="mwq-modal-title" id="mwq-prompt-title">Generate Prompt</div>
+            <button class="mwq-modal-close" onclick="window.mwq_closePrompt()">✕</button>
+          </div>
+          <div class="mwq-modal-body">
+            <div class="mwq-step">
+              <div class="mwq-step-num">1</div>
+              <div class="mwq-step-body">Tap <b>Copy Prompt</b>, then <b>Open Claude.ai</b>. Paste the prompt into a new chat and drop your screenshots.</div>
+            </div>
+            <div class="mwq-step">
+              <div class="mwq-step-num">2</div>
+              <div class="mwq-step-body">If you have &gt;20 screenshots, send them in chunks of ~15 in the same Claude.ai chat. Each chunk returns its own JSON array.</div>
+            </div>
+            <div class="mwq-step">
+              <div class="mwq-step-num">3</div>
+              <div class="mwq-step-body">Copy the JSON Claude returns, come back here, click <b>Paste JSON</b> to open the review modal. Multiple pastes accumulate.</div>
+            </div>
+            <div style="display:flex;gap:8px;margin:14px 0;flex-wrap:wrap">
+              <button class="mwq-btn mwq-btn-primary" onclick="window.mwq_copyPrompt()" style="flex:1;min-width:140px">📋 Copy Prompt</button>
+              <button class="mwq-btn mwq-btn-primary" onclick="window.mwq_openClaude()" style="flex:1;min-width:140px">🚀 Open Claude.ai</button>
+              <button class="mwq-btn mwq-btn-success" onclick="window.mwq_openPasteFromPrompt()" style="flex:1;min-width:140px">📥 Paste JSON</button>
+            </div>
+            <div class="mwq-section-title" style="margin-top:14px">Generated Prompt (preview)</div>
+            <textarea class="mwq-prompt-area" id="mwq-prompt-text" readonly></textarea>
+          </div>
+          <div class="mwq-modal-footer">
+            <button class="mwq-btn mwq-btn-secondary" onclick="window.mwq_closePrompt()">Close</button>
+          </div>
+        </div>`;
+      document.body.appendChild(m);
+    }
+    
+    if (!document.getElementById('mwq-paste-modal')) {
+      const m = document.createElement('div');
+      m.id = 'mwq-paste-modal';
+      m.className = 'mwq-modal';
+      m.innerHTML = `
+        <div class="mwq-modal-card">
+          <div class="mwq-modal-header">
+            <div class="mwq-modal-title">Paste JSON from Claude.ai</div>
+            <button class="mwq-modal-close" onclick="window.mwq_closePaste()">✕</button>
+          </div>
+          <div class="mwq-modal-body">
+            <div style="font-size:12px;color:#64748b;margin-bottom:10px;font-weight:700">Paste the JSON array Claude returned. Multiple paste-sessions accumulate before commit.</div>
+            <textarea class="mwq-prompt-area" id="mwq-paste-text" placeholder='[{ "question": "...", "options": [...], "tags": ["...","...","...","..."], ... }, ...]' style="min-height:200px"></textarea>
+            <div id="mwq-paste-feedback" style="margin-top:10px;font-size:12px;font-weight:700;color:#64748b"></div>
+          </div>
+          <div class="mwq-modal-footer">
+            <button class="mwq-btn mwq-btn-secondary" onclick="window.mwq_closePaste()">Cancel</button>
+            <button class="mwq-btn mwq-btn-primary" onclick="window.mwq_parsePaste()">Parse &amp; Review →</button>
+          </div>
+        </div>`;
+      document.body.appendChild(m);
+    }
+    
+    if (!document.getElementById('mwq-review-modal')) {
+      const m = document.createElement('div');
+      m.id = 'mwq-review-modal';
+      m.className = 'mwq-modal';
+      m.innerHTML = `
+        <div class="mwq-modal-card" style="max-width:1000px">
+          <div class="mwq-modal-header">
+            <div class="mwq-modal-title" id="mwq-review-title">Review Wrong Questions</div>
+            <button class="mwq-modal-close" onclick="window.mwq_closeReview()">✕</button>
+          </div>
+          <div class="mwq-modal-body">
+            <div class="mwq-stats-bar" id="mwq-review-stats"></div>
+            <div id="mwq-review-list"></div>
+          </div>
+          <div class="mwq-modal-footer">
+            <button class="mwq-btn mwq-btn-secondary" onclick="window.mwq_closeReview()">Cancel</button>
+            <button class="mwq-btn mwq-btn-success" id="mwq-commit-btn" onclick="window.mwq_commit()">✅ Commit to Week Bucket</button>
+          </div>
+        </div>`;
+      document.body.appendChild(m);
+    }
+    
+    const grid = document.getElementById('mwq-subj-grid');
+    if (grid && !grid.children.length) {
+      Object.keys(SUBJECT_CONFIG).forEach(subj => {
+        const cfg = SUBJECT_CONFIG[subj];
+        const btn = document.createElement('button');
+        btn.className = 'mwq-subj-btn';
+        btn.innerHTML = `<span class="icon">${cfg.icon}</span><span class="lbl">Process ${subj}</span><span class="cnt" id="mwq-cnt-${cfg.slug}">—</span>`;
+        btn.onclick = function() { processSubject(subj); };
+        grid.appendChild(btn);
+      });
+    }
+    
+    return true;
+  }
+  
+  // ── Tab activation (patches mtSwitchTab) ──
+  function patchMtSwitchTab() {
+    const orig = window.mtSwitchTab;
+    if (!orig || orig.__mwqPatched) return;
+    window.mtSwitchTab = function(name) {
+      if (name === 'mwq') { activateTab(); return; }
+      orig(name);
+      const t = document.getElementById('mt-tab-mwq');
+      const v = document.getElementById('mt-view-mwq');
+      if (t) t.classList.remove('mt-active');
+      if (v) v.classList.remove('mt-active');
+    };
+    window.mtSwitchTab.__mwqPatched = true;
+  }
+  
+  function activateTab() {
+    $$('#screen-mock-tracker .mt-tab').forEach(t => t.classList.remove('mt-active'));
+    $$('#screen-mock-tracker .mt-view').forEach(v => v.classList.remove('mt-active'));
+    const btn = document.getElementById('mt-tab-mwq');
+    const view = document.getElementById('mt-view-mwq');
+    if (btn) btn.classList.add('mt-active');
+    if (view) view.classList.add('mt-active');
+    refreshTab();
+  }
+  
+  function refreshTab() {
+    const wk = weekRange();
+    const rangeEl = document.getElementById('mwq-week-range');
+    if (rangeEl) rangeEl.textContent = `${wk.display}, ${wk.year}`;
+    const dbRef = getDb() || {};
+    Object.keys(SUBJECT_CONFIG).forEach(subj => {
+      const k = bucketKey(subj, wk.start);
+      const q = dbRef[k];
+      const cnt = q && Array.isArray(q.questions) ? q.questions.length : 0;
+      const el = document.getElementById('mwq-cnt-' + SUBJECT_CONFIG[subj].slug);
+      if (el) el.textContent = cnt ? `${cnt} Qs this week` : 'No Qs yet';
+    });
+    renderHistory();
+  }
+  
+  function renderHistory() {
+    const list = document.getElementById('mwq-history-list');
+    if (!list) return;
+    const dbRef = getDb() || {};
+    const buckets = Object.keys(dbRef)
+      .filter(k => k.startsWith('quiz_mock_wrong_'))
+      .map(k => ({ id: k, quiz: dbRef[k], weekStart: (dbRef[k] && dbRef[k].weekStart) || k.split('_wk_')[1] || '' }))
+      .sort((a,b) => (b.weekStart||'').localeCompare(a.weekStart||''));
+    if (!buckets.length) {
+      list.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:12px">No weekly quizzes yet. Process this week\'s mock wrongs above to create your first one.</div>';
+      return;
+    }
+    list.innerHTML = buckets.map(b => {
+      const q = b.quiz;
+      const count = q && q.questions ? q.questions.length : 0;
+      const sub = (q && q.subject) || '';
+      return `<div class="mwq-history-row" onclick="window.mwq_launchQuiz('${esc(b.id)}')">
+        <div>
+          <div class="mwq-history-title">${esc((q && q.title) || b.id)}</div>
+          <div class="mwq-history-sub">${esc(sub)} · ${count} questions · click to attempt</div>
+        </div>
+        <span class="mwq-history-count">${count}</span>
+      </div>`;
+    }).join('');
+  }
+  
+  // ── Process flow ──
+  function processSubject(subject) {
+    MWQ.activeSubject = subject;
+    MWQ.parsedQuestions = [];
+    MWQ.taxonomyTree = buildTaxonomy();
+    const prompt = generatePrompt(subject);
+    const titleEl = document.getElementById('mwq-prompt-title');
+    const textEl = document.getElementById('mwq-prompt-text');
+    if (titleEl) titleEl.textContent = `Process ${subject} — ${SUBJECT_CONFIG[subject].icon}`;
+    if (textEl) textEl.value = prompt;
+    document.getElementById('mwq-prompt-modal').classList.add('mwq-open');
+  }
+  
+  window.mwq_closePrompt = function() { document.getElementById('mwq-prompt-modal').classList.remove('mwq-open'); };
+  
+  window.mwq_copyPrompt = function() {
+    const ta = document.getElementById('mwq-prompt-text');
+    const txt = ta ? ta.value : '';
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(() => toast('✅ Prompt copied — open Claude.ai and paste'), () => fallbackCopy(ta));
+    } else { fallbackCopy(ta); }
+  };
+  
+  function fallbackCopy(ta) {
+    try {
+      ta.removeAttribute('readonly');
+      ta.select();
+      document.execCommand('copy');
+      ta.setAttribute('readonly', '');
+      toast('✅ Prompt copied');
+    } catch(e) { toast('Copy failed — select & copy manually', 'error'); }
+  }
+  
+  window.mwq_openClaude = function() { window.open('https://claude.ai/new', '_blank'); };
+  
+  window.mwq_openPasteFromPrompt = function() {
+    document.getElementById('mwq-prompt-modal').classList.remove('mwq-open');
+    document.getElementById('mwq-paste-text').value = '';
+    document.getElementById('mwq-paste-feedback').textContent = '';
+    document.getElementById('mwq-paste-modal').classList.add('mwq-open');
+  };
+  
+  window.mwq_closePaste = function() { document.getElementById('mwq-paste-modal').classList.remove('mwq-open'); };
+  
+  // ── JSON parsing ──
+  function extractJSONArray(raw) {
+    let s = (raw || '').trim();
+    s = s.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+    const start = s.indexOf('[');
+    const end = s.lastIndexOf(']');
+    if (start === -1 || end === -1 || end < start) throw new Error('No JSON array found. Expected output starting with [ and ending with ].');
+    s = s.substring(start, end + 1);
+    return JSON.parse(s);
+  }
+  
+  function validateQuestion(q, idx) {
+    const errs = [];
+    if (!q.question || typeof q.question !== 'string') errs.push(`Q${idx+1}: missing question text`);
+    if (!Array.isArray(q.options) || q.options.length < 2) errs.push(`Q${idx+1}: needs at least 2 options`);
+    if (q.options) {
+      const cc = q.options.filter(o => o && o.correct === true).length;
+      if (cc !== 1) errs.push(`Q${idx+1}: must have exactly 1 correct option (found ${cc})`);
+    }
+    if (!Array.isArray(q.tags) || q.tags.length < 1) errs.push(`Q${idx+1}: missing tags array`);
+    return errs;
+  }
+  
+  window.mwq_parsePaste = function() {
+    const raw = document.getElementById('mwq-paste-text').value;
+    const fb = document.getElementById('mwq-paste-feedback');
+    let arr;
+    try { arr = extractJSONArray(raw); }
+    catch(e) { fb.textContent = '❌ ' + e.message; fb.style.color = '#dc2626'; return; }
+    if (!Array.isArray(arr) || !arr.length) { fb.textContent = '❌ Parsed but empty array.'; fb.style.color = '#dc2626'; return; }
+    const issues = [];
+    const normalized = arr.map((q, i) => {
+      const errs = validateQuestion(q, i);
+      if (errs.length) issues.push(...errs);
+      const tags = Array.isArray(q.tags) ? q.tags.slice(0, 4) : [];
+      while (tags.length < 4) tags.push('');
+      const options = (q.options || []).map(o => ({ text: String(o.text || ''), correct: o.correct === true }));
+      return {
+        question: String(q.question || ''),
+        options, tags,
+        solution: String(q.solution || ''),
+        mockSource: String(q.mockSource || ''),
+        needsRetag: q.needsRetag === true
+      };
+    });
+    if (issues.length) {
+      fb.innerHTML = '⚠️ ' + issues.slice(0, 5).join('<br>') + (issues.length > 5 ? `<br>...and ${issues.length - 5} more` : '');
+      fb.style.color = '#f59e0b';
+    } else {
+      fb.textContent = `✅ Parsed ${normalized.length} questions`;
+      fb.style.color = '#10b981';
+    }
+    MWQ.parsedQuestions = MWQ.parsedQuestions.concat(normalized);
+    setTimeout(() => {
+      document.getElementById('mwq-paste-modal').classList.remove('mwq-open');
+      openReview();
+    }, 500);
+  };
+  
+  // ── Review modal ──
+  function openReview() {
+    const subj = MWQ.activeSubject;
+    const wk = weekRange();
+    const t = document.getElementById('mwq-review-title');
+    if (t) t.textContent = `Review — ${SUBJECT_CONFIG[subj].icon} ${subj} Week ${wk.display}`;
+    renderReview();
+    document.getElementById('mwq-review-modal').classList.add('mwq-open');
+  }
+  
+  window.mwq_closeReview = function() {
+    if (MWQ.parsedQuestions.length && !confirm('Discard all parsed questions?')) return;
+    MWQ.parsedQuestions = [];
+    document.getElementById('mwq-review-modal').classList.remove('mwq-open');
+  };
+  
+  function renderReview() {
+    const list = document.getElementById('mwq-review-list');
+    if (!list) return;
+    const qs = MWQ.parsedQuestions;
+    renderReviewStats();
+    if (!qs.length) {
+      list.innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8">No questions to review.</div>';
+      return;
+    }
+    list.innerHTML = qs.map((q, i) => renderQuestionCard(q, i)).join('');
+    qs.forEach((q, i) => wireQuestionCard(i));
+  }
+  
+  function renderQuestionCard(q, i) {
+    const cfg = SUBJECT_CONFIG[MWQ.activeSubject];
+    const tree = MWQ.taxonomyTree;
+    const t0 = q.tags[0] || '', t1 = q.tags[1] || '', t2 = q.tags[2] || '', t3 = q.tags[3] || '';
+    const tag0Opts = cfg.parents.map(p => `<option value="${esc(p)}" ${p === t0 ? 'selected' : ''}>${esc(p)}</option>`).join('') +
+                     (t0 && !cfg.parents.includes(t0) ? `<option value="${esc(t0)}" selected>${esc(t0)}</option>` : '');
+    const tag1List = (tree[t0] ? Object.keys(tree[t0]) : []).filter(x => x).sort();
+    if (t1 && !tag1List.includes(t1) && t1 !== 'Miscellaneous') tag1List.push(t1);
+    const tag1Opts = `<option value="">— pick topic —</option>` +
+                     tag1List.map(x => `<option value="${esc(x)}" ${x === t1 ? 'selected' : ''}>${esc(x)}</option>`).join('') +
+                     `<option value="Miscellaneous" ${t1 === 'Miscellaneous' ? 'selected' : ''}>Miscellaneous</option>` +
+                     `<option value="__NEW__" style="color:#6366f1;font-weight:900">+ Add new topic</option>`;
+    const tag2List = (tree[t0] && tree[t0][t1] ? tree[t0][t1] : []).filter(x => x).sort();
+    if (t2 && !tag2List.includes(t2)) tag2List.push(t2);
+    const tag2Opts = `<option value="">— pick sub-topic —</option>` +
+                     tag2List.map(x => `<option value="${esc(x)}" ${x === t2 ? 'selected' : ''}>${esc(x)}</option>`).join('') +
+                     `<option value="__NEW__" style="color:#6366f1;font-weight:900">+ Add new sub-topic</option>`;
+    const optsHtml = q.options.map((o, oi) => `
+      <label class="mwq-q-opt" data-correct="${o.correct ? 'true' : 'false'}">
+        <input type="radio" name="mwq-q${i}-correct" value="${oi}" ${o.correct ? 'checked' : ''} data-q="${i}" data-opt="${oi}" class="mwq-correct-radio"/>
+        <input type="text" value="${esc(o.text)}" data-q="${i}" data-opt="${oi}" class="mwq-opt-text"/>
+      </label>`).join('');
+    return `
+      <div class="mwq-q-card" data-retag="${q.needsRetag ? 'true' : 'false'}" data-idx="${i}">
+        <div class="mwq-q-head">
+          <span class="mwq-q-num">Question ${i+1}</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            ${q.needsRetag ? '<span class="mwq-q-retag">⚠️ Retag this</span>' : ''}
+            <button class="mwq-q-del" data-q="${i}">🗑 Remove</button>
+          </div>
+        </div>
+        <textarea class="mwq-q-text" data-q="${i}" data-field="question" placeholder="Question text">${esc(q.question)}</textarea>
+        <div class="mwq-q-opts">${optsHtml}</div>
+        <div class="mwq-q-tags">
+          <select class="mwq-q-tag" data-q="${i}" data-tag="0">${tag0Opts}</select>
+          <select class="mwq-q-tag" data-q="${i}" data-tag="1">${tag1Opts}</select>
+          <select class="mwq-q-tag" data-q="${i}" data-tag="2">${tag2Opts}</select>
+          <input type="text" class="mwq-q-tag" data-q="${i}" data-tag="3" value="${esc(t3)}" placeholder="tag[3] — concept"/>
+        </div>
+        <textarea class="mwq-q-sol" data-q="${i}" data-field="solution" placeholder="Solution (start with <b>Shortcut:</b>)">${esc(q.solution)}</textarea>
+      </div>`;
+  }
+  
+  function wireQuestionCard(i) {
+    const card = document.querySelector(`.mwq-q-card[data-idx="${i}"]`);
+    if (!card) return;
+    $$('textarea[data-q]', card).forEach(el => {
+      el.oninput = function() { MWQ.parsedQuestions[i][el.dataset.field] = el.value; };
+    });
+    $$('input.mwq-opt-text', card).forEach(el => {
+      el.oninput = function() {
+        const oi = +el.dataset.opt;
+        MWQ.parsedQuestions[i].options[oi].text = el.value;
+      };
+    });
+    $$('input.mwq-correct-radio', card).forEach(el => {
+      el.onchange = function() {
+        if (!el.checked) return;
+        const co = +el.value;
+        MWQ.parsedQuestions[i].options.forEach((o, oi) => { o.correct = (oi === co); });
+        $$('.mwq-q-opt', card).forEach((wrap, oi) => wrap.setAttribute('data-correct', oi === co ? 'true' : 'false'));
+      };
+    });
+    $$('select.mwq-q-tag', card).forEach(el => {
+      el.onchange = function() {
+        const tagIdx = +el.dataset.tag;
+        let val = el.value;
+        if (val === '__NEW__') {
+          const label = tagIdx === 1 ? 'new topic' : 'new sub-topic';
+          const name = prompt(`Enter ${label} name:`);
+          if (!name || !name.trim()) { el.value = MWQ.parsedQuestions[i].tags[tagIdx] || ''; return; }
+          val = name.trim();
+          try {
+            const ct = getCustomTags();
+            if (ct) {
+              if (tagIdx === 1) {
+                const subj = MWQ.parsedQuestions[i].tags[0];
+                if (subj) {
+                  ct.tag2[subj] = ct.tag2[subj] || [];
+                  if (!ct.tag2[subj].includes(val)) ct.tag2[subj].push(val);
+                }
+              } else if (tagIdx === 2) {
+                const topic = MWQ.parsedQuestions[i].tags[1];
+                if (topic) {
+                  ct.tag3[topic] = ct.tag3[topic] || [];
+                  if (!ct.tag3[topic].includes(val)) ct.tag3[topic].push(val);
+                }
+              }
+              callSaveCustom();
+              MWQ.taxonomyTree = buildTaxonomy();
+            }
+          } catch(e) { console.warn('[MWQ] Add custom tag:', e); }
+        }
+        MWQ.parsedQuestions[i].tags[tagIdx] = val;
+        if (tagIdx === 1 && val && val !== 'Miscellaneous') MWQ.parsedQuestions[i].needsRetag = false;
+        // Re-render this card so dependent dropdowns refresh
+        const newHtml = renderQuestionCard(MWQ.parsedQuestions[i], i);
+        const wrap = document.createElement('div');
+        wrap.innerHTML = newHtml;
+        card.replaceWith(wrap.firstElementChild);
+        wireQuestionCard(i);
+        renderReviewStats();
+      };
+    });
+    const tag3 = card.querySelector('input.mwq-q-tag[data-tag="3"]');
+    if (tag3) tag3.oninput = function() { MWQ.parsedQuestions[i].tags[3] = tag3.value; };
+    const delBtn = card.querySelector('.mwq-q-del');
+    if (delBtn) delBtn.onclick = function() {
+      if (!confirm(`Remove Question ${i+1}?`)) return;
+      MWQ.parsedQuestions.splice(i, 1);
+      renderReview();
+    };
+  }
+  
+  function renderReviewStats() {
+    const stats = document.getElementById('mwq-review-stats');
+    if (!stats) return;
+    const qs = MWQ.parsedQuestions;
+    const retagCount = qs.filter(q => q.needsRetag).length;
+    stats.innerHTML = `
+      <span class="mwq-stat-item">📦 Total: <b>${qs.length}</b></span>
+      ${retagCount ? `<span class="mwq-stat-retag">⚠️ Needs retag: <b>${retagCount}</b></span>` : '<span class="mwq-stat-item">✅ All tagged</span>'}
+      <span class="mwq-stat-item">Container: <b>${SUBJECT_CONFIG[MWQ.activeSubject].container}</b></span>`;
+  }
+  
+  // ── Commit ──
+  window.mwq_commit = async function() {
+    const qs = MWQ.parsedQuestions;
+    if (!qs.length) { toast('Nothing to commit', 'warn'); return; }
+    const blocked = qs.filter(q => q.needsRetag);
+    if (blocked.length) {
+      if (!confirm(`${blocked.length} questions still flagged "Retag this". Commit anyway? (They'll land with whatever tag[1] is currently set)`)) return;
+    }
+    const invalid = qs.filter(q => !q.tags[0] || !q.tags[1]);
+    if (invalid.length) { toast(`${invalid.length} questions have missing tag[0] or tag[1] — fix before commit`, 'error'); return; }
+    
+    const subject = MWQ.activeSubject;
+    const cfg = SUBJECT_CONFIG[subject];
+    const wk = weekRange();
+    const key = bucketKey(subject, wk.start);
+    
+    const dbRef = getDb();
+    if (!dbRef) { toast('DB not loaded — refresh and retry', 'error'); return; }
+    
+    let bucket = dbRef[key];
+    if (!bucket) {
+      bucket = {
+        title: `Mock Wrongs — ${subject} — ${wk.display}`,
+        subject: cfg.container,
+        timeInMinutes: 0,
+        isMockWrongQuiz: true,
+        weekStart: wk.start,
+        weekEnd: wk.end,
+        questions: []
+      };
+    }
+    bucket.questions = Array.isArray(bucket.questions) ? bucket.questions : [];
+    const existingHashes = new Set(bucket.questions.map(q => q.qHash).filter(Boolean));
+    let added = 0, skipped = 0;
+    qs.forEach(q => {
+      const h = qHash(q.question);
+      if (existingHashes.has(h)) { skipped++; return; }
+      bucket.questions.push({
+        question: q.question,
+        options: q.options,
+        tags: [q.tags[0], q.tags[1], q.tags[2] || '', q.tags[3] || ''],
+        solution: q.solution,
+        mockSource: q.mockSource || `Week ${wk.display} · ${subject} Pool`,
+        needsRetag: !!q.needsRetag,
+        qHash: h
+      });
+      existingHashes.add(h);
+      added++;
+    });
+    bucket.timeInMinutes = Math.max(1, Math.ceil(bucket.questions.length * 1.5));
+    dbRef[key] = bucket;
+    
+    try {
+      await callSaveData();
+      callRebuildCache();
+    } catch(e) {
+      console.error('[MWQ] commit save:', e);
+      toast('Save failed — check console', 'error');
+      return;
+    }
+    
+    toast(`✅ Committed: ${added} added, ${skipped} duplicates skipped → ${bucket.questions.length} total in week bucket`);
+    MWQ.parsedQuestions = [];
+    document.getElementById('mwq-review-modal').classList.remove('mwq-open');
+    refreshTab();
+    callRenderDash();
+  };
+  
+  // ── Launch quiz from history ──
+  window.mwq_launchQuiz = function(quizId) {
+    if (callOpenLobby(quizId)) return;
+    toast('Could not auto-launch — open from main dashboard: ' + quizId, 'warn');
+  };
+  
+  // ── Boot ──
+  function boot() {
+    try {
+      injectCSS();
+      const waitFor = setInterval(() => {
+        if (document.querySelector('#screen-mock-tracker .mt-tab')) {
+          clearInterval(waitFor);
+          const ok = injectUI();
+          if (ok) {
+            patchMtSwitchTab();
+            console.log('[MWQ] v2 Module loaded — Push 1 ready');
+          }
+        }
+      }, 200);
+      setTimeout(() => clearInterval(waitFor), 30000);
+    } catch(e) { console.error('[MWQ] Boot failed:', e); }
+  }
+  
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+</script>
+<!-- ═══════════ END OF PUSH 1 v2 ═══════════ -->
+
 </body></html>
