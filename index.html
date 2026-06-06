@@ -9003,8 +9003,12 @@ function scRenderTracker() {
     const done = topics.filter(t => scGetStatus(t) === 'done').length;
     const pct = Math.round(done/topics.length*100);
 
-    // Sort: priority first, then by status
+    // Sort: custom _order first (if you've manually reordered), then priority, then status
     topics.sort((a,b) => {
+      const oa=a._order!=null?a._order:null, ob=b._order!=null?b._order:null;
+      if(oa!=null && ob!=null) return oa-ob;       // both have custom order → use it
+      if(oa!=null) return -1;                       // ordered items come before unordered
+      if(ob!=null) return 1;
       if (a.priority && !b.priority) return -1;
       if (!a.priority && b.priority) return 1;
       const sOrder = { overdue:0, learning:1, not_started:2, done:3 };
@@ -9376,7 +9380,19 @@ function scGetAvailableSubTopics(topicName, subject) {
       }
     });
   });
-  return [...subs].sort(); // Sort for consistent ordering
+  const subsArr = [...subs];
+  // Apply custom saved order if it exists on the parent topic
+  const _tKey = subj + '|||' + topicName;
+  const _t = scDb[_tKey];
+  if(_t && _t._subOrder){
+    subsArr.sort((a,b)=>{
+      const oa=_t._subOrder[a]!=null?_t._subOrder[a]:9999;
+      const ob=_t._subOrder[b]!=null?_t._subOrder[b]:9999;
+      return oa-ob || a.localeCompare(b);
+    });
+    return subsArr;
+  }
+  return subsArr.sort(); // default alphabetical
 }
 
 function scShowTrackingModeModal(key, subTopics) {
@@ -10003,6 +10019,7 @@ window.scOpenTopicMenu = (key) => {
         <button onclick="scTogglePriority('${key}')" class="w-full text-left px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 hover:bg-amber-100 text-amber-700 dark:text-amber-400 font-bold text-sm transition-colors">${t.priority ? '☆ Remove Priority' : '⭐ Mark as Priority'}</button>
         <button onclick="scEditNotes('${key}')" class="w-full text-left px-4 py-3 rounded-xl bg-blue-50 dark:bg-blue-900/10 hover:bg-blue-100 text-blue-700 dark:text-blue-400 font-bold text-sm transition-colors">📝 ${t.notes ? 'Edit Notes' : 'Add Notes'}</button>
         <button onclick="scRenameTopic('${key}')" class="w-full text-left px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-sm transition-colors">✏️ Rename Topic</button>
+        ${(SC_MATHS_SUBJECTS.includes(t.subject) && scGetAvailableSubTopics(t.name,t.subject).length>1) ? `<button onclick="scReorderModal('subtopics','${key}','')" class="w-full text-left px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 hover:bg-amber-100 text-amber-700 dark:text-amber-400 font-bold text-sm transition-colors">↕️ Reorder Sub-topics</button>` : ''}
         <button onclick="scDeleteTopic('${key}')" class="w-full text-left px-4 py-3 rounded-xl bg-red-50 dark:bg-red-900/10 hover:bg-red-100 text-red-600 dark:text-red-400 font-bold text-sm transition-colors">🗑️ Delete Topic</button>
       </div>
       ${t.notes ? '<div class="mt-4 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-xs text-slate-600 dark:text-slate-400">' + t.notes + '</div>' : ''}
@@ -10081,12 +10098,92 @@ window.scEditChapter = (chapter, subject) => {
       <div class="font-black text-slate-800 dark:text-slate-100 mb-4">${chapter}</div>
       <div class="space-y-2">
         <button onclick="scAddTopic('${safeChapter}','${subject}')" class="w-full text-left px-4 py-3 rounded-xl bg-violet-50 dark:bg-violet-900/10 hover:bg-violet-100 text-violet-700 dark:text-violet-400 font-bold text-sm">+ Add Topic</button>
+        <button onclick="scReorderModal('topics','${safeChapter}','${subject}')" class="w-full text-left px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 hover:bg-amber-100 text-amber-700 dark:text-amber-400 font-bold text-sm">↕️ Reorder Topics</button>
         <button onclick="scRenameChapter('${safeChapter}','${subject}')" class="w-full text-left px-4 py-3 rounded-xl bg-blue-50 dark:bg-blue-900/10 hover:bg-blue-100 text-blue-700 dark:text-blue-400 font-bold text-sm">✏️ Rename Chapter</button>
         <button onclick="if(confirm('Delete entire chapter \'${chapter}\'?')){Object.keys(scDb).filter(k=>k.startsWith('${safeChapter}|||')).forEach(k=>delete scDb[k]);scSave();scCloseModal();scRender();}" class="w-full text-left px-4 py-3 rounded-xl bg-red-50 dark:bg-red-900/10 hover:bg-red-100 text-red-600 dark:text-red-400 font-bold text-sm">🗑️ Delete Chapter</button>
         <button onclick="scCloseModal()" class="w-full text-left px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 text-slate-600 dark:text-slate-400 font-bold text-sm">Cancel</button>
       </div>
     </div>`;
   document.getElementById('sc-modal').classList.remove('hidden');
+};
+
+// ════════════════ DRAG-REORDER for topics & subtopics ════════════════
+// type='topics' → reorder topics in a chapter; type='subtopics' → reorder subtopics of a topic
+window._scReorderState = { type:null, items:[], chapter:'', subject:'', topicKey:'' };
+window.scReorderModal = function(type, a, b){
+  let items = [];
+  if(type==='topics'){
+    const chapter=a, subject=b;
+    // gather topics under this chapter, sorted by current _order then name
+    const topics = Object.keys(scDb).filter(k=>scDb[k].chapter===chapter).map(k=>({key:k, name:scDb[k].name, order:scDb[k]._order!=null?scDb[k]._order:9999}));
+    topics.sort((x,y)=> x.order-y.order || x.name.localeCompare(y.name));
+    items = topics.map(t=>({id:t.key, label:t.name}));
+    window._scReorderState = { type, items, chapter, subject, topicKey:'' };
+  } else {
+    const topicKey=a; const t=scDb[topicKey];
+    const subs = scGetAvailableSubTopics(t.name, t.subject); // already _order-sorted after our change
+    items = subs.map(s=>({id:s, label:s}));
+    window._scReorderState = { type, items, chapter:'', subject:t.subject, topicKey };
+  }
+  if(items.length<2){ alert('Need at least 2 items to reorder.'); return; }
+  scRenderReorderList();
+  document.getElementById('sc-modal').classList.remove('hidden');
+};
+
+function scRenderReorderList(){
+  const st=window._scReorderState;
+  const rows=st.items.map((it,i)=>`
+    <div class="sc-reorder-row" draggable="true" data-idx="${i}"
+      ondragstart="scDragStart(event,${i})" ondragover="event.preventDefault()" ondrop="scDrop(event,${i})"
+      style="display:flex;align-items:center;gap:10px;padding:11px 13px;margin-bottom:7px;border:1px solid var(--border,#334155);border-radius:11px;background:var(--bg2,#1e293b);cursor:grab">
+      <span style="font-size:16px;color:#94a3b8">≡</span>
+      <span style="flex:1;font-size:13px;font-weight:800;color:var(--text,#f1f5f9)">${it.label}</span>
+      <span style="display:flex;flex-direction:column;gap:2px">
+        <button onclick="scReorderMove(${i},-1)" style="background:var(--bg3,#0f172a);border:1px solid var(--border,#334155);color:#94a3b8;width:24px;height:18px;border-radius:5px;cursor:pointer;font-size:10px;line-height:1">▲</button>
+        <button onclick="scReorderMove(${i},1)" style="background:var(--bg3,#0f172a);border:1px solid var(--border,#334155);color:#94a3b8;width:24px;height:18px;border-radius:5px;cursor:pointer;font-size:10px;line-height:1">▼</button>
+      </span>
+    </div>`).join('');
+  document.getElementById('sc-modal-content').innerHTML = `
+    <div>
+      <div class="font-black text-slate-800 dark:text-slate-100 mb-1">Reorder ${st.type==='topics'?'Topics':'Sub-topics'}</div>
+      <div class="text-xs text-slate-500 mb-4">Drag ≡ or use ▲▼ — then Save</div>
+      <div style="max-height:50vh;overflow-y:auto;margin-bottom:14px">${rows}</div>
+      <div class="flex gap-3">
+        <button onclick="scReorderSave()" class="flex-1 bg-violet-600 text-white font-black py-2.5 rounded-xl text-sm">Save Order</button>
+        <button onclick="scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black py-2.5 rounded-xl text-sm">Cancel</button>
+      </div>
+    </div>`;
+}
+
+window.scDragStart=function(e,idx){ e.dataTransfer.setData('text/plain', idx); };
+window.scDrop=function(e,toIdx){
+  e.preventDefault();
+  const fromIdx=parseInt(e.dataTransfer.getData('text/plain'),10);
+  if(isNaN(fromIdx)||fromIdx===toIdx) return;
+  const arr=window._scReorderState.items;
+  const [moved]=arr.splice(fromIdx,1);
+  arr.splice(toIdx,0,moved);
+  scRenderReorderList();
+};
+window.scReorderMove=function(idx,dir){
+  const arr=window._scReorderState.items;
+  const ni=idx+dir;
+  if(ni<0||ni>=arr.length) return;
+  const tmp=arr[idx]; arr[idx]=arr[ni]; arr[ni]=tmp;
+  scRenderReorderList();
+};
+window.scReorderSave=function(){
+  const st=window._scReorderState;
+  if(st.type==='topics'){
+    st.items.forEach((it,i)=>{ if(scDb[it.id]) scDb[it.id]._order=i; });
+  } else {
+    // subtopics — store an order map on the parent topic
+    const t=scDb[st.topicKey];
+    if(t){ t._subOrder = {}; st.items.forEach((it,i)=>{ t._subOrder[it.label]=i; }); }
+  }
+  scSave();
+  scCloseModal();
+  scRender();
 };
 
 window.scRenameChapter = (chapter, subject) => {
@@ -11307,26 +11404,7 @@ body.light select.inp option { background:white; }
     <div id="h-week-perf" style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-around"></div>
   </div>
 
-  <!-- Weekly Checklist -->
-  <div class="card" style="margin-bottom:14px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <div>
-        <div style="font-size:14px;font-weight:900;color:var(--text)" id="h-week-label">This Week</div>
-        <div style="font-size:11px;color:var(--muted);font-weight:700;margin-top:2px" id="h-week-dates"></div>
-      </div>
-      <div style="display:flex;gap:6px;align-items:center">
-        <button onclick="wrWeekNav(-1)" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted2);padding:4px 10px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:900">←</button>
-        <button onclick="wrWeekNav(0)" style="background:var(--bg3);border:1px solid var(--border);color:var(--accent);padding:4px 10px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:900">Today</button>
-        <button onclick="wrWeekNav(1)" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted2);padding:4px 10px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:900">→</button>
-      </div>
-    </div>
-    <!-- Add item row -->
-    <div style="display:flex;gap:8px;margin-bottom:10px">
-      <input id="h-checklist-input" class="inp" style="flex:1;padding:8px 12px;font-size:12px" placeholder="Add a goal for this week...">
-      <button onclick="wrChecklistAdd()" style="background:linear-gradient(135deg,#4f6ef7,#7c3aed);border:none;color:white;padding:8px 14px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:900">+</button>
-    </div>
-    <div id="h-checklist-list"></div>
-  </div>
+  <!-- (Weekly Checklist removed — replaced by 🎯 This Week's Tasks) -->
 
   <!-- ROW 2: Tasks + Today Logged -->
   <div class="g2" style="margin-bottom:14px">
@@ -11740,36 +11818,58 @@ function load(){ const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);
 // (logged before the date-fix) to their true mock date from the mock tracker.
 function wtMigrateMockDates(){
   try {
-    if(localStorage.getItem('wtMockDatesMigrated')==='1') return;
     let mocks=[];
     try { mocks=JSON.parse(localStorage.getItem('ssc_mock_tracker')||'[]'); } catch(e){ mocks=[]; }
-    if(!mocks.length){ return; }
-    // Build lookup: platform+mockno → real date
-    const realDate={};
-    mocks.forEach(m=>{ if(m.platform&&m.mockno&&m.date) realDate[(m.platform+'#'+m.mockno).toLowerCase()]=m.date; });
-    let moved=0;
-    Object.keys(D.logs).forEach(dateKey=>{
-      const keep=[];
-      (D.logs[dateKey]||[]).forEach(lg=>{
-        if(lg.type==='mock'){
-          const k=((lg.mockPlatform||lg.platform||'')+'#'+(lg.mockNo||lg.mockno||'')).toLowerCase();
-          const rd=realDate[k];
-          if(rd && rd!==dateKey){
-            // move to correct date
-            D.logs[rd]=D.logs[rd]||[];
-            lg.date=rd;
-            D.logs[rd].push(lg);
-            moved++;
-            return; // don't keep under old date
-          }
-        }
-        keep.push(lg);
-      });
-      D.logs[dateKey]=keep;
+    if(!mocks.length){ return; } // no mock tracker data — nothing to rebuild
+    // Bump this version string to force a one-time rebuild after deploy
+    const REBUILD_VERSION = 'v3';
+    if(localStorage.getItem('wtMockRebuildVer') === REBUILD_VERSION) return;
+
+    // STEP 1: remove ALL existing mock-type logs from every date (they may be mis-dated)
+    Object.keys(D.logs).forEach(function(dateKey){
+      D.logs[dateKey] = (D.logs[dateKey]||[]).filter(function(lg){ return lg.type !== 'mock'; });
     });
-    localStorage.setItem('wtMockDatesMigrated','1');
-    if(moved>0){ save(); console.log('[Mock Migration] Moved '+moved+' mock logs to correct dates'); }
-  } catch(e){ console.warn('Mock migration error', e); }
+
+    // STEP 2: rebuild mock logs fresh from mtMocks, each under its TRUE date
+    let rebuilt=0;
+    mocks.forEach(function(m){
+      if(!m.date) return;
+      const _dur = (m.startTime && m.endTime) ? _mockDurMin(m.startTime, m.endTime) : (m.duration||0);
+      const title = (m.type==='full'?'Full Mock':'Sectional: '+(m.subject||''))+' — '+(m.platform||'')+' #'+(m.mockno||'');
+      D.logs[m.date] = D.logs[m.date] || [];
+      D.logs[m.date].push({
+        id: m.id || (Date.now()+rebuilt),
+        date: m.date,
+        type: 'mock',
+        title: title,
+        subject: m.type==='full'?'Mock Test':(m.subject||''),
+        hrs: _dur ? Math.round(_dur/60*10)/10 : (m.hrs||0),
+        duration: _dur,
+        net: m.net||0,
+        mockPlatform: m.platform||'',
+        mockNo: m.mockno||'',
+        auto: true,
+        ts: m.id || Date.now(),
+        startTime: m.startTime||'',
+        endTime: m.endTime||'',
+        startTime12: m.startTime?to12hr(m.startTime):'',
+        endTime12: m.endTime?to12hr(m.endTime):'',
+        time: m.endTime?to12hr(m.endTime):''
+      });
+      rebuilt++;
+    });
+
+    localStorage.setItem('wtMockRebuildVer', REBUILD_VERSION);
+    save();
+    console.log('[Mock Rebuild] Rebuilt '+rebuilt+' mock logs from tracker, each on its true date');
+  } catch(e){ console.warn('Mock rebuild error', e); }
+}
+// Helper: minutes between two HH:MM times
+function _mockDurMin(st, et){
+  try {
+    const [sh,sm]=st.split(':').map(Number); const [eh,em]=et.split(':').map(Number);
+    let d=(eh*60+em)-(sh*60+sm); if(d<0) d+=1440; return d;
+  } catch(e){ return 0; }
 }
 
 // ════════════════ HUB DATA ════════════════
@@ -12355,6 +12455,9 @@ function renderHomeTodayLogged(){
   if(titleEl) titleEl.textContent = isToday ? 'Today Logged' : new Date(viewDate+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'}) + ' Logged';
   if(pickEl && pickEl.value !== viewDate) pickEl.value = viewDate;
   let logs=D.logs[viewDate]||[];
+  // Hide redundant zero-hour 'revision' marker logs — the matching 'quiz' log already
+  // shows the real session. These markers duplicate every R1/R2/R3/R4 entry.
+  logs = logs.filter(function(l){ return !(l.type==='revision' && (!l.hrs || l.hrs<=0)); });
   // Apply auto/manual filter
   const filt = window._wrLogFilter || 'all';
   if(filt === 'manual') logs = logs.filter(function(l){ return !l.auto; });
@@ -12913,13 +13016,13 @@ function wrLogStartHour(l){
   if(l.startTime && typeof l.startTime === 'string' && l.startTime.indexOf(':')>-1){
     const h=parseInt(l.startTime.split(':')[0],10); if(!isNaN(h)) return h;
   }
-  // Fall back to timestamp in IST
-  const ts = l.startTs || l.ts;
-  if(ts){
-    try { return parseInt(new Date(ts).toLocaleString('en-GB',{timeZone:'Asia/Kolkata',hour:'2-digit',hour12:false}).split(':')[0],10)||0; }
+  // Fall back to any available timestamp (startTs, ts, or the log id which is Date.now())
+  const ts = l.startTs || l.ts || l.id;
+  if(ts && ts > 1000000000000){ // valid ms timestamp
+    try { return parseInt(new Date(ts).toLocaleString('en-GB',{timeZone:'Asia/Kolkata',hour:'2-digit',hour12:false}).split(':')[0],10); }
     catch(e){ return new Date(ts).getHours(); }
   }
-  return 0;
+  return -1; // unknown — caller will skip bucket assignment
 }
 
 // Compute hours per bucket for a given date
@@ -12929,6 +13032,7 @@ function wrBucketHours(date){
     if(l.status==='cancelled') return;
     const hrs = l.hrs||0; if(hrs<=0) return;
     const hr = wrLogStartHour(l);
+    if(hr < 0) return; // unknown time — don't dump into wrong bucket
     const bucket = WR_BUCKETS.find(b=>hr>=b.start && hr<b.end) || WR_BUCKETS[WR_BUCKETS.length-1];
     res[bucket.key]+=hrs;
   });
@@ -13022,9 +13126,9 @@ function renderSleep(){
   if(sl.wake){
     const lost=wrMinsLost(sl.wake, wakeT);
     const c=lost>0?'#f87171':'#34d399';
-    wakeHtml=`<div style="flex:1"><div style="font-size:9px;color:var(--muted);font-weight:900;text-transform:uppercase">Woke</div>
+    wakeHtml=`<div style="flex:1"><div style="font-size:9px;color:var(--muted);font-weight:900;text-transform:uppercase">Woke ☀️</div>
       <div style="font-size:15px;font-weight:900;color:var(--text)">${to12hr(sl.wake)}</div>
-      <div style="font-size:9px;font-weight:900;color:${c}">${lost>0?'⚠ '+Math.floor(lost/60)+'h '+(lost%60)+'m late':'✅ on time'}</div></div>`;
+      <div style="font-size:9px;font-weight:900;color:${c}">${lost>0?'⚠ '+Math.floor(lost/60)+'h '+(lost%60)+'m late':'✅ on time'} · <button onclick="wrPromptWake()" style="background:none;border:none;color:var(--accent);font-size:9px;font-weight:900;cursor:pointer;text-decoration:underline">edit</button></div></div>`;
   } else {
     wakeHtml=`<div style="flex:1"><button onclick="wrLogWake()" style="width:100%;background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.3);color:#34d399;padding:8px;border-radius:9px;font-size:11px;font-weight:900;cursor:pointer">☀️ I Woke Up</button>
       <button onclick="wrPromptWake()" style="width:100%;margin-top:4px;background:none;border:none;color:var(--muted);font-size:9px;font-weight:700;cursor:pointer;text-decoration:underline">forgot? enter time</button></div>`;
@@ -13032,14 +13136,43 @@ function renderSleep(){
   if(sl.sleep){
     const lost=wrMinsLost(sl.sleep, sleepT);
     const c=lost>0?'#f87171':'#34d399';
-    sleepHtml=`<div style="flex:1"><div style="font-size:9px;color:var(--muted);font-weight:900;text-transform:uppercase">Slept</div>
+    sleepHtml=`<div style="flex:1"><div style="font-size:9px;color:var(--muted);font-weight:900;text-transform:uppercase">Slept 🌙</div>
       <div style="font-size:15px;font-weight:900;color:var(--text)">${to12hr(sl.sleep)}</div>
-      <div style="font-size:9px;font-weight:900;color:${c}">${lost>0?'⚠ '+Math.floor(lost/60)+'h '+(lost%60)+'m late':'✅ on time'}</div></div>`;
+      <div style="font-size:9px;font-weight:900;color:${c}">${lost>0?'⚠ '+Math.floor(lost/60)+'h '+(lost%60)+'m late':'✅ on time'} · <button onclick="wrPromptSleep()" style="background:none;border:none;color:var(--accent);font-size:9px;font-weight:900;cursor:pointer;text-decoration:underline">edit</button></div></div>`;
   } else {
     sleepHtml=`<div style="flex:1"><button onclick="wrLogSleep()" style="width:100%;background:rgba(129,140,248,0.12);border:1px solid rgba(129,140,248,0.3);color:#818cf8;padding:8px;border-radius:9px;font-size:11px;font-weight:900;cursor:pointer">🌙 I Slept</button>
       <button onclick="wrPromptSleep()" style="width:100%;margin-top:4px;background:none;border:none;color:var(--muted);font-size:9px;font-weight:700;cursor:pointer;text-decoration:underline">forgot? enter time</button></div>`;
   }
+
+  // Mon–Sun week strip (current week, fresh each week)
+  const mon = wtMondayKey ? wtMondayKey() : today;
+  const monDate = new Date(mon+'T00:00:00');
+  const dayNames=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  let strip='';
+  for(let i=0;i<7;i++){
+    const d=new Date(monDate); d.setDate(d.getDate()+i);
+    const ds=dateStr(d);
+    const rec=D.sleepLog[ds]||{};
+    const isToday=ds===today;
+    const wokeLost=rec.wake?wrMinsLost(rec.wake,wakeT):null;
+    const sleptLost=rec.sleep?wrMinsLost(rec.sleep,sleepT):null;
+    // dot color: green if both on time, amber if one late, red if both late/missing-past
+    let dot='#334155'; // default empty
+    if(rec.wake||rec.sleep){
+      const lateCount=(wokeLost>0?1:0)+(sleptLost>0?1:0);
+      dot = lateCount===0 ? '#34d399' : lateCount===1 ? '#fbbf24' : '#f87171';
+    }
+    const wTxt=rec.wake?to12hr(rec.wake):'—';
+    const sTxt=rec.sleep?to12hr(rec.sleep):'—';
+    strip+=`<div style="flex:1;text-align:center;${isToday?'background:var(--bg3);border-radius:8px;':''}padding:4px 2px">
+      <div style="font-size:8px;font-weight:900;color:${isToday?'var(--accent)':'var(--muted)'};text-transform:uppercase">${dayNames[i]}</div>
+      <div style="width:8px;height:8px;border-radius:50%;background:${dot};margin:3px auto"></div>
+      <div style="font-size:7px;color:var(--muted);font-weight:700;line-height:1.3">☀${wTxt}<br>🌙${sTxt}</div>
+    </div>`;
+  }
+
   el.innerHTML=`<div style="display:flex;gap:12px">${wakeHtml}${sleepHtml}</div>
+    <div style="display:flex;gap:2px;margin-top:10px;border-top:1px solid var(--border);padding-top:8px">${strip}</div>
     <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:8px;text-align:center">Targets: wake ${to12hr(wakeT)} · sleep ${to12hr(sleepT)} · <button onclick="wrEditSleepTargets()" style="background:none;border:none;color:var(--accent);font-size:9px;font-weight:900;cursor:pointer;text-decoration:underline">edit</button></div>`;
 }
 window.wrEditSleepTargets=function(){
