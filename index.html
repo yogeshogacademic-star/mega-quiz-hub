@@ -11604,12 +11604,12 @@ body.light select.inp option { background:white; }
       <!-- Time + Hours (shared) -->
       <div class="g2" style="gap:10px;margin-bottom:14px">
         <div>
-          <label class="inp-lbl">Start Time</label>
-          <input type="time" id="l-start" class="inp" oninput="lCalcHours()">
+          <label class="inp-lbl">Start Time <span id="l-start-12" style="color:var(--accent);font-weight:800;text-transform:none;letter-spacing:0"></span></label>
+          <input type="time" id="l-start" class="inp" oninput="lCalcHours();lShowTime12()">
         </div>
         <div>
-          <label class="inp-lbl">End Time</label>
-          <input type="time" id="l-end" class="inp" oninput="lCalcHours()">
+          <label class="inp-lbl">End Time <span id="l-end-12" style="color:var(--accent);font-weight:800;text-transform:none;letter-spacing:0"></span></label>
+          <input type="time" id="l-end" class="inp" oninput="lCalcHours();lShowTime12()">
         </div>
       </div>
       <div style="margin-bottom:14px">
@@ -12059,11 +12059,19 @@ function saveBlock(){
 function prefillLogTime(){
   const now=new Date();
   document.getElementById('l-end').value=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  if(typeof lShowTime12==='function') lShowTime12();
 }
 function lCalcHours(){
   const s=document.getElementById('l-start').value;
   const e=document.getElementById('l-end').value;
   if(s&&e){ const h=(t2m(e)-t2m(s))/60; if(h>0){ document.getElementById('l-hours').value=Math.round(h*4)/4; document.getElementById('l-hrs-auto').textContent='(auto-calculated)'; } }
+}
+// Show a 12hr AM/PM preview next to the time inputs (picker itself follows device locale)
+function lShowTime12(){
+  const s=document.getElementById('l-start'), e=document.getElementById('l-end');
+  const s12=document.getElementById('l-start-12'), e12=document.getElementById('l-end-12');
+  if(s12) s12.textContent = s&&s.value ? '· '+to12hr(s.value) : '';
+  if(e12) e12.textContent = e&&e.value ? '· '+to12hr(e.value) : '';
 }
 
 // ── LOG MODE ──
@@ -12493,8 +12501,8 @@ function renderHomeTodayLogged(){
     const hh=Math.floor(totalMin/60), mm=totalMin%60;
     const liveStr=(hh>0?hh+'h ':'')+mm+'m';
     let detail='';
-    if(l.type==='srs'){const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;const sj=l.subjects&&Object.keys(l.subjects).length?Object.entries(l.subjects).map(([s,n])=>s+':'+n).join(' · '):'';detail=l.cards+' cards · '+l.correct+'/'+l.cards+' · '+acc+'%'+(sj?'<br><span style="font-size:9px;color:var(--muted)">'+sj+'</span>':'');}
-    else if(l.type==='quiz') detail=l.questions+'q · '+l.correct+' correct · '+Math.round((l.correct||0)/(l.questions||1)*100)+'%';
+    if(l.type==='srs'){const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;let sj='';if(l.topicMap&&Object.keys(l.topicMap).length){const parts=[];Object.entries(l.topicMap).forEach(([subj,topics])=>{Object.entries(topics).forEach(([tp,v])=>{parts.push(subj+' › '+tp+' ('+v.count+')');});});sj=parts.join(' · ');}else if(l.subjects&&Object.keys(l.subjects).length){sj=Object.entries(l.subjects).map(([s,n])=>s+':'+n).join(' · ');}detail=l.cards+' cards · '+l.correct+'/'+l.cards+' · '+acc+'%'+(sj?'<br><span style="font-size:9px;color:var(--muted)">'+sj+'</span>':'');}
+    else if(l.type==='quiz') detail=l.questions+'q · '+l.correct+' correct · '+Math.round((l.correct||0)/(l.questions||1)*100)+'%'+((l.topic||l.subtopic)?'<br><span style="font-size:9px;color:var(--muted)">'+[l.subject,l.topic,l.subtopic].filter(Boolean).join(' › ')+'</span>':'');
     else if(l.type==='mock') detail='Net: '+l.net+' · '+to12hr(l.startTime||'09:00')+'–'+to12hr(l.endTime||'10:00');
     else if(l.type==='lecture') detail=(l.isRevision?'Rev':'Lec #'+l.lectureNo)+' · '+l.chapter+' · '+l.subject;
     else if(l.type==='revision') detail=l.subject+(l.chapter?' · '+l.chapter:'');
@@ -12668,10 +12676,12 @@ function logCard(l){
     let detail='';
     if(l.type==='srs'){
       const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;
-      const subjStr=l.subjects&&Object.keys(l.subjects).length?Object.entries(l.subjects).map(([s,n])=>s+': '+n).join(' · '):'';
+      let subjStr='';
+      if(l.topicMap&&Object.keys(l.topicMap).length){const parts=[];Object.entries(l.topicMap).forEach(([subj,topics])=>{Object.entries(topics).forEach(([tp,v])=>{parts.push(subj+' › '+tp+' ('+v.count+')');});});subjStr=parts.join(' · ');}
+      else if(l.subjects&&Object.keys(l.subjects).length){subjStr=Object.entries(l.subjects).map(([s,n])=>s+': '+n).join(' · ');}
       detail=`${l.cards||0} cards · ${l.correct||0}/${l.cards||0} · ${acc}%`+(subjStr?`<br><span style="font-size:9px;color:var(--muted)">${subjStr}</span>`:'');
     } else if(l.type==='quiz'){
-      detail=`${l.questions||0}q · ${l.correct||0} correct · ${Math.round((l.correct||0)/(l.questions||1)*100)}%`;
+      detail=`${l.questions||0}q · ${l.correct||0} correct · ${Math.round((l.correct||0)/(l.questions||1)*100)}%`+((l.topic||l.subtopic)?`<br><span style="font-size:9px;color:var(--muted)">${[l.subject,l.topic,l.subtopic].filter(Boolean).join(' › ')}</span>`:'');
     } else if(l.type==='mock'){
       detail=`Net: ${l.net||0} · ${to12hr(l.startTime||'09:00')}–${to12hr(l.endTime||'10:00')}`;
     } else if(l.type==='revision'){
