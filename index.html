@@ -11822,7 +11822,7 @@ function wtMigrateMockDates(){
     try { mocks=JSON.parse(localStorage.getItem('ssc_mock_tracker')||'[]'); } catch(e){ mocks=[]; }
     if(!mocks.length){ return; } // no mock tracker data — nothing to rebuild
     // Bump this version string to force a one-time rebuild after deploy
-    const REBUILD_VERSION = 'v3';
+    const REBUILD_VERSION = 'v4';
     if(localStorage.getItem('wtMockRebuildVer') === REBUILD_VERSION) return;
 
     // STEP 1: remove ALL existing mock-type logs from every date (they may be mis-dated)
@@ -11830,10 +11830,15 @@ function wtMigrateMockDates(){
       D.logs[dateKey] = (D.logs[dateKey]||[]).filter(function(lg){ return lg.type !== 'mock'; });
     });
 
-    // STEP 2: rebuild mock logs fresh from mtMocks, each under its TRUE date
+    // STEP 2: rebuild mock logs fresh from mtMocks, each under its TRUE date (dedup by id)
     let rebuilt=0;
+    const seenIds={};
     mocks.forEach(function(m){
       if(!m.date) return;
+      // skip duplicate mock entries (same id, or same platform+mockno+date)
+      const dedupKey = m.id || (m.platform+'#'+m.mockno+'@'+m.date);
+      if(seenIds[dedupKey]) return;
+      seenIds[dedupKey]=1;
       const _dur = (m.startTime && m.endTime) ? _mockDurMin(m.startTime, m.endTime) : (m.duration||0);
       const title = (m.type==='full'?'Full Mock':'Sectional: '+(m.subject||''))+' — '+(m.platform||'')+' #'+(m.mockno||'');
       D.logs[m.date] = D.logs[m.date] || [];
@@ -13009,13 +13014,23 @@ const WR_BUCKETS = [
 
 // Get the start hour (0-23) of a log entry
 function wrLogStartHour(l){
-  // Prefer explicit start time string "HH:MM"
-  if(l.start && typeof l.start === 'string' && l.start.indexOf(':')>-1){
-    const h=parseInt(l.start.split(':')[0],10); if(!isNaN(h)) return h;
+  // Parse a time string that may be 24h ("15:42") or 12h ("3:42 pm")
+  function parseHour(str){
+    if(!str || typeof str!=='string' || str.indexOf(':')===-1) return null;
+    const s=str.trim().toLowerCase();
+    let h=parseInt(s.split(':')[0],10);
+    if(isNaN(h)) return null;
+    const isPM = s.indexOf('pm')>-1;
+    const isAM = s.indexOf('am')>-1;
+    if(isPM && h!==12) h+=12;       // 3 pm → 15
+    if(isAM && h===12) h=0;         // 12 am → 0
+    return h;
   }
-  if(l.startTime && typeof l.startTime === 'string' && l.startTime.indexOf(':')>-1){
-    const h=parseInt(l.startTime.split(':')[0],10); if(!isNaN(h)) return h;
-  }
+  // Prefer explicit start time strings (check raw 24h 'start' first, then display times)
+  let h = parseHour(l.start);
+  if(h===null) h = parseHour(l.startTime);
+  if(h===null) h = parseHour(l.startTime12);
+  if(h!==null) return h;
   // Fall back to any available timestamp (startTs, ts, or the log id which is Date.now())
   const ts = l.startTs || l.ts || l.id;
   if(ts && ts > 1000000000000){ // valid ms timestamp
