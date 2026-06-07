@@ -3292,7 +3292,12 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                 !db[id].title.includes("SRS") &&
                 !db[id].isScRevision &&
                 !(id && id.startsWith('quiz_sc_rev_'))
-            );
+            ).sort((a,b) => {
+                // Pin Spotted Questions bucket to the TOP of its section
+                var aS = db[a].isSpottedQuiz ? 0 : 1;
+                var bS = db[b].isSpottedQuiz ? 0 : 1;
+                return aS - bS;
+            });
             let listHTML = subjectQuizzes.length === 0 ? `<div class="text-xs text-slate-400 font-bold py-4 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg mb-2">No quizzes imported yet.</div>` : '';
             
             // V21.3 Export Button Added Here
@@ -14805,7 +14810,12 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     let bucket=db[key];
     if(!bucket){ bucket={ title:'📸 Spotted Questions — '+SPQ.subject, subject:cfg.container, timeInMinutes:0, isSpottedQuiz:true, questions:[] }; }
     bucket.questions=Array.isArray(bucket.questions)?bucket.questions:[];
-    const existing=new Set(bucket.questions.map(q=>q.qHash).filter(Boolean));
+    // Dedup by BOTH stored hash AND normalized question text (robust against older entries)
+    const existing=new Set();
+    bucket.questions.forEach(function(q){
+      if(q.qHash) existing.add(q.qHash);
+      existing.add(qHash(q.question)); // recompute in case old entries lack qHash
+    });
     let added=0,skipped=0;
     SPQ.parsed.forEach(q=>{
       const h=qHash(q.question);
@@ -14813,7 +14823,7 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
       bucket.questions.push({
         question:q.question,
         options:q.options,
-        tags:[(q.tags&&q.tags[0])||SPQ.subject,(q.tags&&q.tags[1])||'',(q.tags&&q.tags[2])||'',''],
+        tags:[(q.tags&&q.tags[0])||'',(q.tags&&q.tags[1])||'',(q.tags&&q.tags[2])||'',''],
         solution:q.solution||'',
         spottedSource:'Spotted · '+new Date().toLocaleDateString('en-IN'),
         qHash:h
@@ -14837,6 +14847,20 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
   };
 
   console.log('[SPQ] Spotted Questions module loaded');
+
+  // One-time: move existing spotted buckets to their own dashboard sections
+  (function spqMigrateSubjects(){
+    try{
+      var map={ 'spotted_quant':'QUANT MOCK QUESTIONS', 'spotted_gs':'GS MOCK QUESTIONS', 'spotted_reasoning':'Reasoning', 'spotted_english':'English' };
+      var changed=false;
+      Object.keys(map).forEach(function(k){
+        if(typeof db!=='undefined' && db && db[k] && db[k].subject!==map[k]){
+          db[k].subject=map[k]; changed=true;
+        }
+      });
+      if(changed && typeof saveData==='function'){ saveData(); console.log('[SPQ] Migrated spotted buckets to own sections'); }
+    }catch(e){}
+  })();
 })();
 </script>
 
