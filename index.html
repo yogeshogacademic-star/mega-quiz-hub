@@ -14074,7 +14074,55 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     }
     return tree;
   }
-  
+  // Expose the live hub taxonomy so the Spotted module (separate IIFE) can use the SAME source.
+  try { window.__hubBuildTaxonomy = buildTaxonomy; } catch(e){}
+
+  /* ════════ SHARED TAG NORMALIZER — single source of truth for BOTH pipelines ════════
+     tag[0]=subject  tag[1]=topic  tag[2]=sub-topic/shape  tag[3]=question-specific concept
+     - fixes known spelling variants
+     - moves shape names out of tag[1] into tag[2] (3D = auto, 2D = default to 2D-Mensuration per hub rule)
+     - validates tag[1] against SYLLABUS_MAP[tag0]; if it still doesn't match, sets needsRetag=true
+       so it is NEVER silently saved dirty (the "Find Dirty Tags" filter will surface it). */
+  (function(){
+    var SPELL_FIX = {
+      "Pipes & Cisterns":"Pipe & Cistern", "Pipe & Cisterns":"Pipe & Cistern", "Pipes & Cistern":"Pipe & Cistern",
+      "Time Speed Distance":"Time, Speed & Distance", "Time, Speed and Distance":"Time, Speed & Distance",
+      "Time Speed & Distance":"Time, Speed & Distance", "Time, Speed Distance":"Time, Speed & Distance",
+      "Boats & Streams":"Boat & Stream", "Boats & Stream":"Boat & Stream",
+      "Problem on Train":"Problems on Train", "Problems on Trains":"Problems on Train",
+      "Problem on Ages":"Problems on Ages", "Problems on Age":"Problems on Ages",
+      "Ratio and Proportion":"Ratio & Proportion", "Profit and Loss":"Profit & Loss",
+      "Mixture and Alligation":"Mixture & Alligation", "Mixtures & Alligation":"Mixture & Alligation"
+    };
+    // 3D shapes are UNAMBIGUOUS — they only ever live under 3D-Mensuration → auto-correct.
+    var SHAPES_3D = ["Cube","Cuboid","Cube & Cuboid","Cylinder","Cone","Sphere","Hemisphere","Prism","Pyramid","Frustum"];
+    // 2D shapes can be Geometry OR 2D-Mensuration. Hub's established rule: default to 2D-Mensuration (tag2 = shape).
+    var SHAPES_2D = ["Triangle","Equilateral Triangle","Isosceles Triangle","Circle","Arc & Sector","Quadrilateral",
+                     "General Quadrilateral","Rectangle","Square","Trapezium","Rhombus","Parallelogram",
+                     "Polygon","Pentagon","Hexagon","Regular Hexagon","Octagon"];
+    function inList(arr, v){ for(var i=0;i<arr.length;i++){ if(arr[i]===v) return true; } return false; }
+
+    window.normalizeHubTags = function(tagsIn){
+      var tags = Array.isArray(tagsIn) ? tagsIn.slice(0,4) : [];
+      while(tags.length < 4) tags.push('');
+      var t0 = (tags[0]||'').trim(), t1 = (tags[1]||'').trim(), t2 = (tags[2]||'').trim(), t3 = (tags[3]||'').trim();
+      // 1) spelling variants
+      if(SPELL_FIX[t1]) t1 = SPELL_FIX[t1];
+      // 2) shape sitting in the topic slot → move to tag[2], set the real topic
+      if(inList(SHAPES_3D, t1)){ if(!t2) t2 = t1; t1 = "3D-Mensuration"; }
+      else if(inList(SHAPES_2D, t1)){ if(!t2) t2 = t1; t1 = "2D-Mensuration"; }
+      // 3) validate the topic against the real syllabus; flag (never silently save) if invalid
+      var needsRetag = false;
+      try {
+        if(typeof SYLLABUS_MAP !== 'undefined' && t0 && SYLLABUS_MAP[t0]){
+          if(t1 && SYLLABUS_MAP[t0].indexOf(t1) === -1) needsRetag = true;
+          if(!t1) needsRetag = true;
+        }
+      } catch(e){}
+      return { tags:[t0, t1, t2, t3], needsRetag: needsRetag };
+    };
+  })();
+
   // ── Prompt generation ──
   function generatePrompt(subject) {
     const cfg = SUBJECT_CONFIG[subject];
@@ -14091,25 +14139,23 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     p += `**tag[0]** MUST be exactly one of: ${cfg.parents.map(x => `"${x}"`).join(', ')}\n\n`;
     p += `**tag[1]** MUST match an EXISTING topic under the chosen tag[0]. Exact spelling, exact punctuation:\n\n`;
     cfg.parents.forEach(parent => {
-      if (!tree[parent]) return;
-      const topics = Object.keys(tree[parent]).filter(t => t).sort();
+      const topics = (typeof SYLLABUS_MAP !== 'undefined' && SYLLABUS_MAP[parent]) ? SYLLABUS_MAP[parent] : Object.keys(tree[parent] || {}).filter(t => t).sort();
       if (!topics.length) return;
       p += `### Under "${parent}"\n`;
       topics.forEach(topic => { p += `- ${topic}\n`; });
       p += '\n';
     });
+    p += `⚠️ Shapes are NEVER tag[1]. Triangle/Circle/Quadrilateral/Rectangle/Square/Trapezium/Rhombus/Polygon/Hexagon → tag[2]; tag[1] = "2D-Mensuration" (use "Geometry" only for angle/property questions). Cube/Cuboid/Cylinder/Cone/Sphere/Hemisphere/Prism/Pyramid/Frustum → tag[2]; tag[1] = "3D-Mensuration".\n`;
+    p += `⚠️ Spelling: "Pipe & Cistern" (not "Pipes & Cisterns"), "Time, Speed & Distance" (not "Time Speed Distance"), "Boat & Stream", "Problems on Train".\n\n`;
     p += `**tag[2]** sub-topic — match existing where possible. Sub-topic examples per topic:\n\n`;
     cfg.parents.forEach(parent => {
-      if (!tree[parent]) return;
-      Object.keys(tree[parent]).sort().forEach(topic => {
+      const topics = (typeof SYLLABUS_MAP !== 'undefined' && SYLLABUS_MAP[parent]) ? SYLLABUS_MAP[parent] : Object.keys(tree[parent] || {}).sort();
+      topics.forEach(topic => {
         if (!topic) return;
-        const subs = (tree[parent][topic] || []).filter(s => s);
-        if (!subs.length) {
-          p += `- **${parent} → ${topic}**: (no existing sub-topics, create one)\n`;
-        } else {
-          const shown = subs.slice(0, 10);
-          p += `- **${parent} → ${topic}**: ${shown.join(', ')}${subs.length > 10 ? `, ... (+${subs.length - 10} more)` : ''}\n`;
-        }
+        const subs = ((tree[parent] && tree[parent][topic]) || []).filter(s => s);
+        if (!subs.length) return;
+        const shown = subs.slice(0, 10);
+        p += `- **${parent} → ${topic}**: ${shown.join(', ')}${subs.length > 10 ? `, ... (+${subs.length - 10} more)` : ''}\n`;
       });
     });
     p += `\n**tag[3]** — question-specific concept in 2–6 words. Example: "Lok Sabha Composition", "Successive Discount Type", "Cube Diagonal Formula", "Word Pair Synonym".\n\n`;
@@ -14503,15 +14549,21 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     const normalized = arr.map((q, i) => {
       const errs = validateQuestion(q, i);
       if (errs.length) issues.push(...errs);
-      const tags = Array.isArray(q.tags) ? q.tags.slice(0, 4) : [];
+      let tags = Array.isArray(q.tags) ? q.tags.slice(0, 4) : [];
       while (tags.length < 4) tags.push('');
+      let flagged = q.needsRetag === true;
+      if (typeof window.normalizeHubTags === 'function') {
+        const norm = window.normalizeHubTags(tags);
+        tags = norm.tags;
+        flagged = flagged || norm.needsRetag;
+      }
       const options = (q.options || []).map(o => ({ text: String(o.text || ''), correct: o.correct === true }));
       return {
         question: String(q.question || ''),
         options, tags,
         solution: String(q.solution || ''),
         mockSource: String(q.mockSource || ''),
-        needsRetag: q.needsRetag === true
+        needsRetag: flagged
       };
     });
     if (issues.length) {
@@ -14802,18 +14854,53 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
 
   function spqPrompt(subject){
     const cfg=SPQ_SUBJECTS[subject];
+    // Pull the live hub taxonomy (tag1 topics from SYLLABUS_MAP = clean source; tag2 examples from real DB).
+    let tree = {};
+    try { if(typeof window.__hubBuildTaxonomy==='function') tree = window.__hubBuildTaxonomy() || {}; } catch(e){ tree = {}; }
+
+    // tag[1] valid topics per parent — ALWAYS from SYLLABUS_MAP so a stray dirty tag can't be advertised as valid.
+    let topicGuide='';
+    cfg.parents.forEach(function(par){
+      var topics = (typeof SYLLABUS_MAP!=='undefined' && SYLLABUS_MAP[par]) ? SYLLABUS_MAP[par] : [];
+      if(topics.length) topicGuide += `  • If tag[0]="${par}", tag[1] MUST be EXACTLY one of: ${topics.map(t=>`"${t}"`).join(', ')}\n`;
+    });
+
+    // tag[2] sub-topic examples — pulled live from questions already in YOUR hub, so they match exactly.
+    let subGuide='';
+    cfg.parents.forEach(function(par){
+      var validTopics = (typeof SYLLABUS_MAP!=='undefined' && SYLLABUS_MAP[par]) ? SYLLABUS_MAP[par] : [];
+      if(!tree[par]) return;
+      validTopics.forEach(function(topic){
+        var subs = (tree[par] && tree[par][topic]) ? tree[par][topic].filter(function(s){return s;}) : [];
+        if(subs.length){
+          var shown = subs.slice(0,12);
+          subGuide += `  • ${par} → ${topic}: ${shown.join(', ')}${subs.length>12?`, …(+${subs.length-12} more)`:''}\n`;
+        }
+      });
+    });
+
     let p=`# Spotted Questions Tagger — ${subject}\n\n`;
     p+=`I'm sharing screenshot(s) of question(s) I spotted (from books, tests, anywhere). Each screenshot may have ONE or MORE questions — read every visible question.\n\n`;
     p+=`For each question, output a JSON object with this EXACT schema:\n\n`;
     p+='```json\n';
-    p+=`{\n  "question": "<full question text>",\n  "options": [\n    {"text":"<A>","correct":false},\n    {"text":"<B>","correct":false},\n    {"text":"<C>","correct":true},\n    {"text":"<D>","correct":false}\n  ],\n  "tags": ["<tag0>","<tag1>","<tag2>",""],\n  "solution": "<b>Shortcut:</b> <2-3 line solution>"\n}\n`;
+    p+=`{\n  "question": "<full question text>",\n  "options": [\n    {"text":"<A>","correct":false},\n    {"text":"<B>","correct":false},\n    {"text":"<C>","correct":true},\n    {"text":"<D>","correct":false}\n  ],\n  "tags": ["<tag0>","<tag1>","<tag2>","<tag3>"],\n  "solution": "<b>Shortcut:</b> <2-3 line solution>"\n}\n`;
     p+='```\n\n';
-    p+=`## TAG RULES\n`;
-    p+=`- tag[0] MUST be exactly one of: ${cfg.parents.map(x=>`"${x}"`).join(', ')}\n`;
-    p+=`- tag[1] = the topic (e.g. "Percentage", "Parliament")\n`;
-    p+=`- tag[2] = subtopic if clear, else ""\n`;
+    p+=`## TAG RULES — FOLLOW EXACTLY, DO NOT INVENT NAMES\n\n`;
+    p+=`**tag[0]** = subject. MUST be exactly one of: ${cfg.parents.map(x=>`"${x}"`).join(', ')}\n\n`;
+    p+=`**tag[1]** = TOPIC. Copy it EXACTLY (same spelling, spacing, punctuation) from this approved list:\n`;
+    p+=topicGuide+`\n`;
+    p+=`⚠️ Shapes are NEVER topics. "Triangle", "Circle", "Quadrilateral", "Rectangle", "Square", "Trapezium", "Rhombus", "Polygon", "Hexagon" → these go in tag[2]; their tag[1] is "2D-Mensuration" (use "Geometry" instead ONLY if the question is about angles/properties, not area/perimeter). "Cube", "Cuboid", "Cylinder", "Cone", "Sphere", "Hemisphere", "Prism", "Pyramid", "Frustum" → tag[2]; their tag[1] is "3D-Mensuration".\n`;
+    p+=`⚠️ Spelling: use exactly "Pipe & Cistern" (not "Pipes & Cisterns"), "Time, Speed & Distance" (not "Time Speed Distance"), "Boat & Stream", "Problems on Train".\n\n`;
+    if(subGuide){
+      p+=`**tag[2]** = SUB-TOPIC. Match an existing one where possible (these already exist in my hub):\n`;
+      p+=subGuide+`\n`;
+      p+=`If none fits, create a clean short name (the shape name itself is fine, e.g. "Cone", "Triangle").\n\n`;
+    } else {
+      p+=`**tag[2]** = sub-topic (e.g. the shape name "Cone"/"Triangle", or "Election & Voting"). If none, use "".\n\n`;
+    }
+    p+=`**tag[3]** = question-specific concept in 2–6 words (e.g. "Heron's Formula", "Successive Discount", "Lok Sabha Composition"). If unsure, use "".\n\n`;
     p+=`- Mark the CORRECT option with "correct": true (exactly one).\n`;
-    p+=`- Output ONLY a JSON array of all questions. No prose.\n\n`;
+    p+=`- Output ONLY a JSON array of all questions. No prose, no markdown fences around the final array.\n\n`;
     p+=`Return: [ {...}, {...} ]`;
     return p;
   }
@@ -14899,10 +14986,13 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     SPQ.parsed.forEach(q=>{
       const h=qHash(q.question);
       if(existing.has(h)){ skipped++; return; }
+      var rawTags=[(q.tags&&q.tags[0])||'',(q.tags&&q.tags[1])||'',(q.tags&&q.tags[2])||'',(q.tags&&q.tags[3])||''];
+      var norm = (typeof window.normalizeHubTags==='function') ? window.normalizeHubTags(rawTags) : { tags:rawTags, needsRetag:false };
       bucket.questions.push({
         question:q.question,
         options:q.options,
-        tags:[(q.tags&&q.tags[0])||'',(q.tags&&q.tags[1])||'',(q.tags&&q.tags[2])||'',''],
+        tags:norm.tags,
+        needsRetag:norm.needsRetag,
         solution:q.solution||'',
         spottedSource:'Spotted · '+new Date().toLocaleDateString('en-IN'),
         qHash:h
