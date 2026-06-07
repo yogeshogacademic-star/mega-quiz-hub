@@ -14077,6 +14077,69 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
   // Expose the live hub taxonomy so the Spotted module (separate IIFE) can use the SAME source.
   try { window.__hubBuildTaxonomy = buildTaxonomy; } catch(e){}
 
+  /* FULL 4-level live taxonomy: tree[t0][t1][t2] = [t3, t3, ...]
+     Reads the live question bank so it ALWAYS reflects YOUR current perfected tags
+     (as you finish more chapters and re-tag, this menu improves automatically — no hardcoding). */
+  function buildFullTaxonomy() {
+    const tree = {};
+    const dbRef = getDb() || {};
+    Object.keys(dbRef).forEach(qid => {
+      const quiz = dbRef[qid];
+      if (!quiz || !Array.isArray(quiz.questions)) return;
+      if (qid.startsWith('quiz_mock_wrong_')) return; // don't let the wrong-quiz buckets pollute the menu
+      quiz.questions.forEach(q => {
+        const tags = q.tags || [];
+        if (!tags.length) return;
+        const t0 = tags[0], t1 = tags[1] || '', t2 = tags[2] || '', t3 = tags[3] || '';
+        if (!t0) return;
+        tree[t0] = tree[t0] || {};
+        tree[t0][t1] = tree[t0][t1] || {};
+        if (t2) {
+          tree[t0][t1][t2] = tree[t0][t1][t2] || new Set();
+          if (t3) tree[t0][t1][t2].add(t3);
+        }
+      });
+    });
+    Object.keys(tree).forEach(t0 => Object.keys(tree[t0]).forEach(t1 => {
+      Object.keys(tree[t0][t1]).forEach(t2 => {
+        tree[t0][t1][t2] = Array.from(tree[t0][t1][t2]).sort();
+      });
+    }));
+    return tree;
+  }
+  try { window.__hubBuildFullTaxonomy = buildFullTaxonomy; } catch(e){}
+
+  /* SHARED MENU BUILDER — single source of truth for BOTH the Spotted and Mock prompts.
+     Emits the COMPLETE, UNCAPPED tag[1]→tag[2]→tag[3] menu for the given parent subjects,
+     straight from YOUR live tags. Claude.ai orders ONLY from this menu — it never invents. */
+  window.__hubBuildTagMenu = function(parents){
+    var tree = {};
+    try { if (typeof window.__hubBuildFullTaxonomy === 'function') tree = window.__hubBuildFullTaxonomy() || {}; } catch(e){ tree = {}; }
+    var SM = (typeof SYLLABUS_MAP !== 'undefined') ? SYLLABUS_MAP : {};
+    var out = '';
+    (parents || []).forEach(function(par){
+      // tag[1] list ALWAYS from SYLLABUS_MAP (authoritative, stable) so a stray dirty tag can't pose as valid.
+      var topics = (SM[par] && SM[par].length) ? SM[par] : Object.keys(tree[par] || {}).filter(function(t){ return t; }).sort();
+      if (!topics.length) return;
+      out += '\n### tag[0] = "' + par + '"  →  tag[1] MUST be one of these (exact):\n';
+      topics.forEach(function(topic){
+        var t2map = (tree[par] && tree[par][topic]) ? tree[par][topic] : {};
+        var subs = Object.keys(t2map).filter(function(s){ return s; }).sort();
+        if (!subs.length) {
+          out += '- **' + topic + '**  — no sub-topics tagged yet → leave tag[2]="" tag[3]="" and set "needsRetag": true\n';
+          return;
+        }
+        out += '- **' + topic + '**  → pick tag[2] from:\n';
+        subs.forEach(function(t2){
+          var t3s = (t2map[t2] || []).filter(function(x){ return x; });
+          if (t3s.length) out += '    · ' + t2 + '   (tag[3] options: ' + t3s.join(' | ') + ')\n';
+          else            out += '    · ' + t2 + '\n';
+        });
+      });
+    });
+    return out;
+  };
+
   /* ════════ SHARED TAG NORMALIZER — single source of truth for BOTH pipelines ════════
      tag[0]=subject  tag[1]=topic  tag[2]=sub-topic/shape  tag[3]=question-specific concept
      - fixes known spelling variants
@@ -14119,6 +14182,18 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
           if(!t1) needsRetag = true;
         }
       } catch(e){}
+      // 4) validate the sub-topic against YOUR live taxonomy for this t0/t1.
+      //    Flag ONLY — never alter or blank the tag. Unknown tag[2] (or empty where sub-topics exist) is surfaced for review.
+      try {
+        if(typeof window.__hubBuildFullTaxonomy === 'function'){
+          var ft = window.__hubBuildFullTaxonomy() || {};
+          var known = (ft[t0] && ft[t0][t1]) ? Object.keys(ft[t0][t1]).filter(function(s){return s;}) : null;
+          if(known && known.length){
+            if(t2 && known.indexOf(t2) === -1) needsRetag = true; // invented sub-topic
+            if(!t2) needsRetag = true;                            // topic has sub-topics but none chosen
+          }
+        }
+      } catch(e){}
       return { tags:[t0, t1, t2, t3], needsRetag: needsRetag };
     };
   })();
@@ -14126,7 +14201,6 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
   // ── Prompt generation ──
   function generatePrompt(subject) {
     const cfg = SUBJECT_CONFIG[subject];
-    const tree = buildTaxonomy();
     const wk = weekRange();
     let p = `# SSC CGL Mock Wrong-Answer Parser — ${subject} | Week ${wk.displayLong}\n\n`;
     p += `I'm sharing screenshots of WRONG questions from my ${subject} mock tests this week. `;
@@ -14135,38 +14209,20 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     p += '```json\n';
     p += `{\n  "question": "<full question text exactly as in screenshot>",\n  "options": [\n    {"text": "<A>", "correct": false},\n    {"text": "<B>", "correct": false},\n    {"text": "<C>", "correct": true},\n    {"text": "<D>", "correct": false}\n  ],\n  "tags": ["<tag[0]>", "<tag[1]>", "<tag[2]>", "<tag[3]>"],\n  "solution": "<b>Shortcut:</b> <2–3 line solution>",\n  "mockSource": "Week ${wk.display} · ${subject} Pool",\n  "needsRetag": false\n}\n`;
     p += '```\n\n';
-    p += `## TAG RULES (CRITICAL)\n\n`;
+    p += `## TAG RULES (CRITICAL — DO NOT INVENT ANY TAG)\n\n`;
     p += `**tag[0]** MUST be exactly one of: ${cfg.parents.map(x => `"${x}"`).join(', ')}\n\n`;
-    p += `**tag[1]** MUST match an EXISTING topic under the chosen tag[0]. Exact spelling, exact punctuation:\n\n`;
-    cfg.parents.forEach(parent => {
-      const topics = (typeof SYLLABUS_MAP !== 'undefined' && SYLLABUS_MAP[parent]) ? SYLLABUS_MAP[parent] : Object.keys(tree[parent] || {}).filter(t => t).sort();
-      if (!topics.length) return;
-      p += `### Under "${parent}"\n`;
-      topics.forEach(topic => { p += `- ${topic}\n`; });
-      p += '\n';
-    });
-    p += `⚠️ Shapes are NEVER tag[1]. Triangle/Circle/Quadrilateral/Rectangle/Square/Trapezium/Rhombus/Polygon/Hexagon → tag[2]; tag[1] = "2D-Mensuration" (use "Geometry" only for angle/property questions). Cube/Cuboid/Cylinder/Cone/Sphere/Hemisphere/Prism/Pyramid/Frustum → tag[2]; tag[1] = "3D-Mensuration".\n`;
-    p += `⚠️ Spelling: "Pipe & Cistern" (not "Pipes & Cisterns"), "Time, Speed & Distance" (not "Time Speed Distance"), "Boat & Stream", "Problems on Train".\n\n`;
-    p += `**tag[2]** sub-topic — match existing where possible. Sub-topic examples per topic:\n\n`;
-    cfg.parents.forEach(parent => {
-      const topics = (typeof SYLLABUS_MAP !== 'undefined' && SYLLABUS_MAP[parent]) ? SYLLABUS_MAP[parent] : Object.keys(tree[parent] || {}).sort();
-      topics.forEach(topic => {
-        if (!topic) return;
-        const subs = ((tree[parent] && tree[parent][topic]) || []).filter(s => s);
-        if (!subs.length) return;
-        const shown = subs.slice(0, 10);
-        p += `- **${parent} → ${topic}**: ${shown.join(', ')}${subs.length > 10 ? `, ... (+${subs.length - 10} more)` : ''}\n`;
-      });
-    });
-    p += `\n**tag[3]** — question-specific concept in 2–6 words. Example: "Lok Sabha Composition", "Successive Discount Type", "Cube Diagonal Formula", "Word Pair Synonym".\n\n`;
-    p += `## FALLBACK RULES\n\n`;
-    p += `1. If a question DOES NOT fit any existing tag[1] under the chosen tag[0]: set tag[1] = "Miscellaneous" AND "needsRetag": true.\n`;
-    p += `2. If tag[2] doesn't match any existing sub-topic: create a clean new name (2–5 words) AND set "needsRetag": true.\n`;
-    p += `3. tag[3] is always question-specific — no need to match existing.\n`;
-    p += `4. Solution MUST always start with "<b>Shortcut:</b>" followed by 2–3 concise lines.\n`;
-    p += `5. Extract the FULL question text — include tables, data, conditions, line breaks.\n`;
-    p += `6. Mark exactly ONE option as "correct": true (the right answer per the mock solution).\n`;
-    p += `7. "mockSource" MUST be EXACTLY: "Week ${wk.display} · ${subject} Pool" (don't paraphrase).\n\n`;
+    p += `**tag[1] / tag[2] / tag[3]** — copy EXACTLY (same spelling, spacing, punctuation, &) from the menu below. This menu IS my hub's real tag list. Order only from it — never make up a new name.\n`;
+    p += `\`\`\`\n${window.__hubBuildTagMenu(cfg.parents)}\`\`\`\n\n`;
+    p += `⚠️ Shapes are NEVER tag[1]. Triangle/Circle/Quadrilateral/Rectangle/Square/Trapezium/Rhombus/Polygon/Hexagon → tag[2]; tag[1]="2D-Mensuration" (use "Geometry" only for angle/property questions). Cube/Cuboid/Cylinder/Cone/Sphere/Hemisphere/Prism/Pyramid/Frustum → tag[2]; tag[1]="3D-Mensuration".\n\n`;
+    p += `## FALLBACK — WHEN A QUESTION DOES NOT FIT THE MENU (do NOT invent)\n\n`;
+    p += `1. tag[1] not in the menu for that tag[0] → set tag[1]="" , tag[2]="" , tag[3]="" and "needsRetag": true.\n`;
+    p += `2. tag[1] fits but NO listed tag[2] matches → keep tag[1], set tag[2]="" , tag[3]="" and "needsRetag": true.\n`;
+    p += `3. tag[2] matches but no listed tag[3] fits → keep tag[0..2], set tag[3]="" and "needsRetag": true.\n`;
+    p += `4. Never create new tag names. If in doubt, leave that slot "" and flag needsRetag — I will tag it myself later.\n`;
+    p += `5. Solution MUST always start with "<b>Shortcut:</b>" followed by 2–3 concise lines.\n`;
+    p += `6. Extract the FULL question text — include tables, data, conditions, line breaks.\n`;
+    p += `7. Mark exactly ONE option as "correct": true (the right answer per the mock solution).\n`;
+    p += `8. "mockSource" MUST be EXACTLY: "Week ${wk.display} · ${subject} Pool" (don't paraphrase).\n\n`;
     p += `## OUTPUT\n\n`;
     p += `Return ONLY a JSON array of question objects — no commentary, no markdown fences, no preamble:\n\n`;
     p += `[\n  { ...question1... },\n  { ...question2... }\n]\n\n`;
@@ -14854,52 +14910,28 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
 
   function spqPrompt(subject){
     const cfg=SPQ_SUBJECTS[subject];
-    // Pull the live hub taxonomy (tag1 topics from SYLLABUS_MAP = clean source; tag2 examples from real DB).
-    let tree = {};
-    try { if(typeof window.__hubBuildTaxonomy==='function') tree = window.__hubBuildTaxonomy() || {}; } catch(e){ tree = {}; }
-
-    // tag[1] valid topics per parent — ALWAYS from SYLLABUS_MAP so a stray dirty tag can't be advertised as valid.
-    let topicGuide='';
-    cfg.parents.forEach(function(par){
-      var topics = (typeof SYLLABUS_MAP!=='undefined' && SYLLABUS_MAP[par]) ? SYLLABUS_MAP[par] : [];
-      if(topics.length) topicGuide += `  • If tag[0]="${par}", tag[1] MUST be EXACTLY one of: ${topics.map(t=>`"${t}"`).join(', ')}\n`;
-    });
-
-    // tag[2] sub-topic examples — pulled live from questions already in YOUR hub, so they match exactly.
-    let subGuide='';
-    cfg.parents.forEach(function(par){
-      var validTopics = (typeof SYLLABUS_MAP!=='undefined' && SYLLABUS_MAP[par]) ? SYLLABUS_MAP[par] : [];
-      if(!tree[par]) return;
-      validTopics.forEach(function(topic){
-        var subs = (tree[par] && tree[par][topic]) ? tree[par][topic].filter(function(s){return s;}) : [];
-        if(subs.length){
-          var shown = subs.slice(0,12);
-          subGuide += `  • ${par} → ${topic}: ${shown.join(', ')}${subs.length>12?`, …(+${subs.length-12} more)`:''}\n`;
-        }
-      });
-    });
+    // Full live tag menu (tag1→tag2→tag3) straight from the hub — SAME source the Mock pipeline uses.
+    let menu='';
+    try { if(typeof window.__hubBuildTagMenu==='function') menu = window.__hubBuildTagMenu(cfg.parents) || ''; } catch(e){ menu=''; }
 
     let p=`# Spotted Questions Tagger — ${subject}\n\n`;
     p+=`I'm sharing screenshot(s) of question(s) I spotted (from books, tests, anywhere). Each screenshot may have ONE or MORE questions — read every visible question.\n\n`;
     p+=`For each question, output a JSON object with this EXACT schema:\n\n`;
     p+='```json\n';
-    p+=`{\n  "question": "<full question text>",\n  "options": [\n    {"text":"<A>","correct":false},\n    {"text":"<B>","correct":false},\n    {"text":"<C>","correct":true},\n    {"text":"<D>","correct":false}\n  ],\n  "tags": ["<tag0>","<tag1>","<tag2>","<tag3>"],\n  "solution": "<b>Shortcut:</b> <2-3 line solution>"\n}\n`;
+    p+=`{\n  "question": "<full question text>",\n  "options": [\n    {"text":"<A>","correct":false},\n    {"text":"<B>","correct":false},\n    {"text":"<C>","correct":true},\n    {"text":"<D>","correct":false}\n  ],\n  "tags": ["<tag0>","<tag1>","<tag2>","<tag3>"],\n  "solution": "<b>Shortcut:</b> <2-3 line solution>",\n  "needsRetag": false\n}\n`;
     p+='```\n\n';
-    p+=`## TAG RULES — FOLLOW EXACTLY, DO NOT INVENT NAMES\n\n`;
+    p+=`## TAG RULES — FOLLOW EXACTLY, DO NOT INVENT ANY TAG\n\n`;
     p+=`**tag[0]** = subject. MUST be exactly one of: ${cfg.parents.map(x=>`"${x}"`).join(', ')}\n\n`;
-    p+=`**tag[1]** = TOPIC. Copy it EXACTLY (same spelling, spacing, punctuation) from this approved list:\n`;
-    p+=topicGuide+`\n`;
-    p+=`⚠️ Shapes are NEVER topics. "Triangle", "Circle", "Quadrilateral", "Rectangle", "Square", "Trapezium", "Rhombus", "Polygon", "Hexagon" → these go in tag[2]; their tag[1] is "2D-Mensuration" (use "Geometry" instead ONLY if the question is about angles/properties, not area/perimeter). "Cube", "Cuboid", "Cylinder", "Cone", "Sphere", "Hemisphere", "Prism", "Pyramid", "Frustum" → tag[2]; their tag[1] is "3D-Mensuration".\n`;
-    p+=`⚠️ Spelling: use exactly "Pipe & Cistern" (not "Pipes & Cisterns"), "Time, Speed & Distance" (not "Time Speed Distance"), "Boat & Stream", "Problems on Train".\n\n`;
-    if(subGuide){
-      p+=`**tag[2]** = SUB-TOPIC. Match an existing one where possible (these already exist in my hub):\n`;
-      p+=subGuide+`\n`;
-      p+=`If none fits, create a clean short name (the shape name itself is fine, e.g. "Cone", "Triangle").\n\n`;
-    } else {
-      p+=`**tag[2]** = sub-topic (e.g. the shape name "Cone"/"Triangle", or "Election & Voting"). If none, use "".\n\n`;
-    }
-    p+=`**tag[3]** = question-specific concept in 2–6 words (e.g. "Heron's Formula", "Successive Discount", "Lok Sabha Composition"). If unsure, use "".\n\n`;
+    p+=`**tag[1] / tag[2] / tag[3]** — copy EXACTLY (same spelling, spacing, punctuation, &) from the menu below. This menu IS my hub's real tag list. Order ONLY from it — never make up a new name.\n`;
+    p+='```\n'+menu+'```\n\n';
+    p+=`⚠️ Shapes are NEVER tag[1]. Triangle/Circle/Quadrilateral/Rectangle/Square/Trapezium/Rhombus/Polygon/Hexagon → tag[2]; tag[1]="2D-Mensuration" (use "Geometry" ONLY for angle/property questions). Cube/Cuboid/Cylinder/Cone/Sphere/Hemisphere/Prism/Pyramid/Frustum → tag[2]; tag[1]="3D-Mensuration".\n\n`;
+    p+=`## FALLBACK — WHEN A QUESTION DOES NOT FIT THE MENU (do NOT invent)\n\n`;
+    p+=`1. tag[1] not in the menu for that tag[0] → tag[1]="" , tag[2]="" , tag[3]="" , "needsRetag": true.\n`;
+    p+=`2. tag[1] fits but NO listed tag[2] matches → keep tag[1], set tag[2]="" , tag[3]="" , "needsRetag": true.\n`;
+    p+=`3. tag[2] matches but no listed tag[3] fits → keep tag[0..2], set tag[3]="" , "needsRetag": true.\n`;
+    p+=`4. Never create new tag names. When in doubt, leave that slot "" and flag needsRetag — I'll tag it myself later.\n\n`;
     p+=`- Mark the CORRECT option with "correct": true (exactly one).\n`;
+    p+=`- Solution MUST start with "<b>Shortcut:</b>" then 2-3 concise lines.\n`;
     p+=`- Output ONLY a JSON array of all questions. No prose, no markdown fences around the final array.\n\n`;
     p+=`Return: [ {...}, {...} ]`;
     return p;
