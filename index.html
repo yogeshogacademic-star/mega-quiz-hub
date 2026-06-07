@@ -693,6 +693,7 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                     </button>
                     <button onclick="openFactSheet()" class="bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-transform hover:-translate-y-1 border border-emerald-400 flex items-center gap-2">📋 Fact Sheet</button>
                     <button onclick="showScreen('mock-tracker')" class="bg-gradient-to-br from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(14,165,233,0.5)] transition-transform hover:-translate-y-1 border border-sky-400 flex items-center gap-2">📝 Mock Tracker</button>
+                    <button onclick="spqOpen()" class="bg-gradient-to-br from-fuchsia-500 to-purple-600 hover:from-fuchsia-400 hover:to-purple-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(217,70,239,0.5)] transition-transform hover:-translate-y-1 border border-fuchsia-400 flex items-center gap-2">📸 Spotted Questions</button>
                     <button onclick="openSyllabusCommand()" class="bg-gradient-to-br from-violet-500 to-purple-600 hover:from-violet-400 hover:to-purple-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(139,92,246,0.5)] transition-transform hover:-translate-y-1 border border-violet-400 flex items-center gap-2">📚 Syllabus</button>
                     <button onclick="showScreen('planner')" class="bg-gradient-to-br from-teal-500 to-cyan-600 hover:from-teal-400 hover:to-cyan-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(20,184,166,0.5)] transition-transform hover:-translate-y-1 border border-teal-400 flex items-center gap-2">⚔️ War Room</button>
                 </div>
@@ -11826,7 +11827,7 @@ function wtMigrateMockDates(){
     try { mocks=JSON.parse(localStorage.getItem('ssc_mock_tracker')||'[]'); } catch(e){ mocks=[]; }
     if(!mocks.length){ return; } // no mock tracker data — nothing to rebuild
     // Bump this version string to force a one-time rebuild after deploy
-    const REBUILD_VERSION = 'v4';
+    const REBUILD_VERSION = 'v5';
     if(localStorage.getItem('wtMockRebuildVer') === REBUILD_VERSION) return;
 
     // STEP 1: remove ALL existing mock-type logs from every date (they may be mis-dated)
@@ -12228,7 +12229,7 @@ function renderTodayLogList(){
     const totalMin=Math.floor((pastMs+currMs)/60000);
     const hh=Math.floor(totalMin/60), mm=totalMin%60;
     const liveStr=(hh>0?hh+'h ':'')+mm+'m';
-    const detail=l.type==='srs'?(()=>{const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;let sj='';if(l.topicMap&&Object.keys(l.topicMap).length){const parts=[];Object.entries(l.topicMap).forEach(([subj,topics])=>{Object.entries(topics).forEach(([tp,v])=>{parts.push(subj+' › '+tp+' ('+v.count+')');});});sj='<br><span style="font-size:9px;color:var(--muted)">'+parts.join(' · ')+'</span>';}else if(l.subjects&&Object.keys(l.subjects).length){sj='<br><span style="font-size:9px;color:var(--muted)">'+Object.entries(l.subjects).map(([s,n])=>s+': '+n).join(' · ')+'</span>';}return l.cards+'cards\xb7'+l.correct+'/'+l.cards+'\xb7'+acc+'%'+sj;})():l.type==='quiz'?(l.questions+'q\xb7'+Math.round((l.correct||0)/(l.questions||1)*100)+'%'+((l.topic||l.subtopic)?'<br><span style="font-size:9px;color:var(--muted)">'+[l.subject,l.topic,l.subtopic].filter(Boolean).join(' › ')+'</span>':'')):l.type==='mock'?'Net:'+l.net+'\xb7'+to12hr(l.startTime)+'-'+to12hr(l.endTime):l.type==='lecture'?(l.isRevision?'Rev\xb7'+l.chapter:'Lec#'+l.lectureNo+'\xb7'+l.chapter)+'\xb7'+l.subject:(l.subject+(l.chapter?'\xb7'+l.chapter:''));
+    const detail=l.type==='srs'?(()=>{const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;let sj='';if(l.topicMap&&Object.keys(l.topicMap).length){const parts=[];Object.entries(l.topicMap).forEach(([subj,topics])=>{Object.entries(topics).forEach(([tp,v])=>{parts.push(subj+' › '+tp+' ('+v.count+')');});});sj='<br><span style="font-size:9px;color:var(--muted)">'+parts.join(' · ')+'</span>';}else if(l.subjects&&Object.keys(l.subjects).length){sj='<br><span style="font-size:9px;color:var(--muted)">'+Object.entries(l.subjects).map(([s,n])=>s+': '+n).join(' · ')+'</span>';}return l.cards+'cards\xb7'+l.correct+'/'+l.cards+'\xb7'+acc+'%'+sj;})():l.type==='quiz'?(l.questions+'q\xb7'+Math.round((l.correct||0)/(l.questions||1)*100)+'%'+((l.topic||l.subtopic)?'<br><span style="font-size:9px;color:var(--muted)">'+[l.subject,l.topic,l.subtopic].filter(Boolean).join(' › ')+'</span>':'')):l.type==='mock'?'Net: '+l.net:l.type==='lecture'?(l.isRevision?'Rev\xb7'+l.chapter:'Lec#'+l.lectureNo+'\xb7'+l.chapter)+'\xb7'+l.subject:(l.subject+(l.chapter?'\xb7'+l.chapter:''));
     const isCan=status==='cancelled';
     const borderC=isAuto?'rgba(99,102,241,0.2)':status==='doing'?'rgba(245,158,11,0.25)':status==='paused'?'rgba(99,102,241,0.25)':isCan?'rgba(239,68,68,0.15)':'var(--border)';
     const bgC=isAuto?'rgba(99,102,241,0.05)':status==='doing'?'rgba(245,158,11,0.04)':status==='paused'?'rgba(99,102,241,0.04)':isCan?'rgba(239,68,68,0.03)':'var(--bg3)';
@@ -12503,7 +12504,7 @@ function renderHomeTodayLogged(){
     let detail='';
     if(l.type==='srs'){const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;let sj='';if(l.topicMap&&Object.keys(l.topicMap).length){const parts=[];Object.entries(l.topicMap).forEach(([subj,topics])=>{Object.entries(topics).forEach(([tp,v])=>{parts.push(subj+' › '+tp+' ('+v.count+')');});});sj=parts.join(' · ');}else if(l.subjects&&Object.keys(l.subjects).length){sj=Object.entries(l.subjects).map(([s,n])=>s+':'+n).join(' · ');}detail=l.cards+' cards · '+l.correct+'/'+l.cards+' · '+acc+'%'+(sj?'<br><span style="font-size:9px;color:var(--muted)">'+sj+'</span>':'');}
     else if(l.type==='quiz') detail=l.questions+'q · '+l.correct+' correct · '+Math.round((l.correct||0)/(l.questions||1)*100)+'%'+((l.topic||l.subtopic)?'<br><span style="font-size:9px;color:var(--muted)">'+[l.subject,l.topic,l.subtopic].filter(Boolean).join(' › ')+'</span>':'');
-    else if(l.type==='mock') detail='Net: '+l.net+' · '+to12hr(l.startTime||'09:00')+'–'+to12hr(l.endTime||'10:00');
+    else if(l.type==='mock') detail='Net: '+l.net;
     else if(l.type==='lecture') detail=(l.isRevision?'Rev':'Lec #'+l.lectureNo)+' · '+l.chapter+' · '+l.subject;
     else if(l.type==='revision') detail=l.subject+(l.chapter?' · '+l.chapter:'');
     else detail=l.subject+(l.chapter?' · '+l.chapter:'');
@@ -12683,7 +12684,7 @@ function logCard(l){
     } else if(l.type==='quiz'){
       detail=`${l.questions||0}q · ${l.correct||0} correct · ${Math.round((l.correct||0)/(l.questions||1)*100)}%`+((l.topic||l.subtopic)?`<br><span style="font-size:9px;color:var(--muted)">${[l.subject,l.topic,l.subtopic].filter(Boolean).join(' › ')}</span>`:'');
     } else if(l.type==='mock'){
-      detail=`Net: ${l.net||0} · ${to12hr(l.startTime||'09:00')}–${to12hr(l.endTime||'10:00')}`;
+      detail=`Net: ${l.net||0}`;
     } else if(l.type==='revision'){
       detail=l.subject+(l.chapter&&l.chapter!==l.subject?' · '+l.chapter:'');
     } else if(l.type==='lecture'){
@@ -14697,5 +14698,142 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
 })();
 </script>
 <!-- ═══════════ END OF PUSH 1 v2 ═══════════ -->
+
+<script>
+/* ═══════════════════ SPOTTED QUESTIONS MODULE ═══════════════════
+   Screenshot → Claude.ai → JSON → permanent per-subject bucket.
+   Buckets: db['spotted_<slug>'], titled "📸 Spotted Questions — <Subject>".
+   Grows forever (no weekly split). Questions tagged → flow to syllabus/SRS. */
+(function(){
+  const SPQ = { subject:null, parsed:[] };
+  const SPQ_SUBJECTS = {
+    'Quant':    { icon:'📐', parents:['Arithmetic','Advanced Maths','Calculation'], slug:'quant' },
+    'Reasoning':{ icon:'🧠', parents:['Reasoning'], slug:'reasoning' },
+    'GS':       { icon:'🌍', parents:['Polity','Economics','Geography','Ancient History','Medieval History','Modern History','Static GK','Current Affairs','Art & Culture','Biology','Physics','Chemistry','Science & Technology','Environment & Ecology'], slug:'gs' },
+    'English':  { icon:'📖', parents:['English'], slug:'english' }
+  };
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  function qHash(q){var s=String(q||'').toLowerCase().replace(/\s+/g,' ').trim();var h=0;for(var i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0;}return 'h'+Math.abs(h);}
+  function toast(m){ try{ if(typeof mtToast==='function'){mtToast(m);return;} }catch(e){} console.log('[SPQ]',m); }
+
+  function spqPrompt(subject){
+    const cfg=SPQ_SUBJECTS[subject];
+    let p=`# Spotted Questions Tagger — ${subject}\n\n`;
+    p+=`I'm sharing screenshot(s) of question(s) I spotted (from books, tests, anywhere). Each screenshot may have ONE or MORE questions — read every visible question.\n\n`;
+    p+=`For each question, output a JSON object with this EXACT schema:\n\n`;
+    p+='```json\n';
+    p+=`{\n  "question": "<full question text>",\n  "options": [\n    {"text":"<A>","correct":false},\n    {"text":"<B>","correct":false},\n    {"text":"<C>","correct":true},\n    {"text":"<D>","correct":false}\n  ],\n  "tags": ["<tag0>","<tag1>","<tag2>",""],\n  "solution": "<b>Shortcut:</b> <2-3 line solution>"\n}\n`;
+    p+='```\n\n';
+    p+=`## TAG RULES\n`;
+    p+=`- tag[0] MUST be exactly one of: ${cfg.parents.map(x=>`"${x}"`).join(', ')}\n`;
+    p+=`- tag[1] = the topic (e.g. "Percentage", "Parliament")\n`;
+    p+=`- tag[2] = subtopic if clear, else ""\n`;
+    p+=`- Mark the CORRECT option with "correct": true (exactly one).\n`;
+    p+=`- Output ONLY a JSON array of all questions. No prose.\n\n`;
+    p+=`Return: [ {...}, {...} ]`;
+    return p;
+  }
+
+  window.spqOpen = function(){
+    let m=document.getElementById('spq-modal');
+    if(!m){ m=document.createElement('div'); m.id='spq-modal'; document.body.appendChild(m); }
+    m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
+    m.innerHTML=`<div style="background:#0f172a;border:1px solid #334155;border-radius:18px;max-width:520px;width:100%;max-height:88vh;overflow-y:auto;padding:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="font-size:18px;font-weight:900;color:#f1f5f9">📸 Spotted Questions</div>
+        <button onclick="document.getElementById('spq-modal').remove()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer">×</button>
+      </div>
+      <div style="font-size:12px;color:#94a3b8;font-weight:700;margin-bottom:16px">Pick subject → screenshot → Claude.ai → paste JSON. Saves to a permanent bucket per subject.</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px">
+        ${Object.keys(SPQ_SUBJECTS).map(s=>`<button onclick="spqPick('${s}')" style="padding:14px;background:${SPQ.subject===s?'#7c3aed':'#1e293b'};border:1.5px solid ${SPQ.subject===s?'#a78bfa':'#334155'};border-radius:12px;color:#f1f5f9;font-weight:900;font-size:14px;cursor:pointer">${SPQ_SUBJECTS[s].icon} ${s}<br><span style="font-size:9px;color:#94a3b8;font-weight:700">${spqCount(s)} saved</span></button>`).join('')}
+      </div>
+      <div id="spq-flow" style="display:${SPQ.subject?'block':'none'}">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+          <button onclick="spqCopyPrompt()" style="flex:1;min-width:120px;padding:11px;background:#6366f1;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">📋 Copy Prompt</button>
+          <button onclick="window.open('https://claude.ai','_blank')" style="flex:1;min-width:120px;padding:11px;background:#6366f1;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">🚀 Open Claude.ai</button>
+        </div>
+        <textarea id="spq-json" placeholder="Paste the JSON array from Claude.ai here..." style="width:100%;height:120px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#f1f5f9;padding:10px;font-size:12px;font-family:monospace;margin-bottom:10px"></textarea>
+        <button onclick="spqParse()" style="width:100%;padding:12px;background:#16a34a;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:13px;cursor:pointer;margin-bottom:12px">Parse & Review →</button>
+        <div id="spq-review"></div>
+      </div>
+    </div>`;
+  };
+
+  window.spqPick = function(s){ SPQ.subject=s; SPQ.parsed=[]; spqOpen(); };
+
+  function spqCount(s){
+    try{ const key='spotted_'+SPQ_SUBJECTS[s].slug; return (db[key]&&db[key].questions)?db[key].questions.length:0; }catch(e){ return 0; }
+  }
+
+  window.spqCopyPrompt = function(){
+    if(!SPQ.subject){ toast('Pick a subject first'); return; }
+    const p=spqPrompt(SPQ.subject);
+    navigator.clipboard.writeText(p).then(()=>toast('✅ Prompt copied — paste into Claude.ai with your screenshot')).catch(()=>{
+      const ta=document.createElement('textarea');ta.value=p;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();toast('✅ Prompt copied');
+    });
+  };
+
+  window.spqParse = function(){
+    const raw=document.getElementById('spq-json').value.trim();
+    if(!raw){ toast('Paste JSON first'); return; }
+    let data;
+    try{
+      let clean=raw.replace(/```json/g,'').replace(/```/g,'').trim();
+      data=JSON.parse(clean);
+      if(!Array.isArray(data)) data=[data];
+    }catch(e){ toast('Invalid JSON — check the paste'); return; }
+    SPQ.parsed=data.filter(q=>q&&q.question&&Array.isArray(q.options));
+    if(!SPQ.parsed.length){ toast('No valid questions found'); return; }
+    const rev=document.getElementById('spq-review');
+    rev.innerHTML=`<div style="border-top:1px solid #334155;padding-top:12px;margin-bottom:10px;font-size:13px;font-weight:900;color:#f1f5f9">${SPQ.parsed.length} question(s) parsed</div>`+
+      SPQ.parsed.map((q,i)=>{
+        const correct=(q.options.find(o=>o.correct)||{}).text||'?';
+        return `<div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:8px">
+          <div style="font-size:12px;color:#f1f5f9;font-weight:700;margin-bottom:4px">${i+1}. ${esc(q.question.substring(0,90))}${q.question.length>90?'…':''}</div>
+          <div style="font-size:10px;color:#34d399;font-weight:700">✓ ${esc(String(correct).substring(0,50))}</div>
+          <div style="font-size:9px;color:#94a3b8;margin-top:3px">${esc((q.tags||[]).filter(Boolean).join(' › '))}</div>
+        </div>`;
+      }).join('')+
+      `<button onclick="spqCommit()" style="width:100%;padding:13px;background:#16a34a;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:14px;cursor:pointer;margin-top:6px">✅ Save to ${SPQ.subject} Bucket</button>`;
+  };
+
+  window.spqCommit = async function(){
+    if(!SPQ.parsed.length){ toast('Nothing to save'); return; }
+    const cfg=SPQ_SUBJECTS[SPQ.subject];
+    const key='spotted_'+cfg.slug;
+    if(typeof db==='undefined'||!db){ toast('DB not loaded'); return; }
+    let bucket=db[key];
+    if(!bucket){ bucket={ title:'📸 Spotted Questions — '+SPQ.subject, subject:SPQ.subject, timeInMinutes:0, isSpottedQuiz:true, questions:[] }; }
+    bucket.questions=Array.isArray(bucket.questions)?bucket.questions:[];
+    const existing=new Set(bucket.questions.map(q=>q.qHash).filter(Boolean));
+    let added=0,skipped=0;
+    SPQ.parsed.forEach(q=>{
+      const h=qHash(q.question);
+      if(existing.has(h)){ skipped++; return; }
+      bucket.questions.push({
+        question:q.question,
+        options:q.options,
+        tags:[(q.tags&&q.tags[0])||SPQ.subject,(q.tags&&q.tags[1])||'',(q.tags&&q.tags[2])||'',''],
+        solution:q.solution||'',
+        spottedSource:'Spotted · '+new Date().toLocaleDateString('en-IN'),
+        qHash:h
+      });
+      existing.add(h); added++;
+    });
+    bucket.timeInMinutes=Math.max(1,Math.ceil(bucket.questions.length*1.5));
+    db[key]=bucket;
+    try{
+      if(typeof saveData==='function') await saveData();
+      if(typeof window.rebuildSearchCache==='function') window.rebuildSearchCache();
+      if(typeof renderDashboard==='function') renderDashboard();
+    }catch(e){ console.error('[SPQ] save failed',e); toast('Save failed — check console'); return; }
+    toast('✅ Saved: '+added+' added, '+skipped+' dup skipped → '+bucket.questions.length+' total');
+    SPQ.parsed=[];
+    const mm=document.getElementById('spq-modal'); if(mm) mm.remove();
+  };
+
+  console.log('[SPQ] Spotted Questions module loaded');
+})();
+</script>
 
 </body></html>
