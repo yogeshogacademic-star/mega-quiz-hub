@@ -11745,14 +11745,20 @@ body.light select.inp option { background:white; }
       <input id="b-custom" class="inp" placeholder="Mock Test / PYQ / Revision...">
     </div>
 
+    <div style="margin-bottom:13px">
+      <label class="inp-lbl">📅 Block Date <span style="color:var(--muted);font-weight:600;text-transform:none;letter-spacing:0">(plan future days too)</span></label>
+      <input type="date" id="b-date" class="inp" style="padding:8px 10px" onchange="bShowDate()">
+      <div id="b-date-label" style="font-size:10px;color:var(--accent);font-weight:800;margin-top:3px"></div>
+    </div>
+
     <div class="g2" style="gap:10px;margin-bottom:13px">
       <div>
-        <label class="inp-lbl">Start</label>
-        <input type="time" id="b-start" class="inp" style="padding:8px 10px">
+        <label class="inp-lbl">Start <span id="b-start-12" style="color:var(--accent);font-weight:800;text-transform:none;letter-spacing:0"></span></label>
+        <input type="time" id="b-start" class="inp" style="padding:8px 10px" oninput="bShowTime12()">
       </div>
       <div>
-        <label class="inp-lbl">End</label>
-        <input type="time" id="b-end" class="inp" style="padding:8px 10px">
+        <label class="inp-lbl">End <span id="b-end-12" style="color:var(--accent);font-weight:800;text-transform:none;letter-spacing:0"></span></label>
+        <input type="time" id="b-end" class="inp" style="padding:8px 10px" oninput="bShowTime12()">
       </div>
     </div>
 
@@ -12039,6 +12045,23 @@ function openBlockModal(){
   document.getElementById('b-chapter').innerHTML='<option value="">— Select Chapter —</option>';
   document.getElementById('b-topic').value='';
   document.getElementById('b-custom').value='';
+  // Default block date = the day you're viewing (today unless navigated)
+  const bd=document.getElementById('b-date'); if(bd){ bd.value=viewingBlockDate||todayStr(); }
+  bShowDate(); bShowTime12();
+}
+function bShowDate(){
+  const bd=document.getElementById('b-date'), lbl=document.getElementById('b-date-label');
+  if(!bd||!lbl) return;
+  if(!bd.value){ lbl.textContent=''; return; }
+  const d=new Date(bd.value+'T00:00:00'), t=todayStr();
+  if(bd.value===t) lbl.textContent='📌 Today';
+  else { const diff=Math.round((d-new Date(t+'T00:00:00'))/86400000); lbl.textContent=(diff>0?'⏭ '+diff+' day(s) ahead — ':'⏮ '+Math.abs(diff)+' day(s) ago — ')+d.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'short'}); }
+}
+function bShowTime12(){
+  const s=document.getElementById('b-start'), e=document.getElementById('b-end');
+  const s12=document.getElementById('b-start-12'), e12=document.getElementById('b-end-12');
+  if(s12) s12.textContent = s&&s.value?'· '+to12hr(s.value):'';
+  if(e12) e12.textContent = e&&e.value?'· '+to12hr(e.value):'';
 }
 function closeBlockModal(){ document.getElementById('modal-block').style.display='none'; }
 
@@ -12053,12 +12076,13 @@ function saveBlock(){
   if(!custom&&!subj){ alert('Select a subject or enter a custom task'); return; }
   const hrs=(t2m(end)-t2m(start))/60;
   if(hrs<=0){ alert('End must be after start'); return; }
+  const blockDate=(document.getElementById('b-date')&&document.getElementById('b-date').value)||viewingBlockDate;
   const label=custom||(topic||ch||subj);
-  const block={ id:Date.now(), date:viewingBlockDate, subject:custom?'Custom':subj, chapter:ch, topic, custom, label, start, end, plannedHrs:hrs, priority:selectedBPri };
-  if(!D.blocks[viewingBlockDate]) D.blocks[viewingBlockDate]=[];
-  D.blocks[viewingBlockDate].push(block);
+  const block={ id:Date.now(), date:blockDate, subject:custom?'Custom':subj, chapter:ch, topic, custom, label, start, end, plannedHrs:hrs, priority:selectedBPri };
+  if(!D.blocks[blockDate]) D.blocks[blockDate]=[];
+  D.blocks[blockDate].push(block);
   save(); closeBlockModal();
-  renderHome(); renderCalendar(); renderDayDetail(viewingBlockDate);
+  renderHome(); renderCalendar(); renderDayDetail(blockDate);
 }
 
 // ════════════════ LOG ════════════════
@@ -13031,10 +13055,10 @@ function renderChecklist(){
 // ════════════════ TIME BUCKETS + SLEEP/WAKE (Phase 1) ════════════════
 // 4 fixed daily buckets. A session counts toward a bucket by its start clock-hour.
 const WR_BUCKETS = [
-  { key:'b9',    label:'Before 9 AM',     start:0,    end:9,    target:3 },
-  { key:'b12',   label:'Before 12 PM',    start:9,    end:12,   target:2 },
-  { key:'b18',   label:'Before 6 PM',     start:12,   end:18,   target:2 },
-  { key:'b2330', label:'Before 11:30 PM', start:18,   end:24,   target:2 },
+  { key:'b9',    label:'Before 9 AM',     start:0,    end:9,    target:2.5 },
+  { key:'b12',   label:'Before 12 PM',    start:9,    end:12,   target:2.5 },
+  { key:'b18',   label:'Before 6 PM',     start:12,   end:18,   target:3.5 },
+  { key:'b2330', label:'Before 11:30 PM', start:18,   end:24,   target:3 },
 ];
 
 // Get the start hour (0-23) of a log entry
@@ -13051,10 +13075,11 @@ function wrLogStartHour(l){
     if(isAM && h===12) h=0;         // 12 am → 0
     return h;
   }
-  // Prefer explicit start time strings (check raw 24h 'start' first, then display times)
+  // Prefer explicit start time strings (the ACTUAL study time, not when it was logged)
   let h = parseHour(l.start);
   if(h===null) h = parseHour(l.startTime);
   if(h===null) h = parseHour(l.startTime12);
+  if(h===null) h = parseHour(l.time);   // 'time' is the 12hr label of when it happened
   if(h!==null) return h;
   // Fall back to any available timestamp (startTs, ts, or the log id which is Date.now())
   const ts = l.startTs || l.ts || l.id;
