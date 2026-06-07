@@ -14822,10 +14822,14 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     });
     bucket.timeInMinutes=Math.max(1,Math.ceil(bucket.questions.length*1.5));
     db[key]=bucket;
+    console.log('[SPQ] Committing to db['+key+'] — now has '+bucket.questions.length+' questions');
     try{
-      if(typeof saveData==='function') await saveData();
+      if(typeof saveData==='function'){ await saveData(); console.log('[SPQ] saveData() completed'); }
+      else { console.warn('[SPQ] saveData not found!'); }
       if(typeof window.rebuildSearchCache==='function') window.rebuildSearchCache();
       if(typeof renderDashboard==='function') renderDashboard();
+      // Verify it persisted
+      console.log('[SPQ] Verify: db['+key+'] exists after save?', !!db[key], '| questions:', db[key]?db[key].questions.length:0);
     }catch(e){ console.error('[SPQ] save failed',e); toast('Save failed — check console'); return; }
     toast('✅ Saved: '+added+' added, '+skipped+' dup skipped → '+bucket.questions.length+' total');
     SPQ.parsed=[];
