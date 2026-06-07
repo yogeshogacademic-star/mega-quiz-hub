@@ -2080,6 +2080,8 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
         
         if (localDb) db = localDb;
         if (localHist) historyDb = localHist;
+        // Load SRS audit log (debugging record)
+        try { window.srsAuditLog = JSON.parse(localStorage.getItem('srsAuditLog')||'[]'); } catch(e){ window.srsAuditLog = []; }
         if (localMistakes) mistakesDb = localMistakes;
         if (localNotes) notesDb = localNotes;
         
@@ -2173,13 +2175,16 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                 attemptNumber: h.attemptNumber, totalCorrect: h.totalCorrect,
                 totalWrong: h.totalWrong, totalSkipped: h.totalSkipped
             };
-            // Preserve reviewData ONLY for R1 syllabus revisions (small payload, needed by self-heal)
-            if (h.title && (h.title.includes('R1 Revision') || h.title.includes('R1 revision')) && h.reviewData) {
+            // DEBUG MODE (user has ample storage): preserve reviewData for ALL syllabus
+            // revisions (R1/R2/R3/R4) so sync issues can be traced per-question across every
+            // round, and self-heal can reconstruct attempted-sets for any round. Revert later
+            // by restoring the R1-only condition once sync is confirmed perfect.
+            if (h.title && (/R[1234]\s*Revision/i.test(h.title)) && h.reviewData) {
                 base.reviewData = h.reviewData;
             }
             return base;
         });
-        const payload = { subjects: SUBJECTS, db: cleanDb, syllabusData: scDataCloud, syllabusLastSave: parseInt(localStorage.getItem('sc_syllabus_lastSave')||'0'), history: historyForCloud, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, mockTracker: mockTrackerCloud, plannerData: plannerCloud, savedAt: nowTs };
+        const payload = { subjects: SUBJECTS, db: cleanDb, syllabusData: scDataCloud, syllabusLastSave: parseInt(localStorage.getItem('sc_syllabus_lastSave')||'0'), history: historyForCloud, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, mockTracker: mockTrackerCloud, plannerData: plannerCloud, srsAuditLog: (window.srsAuditLog||[]), savedAt: nowTs };
         // Expose saveData globally for syllabus functions in other script blocks
         window._saveDataGlobal = saveData;
         try {
@@ -2480,6 +2485,23 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                 console.warn('Mock tracker merge error:', e);
             }
         }
+        // MERGE SRS audit log from cloud + local (dedup by ts) — lets you debug
+        // mobile attempts on laptop. Combine both, keep unique timestamps, cap 2000.
+        if (data.srsAuditLog && Array.isArray(data.srsAuditLog)) {
+            try {
+                let localAudit = []; try { localAudit = JSON.parse(localStorage.getItem('srsAuditLog')||'[]'); } catch(e){}
+                const seen = {};
+                const merged = [];
+                localAudit.concat(data.srsAuditLog).forEach(function(e){
+                    if(e && e.ts && !seen[e.ts]){ seen[e.ts]=1; merged.push(e); }
+                });
+                merged.sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+                if(merged.length > 2000) merged.length = 2000;
+                window.srsAuditLog = merged;
+                localStorage.setItem('srsAuditLog', JSON.stringify(merged));
+            } catch(e){ console.warn('Audit merge error', e); }
+        }
+
         if(data.plannerData && typeof data.plannerData === 'object'){ try {
             const _lp = JSON.parse(localStorage.getItem('warroom_v1') || '{}');
             const cloud = data.plannerData;
@@ -3816,6 +3838,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         // Fresh live result — reset history-view index so saveEdit uses historyDb[0]
         window.currentHistoryViewIndex = 0;
         let correct = 0, wrong = 0, skipped = 0, fullReviewHTML = ''; let historicalReviewData = []; window.currentReviewQuestions = [];
+        var _auditSrsCountBefore = mistakesDb.length; // for SRS audit log: how many cards before this batch
 
         // PERFORMANCE FIX: build index map once — O(n) — instead of findIndex per question O(n²)
         const srsIndexMap = new Map();
@@ -3994,6 +4017,37 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
 
         historyDb.unshift({ ts: Date.now(), date: new Date().toLocaleDateString(), title: displayTitle, subject: db[currentQuizId] ? db[currentQuizId].subject : "Mixed", score: parseFloat(score.toFixed(2)), accuracy: Math.round((correct / activeQuestions.length) * 100) || 0, candidateName: candName, attemptNumber: currentAttemptNum, totalCorrect: correct, totalWrong: wrong, totalSkipped: skipped, reviewData: historicalReviewData });
         if (historyDb.length > 500) historyDb.length = 500;
+
+        // ═══ SRS AUDIT LOG — permanent per-batch record for debugging R1-R4 sync ═══
+        // Captures: round, topic, batch questions (by text), correct/wrong/skipped, how many
+        // entered SRS, device, timestamp. Never stripped on cloud sync. Survives forever.
+        try {
+            var _q = db[currentQuizId];
+            var _isRev = _q && (_q.isScRevision || currentQuizId==='quiz_sc_rev_current');
+            var _isSRS = currentQuizId === 'quiz_srs';
+            if (_isRev || _isSRS) {
+                if (!window.srsAuditLog) window.srsAuditLog = [];
+                var _srsBefore = (typeof _auditSrsCountBefore === 'number') ? _auditSrsCountBefore : null;
+                var _srsAfter = mistakesDb.length;
+                var _entry = {
+                    ts: Date.now(),
+                    device: (/iPad|iPhone|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop'),
+                    round: _isSRS ? 'SRS-sprint' : (_q && _q.scRev ? _q.scRev.toUpperCase() : '?'),
+                    topic: _isSRS ? 'mixed' : (_q && _q.scTopicName ? _q.scTopicName : (_q && _q.title ? _q.title : '?')),
+                    subject: _q && _q.subject ? _q.subject : '?',
+                    questionsInBatch: activeQuestions.length,
+                    correct: correct, wrong: wrong, skipped: skipped,
+                    questionTexts: activeQuestions.map(function(q){ return (q.question||'').substring(0,80); }),
+                    srsCountBefore: _srsBefore,
+                    srsCountAfter: _srsAfter,
+                    srsCardsAdded: (_srsBefore!==null ? (_srsAfter - _srsBefore) : null)
+                };
+                window.srsAuditLog.unshift(_entry);
+                if (window.srsAuditLog.length > 2000) window.srsAuditLog.length = 2000;
+                try { localStorage.setItem('srsAuditLog', JSON.stringify(window.srsAuditLog)); } catch(e){}
+                console.log('[SRS Audit]', _entry.round, _entry.topic, '| batch:'+_entry.questionsInBatch, '| +'+(_entry.srsCardsAdded!=null?_entry.srsCardsAdded:'?')+' to SRS');
+            }
+        } catch(e){ console.warn('[SRS Audit] failed', e); }
 
         // BUG3 FIX: store graded questions in memory so recentlyGraded works even after cloud strips reviewData
         if(currentQuizId && currentQuizId.startsWith('quiz_srs')){
@@ -14873,19 +14927,34 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
 
   console.log('[SPQ] Spotted Questions module loaded');
 
-  // One-time: move existing spotted buckets to their own dashboard sections
+  // One-time: ensure spotted buckets sit in their mock sections
   (function spqMigrateSubjects(){
     try{
       var map={ 'spotted_quant':'QUANT MOCK QUESTIONS', 'spotted_gs':'GS MOCK QUESTIONS', 'spotted_reasoning':'Reasoning', 'spotted_english':'English' };
       var changed=false;
       Object.keys(map).forEach(function(k){
-        if(typeof db!=='undefined' && db && db[k] && db[k].subject!==map[k]){
-          db[k].subject=map[k]; changed=true;
-        }
+        if(typeof db!=='undefined' && db && db[k] && db[k].subject!==map[k]){ db[k].subject=map[k]; changed=true; }
       });
-      if(changed && typeof saveData==='function'){ saveData(); console.log('[SPQ] Migrated spotted buckets to own sections'); }
+      if(changed && typeof saveData==='function'){ saveData(); console.log('[SPQ] Migrated spotted buckets'); }
     }catch(e){}
   })();
+
+  // ═══ SRS AUDIT VIEWER — call srsAudit() or srsAudit('Judiciary') in console ═══
+  window.srsAudit = function(topicFilter){
+    var log = window.srsAuditLog || [];
+    if(!log.length){ console.log('No audit entries yet. Attempt a revision/SRS sprint first.'); return; }
+    var filtered = topicFilter ? log.filter(function(e){ return (e.topic||'').toLowerCase().indexOf(topicFilter.toLowerCase())>-1; }) : log;
+    console.log('═══ SRS AUDIT'+(topicFilter?' — '+topicFilter:'')+' ('+filtered.length+' batches) ═══');
+    filtered.forEach(function(e){
+      var d=new Date(e.ts);
+      console.log('\n'+d.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'numeric',month:'short',hour:'numeric',minute:'2-digit',hour12:true})+' ['+e.device+']');
+      console.log('  '+e.round+' · '+e.topic+' ('+e.subject+')');
+      console.log('  batch: '+e.questionsInBatch+'q → ✓'+e.correct+' ✗'+e.wrong+' ⊘'+e.skipped);
+      console.log('  SRS: '+e.srsCountBefore+' → '+e.srsCountAfter+' (added '+(e.srsCardsAdded!=null?e.srsCardsAdded:'?')+')');
+    });
+    return filtered.length+' batches shown';
+  };
+  console.log('[SRS Audit] Viewer ready — type srsAudit() or srsAudit("Judiciary")');
 })();
 </script>
 
