@@ -14707,10 +14707,10 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
 (function(){
   const SPQ = { subject:null, parsed:[] };
   const SPQ_SUBJECTS = {
-    'Quant':    { icon:'📐', parents:['Arithmetic','Advanced Maths','Calculation'], slug:'quant' },
-    'Reasoning':{ icon:'🧠', parents:['Reasoning'], slug:'reasoning' },
-    'GS':       { icon:'🌍', parents:['Polity','Economics','Geography','Ancient History','Medieval History','Modern History','Static GK','Current Affairs','Art & Culture','Biology','Physics','Chemistry','Science & Technology','Environment & Ecology'], slug:'gs' },
-    'English':  { icon:'📖', parents:['English'], slug:'english' }
+    'Quant':    { icon:'📐', parents:['Arithmetic','Advanced Maths','Calculation'], slug:'quant', container:'QUANT MOCK QUESTIONS' },
+    'Reasoning':{ icon:'🧠', parents:['Reasoning'], slug:'reasoning', container:'Reasoning' },
+    'GS':       { icon:'🌍', parents:['Polity','Economics','Geography','Ancient History','Medieval History','Modern History','Static GK','Current Affairs','Art & Culture','Biology','Physics','Chemistry','Science & Technology','Environment & Ecology'], slug:'gs', container:'GS MOCK QUESTIONS' },
+    'English':  { icon:'📖', parents:['English'], slug:'english', container:'English' }
   };
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
   function qHash(q){var s=String(q||'').toLowerCase().replace(/\s+/g,' ').trim();var h=0;for(var i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0;}return 'h'+Math.abs(h);}
@@ -14803,7 +14803,7 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     const key='spotted_'+cfg.slug;
     if(typeof db==='undefined'||!db){ toast('DB not loaded'); return; }
     let bucket=db[key];
-    if(!bucket){ bucket={ title:'📸 Spotted Questions — '+SPQ.subject, subject:SPQ.subject, timeInMinutes:0, isSpottedQuiz:true, questions:[] }; }
+    if(!bucket){ bucket={ title:'📸 Spotted Questions — '+SPQ.subject, subject:cfg.container, timeInMinutes:0, isSpottedQuiz:true, questions:[] }; }
     bucket.questions=Array.isArray(bucket.questions)?bucket.questions:[];
     const existing=new Set(bucket.questions.map(q=>q.qHash).filter(Boolean));
     let added=0,skipped=0;
