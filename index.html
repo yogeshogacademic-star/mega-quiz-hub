@@ -933,6 +933,7 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                 <div class="w-full md:w-auto flex flex-col sm:flex-row gap-3">
                     <input type="text" id="db-manager-search" oninput="clearTimeout(dbSearchTimer); dbSearchTimer = setTimeout(() => renderDBList(this.value), 250)" placeholder="Search questions or tags..." class="w-full md:w-80 px-5 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-200">
                     <button id="dirty-filter-btn" onclick="toggleDirtyFilter()" class="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50 font-black px-4 py-3 rounded-xl border border-amber-200 dark:border-amber-800/50 transition-colors uppercase tracking-widest text-[10px] shadow-sm flex-shrink-0">⚠️ Find Dirty Tags</button>
+                    <button onclick="(function(){ if(typeof window.syncTagsFromDb!=='function'){alert('Sync unavailable');return;} const r=window.syncTagsFromDb(); if(typeof saveData==='function')saveData(); if(typeof window._saveDataGlobal==='function'){window._saveDataGlobal();} if(typeof updateSRSBadge==='function')updateSRSBadge(); alert('🔄 Tags synced from Master DB →\\nSRS cards updated: '+r.srs+'\\nHistory rows updated: '+r.hist); })()" class="bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 hover:bg-teal-200 dark:hover:bg-teal-900/50 font-black px-4 py-3 rounded-xl border border-teal-200 dark:border-teal-800/50 transition-colors uppercase tracking-widest text-[10px] shadow-sm flex-shrink-0" title="Push current Master DB tags into SRS & History (use after a bulk/console tag change)">🔄 Sync Tags Everywhere</button>
                 </div>
             </div>
 
@@ -2270,6 +2271,34 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
         if (fixed > 0) console.log(`[Tag Repair] Auto-fixed ${fixed} corrupted tag(s).`);
         return fixed;
     }
+
+    // ── PERMANENT TAG PROPAGATION ─────────────────────────────────────────────
+    // db (Master DB) is the single source of truth. SRS cards (mistakesDb) and
+    // history rows each keep their OWN copy of tags, so any bulk/console change to
+    // db can leave them stale. This re-syncs every card/row's tags FROM db, matched
+    // by exact question text. The Master DB editor already propagates on each edit;
+    // this covers imports, migrations, and one-click manual re-sync.
+    window.syncTagsFromDb = function() {
+        const map = {};
+        Object.keys(db).forEach(qid => {
+            const quiz = db[qid];
+            if (quiz && Array.isArray(quiz.questions)) quiz.questions.forEach(q => { if (q && q.question) map[q.question] = q.tags || []; });
+        });
+        let srs = 0, hist = 0;
+        if (Array.isArray(mistakesDb)) mistakesDb.forEach(m => {
+            const t = map[m.question];
+            if (t && JSON.stringify(m.tags) !== JSON.stringify(t)) { m.tags = [...t]; srs++; }
+        });
+        if (Array.isArray(historyDb)) historyDb.forEach(h => {
+            if (!Array.isArray(h.reviewData)) return;
+            h.reviewData.forEach(r => {
+                const t = map[r.question];
+                if (t && JSON.stringify(r.tags) !== JSON.stringify(t)) { r.tags = [...t]; hist++; }
+            });
+        });
+        console.log(`[Tag Sync] Re-synced ${srs} SRS card(s) and ${hist} history row(s) from Master DB.`);
+        return { srs, hist };
+    };
 
     async function applyCloudData(data) {
         if (!data || !data.db || typeof data.db !== 'object') return false;
@@ -5498,6 +5527,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                                 }
                                 db[dupId] = importedData; // replace under same ID
                                 repairAllTags();
+                                if(typeof window.syncTagsFromDb==='function') window.syncTagsFromDb();
                                 saveData(); rebuildSearchCache(); renderDashboard(); updateSRSBadge();
                                 alert(`✅ Replaced! SRS cleared for "${importedData.title}". Attempt it again to re-enter fresh.`);
                                 e.target.value = ''; return;
@@ -5553,6 +5583,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
 
                         db[newId] = importedData;
                         repairAllTags();
+                        if(typeof window.syncTagsFromDb==='function') window.syncTagsFromDb();
                         saveData(); rebuildSearchCache(); renderDashboard(); 
                         alert(`✅ Imported ${importedData.questions.length} question(s) into ${targetImportSubject}!` + (dupSkipped > 0 ? `\n\n🛡️ Skipped ${dupSkipped} duplicate(s) already in the hub.` : ''));
                     }
