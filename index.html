@@ -685,7 +685,6 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                         🧠 Mastery Vault
                     </button>
                     <button onclick="openDBManager()" class="bg-gradient-to-br from-blue-500 to-cyan-600 hover:from-blue-400 hover:to-cyan-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-transform hover:-translate-y-1 border border-cyan-400 flex items-center gap-2">🗄️ Master DB</button>
-                    <button onclick="openTargetRadar()" class="bg-gradient-to-br from-rose-500 to-orange-600 hover:from-rose-400 hover:to-orange-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(244,63,94,0.4)] transition-transform hover:-translate-y-1 border border-rose-400 flex items-center gap-2">🎯 Target Radar</button>
                     <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400 flex items-center gap-2">📊 Analytics</button>
                     <button onclick="showScreen('flashcards')" class="bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(251,146,60,0.5)] transition-transform hover:-translate-y-1 border border-amber-400 flex items-center gap-2 relative overflow-hidden group">
                         <div class="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity"></div>
@@ -921,27 +920,6 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
         <div id="sc-modal-content"></div>
       </div>
     </div>
-    <div id="screen-target-radar" class="hidden max-w-[1400px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
-        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-rose-400 to-orange-500"></div>
-            
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 border-b border-slate-100 dark:border-slate-800 pb-6">
-                <div>
-                    <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] mb-3 flex items-center gap-2 transition-colors">← Back to Hub</button>
-                    <h2 class="text-3xl md:text-4xl font-black uppercase text-slate-800 dark:text-slate-100 tracking-tight leading-none">Global Target Radar</h2>
-                    <p class="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Powered directly by Master DB Tags</p>
-                </div>
-            </div>
-
-            <div id="critical-bleed-container" class="mb-10 hidden">
-                <h3 class="text-lg md:text-xl font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-rose-100 dark:border-rose-900/30 pb-2">⚠️ Critical Weaknesses (Triage Zone)</h3>
-                <div id="critical-bleed-grid" class="grid grid-cols-2 md:grid-cols-5 gap-4"></div>
-            </div>
-
-            <div id="target-radar-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
-        </div>
-    </div>
-
     <div id="screen-db-manager" class="hidden max-w-6xl mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1">
         <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 shadow-2xl border border-slate-200 dark:border-slate-800 relative overflow-hidden">
             <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 to-cyan-500"></div>
@@ -988,13 +966,23 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                 <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-3">📅 Review Forecast</div>
                 <div class="flex gap-2" id="srs-forecast-bars"></div>
             </div>
+
+            <!-- Card-Level Breakdown -->
+            <div class="mb-5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 border border-slate-200 dark:border-slate-700">
+                <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-3">🗂️ Card Levels</div>
+                <div class="flex gap-2 flex-wrap justify-between" id="srs-card-breakdown"></div>
+            </div>
             
             <div class="space-y-4">
                 <!-- Global - full width -->
                 <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 text-center shadow-inner">
                     <div class="text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-1">Master Global Quiz</div>
                     <div class="text-xs text-slate-500 dark:text-slate-400 mb-3 font-bold">Random from ALL due subjects.</div>
-                    <button onclick="launchSRSSprint('global')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all">Launch Global Sprint 25 Q (<span id="srs-global-count-modal">0</span> Due)</button>
+                    <div class="flex gap-2 justify-center mb-3">
+                        <button id="srs-global-size-25" onclick="setSRSSprintSize('global',25)" class="srs-size-active text-xs font-black px-4 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 transition-all">25 Q</button>
+                        <button id="srs-global-size-50" onclick="setSRSSprintSize('global',50)" class="text-xs font-black px-4 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 transition-all">50 Q</button>
+                    </div>
+                    <button onclick="launchSRSSprint('global')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest py-3 rounded-xl shadow-lg transition-all">Launch Global Sprint (<span id="srs-global-count-modal">0</span> Due)</button>
                 </div>
 
                 <!-- 2-col: Subject LEFT | Topic Wise RIGHT -->
@@ -1005,7 +993,11 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                         <div class="text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-1">Subject Mode</div>
                         <div class="text-xs text-slate-500 dark:text-slate-400 mb-3 font-bold">Select a subject to target.</div>
                         <select id="srs-subject-select" onchange="onSubjectSelectChange()" class="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 outline-none focus:ring-2 focus:ring-indigo-500"></select>
-                        <button id="srs-subject-launch-btn" onclick="launchSRSSprint('subject')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest py-2.5 rounded-xl shadow-lg transition-all text-xs">▶ Launch 25 Q</button>
+                        <div class="flex gap-2 justify-center mb-2">
+                            <button id="srs-subject-size-25" onclick="setSRSSprintSize('subject',25)" class="srs-size-active text-[11px] font-black px-3 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 transition-all">25</button>
+                            <button id="srs-subject-size-50" onclick="setSRSSprintSize('subject',50)" class="text-[11px] font-black px-3 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 transition-all">50</button>
+                        </div>
+                        <button id="srs-subject-launch-btn" onclick="launchSRSSprint('subject')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest py-2.5 rounded-xl shadow-lg transition-all text-xs">▶ Launch Sprint</button>
                         <button onclick="(() => { const sel = document.getElementById('srs-subject-select').value; if(!sel){alert('Select a subject first.');return;} if(confirm('Clear ALL SRS entries for ''+sel+''?')) clearSubjectSRS(sel); })()" class="w-full mt-2 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 font-black text-[9px] uppercase tracking-widest py-2 rounded-xl border border-red-200 dark:border-red-800/50 transition-all">🗑️ Clear SRS</button>
                         <button onclick="(() => { const sel = document.getElementById('srs-subject-select').value; if(!sel){alert('Select a subject first.');return;} if(confirm('Delete ALL history + SRS for ''+sel+''?')) clearSubjectHistory(sel); })()" class="w-full mt-2 bg-orange-50 hover:bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 font-black text-[9px] uppercase tracking-widest py-2 rounded-xl border border-orange-200 dark:border-orange-800/50 transition-all">🕒 Clear History+SRS</button>
                     </div>
@@ -1013,7 +1005,13 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                     <!-- RIGHT: Topic Wise SRS -->
                     <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-inner">
                         <div class="text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-1">Topic Wise SRS</div>
-                        <div class="text-xs text-slate-500 dark:text-slate-400 mb-3 font-bold">Pick a topic · max 25 Q.</div>
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="text-xs text-slate-500 dark:text-slate-400 font-bold">Tap a topic to expand.</div>
+                            <div class="flex gap-1.5">
+                                <button id="srs-topic-size-25" onclick="setSRSSprintSize('topic',25)" class="srs-size-active text-[11px] font-black px-3 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 transition-all">25</button>
+                                <button id="srs-topic-size-50" onclick="setSRSSprintSize('topic',50)" class="text-[11px] font-black px-3 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 transition-all">50</button>
+                            </div>
+                        </div>
                         <div id="srs-topic-list" class="max-h-[420px] overflow-y-auto space-y-1 pr-1">
                             <div class="text-center text-slate-400 text-sm py-4">Loading...</div>
                         </div>
@@ -1983,7 +1981,6 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
         if(updatedDb) {
             rebuildSearchCache(); saveData(); updateSRSBadge(); closeEditModal();
             if(!document.getElementById('screen-db-manager').classList.contains('hidden')) renderDBList(document.getElementById('db-manager-search').value);
-            if(!document.getElementById('screen-target-radar').classList.contains('hidden')) renderTargetRadar();
             if(!document.getElementById('search-results-container').classList.contains('hidden')) performSearch(document.getElementById('omni-search').value);
             // ── UNCONDITIONAL SCORE + CARD REFRESH ────────────────────────────────
             // Always update score banner regardless of which screen is visible.
@@ -3238,62 +3235,6 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         openLobby('quiz_topic_practice');
     };
 
-    window.openTargetRadar = () => { showScreen('target-radar'); renderTargetRadar(); };
-
-    window.renderTargetRadar = () => {
-        const grid = document.getElementById('target-radar-grid'); const bleedCont = document.getElementById('critical-bleed-container'); const bleedGrid = document.getElementById('critical-bleed-grid');
-        grid.innerHTML = ''; bleedGrid.innerHTML = '';
-        
-        let globalTopicsStats = {}; let allTopicsFlat = []; let masterMap = getMasterMap(); 
-        if (!Array.isArray(historyDb)) return; 
-
-        historyDb.forEach(h => {
-            if(h && Array.isArray(h.reviewData)) {
-                h.reviewData.forEach(rd => {
-                    let clean = masterMap[rd.question]; let activeTags = clean ? clean.tags : (Array.isArray(rd.tags) ? rd.tags : (rd.tags ? [String(rd.tags)] : []));
-                    let t1 = activeTags.length > 0 ? activeTags[0] : "Miscellaneous"; let t2 = activeTags.length > 1 ? activeTags[1] : t1; 
-                    if(!CORE_SUBJECTS.includes(t1) && t1 !== "Miscellaneous") t1 = "Legacy / Uncategorized Data";
-                    if(!globalTopicsStats[t1]) globalTopicsStats[t1] = {};
-                    if(!globalTopicsStats[t1][t2]) globalTopicsStats[t1][t2] = { c: 0, t: 0, t1: t1, t2: t2 };
-                    globalTopicsStats[t1][t2].t++; if(rd.status === 'correct') globalTopicsStats[t1][t2].c++;
-                });
-            }
-        });
-
-        Object.keys(globalTopicsStats).forEach(t1 => { Object.keys(globalTopicsStats[t1]).forEach(t2 => { allTopicsFlat.push(globalTopicsStats[t1][t2]); }); });
-
-        let criticalTopics = allTopicsFlat.filter(x => x.t >= 3 && x.t1 !== "Legacy / Uncategorized Data").sort((a,b) => { let accA = a.c / a.t; let accB = b.c / b.t; if(accA !== accB) return accA - accB; return b.t - a.t; }).slice(0, 5);
-
-        if(criticalTopics.length > 0) {
-            bleedCont.classList.remove('hidden');
-            criticalTopics.forEach(stat => {
-                let acc = Math.round((stat.c / stat.t) * 100);
-                bleedGrid.innerHTML += `<button onclick="generateTopicMock('${stat.t1.replace(/'/g, "\\'")}', '${stat.t2.replace(/'/g, "\\'")}')" class="bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 border-2 border-rose-400 p-4 rounded-2xl flex flex-col items-center justify-center text-center shadow-lg transition-transform hover:-translate-y-1"><span class="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">${stat.t1}</span><span class="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight mb-2">${stat.t2}</span><span class="text-xl font-black text-rose-600 dark:text-rose-400">${acc}%</span><span class="text-[9px] font-black text-rose-400 tracking-widest mt-1">[ ${stat.c} / ${stat.t} ]</span></button>`;
-            });
-        } else { bleedCont.classList.add('hidden'); }
-
-        Object.keys(globalTopicsStats).sort().forEach(subject => {
-            let subTopics = globalTopicsStats[subject];
-            if (subTopics && Object.keys(subTopics).length > 0) {
-                let sortedTopicKeys = Object.keys(subTopics).sort((a,b) => { let accA = subTopics[a].c / subTopics[a].t; let accB = subTopics[b].c / subTopics[b].t; if(accA !== accB) return accA - accB; return subTopics[b].t - subTopics[a].t; });
-                let pillsHTML = sortedTopicKeys.map(t => {
-                    let stat = subTopics[t]; let acc = Math.round((stat.c / stat.t) * 100);
-                    let barColor = acc >= 80 ? 'bg-emerald-500' : acc >= 50 ? 'bg-amber-500' : 'bg-red-500';
-                    let textClass = acc >= 80 ? 'text-emerald-700 dark:text-emerald-400' : acc >= 50 ? 'text-amber-700 dark:text-amber-400' : 'text-rose-700 dark:text-rose-400';
-                    let bgClass = acc >= 80 ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/50' : acc >= 50 ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50' : 'bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800/50';
-
-                    return `<div class="mb-3 p-3 rounded-xl border ${bgClass} shadow-sm hover:shadow-md transition-shadow cursor-pointer" onclick="generateTopicMock('${subject.replace(/'/g, "\\'")}', '${t.replace(/'/g, "\\'")}')" title="Practice ${t}"><div class="flex justify-between items-end mb-2"><div class="font-black ${textClass} text-[10px] sm:text-xs uppercase tracking-widest truncate pr-2">${t}</div><div class="text-[10px] font-black ${textClass} bg-white dark:bg-slate-900 px-2 py-0.5 rounded shadow-sm whitespace-nowrap">${stat.c} / ${stat.t} (${acc}%)</div></div><div class="w-full bg-white dark:bg-slate-800 rounded-full h-1.5 overflow-hidden"><div class="${barColor} h-1.5 rounded-full" style="width: ${acc}%"></div></div></div>`;
-                }).join('');
-
-                const card = document.createElement('div'); card.className = `bg-white dark:bg-slate-900/80 rounded-3xl p-6 shadow-lg border border-slate-200 dark:border-slate-800 relative overflow-hidden flex flex-col h-full`;
-                card.innerHTML = `<div class="absolute top-0 left-0 w-full h-1.5 ${getCategoryClass(subject)}"></div><div class="flex justify-between items-center pb-3 mb-4 border-b border-slate-100 dark:border-slate-800/50"><h2 class="text-xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">${subject}</h2></div><div class="flex flex-col flex-1 overflow-y-auto max-h-[350px] pr-1">${pillsHTML}</div>`;
-                grid.appendChild(card);
-            }
-        });
-
-        if(grid.innerHTML === '') grid.innerHTML = `<div class="col-span-full text-center text-slate-400 font-bold py-16 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl mt-4">No global data found. Take some quizzes to populate the radar.</div>`;
-    };
-
     function renderDashboard() {
         const grid = document.getElementById('dashboard-grid'); grid.innerHTML = '';
         let masteredCount = mistakesDb.filter(m => m.isMastered).length;
@@ -3378,68 +3319,8 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     }
 
     window.openSRSModal = () => {
-        // Build topic-wise due breakdown
-        const MATHS = ['Advanced Maths', 'Arithmetic'];
-        const getMasterMapFn = window.getMasterMap || (() => ({}));
-        const topicMasterMap = getMasterMapFn();
-        const topicGroups = {}; // key: "Subject|||GroupLabel" → [{card}]
-
-        mistakesDb.forEach(m => {
-            if (!m.srs || m.isMastered) return;
-            const clean = topicMasterMap[m.question];
-            const tags = clean ? clean.tags : (Array.isArray(m.tags) ? m.tags : []);
-            const subj = (tags[0] || m.subject || 'Other').trim();
-            const grp  = MATHS.includes(subj)
-                ? (tags[2] || tags[1] || 'General').trim()
-                : (tags[1] || 'General').trim();
-            const k = subj + '|||' + grp;
-            if (!topicGroups[k]) topicGroups[k] = { subj, grp, due: 0, total: 0 };
-            topicGroups[k].total++;
-            if (m.srs.nextReview <= Date.now()) topicGroups[k].due++;
-        });
-
-        // Render topic list
-        const listEl = document.getElementById('srs-topic-list');
-        if (listEl) {
-            const groups = Object.values(topicGroups).filter(g => g.total > 0)
-                .sort((a, b) => b.due - a.due || a.subj.localeCompare(b.subj));
-
-            if (groups.length === 0) {
-                listEl.innerHTML = '<div class="text-center text-slate-400 text-sm py-6">No SRS questions yet.<br>Complete R1 to start building your SRS queue.</div>';
-            } else {
-                // Group by subject
-                const bySubj = {};
-                groups.forEach(g => {
-                    if (!bySubj[g.subj]) bySubj[g.subj] = [];
-                    bySubj[g.subj].push(g);
-                });
-
-                listEl.innerHTML = Object.entries(bySubj).map(([subj, gs]) => {
-                    const totalDue = gs.reduce((s, g) => s + g.due, 0);
-                    const rows = gs.map(g => {
-                        const sEnc = encodeURIComponent(g.subj);
-                        const gEnc = encodeURIComponent(g.grp);
-                        const dueColor = g.due > 0 ? 'text-rose-500' : 'text-slate-400';
-                        return `<div class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
-                            <div>
-                                <span class="text-[12px] font-bold text-slate-700 dark:text-slate-300">${g.grp}</span>
-                                <span class="text-[10px] text-slate-400 ml-2">${g.total} total</span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <span class="text-[11px] font-black ${dueColor}">${g.due} due</span>
-                                <button onclick="launchTopicSRS('${sEnc}','${gEnc}')" class="bg-indigo-500 hover:bg-indigo-600 text-white text-[10px] font-black px-3 py-1.5 rounded-lg transition-colors">▶ ${Math.min(g.total, 25)}</button>
-                            </div>
-                        </div>`;
-                    }).join('');
-                    return `<div class="mb-2">
-                        <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 px-3 py-1 flex justify-between">
-                            <span>${subj}</span><span class="text-rose-400">${totalDue} due</span>
-                        </div>
-                        ${rows}
-                    </div>`;
-                }).join('');
-            }
-        }
+        renderSRSTopicList();
+        renderSRSCardBreakdown();
         let globalDue = 0; let subSelect = document.getElementById('srs-subject-select'); let launchBtn = document.getElementById('srs-subject-launch-btn'); subSelect.innerHTML = '';
         let subjectsWithDue = {}; let masterMap = getMasterMap(); 
 
@@ -3454,9 +3335,6 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         });
 
         document.getElementById('srs-global-count-modal').textContent = globalDue;
-        const globalSizeRow = document.getElementById('srs-global-size-row');
-        if(globalSizeRow) globalSizeRow.classList.toggle('hidden', globalDue < 100);
-        if(globalDue < 100 && window._srsSprintSizes) { window._srsSprintSizes['global'] = 10; const lbl = document.getElementById('srs-global-size-label'); if(lbl) lbl.textContent = '10'; }
         let hasAnyDue = false;
         // Sort subjects alphabetically for clean display
         Object.keys(subjectsWithDue).sort().forEach(sub => {
@@ -3478,39 +3356,146 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
 
     window.closeSRSModal = () => { document.getElementById('screen-srs-modal').classList.add('hidden'); };
 
-    // ── TOPIC-WISE SRS SPRINT ────────────────────────────────────
-    window.launchTopicSRS = (sEnc, gEnc) => {
+    // ── TOPIC-WISE SRS SPRINT (nested tag1 → tag2) ───────────────
+    // t2Enc empty/omitted = launch ALL due cards under that tag1 topic.
+    window.launchTopicSRS = (sEnc, t1Enc, t2Enc) => {
         const subj = decodeURIComponent(sEnc);
-        const grp  = decodeURIComponent(gEnc);
-        const MATHS = ['Advanced Maths', 'Arithmetic'];
+        const tag1 = decodeURIComponent(t1Enc);
+        const tag2 = (t2Enc !== undefined && t2Enc !== '') ? decodeURIComponent(t2Enc) : null;
         const ltsMap = (window.getMasterMap || (() => ({})))();
 
         let cards = mistakesDb.filter(m => {
             if (!m.srs || m.isMastered) return false;
-            if (m.srs.nextReview > Date.now()) return false; // ← only due cards
+            if (m.srs.nextReview > Date.now()) return false; // only due cards
             const clean = ltsMap[m.question];
             const tags = clean ? clean.tags : (Array.isArray(m.tags) ? m.tags : []);
             const mSubj = (tags[0] || m.subject || '').trim();
-            const mGrp  = MATHS.includes(mSubj)
-                ? (tags[2] || tags[1] || 'General').trim()
-                : (tags[1] || 'General').trim();
-            return mSubj === subj && mGrp === grp;
+            const mT1   = (tags[1] || 'General').trim();
+            const mT2   = (tags[2] || '(no sub-topic)').trim();
+            if (mSubj !== subj || mT1 !== tag1) return false;
+            if (tag2 !== null && mT2 !== tag2) return false;
+            return true;
         });
 
-        if (cards.length === 0) { alert(`No due cards for ${grp} right now. Check back later!`); return; }
+        if (cards.length === 0) { alert(`No due cards for ${tag2 || tag1} right now. Check back later!`); return; }
 
-        // Sort: most overdue first, then shuffle within urgency tiers
         cards.sort((a, b) => a.srs.nextReview - b.srs.nextReview);
-        const sprint = cards.slice(0, 25); // max 25
+        const size = (window._srsSprintSizes && window._srsSprintSizes.topic) || 25;
+        const sprint = cards.slice(0, size);
 
         db['quiz_srs'] = {
-            title: `🎯 ${subj} — ${grp}`,
+            title: `🎯 ${subj} — ${tag2 || tag1}`,
             subject: subj,
-            timeInMinutes: 32,
+            timeInMinutes: size,
             questions: sprint
         };
         closeSRSModal();
         openLobby('quiz_srs');
+    };
+
+    // Collapse state for the topic tree (key = subject|||tag1)
+    window._srsTopicExpanded = window._srsTopicExpanded || {};
+    window.srsToggleTopic = (encKey) => {
+        const k = decodeURIComponent(encKey);
+        window._srsTopicExpanded[k] = !window._srsTopicExpanded[k];
+        renderSRSTopicList();
+    };
+
+    // ── NESTED TOPIC TREE RENDER: Subject → tag1 (collapsible) → tag2 ──
+    window.renderSRSTopicList = () => {
+        const listEl = document.getElementById('srs-topic-list');
+        if (!listEl) return;
+        const mm = (window.getMasterMap || (() => ({})))();
+        // tree[subj][tag1] = { due,total, subs:{ tag2:{due,total} } }
+        const tree = {};
+        mistakesDb.forEach(m => {
+            if (!m.srs || m.isMastered) return;
+            const clean = mm[m.question];
+            const tags = clean ? clean.tags : (Array.isArray(m.tags) ? m.tags : []);
+            const subj = (tags[0] || m.subject || 'Other').trim();
+            const t1   = (tags[1] || 'General').trim();
+            const t2   = (tags[2] || '(no sub-topic)').trim();
+            const isDue = m.srs.nextReview <= Date.now();
+            tree[subj] = tree[subj] || {};
+            tree[subj][t1] = tree[subj][t1] || { due:0, total:0, subs:{} };
+            tree[subj][t1].total++; if(isDue) tree[subj][t1].due++;
+            tree[subj][t1].subs[t2] = tree[subj][t1].subs[t2] || { due:0, total:0 };
+            tree[subj][t1].subs[t2].total++; if(isDue) tree[subj][t1].subs[t2].due++;
+        });
+
+        const subjects = Object.keys(tree).sort((a,b)=>{
+            const da=Object.values(tree[a]).reduce((s,x)=>s+x.due,0);
+            const db_=Object.values(tree[b]).reduce((s,x)=>s+x.due,0);
+            return db_-da || a.localeCompare(b);
+        });
+        if (!subjects.length) {
+            listEl.innerHTML = '<div class="text-center text-slate-400 text-sm py-6">No SRS questions yet.<br>Complete R1 to start building your SRS queue.</div>';
+            return;
+        }
+
+        let html='';
+        subjects.forEach(subj=>{
+            const sEnc=encodeURIComponent(subj);
+            const t1s=Object.keys(tree[subj]).sort((a,b)=>tree[subj][b].due-tree[subj][a].due || a.localeCompare(b));
+            const subjDue=t1s.reduce((s,t)=>s+tree[subj][t].due,0);
+            html+=`<div class="mb-2"><div class="text-[9px] font-black uppercase tracking-widest text-slate-400 px-2 py-1 flex justify-between"><span>${subj}</span><span class="text-rose-400">${subjDue} due</span></div>`;
+            t1s.forEach(t1=>{
+                const node=tree[subj][t1];
+                const key=subj+'|||'+t1; const kEnc=encodeURIComponent(key);
+                const open=!!window._srsTopicExpanded[key];
+                const t1Enc=encodeURIComponent(t1);
+                const dueColor=node.due>0?'text-rose-500':'text-slate-400';
+                // tag1 header row — click toggles; ▶ button launches ALL due under topic
+                html+=`<div class="flex items-center justify-between px-2 py-2 rounded-lg bg-slate-100/70 dark:bg-slate-700/40 mb-1">
+                    <div onclick="srsToggleTopic('${kEnc}')" class="flex items-center gap-1.5 cursor-pointer flex-1 min-w-0">
+                        <span class="text-slate-400 text-[11px]">${open?'▾':'▸'}</span>
+                        <span class="text-[12px] font-black text-slate-700 dark:text-slate-200 truncate">${t1}</span>
+                        <span class="text-[9px] text-slate-400">${node.total}</span>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <span class="text-[11px] font-black ${dueColor}">${node.due} due</span>
+                        <button onclick="launchTopicSRS('${sEnc}','${t1Enc}')" class="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black px-2.5 py-1.5 rounded-lg transition-colors" title="All due in ${t1}">▶ all</button>
+                    </div>
+                </div>`;
+                if(open){
+                    const subs=Object.keys(node.subs).sort((a,b)=>node.subs[b].due-node.subs[a].due || a.localeCompare(b));
+                    subs.forEach(t2=>{
+                        const sub=node.subs[t2]; const t2Enc=encodeURIComponent(t2);
+                        const sc=sub.due>0?'text-rose-500':'text-slate-400';
+                        html+=`<div class="flex items-center justify-between pl-7 pr-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
+                            <div class="min-w-0"><span class="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">${t2}</span><span class="text-[9px] text-slate-400 ml-2">${sub.total}</span></div>
+                            <div class="flex items-center gap-2 shrink-0"><span class="text-[10px] font-black ${sc}">${sub.due} due</span>
+                            <button onclick="launchTopicSRS('${sEnc}','${t1Enc}','${t2Enc}')" class="bg-indigo-500 hover:bg-indigo-600 text-white text-[10px] font-black px-2.5 py-1 rounded-lg transition-colors">▶</button></div>
+                        </div>`;
+                    });
+                }
+            });
+            html+=`</div>`;
+        });
+        listEl.innerHTML=html;
+    };
+
+    // ── CARD-LEVEL BREAKDOWN: Due · ≤3d · 4–7d · 8–15d · 16–29d · Mastered ──
+    window.renderSRSCardBreakdown = () => {
+        const el = document.getElementById('srs-card-breakdown');
+        if (!el) return;
+        const now = Date.now(), DAY = 86400000;
+        let due=0, mastered=0, b3=0, b7=0, b15=0, b29=0;
+        mistakesDb.forEach(m=>{
+            if(!m.srs) return;
+            if(m.isMastered){ mastered++; return; }
+            if(m.srs.nextReview <= now){ due++; return; }
+            const days=(m.srs.nextReview - now)/DAY;
+            if(days<=3) b3++; else if(days<=7) b7++; else if(days<=15) b15++; else if(days<=29) b29++; else mastered++; // 30d+ but not flagged → treat as mastered tier
+        });
+        const chip=(label,val,cls)=>`<div class="flex flex-col items-center px-2 py-1.5 rounded-lg ${cls} min-w-[52px]"><span class="text-[14px] font-black leading-none">${val}</span><span class="text-[8px] font-black uppercase tracking-wider mt-1 opacity-80">${label}</span></div>`;
+        el.innerHTML =
+            chip('Due', due, 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300') +
+            chip('≤3d', b3, 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300') +
+            chip('4–7d', b7, 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300') +
+            chip('8–15d', b15, 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300') +
+            chip('16–29d', b29, 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300') +
+            chip('Mastered', mastered, 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300');
     };
 
     window.launchSRSSprint = (type) => {
@@ -3523,7 +3508,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
             dueQs = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now() && !m.isMastered && !recentlyGraded.has(m.question));
             // If filtering removes everything, fall back to full due list (edge case: only 1 sprint card exists)
             if(dueQs.length === 0) dueQs = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now() && !m.isMastered);
-            titleStr = "🔥 Master Global 10-Q Sprint";
+            titleStr = "🔥 Master Global SRS Sprint";
         } else {
             let sub = document.getElementById('srs-subject-select').value; if(!sub) return alert("No subjects have due questions.");
             let masterMap = getMasterMap(); 
@@ -3549,22 +3534,22 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         if(dueQs.length === 0) { alert("No questions due for this selection!"); closeSRSModal(); return; }
         // Urgency sort: 10-min penalty cards (nextReview soonest / most overdue) come first
         dueQs.sort((a, b) => a.srs.nextReview - b.srs.nextReview);
-        const sprintSize = window._srsSprintSizes ? (window._srsSprintSizes[type] || 10) : 10;
+        const sprintSize = window._srsSprintSizes ? (window._srsSprintSizes[type] || 25) : 25;
         // Take top pool (3x sprint size for variety), then shuffle and pick sprint size
         const urgentPool = dueQs.slice(0, Math.min(sprintSize * 3, dueQs.length));
         const sprintQs = window.shuffleArray(urgentPool).slice(0, sprintSize);
-        const timeLimit = sprintSize <= 10 ? 10 : 32;
+        const timeLimit = sprintSize;
         db['quiz_srs'] = { title: titleStr, subject: "Spaced Repetition", timeInMinutes: timeLimit, questions: sprintQs };
         closeSRSModal(); openLobby('quiz_srs');
     };
 
-    // Sprint size state
-    window._srsSprintSizes = { global: 10, subject: 10 };
+    // Sprint size state (25 or 50)
+    window._srsSprintSizes = { global: 25, subject: 25, topic: 25 };
 
     window.setSRSSprintSize = function(type, size) {
         window._srsSprintSizes[type] = size;
         const active = 'srs-size-active';
-        ['10','32'].forEach(s => {
+        ['25','50'].forEach(s => {
             const btn = document.getElementById('srs-'+type+'-size-'+s);
             if(btn) btn.classList.toggle(active, s == size);
         });
@@ -3575,13 +3560,6 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     window.onSubjectSelectChange = function() {
         const sel = document.getElementById('srs-subject-select');
         if(!sel || !sel.value) return;
-        // Parse due count from option text e.g. "Polity (143 Due)"
-        const match = sel.options[sel.selectedIndex]?.text.match(/\((\d+) Due\)/);
-        const dueCount = match ? parseInt(match[1]) : 0;
-        const sizeRow = document.getElementById('srs-subject-size-row');
-        if(sizeRow) sizeRow.classList.toggle('hidden', dueCount < 100);
-        // Reset to 10 when switching subjects
-        setSRSSprintSize('subject', 10);
     };
 
     window.setQuizMode = (mode) => {
@@ -4822,14 +4800,14 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     window.closeSubjectAnalysis = () => document.getElementById('screen-subject-analysis').classList.add('hidden');
 
     function showScreen(s) { 
-        ['dashboard','lobby','quiz','results','db-manager','target-radar','notes','syllabus-command','planner'].forEach(x => {
+        ['dashboard','lobby','quiz','results','db-manager','notes','syllabus-command','planner'].forEach(x => {
             const el = document.getElementById('screen-'+x);
             if(el) el.classList.add('hidden');
         }); 
         document.getElementById('screen-'+s).classList.remove('hidden');
         if(s === 'planner' && typeof window.plannerInit === 'function') window.plannerInit();
         if(s === 'dashboard') document.getElementById('dashboard-main-content').classList.remove('hidden');
-        if(s !== 'dashboard' && s !== 'db-manager' && s !== 'target-radar' && s !== 'notes') {
+        if(s !== 'dashboard' && s !== 'db-manager' && s !== 'notes') {
             document.getElementById('omni-search').value = '';
             document.getElementById('search-results-container').classList.add('hidden');
             if(s === 'planner') document.getElementById('dashboard-main-content').classList.add('hidden');
@@ -14955,6 +14933,7 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
           <button onclick="spqCopyPrompt()" style="flex:1;min-width:120px;padding:11px;background:#6366f1;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">📋 Copy Prompt</button>
           <button onclick="window.open('https://claude.ai','_blank')" style="flex:1;min-width:120px;padding:11px;background:#6366f1;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">🚀 Open Claude.ai</button>
         </div>
+        <button onclick="spqBrowse()" style="width:100%;padding:11px;background:#0e7490;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer;margin-bottom:12px">🌳 Browse Saved Questions (tree)</button>
         <textarea id="spq-json" placeholder="Paste the JSON array from Claude.ai here..." style="width:100%;height:120px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#f1f5f9;padding:10px;font-size:12px;font-family:monospace;margin-bottom:10px"></textarea>
         <button onclick="spqParse()" style="width:100%;padding:12px;background:#16a34a;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:13px;cursor:pointer;margin-bottom:12px">Parse & Review →</button>
         <div id="spq-review"></div>
@@ -15027,6 +15006,7 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
         needsRetag:norm.needsRetag,
         solution:q.solution||'',
         spottedSource:'Spotted · '+new Date().toLocaleDateString('en-IN'),
+        addedAt:Date.now(),
         qHash:h
       });
       existing.add(h); added++;
@@ -15046,6 +15026,86 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     SPQ.parsed=[];
     const mm=document.getElementById('spq-modal'); if(mm) mm.remove();
   };
+
+  /* ───────── SPOTTED TREE BROWSER ─────────
+     Collapsible tag[0]→tag[1]→tag[2] tree for the picked subject's bucket.
+     Newest question first (sorted by addedAt desc; un-stamped old ones fall to the bottom).
+     Search box + "needs-retag only" filter. Re-renders only the tree body so the search keeps focus. */
+  function spqTid(s){ try{ return 'T'+btoa(unescape(encodeURIComponent(String(s)))); }catch(e){ return 'T'+encodeURIComponent(String(s)); } }
+
+  window.spqBrowse = function(subject){
+    if(subject) SPQ.subject = subject;
+    if(!SPQ.subject){ toast('Pick a subject first'); return; }
+    SPQ._expanded   = SPQ._expanded   || {};
+    SPQ._brSearch   = SPQ._brSearch   || '';
+    SPQ._brRetag    = SPQ._brRetag    || false;
+    let m=document.getElementById('spq-browse-modal');
+    if(!m){ m=document.createElement('div'); m.id='spq-browse-modal'; document.body.appendChild(m); }
+    m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100001;display:flex;align-items:flex-start;justify-content:center;padding:12px;overflow-y:auto';
+    m.innerHTML=`<div style="background:#0f172a;border:1px solid #334155;border-radius:16px;max-width:560px;width:100%;margin:18px 0;padding:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:16px;font-weight:900;color:#f1f5f9">🌳 ${esc(SPQ.subject)} — Spotted Tree</div>
+        <button onclick="document.getElementById('spq-browse-modal').remove()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer">×</button>
+      </div>
+      <input id="spq-tree-search" oninput="spqTreeSearch(this.value)" placeholder="🔍 Search questions…" value="${esc(SPQ._brSearch)}" style="width:100%;background:#1e293b;border:1px solid #334155;border-radius:9px;color:#f1f5f9;padding:9px;font-size:12px;margin-bottom:8px;box-sizing:border-box">
+      <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#fbbf24;font-weight:800;margin-bottom:10px;cursor:pointer">
+        <input type="checkbox" ${SPQ._brRetag?'checked':''} onchange="spqTreeRetag(this.checked)"> Show only ⚠️ needs-retag
+      </label>
+      <div id="spq-tree-body"></div>
+    </div>`;
+    spqRenderTree();
+  };
+
+  function spqRenderTree(){
+    const body=document.getElementById('spq-tree-body'); if(!body) return;
+    const key='spotted_'+SPQ_SUBJECTS[SPQ.subject].slug;
+    let qs=(db[key]&&Array.isArray(db[key].questions))?db[key].questions.slice():[];
+    const search=(SPQ._brSearch||'').trim().toLowerCase();
+    if(search) qs=qs.filter(q=>(q.question||'').toLowerCase().includes(search));
+    if(SPQ._brRetag) qs=qs.filter(q=>q.needsRetag);
+    if(!qs.length){ body.innerHTML='<div style="color:#94a3b8;font-size:12px;padding:24px;text-align:center">No questions'+((search||SPQ._brRetag)?' match the filter.':' saved yet.')+'</div>'; return; }
+    // Build tag0 → tag1 → tag2 tree
+    const tree={};
+    qs.forEach(q=>{
+      const t0=(q.tags&&q.tags[0])||'(untagged)';
+      const t1=(q.tags&&q.tags[1])||'(no topic)';
+      const t2=(q.tags&&q.tags[2])||'(no sub-topic)';
+      tree[t0]=tree[t0]||{}; tree[t0][t1]=tree[t0][t1]||{}; tree[t0][t1][t2]=tree[t0][t1][t2]||[];
+      tree[t0][t1][t2].push(q);
+    });
+    const count=(obj)=>{let c=0;Object.keys(obj).forEach(k=>{const v=obj[k];c+=Array.isArray(v)?v.length:count(v);});return c;};
+    const byNew=(a,b)=>((b.addedAt||0)-(a.addedAt||0)); // newest first; old (no addedAt) sink to bottom
+    const autoOpen=!!(search||SPQ._brRetag);
+    let html='';
+    Object.keys(tree).sort().forEach(t0=>{
+      const id0=spqTid(t0); const open0=autoOpen||SPQ._expanded[id0];
+      html+=`<div style="margin-bottom:5px"><div onclick="spqTreeToggle('${id0}')" style="cursor:pointer;background:#1e293b;border-radius:8px;padding:9px 11px;font-weight:900;font-size:13px;color:#f1f5f9;display:flex;justify-content:space-between"><span>${open0?'▾':'▸'} ${esc(t0)}</span><span style="color:#64748b">${count(tree[t0])}</span></div>`;
+      if(open0) Object.keys(tree[t0]).sort().forEach(t1=>{
+        const id1=spqTid(t0+'¦'+t1); const open1=autoOpen||SPQ._expanded[id1];
+        html+=`<div style="margin-left:10px;margin-top:3px"><div onclick="spqTreeToggle('${id1}')" style="cursor:pointer;padding:7px 10px;font-weight:800;font-size:12px;color:#c4b5fd;display:flex;justify-content:space-between"><span>${open1?'▾':'▸'} ${esc(t1)}</span><span style="color:#64748b">${count(tree[t0][t1])}</span></div>`;
+        if(open1) Object.keys(tree[t0][t1]).sort().forEach(t2=>{
+          const id2=spqTid(t0+'¦'+t1+'¦'+t2); const open2=autoOpen||SPQ._expanded[id2];
+          const leaf=tree[t0][t1][t2].slice().sort(byNew);
+          html+=`<div style="margin-left:12px;margin-top:2px"><div onclick="spqTreeToggle('${id2}')" style="cursor:pointer;padding:6px 10px;font-size:11px;color:#86efac;display:flex;justify-content:space-between"><span>${open2?'▾':'▸'} ${esc(t2)}</span><span style="color:#64748b">${leaf.length}</span></div>`;
+          if(open2) leaf.forEach(q=>{
+            const correct=((q.options&&q.options.find(x=>x.correct))||{}).text||'?';
+            const flag=q.needsRetag?' <span style="color:#fbbf24">⚠️</span>':'';
+            html+=`<div style="margin-left:10px;background:#0b1220;border:1px solid #1e293b;border-radius:8px;padding:8px 10px;margin-bottom:5px">
+              <div style="font-size:11px;color:#e2e8f0;font-weight:600;line-height:1.4">${esc((q.question||'').substring(0,150))}${(q.question||'').length>150?'…':''}${flag}</div>
+              <div style="font-size:10px;color:#34d399;margin-top:3px">✓ ${esc(String(correct).substring(0,70))}</div>
+            </div>`;
+          });
+          html+='</div>';
+        });
+        html+='</div>';
+      });
+      html+='</div>';
+    });
+    body.innerHTML=html;
+  }
+  window.spqTreeToggle=function(id){ SPQ._expanded[id]=!SPQ._expanded[id]; spqRenderTree(); };
+  window.spqTreeSearch=function(v){ SPQ._brSearch=v; spqRenderTree(); };
+  window.spqTreeRetag=function(v){ SPQ._brRetag=v; spqRenderTree(); };
 
   console.log('[SPQ] Spotted Questions module loaded');
 
