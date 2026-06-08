@@ -5520,10 +5520,41 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                                 }
                             });
                         }
+
+                        // ── QUESTION-LEVEL DEDUP ──────────────────────────────────────
+                        // Drop any incoming question whose text already exists ANYWHERE in the
+                        // canonical question bank (all regular quizzes), or repeats within this file.
+                        // Spotted + Mock-Wrong buckets are staging/collection areas, so they don't block
+                        // a question from entering the real bank.
+                        let dupSkipped = 0;
+                        if (Array.isArray(importedData.questions)) {
+                            const normQ = t => String(t || '').toLowerCase().replace(/\s+/g, ' ').trim();
+                            const existing = new Set();
+                            Object.keys(db).forEach(qid => {
+                                if (qid.startsWith('spotted_') || qid.startsWith('quiz_mock_wrong_')) return;
+                                const quiz = db[qid];
+                                if (quiz && Array.isArray(quiz.questions)) quiz.questions.forEach(q => { const k = normQ(q.question); if (k) existing.add(k); });
+                            });
+                            const seenInFile = new Set();
+                            const before = importedData.questions.length;
+                            importedData.questions = importedData.questions.filter(q => {
+                                const k = normQ(q.question);
+                                if (!k) return true; // keep odd blank-text edge cases
+                                if (existing.has(k) || seenInFile.has(k)) return false; // duplicate → drop
+                                seenInFile.add(k);
+                                return true;
+                            });
+                            dupSkipped = before - importedData.questions.length;
+                            if (importedData.questions.length === 0) {
+                                alert(`⚠️ Nothing imported — all ${before} question(s) already exist in the hub.\n\nSkipped ${dupSkipped} duplicate(s).`);
+                                e.target.value = ''; return;
+                            }
+                        }
+
                         db[newId] = importedData;
                         repairAllTags();
                         saveData(); rebuildSearchCache(); renderDashboard(); 
-                        alert(`✅ Imported into ${targetImportSubject}!`);
+                        alert(`✅ Imported ${importedData.questions.length} question(s) into ${targetImportSubject}!` + (dupSkipped > 0 ? `\n\n🛡️ Skipped ${dupSkipped} duplicate(s) already in the hub.` : ''));
                     }
                 } catch(err) { alert("❌ Error: Invalid JSON file. Make sure your formatting is perfect."); }
                 e.target.value = ''; 
