@@ -5134,102 +5134,165 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     };
 
     // ── DUPLICATE SCANNER ─────────────────────────────────────────────────
+    // ── DUPLICATE-DETECTION CORE ──────────────────────────────────────────────
+    // Canonical fingerprint: two questions with the SAME fingerprint are certainly
+    // the same question (ignores case, spacing, punctuation, currency symbol,
+    // number-commas, and common math glyphs). Used by import-dedup AND the scanner.
+    window.__qFingerprint = function(text) {
+        let s = String(text || '').toLowerCase();
+        s = s.replace(/₹/g, 'rs').replace(/²/g, '2').replace(/³/g, '3')
+             .replace(/√/g, 'sqrt').replace(/×/g, 'x').replace(/[–—]/g, '-');
+        s = s.replace(/(\d),(\d)/g, '$1$2');   // 1,540 -> 1540
+        s = s.replace(/[^a-z0-9]/g, '');       // strip all non-alphanumeric
+        return s;
+    };
+    // Sorted multiset of every number in the question — the "number signature".
+    window.__qNumbers = function(text) {
+        const m = String(text || '').replace(/(\d),(\d)/g, '$1$2').match(/\d+\.?\d*/g) || [];
+        return m.map(Number).sort((a, b) => a - b).join('|');
+    };
+    // Significant word set (for fuzzy overlap).
+    window.__qWords = function(text) {
+        return new Set(String(text || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ')
+            .split(/\s+/).filter(w => w.length > 2));
+    };
+    window.__jaccard = function(a, b) {
+        if (!a.size || !b.size) return 0;
+        let inter = 0; a.forEach(w => { if (b.has(w)) inter++; });
+        return inter / (a.size + b.size - inter);
+    };
+
     window.scanDuplicates = function() {
         const btn = document.querySelector('button[onclick="scanDuplicates()"]');
         if (btn) { btn.textContent = '⏳ Scanning...'; btn.disabled = true; }
+        const fp = window.__qFingerprint, nums = window.__qNumbers, words = window.__qWords, jac = window.__jaccard;
 
-        const qMap = {};
-        let totalQs = 0;
+        const fpMap = {};   // fingerprint -> [records]
+        const all = [];     // for near-dupe pass
+        let total = 0;
         Object.entries(db).forEach(([quizId, quiz]) => {
             if (!quiz || !Array.isArray(quiz.questions) || quiz.isScRevision || quiz.isSRS || quiz.isWeakBank) return;
+            if (quizId.startsWith('spotted_') || quizId.startsWith('quiz_mock_wrong_')) return;
             quiz.questions.forEach((q, idx) => {
                 if (!q || !q.question) return;
-                const key = q.question.trim();
-                totalQs++;
-                if (!qMap[key]) qMap[key] = [];
-                qMap[key].push({ quizId, title: quiz.title || quizId, answer: q.answer, idx });
+                total++;
+                const f = fp(q.question);
+                const correct = ((q.options && q.options.find(o => o.correct)) || {}).text || '';
+                const rec = { quizId, title: quiz.title || quizId, idx, question: q.question, correct, fp: f };
+                (fpMap[f] = fpMap[f] || []).push(rec);
+                all.push({ ...rec, nums: nums(q.question), words: words(q.question) });
             });
         });
 
-        const duplicates = Object.entries(qMap).filter(([, locs]) => locs.length > 1);
-        const dupCount = duplicates.reduce((s, [, locs]) => s + locs.length - 1, 0);
-        const uniqueCount = Object.keys(qMap).length;
+        // Tier 1 — exact / formatting-variant groups
+        const exactGroups = Object.entries(fpMap).filter(([, l]) => l.length > 1)
+            .map(([f, locs]) => ({ f, locs, conflict: [...new Set(locs.map(l => fp(l.correct)))].length > 1 }));
+        // Tier 2 — likely reworded: same number signature, different fingerprint, high word overlap
+        const byNums = {};
+        all.forEach(r => { if (r.nums) (byNums[r.nums] = byNums[r.nums] || []).push(r); });
+        const nearPairs = [];
+        Object.values(byNums).forEach(g => {
+            if (g.length < 2) return;
+            for (let i = 0; i < g.length; i++) for (let j = i + 1; j < g.length; j++) {
+                if (g[i].fp === g[j].fp) continue; // exact handled in Tier 1
+                const sim = jac(g[i].words, g[j].words);
+                if (sim >= 0.6) nearPairs.push({ a: g[i], b: g[j], sim });
+            }
+        });
+        nearPairs.sort((x, y) => y.sim - x.sim);
 
         if (btn) { btn.textContent = '🔍 Scan Duplicates'; btn.disabled = false; }
-
-        if (duplicates.length === 0) {
-            alert(`✅ No duplicates found!\n\nTotal questions: ${totalQs}\nUnique: ${uniqueCount}\n\nYour hub is clean.`);
-            return;
-        }
-
-        // Check if any duplicates have DIFFERENT answers (risky to auto-remove)
-        const answerConflicts = duplicates.filter(([, locs]) => {
-            const answers = [...new Set(locs.map(l => (l.answer||'').trim()))];
-            return answers.length > 1;
-        });
-
-        // Group by quiz pairs
-        const quizPairs = {};
-        duplicates.forEach(([qText, locs]) => {
-            const pairKey = [...new Set(locs.map(l => l.title))].sort().join(' ↔ ');
-            if (!quizPairs[pairKey]) quizPairs[pairKey] = [];
-            quizPairs[pairKey].push(qText);
-        });
-
-        const topPairs = Object.entries(quizPairs)
-            .sort((a, b) => b[1].length - a[1].length)
-            .slice(0, 6);
-
-        // Sample 3 duplicates to show
-        const samples = duplicates.slice(0, 3).map(([qText, locs]) => {
-            const inConflict = locs.some((l, i) => i > 0 && (l.answer||'').trim() !== (locs[0].answer||'').trim());
-            return `"${qText.substring(0, 60)}${qText.length > 60 ? '...' : ''}"\n  Found in: ${locs.map(l => l.title).join(', ')}${inConflict ? '\n  ⚠️ DIFFERENT ANSWERS IN EACH COPY' : ''}`;
-        }).join('\n\n');
-
-        let msg = `🔍 DUPLICATE SCAN RESULTS\n\n` +
-            `Total questions: ${totalQs}\n` +
-            `Unique questions: ${uniqueCount}\n` +
-            `Duplicate entries: ${dupCount} (${Math.round(dupCount/totalQs*100)}% of hub)\n`;
-
-        if (answerConflicts.length > 0) {
-            msg += `\n⚠️ WARNING: ${answerConflicts.length} duplicate(s) have DIFFERENT ANSWERS in each copy.\nDo NOT auto-remove — manually check these first.\n`;
-        }
-
-        msg += `\nOVERLAPPING QUIZ PAIRS:\n`;
-        topPairs.forEach(([pair, qs]) => { msg += `• ${pair}: ${qs.length} shared Qs\n`; });
-
-        msg += `\nSAMPLE DUPLICATES:\n${samples}`;
-
-        if (answerConflicts.length > 0) {
-            msg += `\n\n❌ Auto-removal blocked — answer conflicts found.\nFix the ${answerConflicts.length} conflicting question(s) manually first, then re-scan.`;
-            alert(msg);
-            return;
-        }
-
-        msg += `\n\nSafe to remove? All duplicates have identical answers.\n(Keeps first occurrence in each quiz, removes repeats)`;
-
-        if (!confirm(msg)) return;
-
-        // Remove — keep first occurrence by quiz ID sort (deterministic)
-        const seen = new Set();
-        let removed = 0;
-        Object.keys(db).sort().forEach(quizId => {
-            const quiz = db[quizId];
-            if (!quiz || !Array.isArray(quiz.questions) || quiz.isScRevision || quiz.isSRS || quiz.isWeakBank) return;
-            const before = quiz.questions.length;
-            quiz.questions = quiz.questions.filter(q => {
-                if (!q || !q.question) return true;
-                const key = q.question.trim();
-                if (seen.has(key)) return false;
-                seen.add(key);
-                return true;
-            });
-            removed += before - quiz.questions.length;
-        });
-
-        saveData(); rebuildSearchCache();
-        alert(`✅ Removed ${removed} duplicate(s). Hub now has ${uniqueCount} unique questions. Synced to cloud.`);
+        window.__dupScan = { exactGroups, nearPairs, total };
+        renderDupModal();
     };
+
+    // Remove one question instance by quiz + exact text (first match in that quiz)
+    window.__dupRemove = function(quizId, qText) {
+        const quiz = db[quizId];
+        if (!quiz || !Array.isArray(quiz.questions)) return false;
+        const i = quiz.questions.findIndex(q => q && q.question === qText);
+        if (i === -1) return false;
+        quiz.questions.splice(i, 1);
+        return true;
+    };
+
+    window.__dupRemoveExtras = function() {
+        const groups = (window.__dupScan && window.__dupScan.exactGroups) || [];
+        const removable = groups.filter(g => !g.conflict);
+        if (!removable.length) { alert('No safe groups to auto-remove (answer conflicts must be fixed by hand).'); return; }
+        if (!confirm(`Remove duplicate copies from ${removable.length} group(s)? Keeps the first copy of each, deletes the rest. (${groups.length - removable.length} group(s) with answer conflicts are left untouched.)`)) return;
+        let removed = 0;
+        removable.forEach(g => {
+            // keep locs[0], remove the rest
+            for (let k = 1; k < g.locs.length; k++) { if (window.__dupRemove(g.locs[k].quizId, g.locs[k].question)) removed++; }
+        });
+        saveData(); rebuildSearchCache(); if (window.syncTagsFromDb) window.syncTagsFromDb();
+        if (window._saveDataGlobal) window._saveDataGlobal();
+        alert(`✅ Removed ${removed} duplicate copy(ies). Re-scanning...`);
+        scanDuplicates();
+    };
+
+    window.__dupRemoveOne = function(quizId, qTextEnc) {
+        const qText = decodeURIComponent(qTextEnc);
+        if (window.__dupRemove(quizId, qText)) {
+            saveData(); rebuildSearchCache(); if (window.syncTagsFromDb) window.syncTagsFromDb();
+            if (window._saveDataGlobal) window._saveDataGlobal();
+            scanDuplicates();
+        }
+    };
+
+    function renderDupModal() {
+        const { exactGroups, nearPairs, total } = window.__dupScan;
+        const dupCopies = exactGroups.reduce((s, g) => s + g.locs.length - 1, 0);
+        const conflicts = exactGroups.filter(g => g.conflict).length;
+        let m = document.getElementById('dup-scan-modal');
+        if (!m) { m = document.createElement('div'); m.id = 'dup-scan-modal'; document.body.appendChild(m); }
+        m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100002;display:flex;align-items:flex-start;justify-content:center;padding:12px;overflow-y:auto';
+        const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+        let exactHtml = '';
+        if (!exactGroups.length) exactHtml = '<div style="color:#10b981;font-size:12px;padding:8px">✅ No exact or formatting-variant duplicates.</div>';
+        else {
+            exactHtml = exactGroups.slice(0, 40).map(g => {
+                const head = esc(g.locs[0].question.slice(0, 110));
+                const where = g.locs.map(l => esc(l.title)).join(' · ');
+                return `<div style="background:#0b1220;border:1px solid #1e293b;border-radius:8px;padding:8px 10px;margin-bottom:6px">
+                    <div style="font-size:11px;color:#e2e8f0;font-weight:600">${head}${g.locs[0].question.length>110?'…':''}</div>
+                    <div style="font-size:10px;color:#64748b;margin-top:3px">${g.locs.length} copies · ${where}${g.conflict?' · <span style="color:#f59e0b">⚠️ DIFFERENT ANSWERS</span>':''}</div>
+                </div>`;
+            }).join('');
+            if (exactGroups.length > 40) exactHtml += `<div style="font-size:10px;color:#64748b;padding:4px">…and ${exactGroups.length-40} more groups</div>`;
+        }
+
+        let nearHtml = '';
+        if (!nearPairs.length) nearHtml = '<div style="color:#10b981;font-size:12px;padding:8px">✅ No likely-reworded near-duplicates.</div>';
+        else {
+            nearHtml = nearPairs.slice(0, 40).map(p => {
+                const aEnc = encodeURIComponent(p.a.question), bEnc = encodeURIComponent(p.b.question);
+                return `<div style="background:#0b1220;border:1px solid #2a2113;border-radius:8px;padding:8px 10px;margin-bottom:6px">
+                    <div style="font-size:9px;color:#f59e0b;font-weight:800;margin-bottom:4px">${Math.round(p.sim*100)}% word match · same numbers</div>
+                    <div style="font-size:11px;color:#e2e8f0;margin-bottom:3px"><b>A</b> [${esc(p.a.title)}]: ${esc(p.a.question.slice(0,100))}${p.a.question.length>100?'…':''} <button onclick="__dupRemoveOne('${p.a.quizId}','${aEnc}')" style="background:#7f1d1d;color:#fff;border:none;border-radius:5px;font-size:9px;padding:2px 6px;cursor:pointer;margin-left:4px">remove A</button></div>
+                    <div style="font-size:11px;color:#e2e8f0"><b>B</b> [${esc(p.b.title)}]: ${esc(p.b.question.slice(0,100))}${p.b.question.length>100?'…':''} <button onclick="__dupRemoveOne('${p.b.quizId}','${bEnc}')" style="background:#7f1d1d;color:#fff;border:none;border-radius:5px;font-size:9px;padding:2px 6px;cursor:pointer;margin-left:4px">remove B</button></div>
+                </div>`;
+            }).join('');
+            if (nearPairs.length > 40) nearHtml += `<div style="font-size:10px;color:#64748b;padding:4px">…and ${nearPairs.length-40} more pairs</div>`;
+        }
+
+        m.innerHTML = `<div style="background:#0f172a;border:1px solid #334155;border-radius:16px;max-width:600px;width:100%;margin:18px 0;padding:16px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <div style="font-size:16px;font-weight:900;color:#f1f5f9">🔍 Duplicate Scan</div>
+                <button onclick="document.getElementById('dup-scan-modal').remove()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer">×</button>
+            </div>
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:12px">Scanned <b style="color:#e2e8f0">${total}</b> questions · <b style="color:#f87171">${dupCopies}</b> exact duplicate copies · <b style="color:#fbbf24">${nearPairs.length}</b> likely-reworded pairs</div>
+
+            <div style="font-size:12px;font-weight:900;color:#f87171;margin-bottom:6px">TIER 1 · Exact / formatting duplicates</div>
+            <div style="max-height:220px;overflow-y:auto;margin-bottom:8px">${exactHtml}</div>
+            ${exactGroups.length ? `<button onclick="__dupRemoveExtras()" style="width:100%;background:#dc2626;color:#fff;border:none;border-radius:9px;font-weight:900;font-size:12px;padding:10px;cursor:pointer;margin-bottom:14px">🗑️ Remove duplicate copies (keep 1 each)${conflicts?` — ${conflicts} conflict group(s) skipped`:''}</button>` : ''}
+
+            <div style="font-size:12px;font-weight:900;color:#fbbf24;margin-bottom:6px">TIER 2 · Likely reworded (review — never auto-deleted)</div>
+            <div style="max-height:240px;overflow-y:auto">${nearHtml}</div>
+        </div>`;
+    }
 
     window.factoryReset = async () => {
         requireAuth(async () => {
@@ -5558,17 +5621,17 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                         // a question from entering the real bank.
                         let dupSkipped = 0;
                         if (Array.isArray(importedData.questions)) {
-                            const normQ = t => String(t || '').toLowerCase().replace(/\s+/g, ' ').trim();
+                            const fp = (window.__qFingerprint) ? window.__qFingerprint : (t => String(t||'').toLowerCase().replace(/\s+/g,' ').trim());
                             const existing = new Set();
                             Object.keys(db).forEach(qid => {
                                 if (qid.startsWith('spotted_') || qid.startsWith('quiz_mock_wrong_')) return;
                                 const quiz = db[qid];
-                                if (quiz && Array.isArray(quiz.questions)) quiz.questions.forEach(q => { const k = normQ(q.question); if (k) existing.add(k); });
+                                if (quiz && Array.isArray(quiz.questions)) quiz.questions.forEach(q => { const k = fp(q.question); if (k) existing.add(k); });
                             });
                             const seenInFile = new Set();
                             const before = importedData.questions.length;
                             importedData.questions = importedData.questions.filter(q => {
-                                const k = normQ(q.question);
+                                const k = fp(q.question);
                                 if (!k) return true; // keep odd blank-text edge cases
                                 if (existing.has(k) || seenInFile.has(k)) return false; // duplicate → drop
                                 seenInFile.add(k);
