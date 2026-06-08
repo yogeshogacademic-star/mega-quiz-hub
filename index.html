@@ -9823,9 +9823,13 @@ window.scStartRevision = (key, rev) => {
     const srsMap = new Map();
     mistakesDb.forEach(m => { if (m.question) srsMap.set(m.question, m); });
 
-    // AUTO-RECONSTRUCT r1Progress from history if it was wiped by sync
-    // History entries like "(1–25 of 86)", "(26–50 of 86)" tell us exactly how far we got
-    if (!t.r1Progress || t.r1Progress === 0) {
+    // AUTO-RECONSTRUCT r1Progress from history if it was wiped by sync.
+    // GUARD: only fire when R1 is NOT yet marked done (t.r1 is false/null).
+    // When t.r1 = true AND r1Progress = 0, that means R1 was genuinely completed
+    // and reset by scMarkR1Done — this is the normal state after all cycles done.
+    // Reconstructing here would make doneSoFar=92 and the sync-conflict path would
+    // slice(92) on a 25-new-question array → empty → "no questions found" bug.
+    if ((!t.r1Progress || t.r1Progress === 0) && !t.r1) {
       const r1Entries = (historyDb||[]).filter(h =>
         h.title && h.title.includes(t.name) &&
         (h.title.includes('R1 Revision') || h.title.includes('R1 revision'))
