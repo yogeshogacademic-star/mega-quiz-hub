@@ -2365,7 +2365,13 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                 const cloud = cloudMap.get(q);
                 if (!local) { merged.push(cloud); return; }
                 if (!cloud) { merged.push(local); return; }
-                // Primary: pick card with LATER nextReview — more recently reviewed on any device
+                // PRIMARY (new): most-recent-action wins — handles the failure-penalty case
+                // where a wrong answer creates an EARLIER nextReview. Backward compatible:
+                // old cards have no updatedAt (both 0) → falls through to the nextReview rule.
+                const localUpd = (local.srs && local.srs.updatedAt) || 0;
+                const cloudUpd = (cloud.srs && cloud.srs.updatedAt) || 0;
+                if (localUpd || cloudUpd) { merged.push(localUpd >= cloudUpd ? local : cloud); return; }
+                // Secondary: pick card with LATER nextReview — more recently reviewed on any device
                 const localNext = (local.srs && local.srs.nextReview) || 0;
                 const cloudNext = (cloud.srs && cloud.srs.nextReview) || 0;
                 if (localNext > cloudNext) { merged.push(local); return; }
@@ -2380,6 +2386,9 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
             merged.forEach(m => {
                 const ex = finalMap.get(m.question);
                 if (!ex) { finalMap.set(m.question, m); return; }
+                const exUpd = (ex.srs && ex.srs.updatedAt) || 0;
+                const mUpd  = (m.srs && m.srs.updatedAt)  || 0;
+                if (exUpd || mUpd) { if (mUpd > exUpd) finalMap.set(m.question, m); return; }
                 const exNext = (ex.srs && ex.srs.nextReview) || 0;
                 const mNext  = (m.srs && m.srs.nextReview)  || 0;
                 if (mNext > exNext) finalMap.set(m.question, m);
@@ -3436,7 +3445,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
 
         if (cards.length === 0) { alert(`No due cards for ${tag2 || tag1} right now. Check back later!`); return; }
 
-        cards.sort((a, b) => a.srs.nextReview - b.srs.nextReview);
+        cards.sort((a, b) => (window.srsReviewsRemaining(a) - window.srsReviewsRemaining(b)) || (a.srs.nextReview - b.srs.nextReview));
         const size = (window._srsSprintSizes && window._srsSprintSizes.topic) || 25;
         const sprint = cards.slice(0, size);
 
@@ -3456,6 +3465,54 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         const k = decodeURIComponent(encKey);
         window._srsTopicExpanded[k] = !window._srsTopicExpanded[k];
         renderSRSTopicList();
+    };
+
+    // ── PER-SUBTOPIC INSPECTOR: click a sub-topic to see each question, its interval,
+    //    and a Mastered / Active / All filter. Read-only — never changes any card. ──
+    window._srsInspectExpanded = window._srsInspectExpanded || {};
+    window._srsInspectFilter = window._srsInspectFilter || {};
+    window.srsInspectToggle = (encKey) => {
+        const k = decodeURIComponent(encKey);
+        window._srsInspectExpanded[k] = !window._srsInspectExpanded[k];
+        renderSRSTopicList();
+    };
+    window.srsSetInspectFilter = (encKey, f) => {
+        const k = decodeURIComponent(encKey);
+        window._srsInspectFilter[k] = f;
+        renderSRSTopicList();
+    };
+    window.srsRenderInspector = (subj, t1, t2) => {
+        const mm = (window.getMasterMap || (() => ({})))();
+        const key = subj + '|||' + t1 + '|||' + t2;
+        const kEnc = encodeURIComponent(key);
+        const filter = window._srsInspectFilter[key] || 'active';
+        const cards = mistakesDb.filter(m => {
+            if (!m || !m.srs) return false;
+            const clean = mm[m.question];
+            const tags = clean ? clean.tags : (Array.isArray(m.tags) ? m.tags : []);
+            return (tags[0] || m.subject || 'Other').trim() === subj
+                && (tags[1] || 'General').trim() === t1
+                && (tags[2] || '(no sub-topic)').trim() === t2;
+        });
+        const active = cards.filter(c => !c.isMastered);
+        const mastered = cards.filter(c => c.isMastered);
+        let show = filter === 'mastered' ? mastered : filter === 'all' ? cards : active;
+        show = show.slice().sort((a, b) =>
+            (window.srsReviewsRemaining(a) - window.srsReviewsRemaining(b)) || ((a.srs.nextReview || 0) - (b.srs.nextReview || 0)));
+        const fbtn = (f, label, n) => `<button onclick="srsSetInspectFilter('${kEnc}','${f}')" class="text-[9px] font-black px-2 py-1 rounded-md transition-colors ${filter === f ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}">${label} ${n}</button>`;
+        const rows = show.map(c => {
+            const st = window.srsCardStatusLabel(c);
+            let preview = (c.question || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+            const long = preview.length > 72; preview = preview.slice(0, 72);
+            return `<div class="flex items-start justify-between gap-2 py-1.5 px-2 border-b border-slate-100 dark:border-slate-800/60">
+                <span class="text-[10px] text-slate-600 dark:text-slate-300 leading-snug flex-1">${preview}${long ? '…' : ''}</span>
+                <span class="text-[9px] font-black shrink-0 ${st.cls}">${st.label}</span>
+            </div>`;
+        }).join('') || '<div class="text-[10px] text-slate-400 py-3 text-center">No questions in this filter.</div>';
+        return `<div class="ml-7 mb-2 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 p-2">
+            <div class="flex gap-1.5 mb-2">${fbtn('active', 'Active', active.length)}${fbtn('mastered', 'Mastered', mastered.length)}${fbtn('all', 'All', cards.length)}</div>
+            <div class="max-h-72 overflow-y-auto">${rows}</div>
+        </div>`;
     };
 
     // ── NESTED TOPIC TREE RENDER: Subject → tag1 (collapsible) → tag2 ──
@@ -3519,11 +3576,17 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                     subs.forEach(t2=>{
                         const sub=node.subs[t2]; const t2Enc=encodeURIComponent(t2);
                         const sc=sub.due>0?'text-rose-500':'text-slate-400';
+                        const inspKey=subj+'|||'+t1+'|||'+t2; const inspEnc=encodeURIComponent(inspKey);
+                        const inspOpen=!!window._srsInspectExpanded[inspKey];
                         html+=`<div class="flex items-center justify-between pl-7 pr-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
-                            <div class="min-w-0"><span class="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">${t2}</span><span class="text-[9px] text-slate-400 ml-2">${sub.total}</span></div>
+                            <div onclick="srsInspectToggle('${inspEnc}')" class="min-w-0 flex items-center gap-1.5 cursor-pointer flex-1" title="Tap to inspect questions">
+                                <span class="text-slate-400 text-[10px]">${inspOpen?'▾':'▸'}</span>
+                                <span class="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">${t2}</span>
+                                <span class="text-[9px] text-slate-400 ml-1">${sub.total}</span>
+                            </div>
                             <div class="flex items-center gap-2 shrink-0"><span class="text-[10px] font-black ${sc}">${sub.due} due</span>
                             <button onclick="launchTopicSRS('${sEnc}','${t1Enc}','${t2Enc}')" class="bg-indigo-500 hover:bg-indigo-600 text-white text-[10px] font-black px-2.5 py-1 rounded-lg transition-colors">▶</button></div>
-                        </div>`;
+                        </div>${inspOpen ? srsRenderInspector(subj, t1, t2) : ''}`;
                     });
                 }
             });
@@ -3590,7 +3653,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
 
         if(dueQs.length === 0) { alert("No questions due for this selection!"); closeSRSModal(); return; }
         // Urgency sort: 10-min penalty cards (nextReview soonest / most overdue) come first
-        dueQs.sort((a, b) => a.srs.nextReview - b.srs.nextReview);
+        dueQs.sort((a, b) => (window.srsReviewsRemaining(a) - window.srsReviewsRemaining(b)) || (a.srs.nextReview - b.srs.nextReview));
         const sprintSize = window._srsSprintSizes ? (window._srsSprintSizes[type] || 25) : 25;
         // Take top pool (3x sprint size for variety), then shuffle and pick sprint size
         const urgentPool = dueQs.slice(0, Math.min(sprintSize * 3, dueQs.length));
@@ -3738,6 +3801,44 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         });
         if(inList) out+='</div>';
         return anyStmt ? out : raw;
+    };
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SRS TWO-TRACK SCHEDULE (new model)
+    //   Track A = R1-CORRECT  → reviews at ~day 7, ~day 14, then MASTERED  (2 steps)
+    //   Track B = R1-WRONG    → reviews at day 3, ~day 10, ~day 21, then MASTERED (3 steps)
+    //   Intervals are deltas to the NEXT review; fuzz lands them in each other's gaps.
+    //   Fuzz is applied ONCE at scheduling time and baked into nextReview, so every
+    //   device agrees on the date (no per-render recompute = no cross-device drift).
+    // ─────────────────────────────────────────────────────────────────────────
+    window.SRS_TRACKS = {
+        A: [ { base: 7, fuzz: 1 }, { base: 7, fuzz: 2 } ],                 // day 7±1, then +7 (±2) ⇒ ~day14
+        B: [ { base: 3, fuzz: 0 }, { base: 7, fuzz: 1 }, { base: 11, fuzz: 1 } ] // day 3, +7(±1)⇒~10, +11(±1)⇒~21
+    };
+    window.srsFuzz = function(base, fuzz) {
+        if (!fuzz) return base;
+        return base + (Math.floor(Math.random() * (2 * fuzz + 1)) - fuzz);
+    };
+    const SRS_DAY = 24 * 60 * 60 * 1000;
+
+    // Reviews remaining until a card is MASTERED — lower = closer to done.
+    // Used to order sprints "near-mastered first" so the queue shrinks fastest.
+    window.srsReviewsRemaining = function(m) {
+        const s = (m && m.srs) || {};
+        if (m && m.isMastered) return 0;
+        if (s.track && window.SRS_TRACKS[s.track]) return Math.max(0, window.SRS_TRACKS[s.track].length - (s.step || 0));
+        // legacy cards: higher interval = closer to mastery (masters at interval ≥ 30)
+        const iv = s.interval || 1;
+        if (iv >= 15) return 1; if (iv >= 7) return 2; return 3;
+    };
+    // Human-readable status for the inspector: "DUE · A·1/2", "5d · B·2/3", "✓ Mastered"
+    window.srsCardStatusLabel = function(m) {
+        const now = Date.now(), DAY = 86400000, s = (m && m.srs) || {};
+        if (m && m.isMastered) return { label: '✓ Mastered', cls: 'text-emerald-500' };
+        const trackLbl = s.track ? `${s.track}·${(s.step || 0) + 1}/${(window.SRS_TRACKS[s.track] || []).length}` : 'legacy';
+        if ((s.nextReview || 0) <= now) return { label: `DUE · ${trackLbl}`, cls: 'text-rose-500' };
+        const d = Math.ceil(((s.nextReview || 0) - now) / DAY);
+        return { label: `${d}d · ${trackLbl}`, cls: 'text-slate-400' };
     };
 
     window.togglePause = () => {
@@ -3932,39 +4033,27 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                 if (mistIdx === -1) {
                     // New question in R1
                     if (status === 'correct') {
-                        // R1 correct → enter SRS @ 3 days
+                        // R1 CORRECT → enter SRS on TRACK A (7±1 → 14±2 → mastered)
                         let newCard = JSON.parse(JSON.stringify(q));
                         newCard.subject = assignedSubject;
-                        const _entryInterval = 4 + Math.random() * 3; // Days 4–7 random spread
-                        newCard.srs = { reps: 1, ease: 2.5, interval: Math.round(_entryInterval * 10) / 10, nextReview: Date.now() + (_entryInterval * 24 * 60 * 60 * 1000) };
+                        const _d = window.srsFuzz(window.SRS_TRACKS.A[0].base, window.SRS_TRACKS.A[0].fuzz); // ~7 days
+                        newCard.srs = { track: 'A', step: 0, reps: 0, ease: 2.5, interval: _d, nextReview: Date.now() + (_d * SRS_DAY), updatedAt: Date.now() };
+                        newCard.isMastered = false;
+                        mistakesDb.push(newCard);
+                    } else {
+                        // R1 WRONG → enter SRS on TRACK B (3 → 10±1 → 21±1 → mastered)
+                        // (Still also queued into r1Wrong for the manual R2/R3 drilling — independent.)
+                        let newCard = JSON.parse(JSON.stringify(q));
+                        newCard.subject = assignedSubject;
+                        const _d = window.srsFuzz(window.SRS_TRACKS.B[0].base, window.SRS_TRACKS.B[0].fuzz); // 3 days (fuzz 0)
+                        newCard.srs = { track: 'B', step: 0, reps: 0, ease: 2.5, interval: _d, nextReview: Date.now() + (_d * SRS_DAY), updatedAt: Date.now() };
                         newCard.isMastered = false;
                         mistakesDb.push(newCard);
                     }
-                    // R1 wrong → DON'T enter SRS yet!
-                    // Goes to R2/R3/R4 first. Enters SRS after R4.
-                } else if (!mistakesDb[mistIdx].isMastered) {
-                    // Already in SRS from previous cycle - update
-                    if (status === 'correct') {
-                        let m = mistakesDb[mistIdx];
-                        m.srs.reps += 1;
-                        if (m.srs.reps === 1)      m.srs.interval = 3;
-                        else if (m.srs.reps === 2) m.srs.interval = 7;
-                        else                       m.srs.interval = Math.ceil(m.srs.interval * m.srs.ease);
-                        m.srs.ease = Math.min(3.0, m.srs.ease + 0.1);
-                        m.srs.nextReview = Date.now() + (m.srs.interval * 24 * 60 * 60 * 1000);
-                        if (m.srs.interval >= 30) m.isMastered = true;
-                    } else {
-                        mistakesDb[mistIdx].srs.interval = 1;
-                        mistakesDb[mistIdx].srs.ease = Math.max(1.3, mistakesDb[mistIdx].srs.ease - 0.2);
-                        mistakesDb[mistIdx].srs.nextReview = Date.now() + (10 * 60 * 1000);
-                        mistakesDb[mistIdx].isMastered = false;
-                    }
-                } else if (status !== 'correct') {
-                    // Was mastered but got WRONG → demote, keep reps history
-                    mistakesDb[mistIdx].srs.interval = 3;
-                    mistakesDb[mistIdx].srs.ease = Math.max(1.3, mistakesDb[mistIdx].srs.ease - 0.2);
-                    mistakesDb[mistIdx].srs.nextReview = Date.now() + (10 * 60 * 1000);
-                    mistakesDb[mistIdx].isMastered = false;
+                } else {
+                    // Already in SRS (Track A/B or legacy) and re-encountered in R1 → grade through
+                    // the unified engine (track-aware for new cards, legacy schedule for old ones).
+                    autoGradeSRS(q.question, status === 'correct' ? 'correct' : 'wrong');
                 }
                 // Mastered + correct → leave untouched (no regression)
             }
@@ -4340,6 +4429,38 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         let m = mistakesDb[mistIdx];
         if (!m.srs) m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() };
 
+        // ── NEW TWO-TRACK CARDS (have srs.track) ──────────────────────────────
+        if (m.srs.track && window.SRS_TRACKS[m.srs.track]) {
+            const sched = window.SRS_TRACKS[m.srs.track];
+            if (status === 'correct') {
+                const nextStep = (m.srs.step || 0) + 1;
+                if (nextStep >= sched.length) {
+                    // Passed the final review → MASTERED
+                    m.srs.step = nextStep;
+                    m.srs.reps = nextStep;
+                    m.srs.interval = 999;
+                    m.srs.nextReview = Date.now() + (365 * SRS_DAY);
+                    m.isMastered = true;
+                } else {
+                    const days = window.srsFuzz(sched[nextStep].base, sched[nextStep].fuzz);
+                    m.srs.step = nextStep;
+                    m.srs.reps = nextStep;
+                    m.srs.interval = days;
+                    m.srs.nextReview = Date.now() + (days * SRS_DAY);
+                    m.isMastered = false;
+                }
+            } else {
+                // Wrong/skipped → SHORT PENALTY: retry the same step tomorrow (step unchanged)
+                m.srs.interval = 1;
+                m.srs.nextReview = Date.now() + (1 * SRS_DAY);
+                m.isMastered = false;
+            }
+            m.srs.updatedAt = Date.now();
+            mistakesDb[mistIdx] = m;
+            return m;
+        }
+
+        // ── LEGACY CARDS (no track — pre-existing SRS cards) ──────────────────
         if (status === 'correct') {
             m.srs.reps += 1;
             if (m.srs.reps === 1)      m.srs.interval = 3;
@@ -4348,8 +4469,6 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
             m.srs.ease = Math.min(3.0, m.srs.ease + 0.1);
             m.srs.nextReview = Date.now() + (m.srs.interval * 24 * 60 * 60 * 1000);
             if (m.srs.interval >= 30) m.isMastered = true;
-            // NOTE: Sprint correct does NOT remove from r1Wrong/r2Wrong/r3Wrong
-            // R1/R2/R3/R4 cycles are independent from SRS sprints
         } else {
             // Wrong or Skipped — 10-minute penalty, keep reps so interval doesn't regress to scratch
             m.srs.interval = 1;
@@ -4357,7 +4476,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
             m.srs.nextReview = Date.now() + (10 * 60 * 1000);
             m.isMastered = false;
         }
-
+        m.srs.updatedAt = Date.now();
         mistakesDb[mistIdx] = m;
         return m;
     }
@@ -8962,6 +9081,9 @@ function scInitDefault() {
     if (t.r2QsTotal === undefined)              t.r2QsTotal = 0;
     if (t.r3QsTotal === undefined)              t.r3QsTotal = 0;
     if (t.r4QsTotal === undefined)              t.r4QsTotal = 0;
+    // R4 REMOVED: any topic that finished R3 is now cycle-complete. Close it so the UI
+    // doesn't dangle on a non-existent R4 step. (r4 flag retained as the "fully done" marker.)
+    if (t.r3 && !t.r4) { t.r4 = true; if (!t.r4Date) t.r4Date = t.r3Date || scToday(); }
   });
   scSave();
 }
@@ -8994,7 +9116,7 @@ function scGetNextRevLabel(t) {
   if (!t.r1) return 'R1';
   if (!t.r2) return 'R2';
   if (!t.r3) return 'R3';
-  return 'R4';
+  return null;
 }
 
 function scGetQsDone(topicName, subject, subTopicName) {
@@ -9214,7 +9336,7 @@ function scRenderTracker() {
   const chapters = chaptersForSubject;
 
   let html = `<div class="flex gap-2 flex-wrap mb-3 pb-3 border-b border-slate-200 dark:border-slate-800">${tabsHtml}</div>
-  <div class="grid gap-0 mb-1 px-2" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 46px 46px 72px 52px 52px 52px 28px">
+  <div class="grid gap-0 mb-1 px-2" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 46px 72px 52px 52px 52px 28px">
     <div></div>
     <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 pl-2">Topic</div>
     <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Status</div>
@@ -9222,7 +9344,6 @@ function scRenderTracker() {
     <div class="text-[9px] font-black uppercase tracking-widest text-blue-400 text-center">R1</div>
     <div class="text-[9px] font-black uppercase tracking-widest text-emerald-400 text-center">R2</div>
     <div class="text-[9px] font-black uppercase tracking-widest text-amber-400 text-center">R3</div>
-    <div class="text-[9px] font-black uppercase tracking-widest text-purple-400 text-center">R4</div>
     <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Next Due</div>
     <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Total</div>
     <div class="text-[9px] font-black uppercase tracking-widest text-emerald-400 text-center">SRS</div>
@@ -9336,7 +9457,7 @@ function scRenderTracker() {
       </div>`;
 
       html += `
-        <div class="grid items-center gap-0 px-2 py-1 min-h-[46px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 46px 46px 72px 52px 52px 52px 28px">
+        <div class="grid items-center gap-0 px-2 py-1 min-h-[46px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 46px 72px 52px 52px 52px 28px">
           <div class="text-slate-300 dark:text-slate-600 text-[10px] text-center">${t.priority ? '⭐' : ''}</div>
           <div class="flex items-center gap-0.5 pl-2">
             <span class="text-[12px] font-semibold ${status === 'done' ? 'line-through text-slate-400' : ''}">${t.name}</span>
@@ -9344,12 +9465,11 @@ function scRenderTracker() {
           </div>
           <div class="flex justify-center"><span class="text-[8px] font-black px-1.5 py-0.5 rounded-full ${statusClass}">${statusLabel}</span></div>
           ${hasSubTopics 
-            ? `<div class="flex items-center justify-center text-[10px] text-blue-500 dark:text-blue-400 font-bold" style="grid-column: span 5">📊 by sub-topic</div>` 
+            ? `<div class="flex items-center justify-center text-[10px] text-blue-500 dark:text-blue-400 font-bold" style="grid-column: span 4">📊 by sub-topic</div>` 
             : `<div class="flex justify-center">${lecTick}</div>
           <div class="flex flex-col items-center">${scRevTick(t, 'r1', t.r1, daysUntil, revLabel)}</div>
           <div class="flex flex-col items-center">${scRevTick(t, 'r2', t.r2, daysUntil, revLabel)}</div>
-          <div class="flex flex-col items-center">${scRevTick(t, 'r3', t.r3, daysUntil, revLabel)}</div>
-          <div class="flex flex-col items-center">${scRevTick(t, 'r4', t.r4, daysUntil, revLabel)}</div>`}
+          <div class="flex flex-col items-center">${scRevTick(t, 'r3', t.r3, daysUntil, revLabel)}</div>`}
           <div class="text-center">${dueHtml}</div>
           <div class="flex items-center justify-center">${_colTotal}</div>
           <div class="flex items-center justify-center">${_colSRS}</div>
@@ -9392,7 +9512,7 @@ function scRenderTracker() {
           else if (!st.r1) subRevLabel = 'R1';
           else if (!st.r2) subRevLabel = 'R2';
           else if (!st.r3) subRevLabel = 'R3';
-          else if (!st.r4) subRevLabel = 'R4';
+          else subRevLabel = null;
           
           const subDaysUntil = subRevLabel && st[subRevLabel.toLowerCase()+'Date'] 
             ? Math.floor((new Date(st[subRevLabel.toLowerCase()+'Date'])-new Date(todayStr))/(1000*60*60*24)) 
@@ -9434,7 +9554,7 @@ function scRenderTracker() {
           </div>`;
           
           html += `
-        <div class="grid items-center gap-0 px-2 py-1 min-h-[40px] bg-slate-50 dark:bg-slate-800/40 border-l border-r border-b border-slate-100 dark:border-slate-800" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 46px 46px 72px 52px 52px 52px 28px">
+        <div class="grid items-center gap-0 px-2 py-1 min-h-[40px] bg-slate-50 dark:bg-slate-800/40 border-l border-r border-b border-slate-100 dark:border-slate-800" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 46px 72px 52px 52px 52px 28px">
           <div class="text-slate-300 dark:text-slate-600 text-[10px] text-center">└</div>
           <div class="flex items-center gap-0.5 pl-4">
             <span class="text-[11px] text-slate-600 dark:text-slate-400">${st.name}</span>
@@ -9444,7 +9564,6 @@ function scRenderTracker() {
           <div class="flex flex-col items-center">${scRevTick(st, 'r1', st.r1, subDaysUntil, subRevLabel)}</div>
           <div class="flex flex-col items-center">${scRevTick(st, 'r2', st.r2, subDaysUntil, subRevLabel)}</div>
           <div class="flex flex-col items-center">${scRevTick(st, 'r3', st.r3, subDaysUntil, subRevLabel)}</div>
-          <div class="flex flex-col items-center">${scRevTick(st, 'r4', st.r4, subDaysUntil, subRevLabel)}</div>
           <div class="text-center"></div>
           <div class="flex items-center justify-center">${_subColTotal}</div>
           <div class="flex items-center justify-center">${_subColSRS}</div>
@@ -11240,6 +11359,42 @@ window.scMarkRevDoneAuto = (key, rev) => {
   t[rev] = true;
   t[rev + 'Date'] = scToday();
   t[rev + 'Progress'] = 0;
+
+  // R4 REMOVED — completing R3 now closes the revision cycle. We keep the r4 flag in the
+  // data model (set it true here) so every existing "fully done" check keeps working and
+  // cloud sync stays backward-compatible. SRS feeding already happened at R1 (Track A for
+  // correct, Track B for wrong), so the old R4-graduation below is obsolete and never runs
+  // (rev is never 'r4' anymore — R4 has no UI/launch path).
+  if (rev === 'r3') {
+    t.r4 = true;
+    t.r4Date = scToday();
+    // SAFETY NET (closes the gap left by removing R4 graduation):
+    // ensure every R1-wrong question for this topic is in SRS Track B. New topics were
+    // already fed at R1 (this loop skips them). Old/mid-cycle topics that did R1 under the
+    // previous model — whose wrong answers were waiting for R4 graduation — get fed now.
+    // Fully idempotent: anything already in SRS is skipped, so it can never double-feed.
+    try {
+      const wrongList = Array.isArray(t.r1Wrong) ? t.r1Wrong : [];
+      if (wrongList.length) {
+        const inSrs = new Set(mistakesDb.filter(m => m && m.question).map(m => m.question));
+        const qMap = new Map();
+        Object.values(db).forEach(quiz => {
+          if (!quiz || !quiz.questions || quiz.isScRevision || quiz.isSRS || quiz.isWeakBank) return;
+          quiz.questions.forEach(q => { if (q && q.question && !qMap.has(q.question)) qMap.set(q.question, q); });
+        });
+        wrongList.forEach(qt => {
+          if (inSrs.has(qt)) return;            // already in SRS — skip (idempotent)
+          const qObj = qMap.get(qt); if (!qObj) return;
+          const card = JSON.parse(JSON.stringify(qObj));
+          card.subject = (qObj.tags && qObj.tags[0]) || t.subject || 'Miscellaneous';
+          const d = window.srsFuzz(window.SRS_TRACKS.B[0].base, window.SRS_TRACKS.B[0].fuzz);
+          card.srs = { track: 'B', step: 0, reps: 0, ease: 2.5, interval: d, nextReview: Date.now() + (d * 86400000), updatedAt: Date.now() };
+          card.isMastered = false;
+          mistakesDb.push(card);
+        });
+      }
+    } catch (e) { console.warn('[R3 Track-B safety feed] skipped:', e); }
+  }
   
   // AFTER R4 COMPLETE: Graduate all questions from cycle to SRS
   if (rev === 'r4') {
