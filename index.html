@@ -9869,7 +9869,14 @@ window.scStartRevision = (key, rev) => {
       }
     }
     const attemptedSet = new Set(t.r1QuestionsAttempted || []);
-    if (attemptedSet.size > 0) {
+    const allCyclesComplete = !!(t.r1 && t.r2 && t.r3 && t.r4);
+    if (allCyclesComplete) {
+      // NEW-QUESTIONS-AFTER-FULL-CYCLE (the red-badge case): every previously-done
+      // question has already graduated to SRS, so "not in SRS" = genuinely new.
+      // Filter by SRS membership ONLY — ignore r1QuestionsAttempted, which can be
+      // stale or corrupt from an earlier buggy click (this is what stuck Hemisphere).
+      questions = questions.filter(q => !srsMap.has(q.question));
+    } else if (attemptedSet.size > 0) {
       // Primary: filter by actual question texts seen — immune to drift
       questions = questions.filter(q => !srsMap.has(q.question) && !attemptedSet.has(q.question));
     } else if (doneSoFar === 0) {
@@ -9900,6 +9907,13 @@ window.scStartRevision = (key, rev) => {
   scShowDebugPanel(key, rev, questions, t, (mistakesDb||[]).length).then(proceed => {
     if (!proceed) return;
     if (rev === 'r1') {
+      const allDone = !!(t.r1 && t.r2 && t.r3 && t.r4);
+      if (allDone) {
+        // Fresh batch of brand-new questions after a completed cycle — launch directly.
+        // (Skips the "X done" continue modal that would show a stale attempted count.)
+        scLaunchRevQuiz(key, rev, questions, 0);
+        return;
+      }
       const attempted = t.r1QuestionsAttempted || [];
       const r1Done = attempted.length > 0 ? attempted.length : (t.r1Progress || 0);
       const r1Total = r1Done + questions.length;
