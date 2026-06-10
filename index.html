@@ -1000,6 +1000,7 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
             <div class="mb-5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 border border-slate-200 dark:border-slate-700">
                 <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-3">🗂️ Card Levels</div>
                 <div class="flex gap-2 flex-wrap justify-between" id="srs-card-breakdown"></div>
+                <button onclick="srsDedupScan()" class="w-full mt-3 bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-black text-[10px] uppercase tracking-widest py-2.5 rounded-xl border border-amber-200 dark:border-amber-800/50 transition-all">🔍 Find Duplicates in SRS</button>
             </div>
             
             <div class="space-y-4">
@@ -2381,17 +2382,20 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                 const cloudReps = (cloud.srs && cloud.srs.reps) || 0;
                 merged.push(localReps >= cloudReps ? local : cloud);
             });
-            // BUG13 FIX: deduplicate merged result — in case either side had duplicates
+            // BUG13 FIX + DEDUP: collapse same-QUESTION variants by normalized fingerprint
+            // (a trailing space / ² vs ^2 / comma no longer creates a twin card across devices).
+            // Keep the most-progressed copy. Honors the user's manual-dedup tombstone so a
+            // deleted near-duplicate never resurrects from another device's cloud copy.
             const finalMap = new Map();
+            const _tomb = (window.__srsTombstone ? window.__srsTombstone() : new Set());
+            const _fp = (q) => (window.__qFingerprint ? window.__qFingerprint(q) : String(q||''));
+            const _better = (a, b) => (window.__srsBetterCard ? window.__srsBetterCard(a, b) : (((a.srs&&a.srs.updatedAt)||0) >= ((b.srs&&b.srs.updatedAt)||0) ? a : b));
             merged.forEach(m => {
-                const ex = finalMap.get(m.question);
-                if (!ex) { finalMap.set(m.question, m); return; }
-                const exUpd = (ex.srs && ex.srs.updatedAt) || 0;
-                const mUpd  = (m.srs && m.srs.updatedAt)  || 0;
-                if (exUpd || mUpd) { if (mUpd > exUpd) finalMap.set(m.question, m); return; }
-                const exNext = (ex.srs && ex.srs.nextReview) || 0;
-                const mNext  = (m.srs && m.srs.nextReview)  || 0;
-                if (mNext > exNext) finalMap.set(m.question, m);
+                const fpk = _fp(m.question);
+                if (_tomb.has(fpk)) return;                 // user deleted this as a duplicate
+                const ex = finalMap.get(fpk);
+                if (!ex) { finalMap.set(fpk, m); return; }
+                finalMap.set(fpk, _better(ex, m));
             });
             mistakesDb = Array.from(finalMap.values());
             // BUG11 FIX: flush to IndexedDB immediately — don't wait for end of applyCloudData
@@ -5332,6 +5336,144 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         if (!a.size || !b.size) return 0;
         let inter = 0; a.forEach(w => { if (b.has(w)) inter++; });
         return inter / (a.size + b.size - inter);
+    };
+
+    // ───────── SRS DUPLICATE FINDER (searches ONLY the SRS deck = mistakesDb) ─────────
+    // Survivor in every group = the copy NEAREST MASTERED (mastered › higher interval ›
+    // later nextReview). Deletions persist to cloud and are tombstoned so a near-duplicate
+    // can't resurrect from another device. Same-fingerprint variants don't need a tombstone —
+    // the cloud merge auto-collapses them.
+    window.__srsBetterCard = function(a, b) {
+        if (!!(a && a.isMastered) !== !!(b && b.isMastered)) return (a && a.isMastered) ? a : b;
+        const ia = (a.srs && a.srs.interval) || 0, ib = (b.srs && b.srs.interval) || 0;
+        if (ia !== ib) return ia > ib ? a : b;
+        const na = (a.srs && a.srs.nextReview) || 0, nb = (b.srs && b.srs.nextReview) || 0;
+        if (na !== nb) return na > nb ? a : b;
+        const ua = (a.srs && a.srs.updatedAt) || 0, ub = (b.srs && b.srs.updatedAt) || 0;
+        return ua >= ub ? a : b;
+    };
+    window.__srsTombstone = function() {
+        try { return new Set(JSON.parse(localStorage.getItem('srs_dedup_tomb_v1') || '[]')); } catch (e) { return new Set(); }
+    };
+    window.__srsTombstoneAdd = function(fps) {
+        const s = window.__srsTombstone(); fps.forEach(f => s.add(f));
+        try { localStorage.setItem('srs_dedup_tomb_v1', JSON.stringify([...s])); } catch (e) {}
+    };
+
+    window._srsDupGroups = [];
+    window.srsDedupScan = function() {
+        const fp = window.__qFingerprint, nums = window.__qNumbers, words = window.__qWords, jac = window.__jaccard;
+        const byFp = {};
+        mistakesDb.forEach((m, idx) => { if (m && m.question) { const f = fp(m.question); (byFp[f] = byFp[f] || []).push(idx); } });
+        const groups = []; const used = new Set();
+        Object.values(byFp).forEach(idxs => { if (idxs.length > 1) { groups.push({ pct: 100, idxs: idxs.slice() }); idxs.forEach(i => used.add(i)); } });
+        const rem = []; mistakesDb.forEach((m, idx) => { if (m && m.question && !used.has(idx)) rem.push(idx); });
+        const sig = {}; rem.forEach(idx => { const s = nums(mistakesDb[idx].question); (sig[s] = sig[s] || []).push(idx); });
+        Object.values(sig).forEach(idxs => {
+            if (idxs.length < 2) return;
+            const ws = idxs.map(i => words(mistakesDb[i].question));
+            const seen = new Set();
+            for (let a = 0; a < idxs.length; a++) {
+                if (seen.has(idxs[a])) continue;
+                const cl = [idxs[a]]; seen.add(idxs[a]);
+                for (let b = a + 1; b < idxs.length; b++) { if (seen.has(idxs[b])) continue; if (jac(ws[a], ws[b]) >= 0.9) { cl.push(idxs[b]); seen.add(idxs[b]); } }
+                if (cl.length > 1) groups.push({ pct: 90, idxs: cl });
+            }
+        });
+        groups.sort((a, b) => b.pct - a.pct || b.idxs.length - a.idxs.length);
+        window._srsDupGroups = groups;
+        srsDedupRenderModal();
+    };
+
+    window.srsDedupRenderModal = function() {
+        const groups = window._srsDupGroups || [];
+        let host = document.getElementById('srs-dedup-modal'); if (host) host.remove();
+        host = document.createElement('div'); host.id = 'srs-dedup-modal';
+        host.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);z-index:10000;display:flex;align-items:center;justify-content:center;padding:14px;';
+        const esc = s => String(s || '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+        const totalDup = groups.reduce((a, g) => a + (g.idxs.length - 1), 0);
+        if (!groups.length) {
+            host.innerHTML = `<div style="background:#0f172a;border:1px solid #1e293b;border-radius:20px;padding:28px;max-width:420px;text-align:center;color:#e2e8f0">
+                <div style="font-size:40px;margin-bottom:8px">✨</div>
+                <div style="font-size:18px;font-weight:900;margin-bottom:6px">No duplicates in your SRS</div>
+                <div style="font-size:12px;color:#94a3b8">Your spaced-repetition deck is clean.</div>
+                <button onclick="document.getElementById('srs-dedup-modal').remove()" style="margin-top:18px;background:#334155;color:#fff;border:none;border-radius:10px;font-weight:800;padding:10px 22px;cursor:pointer">Close</button>
+            </div>`;
+            document.body.appendChild(host); return;
+        }
+        const statLabel = (m) => (window.srsCardStatusLabel ? window.srsCardStatusLabel(m).label : '?');
+        let bodyHtml = '';
+        groups.forEach((g, gi) => {
+            const cards = g.idxs.map(i => mistakesDb[i]).filter(Boolean);
+            if (cards.length < 2) return;
+            const survivor = cards.reduce((a, b) => window.__srsBetterCard(a, b));
+            const q = survivor.question || cards[0].question;
+            const opts = (survivor.options || []).map((o, i) => `<div style="font-size:11px;color:#cbd5e1;padding:1px 0">${String.fromCharCode(65 + i)}. ${esc((o.text || '').replace(/<[^>]*>/g, ' ').slice(0, 90))}${o.correct ? ' <span style="color:#4ade80">✓</span>' : ''}</div>`).join('');
+            const copies = cards.map(c => {
+                const keep = c === survivor;
+                return `<div style="display:flex;justify-content:space-between;gap:8px;font-size:10px;padding:3px 7px;border-radius:6px;margin-top:3px;background:${keep ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.10)'}">
+                    <span style="color:${keep ? '#4ade80' : '#f87171'};font-weight:800">${keep ? '✓ KEEP · nearest mastered' : '✗ delete'}</span>
+                    <span style="color:#94a3b8">${esc(statLabel(c))}${c.isMastered ? '' : ' · iv ' + ((c.srs && c.srs.interval) || 0) + 'd'}</span>
+                </div>`;
+            }).join('');
+            bodyHtml += `<div style="background:#1e293b;border:1px solid #334155;border-radius:14px;padding:12px;margin-bottom:10px">
+                <div style="font-size:9px;font-weight:900;color:${g.pct === 100 ? '#fbbf24' : '#a78bfa'};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">${g.pct}% match · ${cards.length} copies</div>
+                <div style="font-size:12px;color:#f1f5f9;line-height:1.5;margin-bottom:6px">${esc((q || '').replace(/<[^>]*>/g, ' ').slice(0, 240))}${q.length > 240 ? '…' : ''}</div>
+                <div style="margin-bottom:6px">${opts}</div>
+                ${copies}
+                <button onclick="srsDedupDeleteGroup(${gi})" style="width:100%;margin-top:9px;background:#dc2626;color:#fff;border:none;border-radius:9px;font-weight:900;font-size:11px;padding:8px;cursor:pointer">🗑 Delete ${cards.length - 1} duplicate${cards.length - 1 > 1 ? 's' : ''} (keep best)</button>
+            </div>`;
+        });
+        host.innerHTML = `<div style="background:#0f172a;border:1px solid #1e293b;border-radius:20px;width:100%;max-width:560px;max-height:90vh;display:flex;flex-direction:column">
+            <div style="padding:16px 18px;border-bottom:1px solid #1e293b">
+                <div style="font-size:16px;font-weight:900;color:#fff">🔍 SRS Duplicate Finder</div>
+                <div style="font-size:11px;color:#94a3b8;margin-top:2px">${groups.length} group(s) · ${totalDup} duplicate card(s) · survivor = nearest mastered</div>
+            </div>
+            <div style="padding:14px 16px;overflow-y:auto;flex:1">${bodyHtml}</div>
+            <div style="padding:12px 16px;border-top:1px solid #1e293b;display:flex;gap:8px">
+                <button onclick="srsDedupDeleteAll()" style="flex:1;background:#dc2626;color:#fff;border:none;border-radius:11px;font-weight:900;font-size:13px;padding:12px;cursor:pointer">🗑 Delete ALL ${totalDup}</button>
+                <button onclick="document.getElementById('srs-dedup-modal').remove()" style="background:#334155;color:#fff;border:none;border-radius:11px;font-weight:800;padding:12px 18px;cursor:pointer">Close</button>
+            </div>
+        </div>`;
+        document.body.appendChild(host);
+    };
+
+    function _srsDedupRemove(groups) {
+        const fp = window.__qFingerprint;
+        const toDelete = new Set(); const tombFps = [];
+        groups.forEach(g => {
+            const cards = g.idxs.map(i => mistakesDb[i]).filter(Boolean);
+            if (cards.length < 2) return;
+            const survivor = cards.reduce((a, b) => window.__srsBetterCard(a, b));
+            const sf = fp(survivor.question);
+            cards.forEach(c => {
+                if (c === survivor) return;
+                toDelete.add(c);
+                const cf = fp(c.question);
+                if (cf !== sf) tombFps.push(cf);   // near-dupe (diff fp) → tombstone so it won't resync
+            });
+        });
+        if (!toDelete.size) return 0;
+        const before = mistakesDb.length;
+        mistakesDb = mistakesDb.filter(m => !toDelete.has(m));
+        if (tombFps.length) window.__srsTombstoneAdd(tombFps);
+        try { idbKeyval.set('megaQuizMistakes_v5', mistakesDb); } catch (e) {}
+        if (typeof saveData === 'function') saveData();
+        if (typeof window._saveDataGlobal === 'function') window._saveDataGlobal().catch(() => {});
+        if (typeof updateSRSBadge === 'function') updateSRSBadge();
+        return before - mistakesDb.length;
+    }
+    window.srsDedupDeleteGroup = function(gi) {
+        const g = (window._srsDupGroups || [])[gi]; if (!g) return;
+        _srsDedupRemove([g]);
+        window.srsDedupScan();   // rescan → fresh indices + re-render
+    };
+    window.srsDedupDeleteAll = function() {
+        const n = (window._srsDupGroups || []).reduce((a, g) => a + (g.idxs.length - 1), 0);
+        if (!confirm(`Delete all ${n} duplicate copies? The copy nearest to mastered is kept in each group. This syncs to all your devices.`)) return;
+        const removed = _srsDedupRemove(window._srsDupGroups || []);
+        window.srsDedupScan();
+        setTimeout(() => alert(`✅ Removed ${removed} duplicate card(s) from your SRS. Synced.`), 100);
     };
 
     window.scanDuplicates = function() {
