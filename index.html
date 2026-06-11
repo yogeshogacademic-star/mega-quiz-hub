@@ -116,6 +116,124 @@
             background: rgba(16,185,129,0.06);
         }
         .dark .q-stmt { border-left-color: #34d399; background: rgba(52,211,153,0.08); }
+
+        /* ============================================================
+           FLASHCARD — BOOK-STYLE FORMULA RENDERING
+           ============================================================ */
+        /* Beautiful subtle paper grain on the quiz card */
+        .fc-book-card::before {
+            content: '';
+            position: absolute; inset: 0;
+            background-image:
+                radial-gradient(circle at 20% 30%, rgba(251,191,36,0.04) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(99,102,241,0.04) 0%, transparent 50%);
+            pointer-events: none;
+            border-radius: inherit;
+        }
+        .dark .fc-book-card::before {
+            background-image:
+                radial-gradient(circle at 20% 30%, rgba(251,191,36,0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(99,102,241,0.05) 0%, transparent 50%);
+        }
+        /* The formula list — each formula is its own row, like a textbook */
+        .fc-formula-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            font-family: 'Georgia', 'Cambria', 'Times New Roman', serif;
+            position: relative;
+            z-index: 1;
+        }
+        .fc-formula-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 14px 4px;
+            border-bottom: 1px dashed rgba(99,102,241,0.18);
+            transition: background 0.15s ease;
+        }
+        .fc-formula-row:last-child { border-bottom: none; }
+        .fc-formula-row:hover { background: rgba(99,102,241,0.04); }
+        .dark .fc-formula-row { border-bottom-color: rgba(165,180,252,0.18); }
+        .dark .fc-formula-row:hover { background: rgba(165,180,252,0.04); }
+        .fc-formula-number {
+            flex-shrink: 0;
+            width: 28px; height: 28px;
+            display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            font-weight: 900;
+            font-size: 12px;
+            border-radius: 8px;
+            font-family: 'Inter', system-ui, sans-serif;
+            box-shadow: 0 2px 6px rgba(99,102,241,0.25);
+        }
+        .fc-formula-body {
+            flex: 1;
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+            line-height: 1.75;
+            padding-top: 2px;
+            letter-spacing: 0.01em;
+        }
+        .dark .fc-formula-body { color: #e2e8f0; }
+        /* When single formula, hide the number */
+        .fc-formula-list[data-count="1"] .fc-formula-number { display: none; }
+        .fc-formula-list[data-count="1"] .fc-formula-row { padding: 4px; border-bottom: none; }
+        /* Compact variant for browse-grid cards */
+        .fc-formula-list.fc-compact .fc-formula-row { padding: 8px 2px; }
+        .fc-formula-list.fc-compact .fc-formula-number { width: 22px; height: 22px; font-size: 10px; border-radius: 6px; }
+        .fc-formula-list.fc-compact .fc-formula-body { font-size: 15px; line-height: 1.6; }
+
+        /* MathJax fine-tuning inside formula rows */
+        .fc-formula-body mjx-container { display: inline-block !important; vertical-align: middle; margin: 0 2px; }
+        .fc-formula-body mjx-container[display="true"] { display: block !important; margin: 4px 0; }
+
+        /* Formula input row in Add/Edit form */
+        .fc-formula-input-row {
+            display: flex; align-items: center; gap: 8px;
+            background: white;
+            border: 1px solid rgb(226 232 240);
+            border-radius: 12px;
+            padding: 6px 6px 6px 12px;
+            transition: border-color 0.15s;
+        }
+        .dark .fc-formula-input-row { background: rgb(30 41 59); border-color: rgb(51 65 85); }
+        .fc-formula-input-row:focus-within { border-color: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,0.25); }
+        .fc-formula-input-row .fc-row-num {
+            flex-shrink: 0;
+            width: 24px; height: 24px;
+            display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, #f59e0b, #ea580c);
+            color: white;
+            font-weight: 900; font-size: 11px;
+            border-radius: 6px;
+        }
+        .fc-formula-input-row input {
+            flex: 1; background: transparent; border: none; outline: none;
+            font-family: 'Cascadia Code', 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 14px;
+            font-weight: 600;
+            color: rgb(30 41 59);
+            padding: 8px 4px;
+        }
+        .dark .fc-formula-input-row input { color: rgb(226 232 240); }
+        .fc-formula-input-row input::placeholder { color: rgb(148 163 184); font-weight: 500; }
+        .fc-formula-input-row .fc-row-del {
+            flex-shrink: 0;
+            width: 28px; height: 28px;
+            display: flex; align-items: center; justify-content: center;
+            background: transparent;
+            color: rgb(148 163 184);
+            font-weight: 900; font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+            border: none;
+        }
+        .fc-formula-input-row .fc-row-del:hover { background: rgb(254 226 226); color: rgb(220 38 38); }
+        .dark .fc-formula-input-row .fc-row-del:hover { background: rgba(220,38,38,0.15); color: rgb(248 113 113); }
     </style>
     <script>
         window.MathJax = {
@@ -160,167 +278,11 @@
                         <div id="fc-stat-mastered" class="text-xl font-black text-emerald-500">0</div>
                         <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Mastered</div>
                     </div>
-                    <button onclick="fcToggleScanModal()" id="fc-scan-btn" class="bg-gradient-to-br from-violet-600 to-purple-700 hover:from-violet-500 hover:to-purple-600 text-white font-black px-5 py-3 rounded-2xl shadow-lg shadow-violet-500/30 transition-transform hover:-translate-y-0.5 border border-violet-400 text-sm flex items-center gap-2">
-                        <span>📸</span> Scan Screenshot
-                    </button>
-                    <button onclick="fcToggleAddForm()" id="fc-add-btn" class="bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black px-5 py-3 rounded-2xl shadow-lg transition-transform hover:-translate-y-0.5 border border-amber-400 text-sm">+ Add Formula</button>
-                    <button onclick="fcTogglePasteForm()" id="fc-paste-btn" class="bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-black px-5 py-3 rounded-2xl shadow-lg transition-transform hover:-translate-y-0.5 border border-indigo-400 text-sm">📋 Paste Cards</button>
+                    <button onclick="fcToggleAddForm()" id="fc-add-btn" class="bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black px-5 py-3 rounded-2xl shadow-lg transition-transform hover:-translate-y-0.5 border border-amber-400 text-sm">+ Add Card</button>
+                    <button onclick="fcTogglePasteForm()" id="fc-paste-btn" class="bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-black px-5 py-3 rounded-2xl shadow-lg transition-transform hover:-translate-y-0.5 border border-indigo-400 text-sm flex items-center gap-2"><span>📋</span> Paste from AI</button>
                 </div>
             </div>
 
-            <!-- ===== AI SCREENSHOT SCAN MODAL ===== -->
-            <div id="fc-scan-modal" class="hidden fixed inset-0 z-[400] bg-black/80 backdrop-blur-md flex justify-center items-center p-4 overflow-y-auto">
-                <div class="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-2xl shadow-2xl border border-slate-200 dark:border-slate-700 relative overflow-hidden my-auto">
-                    <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-violet-500 via-purple-500 to-pink-500"></div>
-
-                    <!-- Header -->
-                    <div class="flex justify-between items-center p-6 pb-4">
-                        <div>
-                            <div class="text-xl font-black text-slate-800 dark:text-slate-100">🤖 AI Formula Extractor</div>
-                            <div class="text-xs font-bold text-slate-400 mt-0.5">Screenshot or paste text → AI reads it → auto-creates your flashcard</div>
-                        </div>
-                        <button onclick="fcCloseScanModal()" class="text-slate-400 hover:text-red-500 font-black text-2xl transition-colors leading-none">×</button>
-                    </div>
-
-                    <!-- MODE TABS -->
-                    <div class="px-6 mb-4">
-                        <div class="flex gap-1 bg-slate-100 dark:bg-slate-800 rounded-2xl p-1.5 w-fit">
-                            <button onclick="fcScanSetMode('image')" id="fc-scan-tab-image"
-                                class="px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm">
-                                📸 Screenshot / Image
-                            </button>
-                            <button onclick="fcScanSetMode('text')" id="fc-scan-tab-text"
-                                class="px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700">
-                                📋 Copy-Paste Text
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="px-6 pb-6 space-y-4">
-
-                        <!-- ══ IMAGE MODE ══ -->
-                        <div id="fc-scan-image-mode">
-                            <!-- Drop Zone -->
-                            <div id="fc-scan-dropzone"
-                                onclick="document.getElementById('fc-scan-file-input').click()"
-                                ondragover="event.preventDefault(); this.classList.add('border-violet-400','bg-violet-50','dark:bg-violet-900/20')"
-                                ondragleave="this.classList.remove('border-violet-400','bg-violet-50','dark:bg-violet-900/20')"
-                                ondrop="fcHandleDrop(event)"
-                                class="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-2xl p-8 text-center cursor-pointer transition-all hover:border-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/10 group">
-                                <input type="file" id="fc-scan-file-input" accept="image/*" class="hidden" onchange="fcHandleFileSelect(event)">
-                                <div id="fc-scan-preview-wrap" class="hidden mb-4">
-                                    <img id="fc-scan-preview" class="max-h-44 mx-auto rounded-xl shadow-lg object-contain border border-slate-200 dark:border-slate-700">
-                                    <button onclick="event.stopPropagation(); fcScanResetImage()" class="mt-2 text-xs font-black text-red-500 hover:text-red-600">✕ Remove image</button>
-                                </div>
-                                <div id="fc-scan-placeholder">
-                                    <div class="text-4xl mb-3 group-hover:scale-110 transition-transform">🖼️</div>
-                                    <div class="text-sm font-black text-slate-600 dark:text-slate-300 mb-1">Click to upload or drag & drop</div>
-                                    <div class="text-xs font-bold text-slate-400">PNG · JPG · WEBP — any screenshot with a formula</div>
-                                </div>
-                            </div>
-                            <!-- Paste shortcut pills -->
-                            <div class="flex gap-2 items-center justify-center flex-wrap mt-3">
-                                <span class="text-xs font-bold text-slate-400">or</span>
-                                <button onclick="fcTriggerPasteImage()" class="flex items-center gap-2 bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/40 border border-violet-200 dark:border-violet-700 text-violet-700 dark:text-violet-300 font-black text-xs px-4 py-2 rounded-xl transition-all">
-                                    📋 Paste from clipboard
-                                    <kbd class="bg-violet-100 dark:bg-violet-800 rounded px-1.5 py-0.5 text-[10px] font-mono">Ctrl+V</kbd>
-                                </button>
-                                <span id="fc-paste-feedback" class="hidden text-xs font-black text-emerald-500 animate-pulse">✅ Image pasted!</span>
-                            </div>
-                        </div>
-
-                        <!-- ══ TEXT MODE ══ -->
-                        <div id="fc-scan-text-mode" class="hidden">
-                            <div class="relative">
-                                <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2">Paste your formula text here</label>
-                                <textarea id="fc-scan-text-input" rows="6"
-                                    placeholder="Paste anything — formula text, LaTeX, a sentence from a book, website content...&#10;&#10;Examples:&#10;• Area of circle = πr²&#10;• L_DCT = sqrt(d² - (r1-r2)²)&#10;• The quadratic formula gives x = (-b ± √(b²-4ac)) / 2a"
-                                    class="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:border-violet-400 focus:ring-0 text-slate-800 dark:text-slate-200 resize-none leading-relaxed transition-colors"></textarea>
-                                <button onclick="document.getElementById('fc-scan-text-input').value=''" class="absolute top-8 right-3 text-slate-300 hover:text-red-400 font-black text-lg transition-colors">×</button>
-                            </div>
-                            <div class="flex gap-2 items-center mt-3 flex-wrap">
-                                <button onclick="fcPasteTextFromClipboard()" class="flex items-center gap-2 bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 border border-violet-200 dark:border-violet-700 text-violet-700 dark:text-violet-300 font-black text-xs px-4 py-2 rounded-xl transition-all">
-                                    📋 Paste from clipboard
-                                    <kbd class="bg-violet-100 dark:bg-violet-800 rounded px-1.5 py-0.5 text-[10px] font-mono">Ctrl+V</kbd>
-                                </button>
-                                <span class="text-[10px] text-slate-400 font-bold">AI will convert any format to proper LaTeX</span>
-                            </div>
-                        </div>
-
-                        <!-- ══ SHARED: Scan Button ══ -->
-                        <button onclick="fcRunAIScan()" id="fc-scan-run-btn"
-                            class="hidden w-full bg-gradient-to-br from-violet-600 to-purple-700 hover:from-violet-500 hover:to-purple-600 text-white font-black py-4 rounded-2xl text-sm transition-all shadow-lg hover:shadow-violet-500/40 hover:-translate-y-0.5 border border-violet-400 flex items-center justify-center gap-2">
-                            <span>🤖</span> <span id="fc-scan-btn-label">Extract with AI</span>
-                        </button>
-
-                        <!-- Loading -->
-                        <div id="fc-scan-loading" class="hidden text-center py-6">
-                            <div class="inline-flex items-center gap-3 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/40 rounded-2xl px-6 py-4">
-                                <div class="w-5 h-5 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
-                                <div class="text-sm font-black text-violet-700 dark:text-violet-300" id="fc-scan-loading-msg">AI is reading your formula...</div>
-                            </div>
-                        </div>
-
-                        <!-- Result -->
-                        <div id="fc-scan-result" class="hidden bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 border border-violet-200 dark:border-violet-800/40 rounded-2xl p-5">
-                            <div class="flex items-center gap-2 mb-4">
-                                <div class="text-base font-black text-violet-700 dark:text-violet-300">✨ AI Extracted</div>
-                                <div class="text-[10px] font-black bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/40">Review & edit before saving</div>
-                            </div>
-                            <div class="space-y-3">
-                                <div>
-                                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Title</label>
-                                    <input id="fc-scan-title" type="text" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-violet-200 dark:border-violet-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-violet-400 text-slate-800 dark:text-slate-200">
-                                </div>
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Chapter</label>
-                                        <select id="fc-scan-cat" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-violet-200 dark:border-violet-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-violet-400 text-slate-800 dark:text-slate-200">
-                                            <optgroup label="Arithmetic"><option>Number System</option><option>HCF &amp; LCM</option><option>Simplification</option><option>Percentage</option><option>Profit &amp; Loss</option><option>Discount</option><option>Simple Interest</option><option>Compound Interest</option><option>Ratio &amp; Proportion</option><option>Mixture &amp; Alligation</option><option>Time &amp; Work</option><option>Pipes &amp; Cisterns</option><option>Time Speed Distance</option><option>Boats &amp; Streams</option><option>Trains</option></optgroup>
-                                            <optgroup label="Algebra"><option>Algebra — Identities</option><option>Algebra — Equations</option><option>Sequence &amp; Series</option></optgroup>
-                                            <optgroup label="Trigonometry"><option>Trigonometry — Identities</option><option>Trigonometry — Ratios</option><option>Trigonometry — Heights &amp; Distances</option></optgroup>
-                                            <optgroup label="Geometry"><option>Geometry — Lines &amp; Angles</option><option>Geometry — Triangles</option><option>Geometry — Circles</option><option>Geometry — Quadrilaterals</option><option>Geometry — Polygons</option></optgroup>
-                                            <optgroup label="Mensuration 2D"><option>Mensuration — Triangle</option><option>Mensuration — Circle &amp; Sector</option><option>Mensuration — Rectangle &amp; Square</option><option>Mensuration — Trapezium &amp; Rhombus</option><option>Mensuration — Parallelogram</option></optgroup>
-                                            <optgroup label="Mensuration 3D"><option>Mensuration — Cube &amp; Cuboid</option><option>Mensuration — Cylinder</option><option>Mensuration — Cone</option><option>Mensuration — Sphere &amp; Hemisphere</option><option>Mensuration — Prism &amp; Pyramid</option></optgroup>
-                                            <optgroup label="Data / Stats"><option>Statistics</option><option>Data Interpretation</option><option>Permutation &amp; Combination</option><option>Probability</option></optgroup>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Difficulty</label>
-                                        <select id="fc-scan-diff" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-violet-200 dark:border-violet-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-violet-400 text-slate-800 dark:text-slate-200">
-                                            <option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Front — Question prompt</label>
-                                    <input id="fc-scan-front" type="text" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-violet-200 dark:border-violet-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-violet-400 text-slate-800 dark:text-slate-200">
-                                </div>
-                                <div>
-                                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Back — Formula in LaTeX <span class="text-amber-500">(one per line)</span></label>
-                                    <textarea id="fc-scan-back" rows="3" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-violet-200 dark:border-violet-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-violet-400 text-slate-800 dark:text-slate-200 font-mono resize-none"></textarea>
-                                </div>
-                                <div>
-                                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Memory Trick</label>
-                                    <input id="fc-scan-hint" type="text" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-violet-200 dark:border-violet-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-violet-400 text-slate-800 dark:text-slate-200">
-                                </div>
-                            </div>
-                            <div class="mt-3">
-                                <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Example Question (optional)</label>
-                                <textarea id="fc-scan-example" rows="3" placeholder="e.g. If n=3 cubes each of side 4cm are joined, find the TSA of the cuboid formed." class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-violet-200 dark:border-violet-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-violet-400 text-slate-800 dark:text-slate-200 resize-none"></textarea>
-                            </div>
-                            <div class="flex gap-3 mt-5">
-                                <button onclick="fcScanReset()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black py-3 rounded-2xl text-sm transition-colors hover:bg-slate-200 dark:hover:bg-slate-700">🔄 Try Again</button>
-                                <button onclick="fcScanSaveCard()" class="flex-1 bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black py-3 rounded-2xl text-sm transition-all shadow-lg hover:-translate-y-0.5 border border-emerald-400">✅ Add to Flashcards</button>
-                            </div>
-                        </div>
-
-                        <!-- Error -->
-                        <div id="fc-scan-error" class="hidden bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-2xl p-4 text-sm font-bold text-red-600 dark:text-red-400"></div>
-                    </div>
-                </div>
-            </div>
-            <!-- ===== END AI SCAN MODAL ===== -->
 
             <!-- SRS INFO BANNER -->
             <div id="fc-srs-banner" class="hidden mb-6 bg-gradient-to-r from-violet-50 to-indigo-50 dark:from-violet-900/20 dark:to-indigo-900/20 border border-violet-200 dark:border-violet-800/40 rounded-2xl p-4 flex items-start gap-4">
@@ -336,16 +298,19 @@
                 <button onclick="document.getElementById('fc-srs-banner').classList.add('hidden')" class="text-slate-400 hover:text-red-500 font-black text-lg">×</button>
             </div>
 
-            <!-- Add Card Form -->
-            <div id="fc-add-form" class="hidden mb-6 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 rounded-2xl p-6">
-                <div class="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-4">New Formula Card</div>
+            <!-- Add Card Form (REVAMPED — dynamic multi-formula rows) -->
+            <div id="fc-add-form" class="hidden mb-6 bg-gradient-to-br from-amber-50 via-orange-50/50 to-amber-50 dark:from-amber-950/30 dark:via-orange-950/20 dark:to-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-3xl p-7 shadow-lg">
+                <div class="flex items-center justify-between mb-5">
+                    <div class="text-sm font-black uppercase tracking-widest text-amber-700 dark:text-amber-400 flex items-center gap-2">✨ New Formula Card</div>
+                    <div class="text-[10px] font-bold text-slate-400 dark:text-slate-500">Add multiple formulas — each its own row</div>
+                </div>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                     <div>
-                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Title</label>
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1.5">Title</label>
                         <input id="fc-new-title" type="text" placeholder="e.g. Area of Rhombus" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
                     </div>
                     <div>
-                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Chapter</label>
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1.5">Chapter</label>
                         <select id="fc-new-cat" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
                             <optgroup label="Arithmetic">
                                 <option>Number System</option><option>HCF &amp; LCM</option><option>Simplification</option>
@@ -382,102 +347,169 @@
                         </select>
                     </div>
                     <div>
-                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Difficulty</label>
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1.5">Difficulty</label>
                         <select id="fc-new-diff" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
                             <option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option>
                         </select>
                     </div>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                    <div>
-                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Front — What to recall?</label>
-                        <input id="fc-new-front" type="text" placeholder="e.g. Area of rhombus (diagonals d1, d2)" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
+                <div class="mb-4">
+                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1.5">Front — Question prompt</label>
+                    <input id="fc-new-front" type="text" placeholder="e.g. Area of rhombus given diagonals d₁, d₂?" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
+                </div>
+
+                <!-- Multi-formula dynamic row list -->
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Back — Formulas <span class="text-amber-500 font-black normal-case">(each row = one formula, like a formula book)</span></label>
+                        <button type="button" onclick="fcAddFormulaRow('fc-new-rows')" class="text-[10px] font-black px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition-colors flex items-center gap-1">
+                            <span class="text-base leading-none">+</span> Add Formula Line
+                        </button>
                     </div>
-                    <div>
-                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Back — Formula <span class="text-amber-500 font-black">(one per line = separate row)</span></label>
-                        <textarea id="fc-new-back" rows="3" placeholder="Line 1: ½ × d1 × d2&#10;Line 2: another formula" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200 resize-none"></textarea>
+                    <div id="fc-new-rows" class="space-y-2"></div>
+                    <div class="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-2 leading-relaxed">
+                        💡 Plain text OK: <code class="bg-slate-100 dark:bg-slate-800 px-1 rounded">A = πr²</code>. LaTeX also OK: <code class="bg-slate-100 dark:bg-slate-800 px-1 rounded">A = \pi r^2</code>. Both render beautifully.
                     </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                     <div>
-                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Memory Trick (optional)</label>
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1.5">Memory Trick (optional)</label>
                         <input id="fc-new-hint" type="text" placeholder="e.g. Half product of diagonals" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
                     </div>
+                    <div>
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1.5">Example Question (optional)</label>
+                        <input id="fc-new-example" type="text" placeholder="e.g. d₁=10, d₂=8 → A = ½×10×8 = 40" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
+                    </div>
                 </div>
-                <div class="mt-3">
-                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Example Question (optional)</label>
-                    <textarea id="fc-new-example" rows="3" placeholder="e.g. If n=3 cubes each of side 4cm are joined, find the TSA of the cuboid formed." class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200 resize-none"></textarea>
-                </div>
-                <button onclick="fcAddCard()" class="bg-amber-500 hover:bg-amber-600 text-white font-black px-6 py-2.5 rounded-xl text-sm transition-colors">Save Card ✓</button>
+                <button onclick="fcAddCard()" class="bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black px-7 py-3 rounded-xl text-sm transition-all shadow-lg hover:-translate-y-0.5 flex items-center gap-2">💾 Save Card</button>
             </div>
 
-            <!-- ===== PASTE CARDS FORM ===== -->
-            <div id="fc-paste-form" class="hidden mb-6 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/15 dark:to-purple-900/10 border border-indigo-200 dark:border-indigo-700/50 rounded-2xl overflow-hidden shadow-sm">
+            <!-- ===== PASTE CARDS FORM (REVAMPED) ===== -->
+            <div id="fc-paste-form" class="hidden mb-6 bg-gradient-to-br from-indigo-50 via-violet-50 to-purple-50 dark:from-indigo-950/40 dark:via-violet-950/30 dark:to-purple-950/30 border border-indigo-200 dark:border-indigo-800/50 rounded-3xl overflow-hidden shadow-xl">
                 <!-- Header -->
-                <div class="px-6 pt-5 pb-4 border-b border-indigo-100 dark:border-indigo-800/40 flex items-center justify-between">
+                <div class="px-7 pt-6 pb-5 border-b border-indigo-100 dark:border-indigo-800/40 flex items-center justify-between bg-gradient-to-r from-indigo-100/40 to-purple-100/40 dark:from-indigo-900/40 dark:to-purple-900/30">
                     <div>
-                        <div class="text-sm font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-300 flex items-center gap-2">📋 Paste AI-Generated Cards</div>
-                        <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Accepts any format — raw, labelled, or blank-line separated</div>
+                        <div class="text-base font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-300 flex items-center gap-2">📋 AI Card Importer</div>
+                        <div class="text-xs text-slate-500 dark:text-slate-400 mt-1 font-bold">Generate prompt → ask any AI → paste output → done.</div>
                     </div>
-                    <div id="fc-paste-live-count" class="hidden bg-indigo-600 text-white text-xs font-black px-3 py-1 rounded-full">0 cards detected</div>
+                    <div id="fc-paste-live-count" class="hidden bg-gradient-to-br from-indigo-600 to-purple-600 text-white text-xs font-black px-3.5 py-1.5 rounded-full shadow-md">0 cards detected</div>
                 </div>
 
-                <!-- Format hints (collapsible) -->
-                <div class="px-6 py-3 bg-white/60 dark:bg-slate-800/30 border-b border-indigo-100 dark:border-indigo-800/30">
-                    <button onclick="document.getElementById('fc-paste-formats').classList.toggle('hidden')" class="text-[10px] font-black uppercase tracking-widest text-indigo-500 dark:text-indigo-400 flex items-center gap-1">
-                        💡 Accepted Formats <span id="fc-fmt-arrow">▼</span>
+                <!-- TABS: Get Prompt | Paste & Import -->
+                <div class="px-7 pt-5">
+                    <div class="flex gap-1 bg-white/60 dark:bg-slate-800/60 rounded-2xl p-1.5 w-fit border border-indigo-100 dark:border-indigo-800/40">
+                        <button onclick="fcPasteSetTab('prompt')" id="fc-paste-tab-prompt" class="px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 shadow-sm">🤖 1. Get AI Prompt</button>
+                        <button onclick="fcPasteSetTab('paste')" id="fc-paste-tab-paste" class="px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700">📥 2. Paste & Import</button>
+                    </div>
+                </div>
+
+                <!-- ══ TAB 1: AI PROMPT GENERATOR ══ -->
+                <div id="fc-paste-pane-prompt" class="px-7 py-5">
+                    <div class="text-xs font-bold text-slate-600 dark:text-slate-300 mb-3 leading-relaxed">
+                        Tell us <span class="font-black text-indigo-600 dark:text-indigo-400">what topic</span> + <span class="font-black text-indigo-600 dark:text-indigo-400">how many cards</span> → we'll generate the universal prompt that ANY AI (ChatGPT, Claude, Gemini, Grok) understands. Paste into AI → copy AI's output → come back to tab 2.
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                        <div class="sm:col-span-2">
+                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1">Topic / Chapter (what should AI cover?)</label>
+                            <input id="fc-prompt-topic" type="text" placeholder="e.g. Mensuration — Cylinder formulas, all surface areas and volumes"
+                                class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-700/60 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 text-slate-800 dark:text-slate-200">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1">How many cards?</label>
+                            <input id="fc-prompt-count" type="number" min="1" max="100" value="10"
+                                class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-700/60 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 text-slate-800 dark:text-slate-200">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                        <div>
+                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1">Difficulty mix</label>
+                            <select id="fc-prompt-diff" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-700/60 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 text-slate-800 dark:text-slate-200">
+                                <option value="mixed">Mixed (easy + medium + hard)</option>
+                                <option value="easy">Easy only</option>
+                                <option value="medium">Medium only</option>
+                                <option value="hard">Hard only</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1">Style hint (optional)</label>
+                            <input id="fc-prompt-style" type="text" placeholder="e.g. SSC CGL Tier-1 focus, short tricks preferred"
+                                class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-700/60 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 text-slate-800 dark:text-slate-200">
+                        </div>
+                    </div>
+
+                    <button onclick="fcBuildPromptText()" class="w-full bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-600 hover:from-indigo-500 hover:via-violet-500 hover:to-purple-500 text-white font-black py-3 rounded-2xl text-sm transition-all shadow-lg hover:shadow-violet-500/30 hover:-translate-y-0.5 border border-violet-400 flex items-center justify-center gap-2 mb-4">
+                        <span>✨</span> Generate Universal AI Prompt
                     </button>
-                    <div id="fc-paste-formats" class="hidden mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                        <div class="bg-white dark:bg-slate-800 rounded-xl p-3 border border-indigo-100 dark:border-slate-700">
-                            <div class="font-black text-indigo-600 dark:text-indigo-400 mb-1">Format A — Labelled</div>
-                            <code class="text-slate-500 dark:text-slate-400 leading-relaxed block">Title: Box Formula<br>Chapter: Mensuration<br>Difficulty: Hard<br>Front: What is inner L?<br>Back: L - 2w<br>Hint: No lid = -w once</code>
+
+                    <!-- Generated prompt output -->
+                    <div id="fc-prompt-output-wrap" class="hidden">
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">✅ Ready — Copy & paste into any AI</label>
+                            <button onclick="fcCopyPromptToClipboard()" id="fc-copy-prompt-btn" class="bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs px-4 py-1.5 rounded-lg transition-colors flex items-center gap-1.5">
+                                📋 Copy Prompt
+                            </button>
                         </div>
-                        <div class="bg-white dark:bg-slate-800 rounded-xl p-3 border border-indigo-100 dark:border-slate-700">
-                            <div class="font-black text-indigo-600 dark:text-indigo-400 mb-1">Format B — Blank Lines</div>
-                            <code class="text-slate-500 dark:text-slate-400 leading-relaxed block">Box Formula<br>Chapter: Mensuration<br>Front: What is inner L?<br>Back: L - 2w<br><br>Next Card Title<br>Front: ...<br>Back: ...</code>
-                        </div>
-                        <div class="bg-white dark:bg-slate-800 rounded-xl p-3 border border-indigo-100 dark:border-slate-700">
-                            <div class="font-black text-indigo-600 dark:text-indigo-400 mb-1">Format C — Numbered</div>
-                            <code class="text-slate-500 dark:text-slate-400 leading-relaxed block">Card 1: Box Formula<br>Chapter: Mensuration<br>Front: What is inner L?<br>Back: L - 2w<br><br>Card 2: ...<br>Front: ...<br>Back: ...</code>
+                        <textarea id="fc-prompt-output" rows="10" readonly
+                            class="w-full px-4 py-3 rounded-xl bg-slate-900 dark:bg-black border border-slate-700 text-xs font-mono text-emerald-300 leading-relaxed resize-y"></textarea>
+                        <div class="mt-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl px-4 py-3 text-xs text-amber-700 dark:text-amber-300 font-bold leading-relaxed">
+                            💡 <span class="font-black">Next:</span> Paste this into ChatGPT / Claude / Gemini / Grok → wait for response → copy entire response → switch to <span class="text-indigo-600 dark:text-indigo-400">"Tab 2: Paste & Import"</span>.
                         </div>
                     </div>
                 </div>
 
-                <!-- Textarea -->
-                <div class="p-5">
-                    <textarea id="fc-paste-input" rows="12"
+                <!-- ══ TAB 2: PASTE & IMPORT ══ -->
+                <div id="fc-paste-pane-paste" class="hidden px-7 py-5">
+                    <div class="text-xs font-bold text-slate-600 dark:text-slate-300 mb-3 leading-relaxed">
+                        Paste the AI's response below. Cards use <code class="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded font-mono">=== CARD ===</code> as separator. Multiple formulas per card supported — each new line under <code class="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded font-mono">FORMULA:</code> = separate row.
+                    </div>
+
+                    <textarea id="fc-paste-input" rows="14"
                         oninput="fcPasteLiveCount()"
-                        placeholder="Paste one or many cards here...
+                        placeholder="Paste AI output here. Example:
 
-Card 1: Box Formula
-Chapter: Mensuration 3D
-Difficulty: Hard
-Front: Inner dimensions of OPEN hollow box?
-Back: L-2w, B-2w, H-w
-Hint: No lid = only subtract w once from H
+=== CARD ===
+TITLE: Heron's Formula
+CHAPTER: Mensuration — Triangle
+DIFFICULTY: hard
+FRONT: Area of triangle given all 3 sides (a, b, c)?
+FORMULA:
+• s = (a + b + c) / 2
+• Area = √[s(s-a)(s-b)(s-c)]
+HINT: 's' = semi-perimeter
+EXAMPLE: a=3, b=4, c=5 → s=6, Area = 6
 
-Card 2: Another formula
-Chapter: Algebra
-Front: Quadratic formula?
-Back: x = (-b ± √(b²-4ac)) / 2a"
-                        class="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400 text-slate-800 dark:text-slate-200 resize-y transition-colors"></textarea>
+=== CARD ===
+TITLE: Quadratic Formula
+CHAPTER: Algebra — Equations
+DIFFICULTY: medium
+FRONT: Roots of ax² + bx + c = 0?
+FORMULA:
+• x = (-b ± √(b² - 4ac)) / 2a
+• D = b² - 4ac
+HINT: Minus-b plus-or-minus root-D, over 2a"
+                        class="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400 text-slate-800 dark:text-slate-200 resize-y transition-colors leading-relaxed"></textarea>
 
-                    <!-- Preview panel (shown after parsing) -->
+                    <!-- Preview panel -->
                     <div id="fc-paste-preview" class="hidden mt-4">
                         <div class="text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Preview — Review before creating:</div>
-                        <div id="fc-paste-preview-cards" class="space-y-2 max-h-56 overflow-y-auto pr-1"></div>
+                        <div id="fc-paste-preview-cards" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
                     </div>
 
                     <div class="flex flex-wrap gap-3 mt-4">
                         <button onclick="fcPreviewPastedCards()" class="bg-indigo-500 hover:bg-indigo-600 text-white font-black px-6 py-2.5 rounded-xl text-sm transition-colors flex items-center gap-2">🔍 Preview</button>
-                        <button id="fc-paste-confirm-btn" onclick="fcConfirmPastedCards()" class="hidden bg-emerald-500 hover:bg-emerald-600 text-white font-black px-6 py-2.5 rounded-xl text-sm transition-colors flex items-center gap-2">✅ Create All</button>
+                        <button id="fc-paste-confirm-btn" onclick="fcConfirmPastedCards()" class="hidden bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black px-6 py-2.5 rounded-xl text-sm transition-colors flex items-center gap-2 shadow-lg">✅ Create All</button>
                         <button onclick="fcTogglePasteForm()" class="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-black px-5 py-2.5 rounded-xl text-sm transition-colors">Cancel</button>
                     </div>
                     <div id="fc-paste-result" class="hidden mt-3 text-sm font-black text-emerald-600 dark:text-emerald-400"></div>
                 </div>
             </div>
 
-            <!-- ===== EDIT CARD MODAL ===== -->
-            <div id="fc-edit-modal" class="hidden fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm flex justify-center items-center p-4">
-                <div class="bg-white dark:bg-slate-900 rounded-3xl p-7 w-full max-w-2xl shadow-2xl border border-slate-200 dark:border-slate-700 relative">
+            <!-- ===== EDIT CARD MODAL (REVAMPED) ===== -->
+            <div id="fc-edit-modal" class="hidden fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm flex justify-center items-center p-4 overflow-y-auto">
+                <div class="bg-white dark:bg-slate-900 rounded-3xl p-7 w-full max-w-3xl shadow-2xl border border-slate-200 dark:border-slate-700 relative my-auto">
                     <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-amber-400 to-orange-500 rounded-t-3xl"></div>
                     <div class="flex justify-between items-center mb-6">
                         <div class="text-lg font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">✏️ Edit Formula Card</div>
@@ -486,11 +518,11 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                     <input type="hidden" id="fc-edit-id">
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                         <div>
-                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Title</label>
+                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1.5">Title</label>
                             <input id="fc-edit-title" type="text" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
                         </div>
                         <div>
-                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Chapter</label>
+                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1.5">Chapter</label>
                             <select id="fc-edit-cat" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
                                 <optgroup label="Arithmetic"><option>Number System</option><option>HCF &amp; LCM</option><option>Simplification</option><option>Percentage</option><option>Profit &amp; Loss</option><option>Discount</option><option>Simple Interest</option><option>Compound Interest</option><option>Ratio &amp; Proportion</option><option>Mixture &amp; Alligation</option><option>Time &amp; Work</option><option>Pipes &amp; Cisterns</option><option>Time Speed Distance</option><option>Boats &amp; Streams</option><option>Trains</option></optgroup>
                                 <optgroup label="Algebra"><option>Algebra — Identities</option><option>Algebra — Equations</option><option>Sequence &amp; Series</option></optgroup>
@@ -502,29 +534,34 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                             </select>
                         </div>
                         <div>
-                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Difficulty</label>
+                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1.5">Difficulty</label>
                             <select id="fc-edit-diff" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
                                 <option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option>
                             </select>
                         </div>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                        <div>
-                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Front — Question</label>
-                            <input id="fc-edit-front" type="text" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
+                    <div class="mb-4">
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1.5">Front — Question prompt</label>
+                        <input id="fc-edit-front" type="text" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
+                    </div>
+                    <div class="mb-4">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Back — Formulas <span class="text-amber-500 font-black normal-case">(each row = one formula)</span></label>
+                            <button type="button" onclick="fcAddFormulaRow('fc-edit-rows')" class="text-[10px] font-black px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition-colors flex items-center gap-1">
+                                <span class="text-base leading-none">+</span> Add Line
+                            </button>
                         </div>
+                        <div id="fc-edit-rows" class="space-y-2"></div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                         <div>
-                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Back — Formula <span class="text-amber-500">(new line = new row)</span></label>
-                            <textarea id="fc-edit-back" rows="3" placeholder="Formula 1&#10;Formula 2 on new line" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200 resize-none"></textarea>
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Memory Trick</label>
+                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1.5">Memory Trick</label>
                             <input id="fc-edit-hint" type="text" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
                         </div>
-                    </div>
-                    <div class="mt-3">
-                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">Example Question (optional)</label>
-                        <textarea id="fc-edit-example" rows="3" placeholder="e.g. If n=3 cubes each of side 4cm are joined, find the TSA of the cuboid formed." class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200 resize-none"></textarea>
+                        <div>
+                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1.5">Example Question (optional)</label>
+                            <input id="fc-edit-example" type="text" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
+                        </div>
                     </div>
                     <div class="flex gap-3 mt-2">
                         <button onclick="fcCloseEditModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black py-3 rounded-2xl text-sm transition-colors hover:bg-slate-200 dark:hover:bg-slate-700">Cancel</button>
@@ -633,8 +670,8 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                 </div>
             </div>
 
-            <!-- ===== QUIZ RUNNER (shared for all quiz modes) ===== -->
-            <div id="fc-quiz-runner" class="hidden max-w-xl mx-auto py-2">
+            <!-- ===== QUIZ RUNNER (REVAMPED — book-style flashcard) ===== -->
+            <div id="fc-quiz-runner" class="hidden max-w-2xl mx-auto py-2">
                 <div class="flex justify-between items-center mb-3 text-xs font-black uppercase tracking-widest text-slate-400">
                     <span id="fc-quiz-counter">Card 1 of 10</span>
                     <span id="fc-quiz-mode-label" class="px-3 py-1 rounded-full text-[10px] bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-800/40">SRS</span>
@@ -645,15 +682,38 @@ Back: x = (-b ± √(b²-4ac)) / 2a"
                 </div>
                 <!-- Next review label -->
                 <div id="fc-next-review-label" class="hidden text-center mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400"></div>
-                <!-- Flip Card -->
-                <div id="fc-quiz-card" onclick="fcFlipCard()" class="min-h-[260px] rounded-3xl border-2 border-slate-200 dark:border-slate-700 p-8 flex flex-col justify-center items-center text-center cursor-pointer transition-all hover:shadow-xl hover:-translate-y-0.5 relative bg-slate-50 dark:bg-slate-800 select-none">
-                    <div id="fc-quiz-label" class="text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-slate-400">Question</div>
-                    <div id="fc-quiz-cat-chip" class="text-[9px] font-black uppercase tracking-widest text-amber-500 mb-2"></div>
-                    <div id="fc-quiz-title" class="text-2xl font-black text-slate-800 dark:text-slate-100 mb-2"></div>
-                    <div id="fc-quiz-front" class="text-sm font-bold text-slate-500 dark:text-slate-400 mb-4"></div>
-                    <div id="fc-quiz-answer" class="hidden text-xl font-black text-indigo-600 dark:text-indigo-400 leading-relaxed"></div>
-                    <div id="fc-quiz-tap" class="text-xs text-slate-300 dark:text-slate-600 mt-4 font-bold">tap to reveal ↓</div>
-                    <span id="fc-quiz-diff-badge" class="absolute top-4 right-4 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest"></span>
+
+                <!-- Book-page Flashcard -->
+                <div id="fc-quiz-card" onclick="fcFlipCard()" class="fc-book-card min-h-[320px] rounded-[2rem] border-2 border-slate-200 dark:border-slate-700 p-8 sm:p-10 flex flex-col cursor-pointer transition-all hover:shadow-2xl hover:-translate-y-0.5 relative bg-gradient-to-br from-white via-slate-50/60 to-white dark:from-slate-900 dark:via-slate-800/60 dark:to-slate-900 select-none overflow-hidden">
+                    <!-- Decorative book spine ribbon -->
+                    <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400"></div>
+                    <div class="absolute top-0 left-8 w-1 h-full bg-gradient-to-b from-amber-300/30 via-orange-300/20 to-transparent pointer-events-none"></div>
+
+                    <!-- Header strip -->
+                    <div class="flex items-start justify-between mb-5 relative z-10">
+                        <div>
+                            <div id="fc-quiz-label" class="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 dark:text-slate-500 mb-1">Question</div>
+                            <div id="fc-quiz-cat-chip" class="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400"></div>
+                        </div>
+                        <span id="fc-quiz-diff-badge" class="text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest"></span>
+                    </div>
+
+                    <!-- Title -->
+                    <div id="fc-quiz-title" class="text-2xl sm:text-3xl font-black text-slate-800 dark:text-slate-100 mb-3 leading-tight tracking-tight"></div>
+
+                    <!-- Front (Question) -->
+                    <div id="fc-quiz-front" class="text-base font-bold text-slate-600 dark:text-slate-300 mb-5 leading-relaxed"></div>
+
+                    <!-- Decorative divider before answer area -->
+                    <div id="fc-quiz-divider" class="hidden mb-5 relative">
+                        <div class="absolute inset-0 flex items-center"><div class="w-full h-px bg-gradient-to-r from-transparent via-indigo-300/50 dark:via-indigo-700/50 to-transparent"></div></div>
+                        <div class="relative flex justify-center"><span class="bg-white dark:bg-slate-900 px-4 text-[10px] font-black uppercase tracking-[0.3em] text-indigo-500 dark:text-indigo-400">Formula</span></div>
+                    </div>
+
+                    <!-- Back (Answer — book-style formula display) -->
+                    <div id="fc-quiz-answer" class="hidden"></div>
+
+                    <div id="fc-quiz-tap" class="text-xs text-slate-300 dark:text-slate-600 mt-auto pt-4 font-bold text-center">tap to reveal ↓</div>
                 </div>
                 <!-- Hint -->
                 <div class="text-center mt-3" id="fc-hint-area"></div>
@@ -6283,26 +6343,182 @@ window.generateQuantNotes = () => {
     const FC_CARDS_KEY = 'yogesh_fc_cards_v2';
     const FC_PROG_KEY  = 'yogesh_fc_prog_v2';
 
-    // ---- MATH RENDERING HELPER ----
-    // Detects raw LaTeX and wraps in \( \) for MathJax; otherwise returns plain text safely
-    function fcMathHTML(text) {
+    // ---- MATH RENDERING HELPER (REVAMPED — book-style numbered rows) ----
+    // Input: text with formulas separated by \n
+    // Output: HTML with each formula on its own numbered row, math beautifully rendered
+    //
+    // Smart features:
+    // • Auto-detects LaTeX vs plain math
+    // • Auto-converts plain symbols: × ÷ π √ ² ³ ½ → proper LaTeX
+    // • Strips list prefixes (•, -, *, 1., 2.)
+    // • Splits a "Name = formula" into label + math
+    // • Wraps for MathJax \( ... \)
+    function fcMathHTML(text, opts) {
         if (!text) return '';
-        const lines = text.split('\n').filter(l => l.trim());
-        return lines.map((line, i) => {
-            const hasLatex = /\\[a-zA-Z{\[(]|\^\{|\^[0-9a-zA-Z]|_\{|_[0-9a-zA-Z]|\\frac|\\sqrt|\\sum|\\int|\\cdot|\\times|\\pm|\\alpha|\\beta|\\theta|\\pi|\\sigma/.test(line);
-            const sep = (i < lines.length - 1) ? '<div style="height:1px;background:rgba(99,102,241,0.15);margin:4px 0"></div>' : '';
-            const safe = line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-            if (!hasLatex) {
-                return '<div style="padding:3px 0">' + safe + '</div>' + sep;
+        opts = opts || {};
+        const compact = !!opts.compact;
+        const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+        if (!lines.length) return '';
+
+        // Auto-LaTeXify plain math symbols (only if no \ already present in line)
+        const latexify = (s) => {
+            if (/\\[a-zA-Z]/.test(s)) return s;  // already LaTeX, leave alone
+            return s
+                .replace(/×/g, '\\times ')
+                .replace(/÷/g, '\\div ')
+                .replace(/π/g, '\\pi ')
+                .replace(/θ/g, '\\theta ')
+                .replace(/α/g, '\\alpha ')
+                .replace(/β/g, '\\beta ')
+                .replace(/γ/g, '\\gamma ')
+                .replace(/Δ/g, '\\Delta ')
+                .replace(/σ/g, '\\sigma ')
+                .replace(/μ/g, '\\mu ')
+                .replace(/φ/g, '\\phi ')
+                .replace(/±/g, '\\pm ')
+                .replace(/≤/g, '\\le ')
+                .replace(/≥/g, '\\ge ')
+                .replace(/≠/g, '\\ne ')
+                .replace(/≈/g, '\\approx ')
+                .replace(/∞/g, '\\infty ')
+                .replace(/∑/g, '\\sum ')
+                .replace(/∫/g, '\\int ')
+                .replace(/∠/g, '\\angle ')
+                .replace(/√\(([^)]+)\)/g, '\\sqrt{$1}')
+                .replace(/√([a-zA-Z0-9]+)/g, '\\sqrt{$1}')
+                .replace(/²/g, '^{2}')
+                .replace(/³/g, '^{3}')
+                .replace(/⁴/g, '^{4}')
+                .replace(/⁵/g, '^{5}')
+                .replace(/¹/g, '^{1}')
+                .replace(/₀/g, '_{0}').replace(/₁/g, '_{1}').replace(/₂/g, '_{2}').replace(/₃/g, '_{3}').replace(/₄/g, '_{4}').replace(/₅/g, '_{5}').replace(/₆/g, '_{6}').replace(/₇/g, '_{7}').replace(/₈/g, '_{8}').replace(/₉/g, '_{9}')
+                .replace(/½/g, '\\frac{1}{2}').replace(/⅓/g, '\\frac{1}{3}').replace(/¼/g, '\\frac{1}{4}').replace(/⅔/g, '\\frac{2}{3}').replace(/¾/g, '\\frac{3}{4}');
+        };
+
+        // Detect whether a line truly contains math
+        const looksMath = (s) => /[=+\-*/^√×÷πθα∑∫\\\[\]]|\d/.test(s);
+
+        // Heuristic: detect LaTeX commands or symbols requiring MathJax
+        const hasMathSyntax = (s) => /\\[a-zA-Z]|[\^_]\{|\^[0-9a-zA-Z]|_[0-9a-zA-Z(]|\\frac|\\sqrt|\\sum|\\int/.test(s);
+
+        const compactClass = compact ? ' fc-compact' : '';
+
+        const rows = lines.map((rawLine, i) => {
+            // Strip list bullets / numbering prefixes
+            let line = rawLine.replace(/^[\s]*(?:[•\-*▪►]|\d+[\.\)])\s+/, '');
+            // LaTeXify symbols
+            line = latexify(line);
+            // Escape HTML in the non-math portion
+            const escapeHtml = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+            let bodyHtml;
+            if (hasMathSyntax(line)) {
+                // wrap entire thing in MathJax inline delimiters but allow some plain text
+                // Try to split a "Label: expr" or "Label = expr" pattern
+                const labelMatch = line.match(/^([A-Za-z][A-Za-z\s]{0,30}?)\s*[:=]\s*(.+)$/);
+                if (labelMatch && !hasMathSyntax(labelMatch[1])) {
+                    bodyHtml = '<strong style="color:#475569;font-weight:800">' + escapeHtml(labelMatch[1]) + ' =</strong> \\(' + labelMatch[2] + '\\)';
+                } else {
+                    bodyHtml = '\\(' + line + '\\)';
+                }
+            } else if (looksMath(line)) {
+                // plain math, just wrap whole thing
+                bodyHtml = '\\(' + line + '\\)';
+            } else {
+                // plain text
+                bodyHtml = escapeHtml(line);
             }
-            const prefixMatch = line.match(/^([^\\^_$]*?)((?:\\[a-zA-Z{\[(]|\$|\.\s*\\|\^|_(?=[{0-9])).*)/);
-            if (prefixMatch && prefixMatch[1].trim()) {
-                const plainPart = prefixMatch[1].replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-                const mathPart  = prefixMatch[2];
-                return '<div style="padding:3px 0">' + plainPart + ' \\(' + mathPart + '\\)</div>' + sep;
+
+            return '<div class="fc-formula-row">'
+                +    '<div class="fc-formula-number">' + (i + 1) + '</div>'
+                +    '<div class="fc-formula-body">' + bodyHtml + '</div>'
+                + '</div>';
+        });
+
+        return '<div class="fc-formula-list' + compactClass + '" data-count="' + lines.length + '">' + rows.join('') + '</div>';
+    }
+
+    // Public helper: build a single-row "front" question rendering (with math support)
+    function fcFrontHTML(text) {
+        if (!text) return '';
+        const escapeHtml = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const hasMath = /\\[a-zA-Z]|[\^_]\{|\\frac|\\sqrt|π|√|²|³/.test(text);
+        if (!hasMath) return escapeHtml(text).replace(/\n/g, '<br>');
+        // Soft latexify
+        const latex = text
+            .replace(/×/g, '\\times ').replace(/÷/g, '\\div ').replace(/π/g, '\\pi ').replace(/²/g, '^{2}').replace(/³/g, '^{3}').replace(/√\(([^)]+)\)/g, '\\sqrt{$1}').replace(/√([a-zA-Z0-9]+)/g, '\\sqrt{$1}');
+        // Wrap math fragments in \( \)
+        return latex.split('\n').map(l => /\\[a-zA-Z]|[\^_]\{/.test(l) ? '\\(' + l + '\\)' : escapeHtml(l)).join('<br>');
+    }
+
+    // ============================================================
+    // MULTI-FORMULA INPUT ROW (used by Add form + Edit modal)
+    // ============================================================
+    // Build a single row UI for entering one formula
+    function fcMakeFormulaInputRow(value, idx) {
+        const row = document.createElement('div');
+        row.className = 'fc-formula-input-row';
+        row.innerHTML =
+            '<div class="fc-row-num">' + (idx + 1) + '</div>' +
+            '<input type="text" placeholder="e.g. A = πr²   or   A = \\pi r^2" value="' + (value || '').replace(/"/g, '&quot;') + '">' +
+            '<button type="button" class="fc-row-del" title="Remove this line">×</button>';
+        row.querySelector('.fc-row-del').addEventListener('click', () => {
+            const container = row.parentElement;
+            row.remove();
+            // Renumber surviving rows
+            if (container) {
+                container.querySelectorAll('.fc-formula-input-row .fc-row-num').forEach((n, i) => n.textContent = (i + 1));
+                if (container.children.length === 0) {
+                    // Always keep at least one empty row
+                    container.appendChild(fcMakeFormulaInputRow('', 0));
+                }
             }
-            return '<div style="padding:3px 0">\\(' + line + '\\)</div>' + sep;
-        }).join('');
+        });
+        // Pressing Enter inside the input adds a new row after it
+        row.querySelector('input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const container = row.parentElement;
+                const newRow = fcMakeFormulaInputRow('', container.children.length);
+                row.after(newRow);
+                container.querySelectorAll('.fc-formula-input-row .fc-row-num').forEach((n, i) => n.textContent = (i + 1));
+                newRow.querySelector('input').focus();
+            }
+        });
+        return row;
+    }
+
+    // Public: add a blank row to a container (called by + Add Formula Line button)
+    window.fcAddFormulaRow = function(containerId) {
+        const c = document.getElementById(containerId);
+        if (!c) return;
+        const idx = c.children.length;
+        const row = fcMakeFormulaInputRow('', idx);
+        c.appendChild(row);
+        row.querySelector('input').focus();
+    };
+
+    // Populate rows container from a \n-separated string (or empty for new card)
+    function fcPopulateRows(containerId, backText) {
+        const c = document.getElementById(containerId);
+        if (!c) return;
+        c.innerHTML = '';
+        const lines = (backText || '').split('\n').map(l => l.trim()).filter(Boolean);
+        if (lines.length === 0) {
+            c.appendChild(fcMakeFormulaInputRow('', 0));
+        } else {
+            lines.forEach((l, i) => c.appendChild(fcMakeFormulaInputRow(l, i)));
+        }
+    }
+
+    // Read rows back to \n-separated string
+    function fcReadRows(containerId) {
+        const c = document.getElementById(containerId);
+        if (!c) return '';
+        return Array.from(c.querySelectorAll('.fc-formula-input-row input'))
+            .map(inp => inp.value.trim())
+            .filter(Boolean)
+            .join('\n');
     }
 
     // SRS intervals in days: index = number of correct reviews
@@ -6401,20 +6617,21 @@ window.generateQuantNotes = () => {
         if(!grid) return;
         const filtered = fcCards.filter(c =>
             (fcActiveCat === 'All' || c.category === fcActiveCat) &&
-            (!search || c.title.toLowerCase().includes(search) || c.front.toLowerCase().includes(search))
+            (!search || c.title.toLowerCase().includes(search) || c.front.toLowerCase().includes(search) || (c.back||'').toLowerCase().includes(search))
         );
         if(!filtered.length){
             grid.innerHTML = fcActiveCat === 'All' && !search
                 ? `<div class="col-span-3 text-center py-20 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-3xl">
-                    <div class="text-4xl mb-3">📭</div>
+                    <div class="text-5xl mb-4">📭</div>
                     <div class="text-slate-400 font-black uppercase tracking-widest text-xs mb-2">No cards yet</div>
-                    <div class="text-slate-400 text-xs font-bold">Hit <span class="text-amber-500">+ Add Formula</span> above to add your first formula</div>
+                    <div class="text-slate-400 text-xs font-bold">Hit <span class="text-amber-500">+ Add Card</span> above, or <span class="text-indigo-500">📋 Paste from AI</span> to bulk-import.</div>
                    </div>`
                 : `<div class="col-span-3 text-center text-slate-400 font-bold py-16 text-xs uppercase tracking-widest">No cards match. Try a different filter.</div>`;
             return;
         }
         const diffColor = {easy:'#10b981',medium:'#f59e0b',hard:'#ef4444'};
-        const diffBg = {easy:'rgba(16,185,129,0.1)',medium:'rgba(245,158,11,0.1)',hard:'rgba(239,68,68,0.1)'};
+        const diffBg    = {easy:'rgba(16,185,129,0.1)',medium:'rgba(245,158,11,0.1)',hard:'rgba(239,68,68,0.1)'};
+        const escapeHtml = (s) => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         grid.innerHTML = '';
         filtered.forEach(card => {
             const p = fcGetProgress(card.id);
@@ -6422,24 +6639,27 @@ window.generateQuantNotes = () => {
             const due = p.lastSeen && fcIsDue(card.id) && !mastered;
             const reviews = p.reviews || 0;
             const nextLabel = p.lastSeen ? (mastered ? '⭐ Mastered' : (due ? '🔴 Due now' : `Next: ${new Date(p.nextReview).toLocaleDateString()}`)) : '🆕 New';
+            const formulaCount = (card.back||'').split('\n').filter(l => l.trim()).length;
             const div = document.createElement('div');
-            div.className = 'rounded-2xl border p-5 transition-all hover:-translate-y-1 hover:shadow-lg ' + (mastered ? 'border-emerald-200 dark:border-emerald-800/40 bg-emerald-50/50 dark:bg-emerald-900/10' : due ? 'border-rose-200 dark:border-rose-800/40 bg-rose-50/30 dark:bg-rose-900/10' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50');
+            div.className = 'fc-book-card relative rounded-2xl border-2 p-5 transition-all hover:-translate-y-1 hover:shadow-xl overflow-hidden ' + (mastered ? 'border-emerald-200 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50/80 to-white dark:from-emerald-950/30 dark:to-slate-900' : due ? 'border-rose-200 dark:border-rose-800/40 bg-gradient-to-br from-rose-50/80 to-white dark:from-rose-950/30 dark:to-slate-900' : 'border-slate-200 dark:border-slate-700 bg-gradient-to-br from-white via-slate-50/40 to-white dark:from-slate-900 dark:via-slate-800/40 dark:to-slate-900');
             div.innerHTML = `
-                <div class="flex justify-between items-start mb-3">
+                <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${mastered ? 'from-emerald-400 to-teal-400' : due ? 'from-rose-400 to-orange-400' : 'from-amber-400 to-orange-400'}"></div>
+                <div class="flex justify-between items-start mb-3 relative z-10">
                     <span style="background:${diffBg[card.difficulty]};color:${diffColor[card.difficulty]}" class="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">${card.difficulty}</span>
-                    <div class="flex gap-2 items-center">
+                    <div class="flex gap-1.5 items-center">
                         ${mastered ? '<span title="Mastered!">⭐</span>' : ''}
+                        ${formulaCount > 1 ? `<span class="text-[9px] font-black px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/40" title="${formulaCount} formulas">${formulaCount}× formulas</span>` : ''}
                         <button onclick="fcOpenEditModal('${card.id}')" class="text-slate-300 dark:text-slate-600 hover:text-amber-500 transition-colors text-sm font-black px-2 py-0.5 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20" title="Edit">✏️</button>
-                        <button onclick="fcDeleteCard('${card.id}')" class="text-slate-300 dark:text-slate-600 hover:text-red-500 transition-colors text-lg font-black" title="Delete">×</button>
+                        <button onclick="fcDeleteCard('${card.id}')" class="text-slate-300 dark:text-slate-600 hover:text-red-500 transition-colors text-lg font-black leading-none" title="Delete">×</button>
                     </div>
                 </div>
-                <div class="text-[9px] font-black uppercase tracking-widest text-amber-500 mb-1.5">${card.category}</div>
-                <div class="text-base font-black text-slate-800 dark:text-slate-100 mb-2 leading-snug">${card.title}</div>
-                <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3 leading-relaxed" style="white-space:pre-line">${card.front}</div>
-                <div class="text-sm font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50/60 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/40 rounded-xl px-4 py-3 mb-3" style="line-height:2.2">${fcMathHTML(card.back)}</div>
-                ${card.hint ? `<div class="text-[10px] text-amber-700 dark:text-amber-400 font-bold mb-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30 rounded-lg px-3 py-1.5">💡 ${card.hint}</div>` : ''}
-                ${card.example ? `<div class="mb-2"><button onclick="fcToggleExample('${card.id}')" class="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800/40 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors">📝 Example Q</button><div id="fc-example-${card.id}" class="hidden mt-2 text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 leading-relaxed font-semibold" style="white-space:pre-line">${card.example.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div></div>` : ''}
-                <div class="flex items-center justify-between mt-1">
+                <div class="text-[9px] font-black uppercase tracking-widest text-amber-500 mb-1.5 relative z-10">${escapeHtml(card.category)}</div>
+                <div class="text-base font-black text-slate-800 dark:text-slate-100 mb-2 leading-snug relative z-10">${escapeHtml(card.title)}</div>
+                <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3 leading-relaxed relative z-10">${escapeHtml(card.front)}</div>
+                <div class="relative z-10 mb-3 bg-gradient-to-br from-indigo-50/60 via-violet-50/40 to-indigo-50/60 dark:from-indigo-950/40 dark:via-violet-950/30 dark:to-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 rounded-xl px-4 py-3">${fcMathHTML(card.back, {compact:true})}</div>
+                ${card.hint ? `<div class="text-[10px] text-amber-700 dark:text-amber-400 font-bold mb-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30 rounded-lg px-3 py-1.5 relative z-10">💡 ${escapeHtml(card.hint)}</div>` : ''}
+                ${card.example ? `<div class="mb-2 relative z-10"><button onclick="fcToggleExample('${card.id}')" class="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800/40 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors">📝 Example</button><div id="fc-example-${card.id}" class="hidden mt-2 text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 leading-relaxed font-semibold" style="white-space:pre-line">${escapeHtml(card.example)}</div></div>` : ''}
+                <div class="flex items-center justify-between mt-1 relative z-10">
                     <span class="text-[9px] font-black px-2 py-0.5 rounded-full ${due ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400' : mastered ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-500'}">${nextLabel}</span>
                     ${reviews > 0 ? `<span class="text-[9px] text-slate-400 font-bold">✅${p.correct} ❌${p.wrong} 🔄${reviews}/${MASTERED_THRESHOLD}</span>` : ''}
                 </div>`;
@@ -6499,22 +6719,27 @@ window.generateQuantNotes = () => {
         const b = document.getElementById('fc-add-btn');
         if(!f) return;
         const nowHidden = f.classList.toggle('hidden');
-        if(b) b.textContent = nowHidden ? '+ Add Formula' : '✕ Cancel';
+        if(b) b.textContent = nowHidden ? '+ Add Card' : '✕ Cancel';
+        if(!nowHidden){
+            // Form is being opened — populate fresh empty rows
+            fcPopulateRows('fc-new-rows', '');
+        }
     };
 
     window.fcAddCard = function(){
         const title = document.getElementById('fc-new-title').value.trim();
         const front = document.getElementById('fc-new-front').value.trim();
-        const back  = document.getElementById('fc-new-back').value.trim();
+        const back  = fcReadRows('fc-new-rows');
         const hint  = document.getElementById('fc-new-hint').value.trim();
         const example = document.getElementById('fc-new-example').value.trim();
         const cat   = document.getElementById('fc-new-cat').value;
         const diff  = document.getElementById('fc-new-diff').value;
-        if(!title||!front||!back){ alert('Please fill Title, Front (question) and Back (formula).'); return; }
+        if(!title||!front||!back){ alert('Please fill Title, Front (question) and at least one Formula line.'); return; }
         const id = 'fc_' + Date.now();
         fcCards.push({id,category:cat,difficulty:diff,title,front,back,hint,example});
         fcSave();
-        ['fc-new-title','fc-new-front','fc-new-back','fc-new-hint','fc-new-example'].forEach(i=>{ const e=document.getElementById(i); if(e)e.value=''; });
+        ['fc-new-title','fc-new-front','fc-new-hint','fc-new-example'].forEach(i=>{ const e=document.getElementById(i); if(e)e.value=''; });
+        fcPopulateRows('fc-new-rows', '');
         fcToggleAddForm();
         fcUpdateStats();
         fcBuildCatFilters();
@@ -6523,6 +6748,7 @@ window.generateQuantNotes = () => {
     };
 
     window.fcDeleteCard = function(id){
+        if(!confirm('Delete this card permanently? This cannot be undone.')) return;
         fcCards = fcCards.filter(c=>c.id!==id);
         delete fcProgress[id];
         fcSave();
@@ -6539,7 +6765,8 @@ window.generateQuantNotes = () => {
         document.getElementById('fc-edit-id').value    = id;
         document.getElementById('fc-edit-title').value = card.title;
         document.getElementById('fc-edit-front').value = card.front;
-        document.getElementById('fc-edit-back').value  = card.back;
+        // Populate dynamic rows from existing \n-separated back string
+        fcPopulateRows('fc-edit-rows', card.back || '');
         document.getElementById('fc-edit-hint').value  = card.hint||'';
         document.getElementById('fc-edit-example').value = card.example||'';
         document.getElementById('fc-edit-diff').value  = card.difficulty||'medium';
@@ -6557,12 +6784,12 @@ window.generateQuantNotes = () => {
         const id    = document.getElementById('fc-edit-id').value;
         const title = document.getElementById('fc-edit-title').value.trim();
         const front = document.getElementById('fc-edit-front').value.trim();
-        const back  = document.getElementById('fc-edit-back').value.trim();
+        const back  = fcReadRows('fc-edit-rows');
         const hint  = document.getElementById('fc-edit-hint').value.trim();
         const example = document.getElementById('fc-edit-example').value.trim();
         const cat   = document.getElementById('fc-edit-cat').value;
         const diff  = document.getElementById('fc-edit-diff').value;
-        if(!title||!front||!back){ alert('Title, Front and Back are required.'); return; }
+        if(!title||!front||!back){ alert('Title, Front and at least one Formula line are required.'); return; }
         const idx = fcCards.findIndex(c=>c.id===id);
         if(idx===-1) return;
         fcCards[idx] = { ...fcCards[idx], title, front, back, hint, example, category:cat, difficulty:diff };
@@ -6652,27 +6879,31 @@ window.generateQuantNotes = () => {
         fcShowQuizCard();
     }
 
-    // ---- QUIZ CARD ----
+    // ---- QUIZ CARD (REVAMPED — book-page reveal) ----
     function fcShowQuizCard(){
         const card = fcQuizQueue[fcQuizIdx];
         if(!card) return;
         const diffColor = {easy:'#10b981',medium:'#f59e0b',hard:'#ef4444'};
         const diffBg    = {easy:'rgba(16,185,129,0.1)',medium:'rgba(245,158,11,0.1)',hard:'rgba(239,68,68,0.1)'};
-        const p = fcGetProgress(card.id);
+        const escapeHtml = (s) => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         document.getElementById('fc-quiz-counter').textContent = `Card ${fcQuizIdx+1} of ${fcQuizQueue.length}`;
         document.getElementById('fc-quiz-progress').style.width = `${(fcQuizIdx/fcQuizQueue.length)*100}%`;
         document.getElementById('fc-quiz-label').textContent = 'Question';
         document.getElementById('fc-quiz-label').style.color = '';
         document.getElementById('fc-quiz-cat-chip').textContent = card.category;
-        document.getElementById('fc-quiz-title').innerHTML = fcMathHTML(card.title);
-        document.getElementById('fc-quiz-front').innerHTML = fcMathHTML(card.front);
+        // Title rendered plain (escape HTML; math in titles is rare and looks weird in big bold)
+        document.getElementById('fc-quiz-title').innerHTML = escapeHtml(card.title);
+        // Front (question) — supports plain text or light math via fcFrontHTML
+        document.getElementById('fc-quiz-front').innerHTML = fcFrontHTML(card.front);
+        // Back (formulas) — book-style numbered rows
         document.getElementById('fc-quiz-answer').innerHTML = fcMathHTML(card.back);
         document.getElementById('fc-quiz-answer').classList.add('hidden');
+        document.getElementById('fc-quiz-divider').classList.add('hidden');
         document.getElementById('fc-quiz-tap').classList.remove('hidden');
         document.getElementById('fc-quiz-btns').classList.add('hidden');
         document.getElementById('fc-interval-preview').classList.add('hidden');
         document.getElementById('fc-next-review-label').classList.add('hidden');
-        // Typeset question side
+        // Typeset math in question side (title + front may have it)
         if(window.MathJax && MathJax.typesetPromise) {
             MathJax.typesetPromise([document.getElementById('fc-quiz-card')]).catch(()=>{});
         }
@@ -6680,9 +6911,11 @@ window.generateQuantNotes = () => {
         badge.textContent = card.difficulty;
         badge.style.background = diffBg[card.difficulty];
         badge.style.color = diffColor[card.difficulty];
+        // Reset card border to default state (don't kill the book-card class)
         const qcard = document.getElementById('fc-quiz-card');
         qcard.style.borderColor = '';
-        qcard.className = 'min-h-[260px] rounded-3xl border-2 border-slate-200 dark:border-slate-700 p-8 flex flex-col justify-center items-center text-center cursor-pointer transition-all hover:shadow-xl hover:-translate-y-0.5 relative bg-slate-50 dark:bg-slate-800 select-none';
+        qcard.classList.remove('border-indigo-300','dark:border-indigo-600');
+        qcard.classList.add('border-slate-200','dark:border-slate-700');
         document.getElementById('fc-hint-area').innerHTML = card.hint
             ? `<button onclick="fcShowHint()" class="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40 hover:bg-amber-100 transition-colors">💡 Hint</button>` : '';
         fcFlipped = false;
@@ -6693,6 +6926,7 @@ window.generateQuantNotes = () => {
         fcFlipped = true;
         const card = fcQuizQueue[fcQuizIdx];
         const p = fcGetProgress(card.id);
+        document.getElementById('fc-quiz-divider').classList.remove('hidden');
         document.getElementById('fc-quiz-answer').classList.remove('hidden');
         document.getElementById('fc-quiz-tap').classList.add('hidden');
         document.getElementById('fc-quiz-btns').classList.remove('hidden');
@@ -6765,336 +6999,6 @@ window.generateQuantNotes = () => {
         fcUpdateStats();
         fcRender();
         fcRenderChapterList();
-    };
-
-    // ---- AI SCREENSHOT SCANNER ----
-    let fcScanImageBase64 = null;
-    let fcScanImageType   = null;
-    let fcScanMode        = 'image'; // 'image' | 'text'
-
-    // ── Mode switching ──────────────────────────────────────────
-    window.fcScanSetMode = function(mode) {
-        fcScanMode = mode;
-        const isImage = mode === 'image';
-        // Panels
-        document.getElementById('fc-scan-image-mode').classList.toggle('hidden', !isImage);
-        document.getElementById('fc-scan-text-mode').classList.toggle('hidden', isImage);
-        // Tabs
-        const tabImg = document.getElementById('fc-scan-tab-image');
-        const tabTxt = document.getElementById('fc-scan-tab-text');
-        tabImg.className = 'px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ' +
-            (isImage ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
-                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-700');
-        tabTxt.className = 'px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ' +
-            (!isImage ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700');
-        // Label + run btn
-        const lbl = document.getElementById('fc-scan-btn-label');
-        if(lbl) lbl.textContent = isImage ? 'Extract with AI' : 'Convert with AI';
-        // Show run btn in text mode if there's already text
-        const txt = document.getElementById('fc-scan-text-input');
-        if(!isImage && txt && txt.value.trim()) {
-            document.getElementById('fc-scan-run-btn').classList.remove('hidden');
-        }
-        // Hide result / error when switching
-        document.getElementById('fc-scan-result').classList.add('hidden');
-        document.getElementById('fc-scan-error').classList.add('hidden');
-    };
-
-    // ── Modal open / close ──────────────────────────────────────
-    window.fcToggleScanModal = function(){
-        const m = document.getElementById('fc-scan-modal');
-        if(m) { m.classList.remove('hidden'); fcScanReset(); }
-    };
-    window.fcCloseScanModal = function(){
-        const m = document.getElementById('fc-scan-modal');
-        if(m) m.classList.add('hidden');
-        fcScanReset();
-    };
-
-    // ── Reset ───────────────────────────────────────────────────
-    window.fcScanReset = function(){
-        fcScanImageBase64 = null;
-        fcScanImageType   = null;
-        fcScanMode        = 'image';
-        const ids = ['fc-scan-preview-wrap','fc-scan-loading','fc-scan-result','fc-scan-error'];
-        ids.forEach(id => { const el=document.getElementById(id); if(el) el.classList.add('hidden'); });
-        const ph = document.getElementById('fc-scan-placeholder');
-        if(ph) ph.classList.remove('hidden');
-        document.getElementById('fc-scan-run-btn').classList.add('hidden');
-        const inp = document.getElementById('fc-scan-file-input');
-        if(inp) inp.value = '';
-        const txt = document.getElementById('fc-scan-text-input');
-        if(txt) txt.value = '';
-        const fb = document.getElementById('fc-paste-feedback');
-        if(fb) fb.classList.add('hidden');
-        fcScanSetMode('image');
-    };
-
-    window.fcScanResetImage = function(){
-        fcScanImageBase64 = null;
-        fcScanImageType   = null;
-        document.getElementById('fc-scan-preview-wrap').classList.add('hidden');
-        document.getElementById('fc-scan-placeholder').classList.remove('hidden');
-        document.getElementById('fc-scan-run-btn').classList.add('hidden');
-        document.getElementById('fc-scan-result').classList.add('hidden');
-        document.getElementById('fc-scan-error').classList.add('hidden');
-        const inp = document.getElementById('fc-scan-file-input');
-        if(inp) inp.value = '';
-    };
-
-    // ── Image loading ───────────────────────────────────────────
-    function fcLoadImageFile(file){
-        if(!file || !file.type.startsWith('image/')) return;
-        fcScanSetMode('image');
-        const reader = new FileReader();
-        reader.onload = function(e){
-            const dataUrl = e.target.result;
-            fcScanImageType   = file.type;
-            fcScanImageBase64 = dataUrl.split(',')[1];
-            document.getElementById('fc-scan-preview').src = dataUrl;
-            document.getElementById('fc-scan-preview-wrap').classList.remove('hidden');
-            document.getElementById('fc-scan-placeholder').classList.add('hidden');
-            document.getElementById('fc-scan-result').classList.add('hidden');
-            document.getElementById('fc-scan-error').classList.add('hidden');
-            document.getElementById('fc-scan-run-btn').classList.remove('hidden');
-            // Show paste feedback
-            const fb = document.getElementById('fc-paste-feedback');
-            if(fb){ fb.classList.remove('hidden'); setTimeout(()=>fb.classList.add('hidden'), 2000); }
-        };
-        reader.readAsDataURL(file);
-    }
-
-    window.fcHandleFileSelect = function(e){ fcLoadImageFile(e.target.files[0]); };
-    window.fcHandleDrop = function(e){
-        e.preventDefault();
-        e.currentTarget.classList.remove('border-violet-400','bg-violet-50','dark:bg-violet-900/20');
-        fcLoadImageFile(e.dataTransfer.files[0]);
-    };
-
-    // ── Clipboard paste for image (Ctrl+V or button) ────────────
-    window.fcTriggerPasteImage = async function(){
-        try {
-            const items = await navigator.clipboard.read();
-            for(const item of items){
-                const imgType = item.types.find(t => t.startsWith('image/'));
-                if(imgType){ fcLoadImageFile(await item.getType(imgType)); return; }
-            }
-            // Fallback: tell user to use Ctrl+V directly in the drop zone
-            alert('No image found in clipboard. Take a screenshot first (Win+Shift+S), then press Ctrl+V here.');
-        } catch(err) {
-            // Clipboard API blocked — user must use Ctrl+V
-            alert('Press Ctrl+V anywhere in this window to paste your screenshot.');
-        }
-    };
-
-    // Ctrl+V paste listener (works anywhere in the modal)
-    document.addEventListener('paste', function(e){
-        const modal = document.getElementById('fc-scan-modal');
-        if(!modal || modal.classList.contains('hidden')) return;
-        // Don't intercept paste in text textarea
-        if(e.target && e.target.id === 'fc-scan-text-input') return;
-        const items = e.clipboardData && e.clipboardData.items;
-        if(!items) return;
-        for(let item of items){
-            if(item.type.startsWith('image/')){
-                e.preventDefault();
-                fcLoadImageFile(item.getAsFile());
-                return;
-            }
-        }
-    });
-
-    // ── Paste text from clipboard button ───────────────────────
-    window.fcPasteTextFromClipboard = async function(){
-        try {
-            const text = await navigator.clipboard.readText();
-            if(text.trim()){
-                const ta = document.getElementById('fc-scan-text-input');
-                if(ta) {
-                    ta.value = text;
-                    document.getElementById('fc-scan-run-btn').classList.remove('hidden');
-                }
-            } else {
-                alert('Clipboard is empty. Copy some text first.');
-            }
-        } catch(err) {
-            alert('Could not read clipboard. Please use Ctrl+V directly in the text box above.');
-        }
-    };
-
-    // Auto-show run btn when user types in text box
-    document.addEventListener('input', function(e){
-        if(e.target && e.target.id === 'fc-scan-text-input'){
-            const hasText = e.target.value.trim().length > 0;
-            document.getElementById('fc-scan-run-btn').classList.toggle('hidden', !hasText);
-        }
-    });
-
-    // ---- LOCAL TEXT PARSER (no API needed) ----
-    function fcParseStructuredText(raw){
-        const get = (label) => {
-            const m = raw.match(new RegExp(label + '[^:\\n]*[:\\-\u2013]\\s*([\\s\\S]+?)(?=\\n\\s*[\\*\\-]?[A-Z]|$)', 'i'));
-            return m ? m[1].trim() : '';
-        };
-        // LaTeX-ify common symbols in back
-        const latexify = (s) => s
-            .replace(/×/g,'\\times').replace(/÷/g,'\\div')
-            .replace(/²/g,'^2').replace(/³/g,'^3')
-            .replace(/π/g,'\\pi').replace(/√/g,'\\sqrt')
-            .replace(/\^(\d+)/g,'^{$1}');
-
-        const CATEGORIES = ['Number System','HCF & LCM','Simplification','Percentage','Profit & Loss','Discount','Simple Interest','Compound Interest','Ratio & Proportion','Mixture & Alligation','Time & Work','Pipes & Cisterns','Time Speed Distance','Boats & Streams','Trains','Algebra — Identities','Algebra — Equations','Sequence & Series','Trigonometry — Identities','Trigonometry — Ratios','Trigonometry — Heights & Distances','Geometry — Lines & Angles','Geometry — Triangles','Geometry — Circles','Geometry — Quadrilaterals','Geometry — Polygons','Mensuration — Triangle','Mensuration — Circle & Sector','Mensuration — Rectangle & Square','Mensuration — Trapezium & Rhombus','Mensuration — Parallelogram','Mensuration — Cube & Cuboid','Mensuration — Cylinder','Mensuration — Cone','Mensuration — Sphere & Hemisphere','Mensuration — Prism & Pyramid','Statistics','Data Interpretation','Permutation & Combination','Probability'];
-
-        const chapterRaw = get('Chapter');
-        // Try to match chapter to known category
-        let category = CATEGORIES.find(c => chapterRaw && c.toLowerCase().includes(chapterRaw.toLowerCase().replace(/mensuration\s*3d\s*[—\-]?\s*/i,'').trim())) || chapterRaw || 'Mensuration — Cube & Cuboid';
-
-        const backRaw = get('Back[^:]*?(?:Formula[^:]*)?');
-        const back = latexify(backRaw || get('Formula'));
-
-        const diffRaw = (get('Difficulty') || 'medium').toLowerCase();
-        const difficulty = ['easy','medium','hard'].find(d => diffRaw.includes(d)) || 'medium';
-
-        return {
-            title:      get('Title') || get('\\* ?Title'),
-            category,
-            difficulty,
-            front:      get('Front[^:]*'),
-            back,
-            hint:       get('Memory Trick') || get('Trick') || get('Hint')
-        };
-    }
-
-    window.fcRunAIScan = async function(){
-        if(fcScanMode === 'image' && !fcScanImageBase64){ alert('Please upload or paste an image first.'); return; }
-        if(fcScanMode === 'text'){
-            const txt = document.getElementById('fc-scan-text-input');
-            if(!txt || !txt.value.trim()){ alert('Please paste some formula text first.'); return; }
-        }
-
-        document.getElementById('fc-scan-run-btn').classList.add('hidden');
-        document.getElementById('fc-scan-loading').classList.remove('hidden');
-        document.getElementById('fc-scan-result').classList.add('hidden');
-        document.getElementById('fc-scan-error').classList.add('hidden');
-
-        const msgs = ['AI is reading your formula...','Extracting to LaTeX...','Almost done...'];
-        let mi = 0;
-        const ticker = setInterval(()=>{ const el=document.getElementById('fc-scan-loading-msg'); if(el) el.textContent=msgs[Math.min(mi++,msgs.length-1)]; }, 1200);
-
-        // ---- TEXT MODE: parse locally, no API call ----
-        if(fcScanMode === 'text'){
-            clearInterval(ticker);
-            try {
-                const raw = document.getElementById('fc-scan-text-input').value.trim();
-                const parsed = fcParseStructuredText(raw);
-                document.getElementById('fc-scan-title').value = parsed.title      || '';
-                document.getElementById('fc-scan-front').value = parsed.front      || '';
-                document.getElementById('fc-scan-back').value  = parsed.back       || '';
-                document.getElementById('fc-scan-hint').value  = parsed.hint       || '';
-                document.getElementById('fc-scan-diff').value  = parsed.difficulty || 'medium';
-                const sel = document.getElementById('fc-scan-cat');
-                for(let i=0;i<sel.options.length;i++){ if(sel.options[i].value===parsed.category){ sel.selectedIndex=i; break; } }
-                document.getElementById('fc-scan-loading').classList.add('hidden');
-                document.getElementById('fc-scan-result').classList.remove('hidden');
-            } catch(err){
-                document.getElementById('fc-scan-loading').classList.add('hidden');
-                document.getElementById('fc-scan-run-btn').classList.remove('hidden');
-                const errEl = document.getElementById('fc-scan-error');
-                errEl.textContent = '❌ Could not parse text. Try the structured format: Title / Chapter / Front / Back / Memory Trick.';
-                errEl.classList.remove('hidden');
-            }
-            return;
-        }
-
-        // ---- IMAGE MODE: call /api/claude proxy (Vercel serverless) ----
-        const SYSTEM_PROMPT = `You are a math formula extractor for an SSC CGL exam flashcard app.
-Extract formula(s) from the input (image or text) and respond ONLY with a valid JSON object — no markdown, no backticks, no explanation.
-
-JSON fields (all required):
-{
-  "title": "Short name 3-6 words (e.g. Heron's Formula)",
-  "category": "Exact match from: Number System, HCF & LCM, Simplification, Percentage, Profit & Loss, Discount, Simple Interest, Compound Interest, Ratio & Proportion, Mixture & Alligation, Time & Work, Pipes & Cisterns, Time Speed Distance, Boats & Streams, Trains, Algebra — Identities, Algebra — Equations, Sequence & Series, Trigonometry — Identities, Trigonometry — Ratios, Trigonometry — Heights & Distances, Geometry — Lines & Angles, Geometry — Triangles, Geometry — Circles, Geometry — Quadrilaterals, Geometry — Polygons, Mensuration — Triangle, Mensuration — Circle & Sector, Mensuration — Rectangle & Square, Mensuration — Trapezium & Rhombus, Mensuration — Parallelogram, Mensuration — Cube & Cuboid, Mensuration — Cylinder, Mensuration — Cone, Mensuration — Sphere & Hemisphere, Mensuration — Prism & Pyramid, Statistics, Data Interpretation, Permutation & Combination, Probability",
-  "difficulty": "easy or medium or hard",
-  "front": "Question a student asks themselves (e.g. 'Area of triangle given all 3 sides?')",
-  "back": "Formula(s) in proper LaTeX. Multiple formulas separated by \\n. Use \\\\sqrt{}, \\\\frac{}{}, ^, _ etc.",
-  "hint": "One short memory trick (max 1 sentence)"
-}
-
-Rules:
-- back must be valid LaTeX renderable by MathJax
-- If input has multiple related formulas include ALL of them in back separated by \\n
-- For plain text input like 'A = πr²', convert to proper LaTeX: A = \\\\pi r^2`;
-
-        try {
-            const msgContent = [
-                { type: 'image', source: { type: 'base64', media_type: fcScanImageType, data: fcScanImageBase64 } },
-                { type: 'text',  text: 'Extract the formula(s) from this image and return JSON.' }
-            ];
-
-            const response = await fetch('/api/claude', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: 'claude-sonnet-4-20250514',
-                    max_tokens: 1000,
-                    system: SYSTEM_PROMPT,
-                    messages: [{ role: 'user', content: msgContent }]
-                })
-            });
-
-            clearInterval(ticker);
-            const data = await response.json();
-            if(!response.ok) throw new Error(data.error?.message || 'API error ' + response.status);
-
-            const raw     = data.content.map(b => b.type==='text' ? b.text : '').join('').trim();
-            const cleaned = raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
-            const parsed  = JSON.parse(cleaned);
-
-            document.getElementById('fc-scan-title').value = parsed.title      || '';
-            document.getElementById('fc-scan-front').value = parsed.front      || '';
-            document.getElementById('fc-scan-back').value  = parsed.back       || '';
-            document.getElementById('fc-scan-hint').value  = parsed.hint       || '';
-            document.getElementById('fc-scan-diff').value  = parsed.difficulty || 'medium';
-            const sel = document.getElementById('fc-scan-cat');
-            for(let i=0;i<sel.options.length;i++){ if(sel.options[i].value===parsed.category){ sel.selectedIndex=i; break; } }
-
-            document.getElementById('fc-scan-loading').classList.add('hidden');
-            document.getElementById('fc-scan-result').classList.remove('hidden');
-
-        } catch(err) {
-            clearInterval(ticker);
-            document.getElementById('fc-scan-loading').classList.add('hidden');
-            document.getElementById('fc-scan-run-btn').classList.remove('hidden');
-            const errEl = document.getElementById('fc-scan-error');
-            errEl.textContent = '❌ Image scan needs the Vercel proxy to be set up. See instructions at: https://github.com/your-repo#setup — Or switch to Text mode and paste the formula instead (works offline, no setup needed).';
-            errEl.classList.remove('hidden');
-        }
-    };
-
-            window.fcScanSaveCard = function(){
-        const title = document.getElementById('fc-scan-title').value.trim();
-        const front = document.getElementById('fc-scan-front').value.trim();
-        const back  = document.getElementById('fc-scan-back').value.trim();
-        const hint  = document.getElementById('fc-scan-hint').value.trim();
-        const example = document.getElementById('fc-scan-example').value.trim();
-        const cat   = document.getElementById('fc-scan-cat').value;
-        const diff  = document.getElementById('fc-scan-diff').value;
-        if(!title||!front||!back){ alert('Please make sure Title, Front and Back are filled.'); return; }
-        const id = 'fc_scan_' + Date.now();
-        fcCards.push({id, category:cat, difficulty:diff, title, front, back, hint, example});
-        fcSave();
-        fcCloseScanModal();
-        fcBuildCatFilters();
-        fcUpdateStats();
-        fcRender();
-        fcRenderChapterList();
-        // Flash a success toast
-        const toast = document.createElement('div');
-        toast.className = 'fixed top-6 left-1/2 -translate-x-1/2 z-[500] bg-emerald-600 text-white font-black px-6 py-3 rounded-2xl shadow-2xl text-sm flex items-center gap-2 animate-bounce';
-        toast.innerHTML = '✅ Formula card added from screenshot!';
-        document.body.appendChild(toast);
-        setTimeout(()=>toast.remove(), 2800);
     };
 
     // ---- HOOK INTO showScreen ----
@@ -8952,23 +8856,189 @@ window.retryWrong = function() {
 
 
 
+// ═══════════════════════════════════════════════════════════════
+// FLASHCARD PASTE SYSTEM (REVAMPED — universal AI format)
+// Tab 1: Generate AI prompt that any AI understands
+// Tab 2: Paste AI's response → parse → preview → import
+// ═══════════════════════════════════════════════════════════════
+
+// Canonical chapter list (must match Add form dropdown)
+window._FC_CHAPTERS = [
+    'Number System','HCF & LCM','Simplification','Percentage','Profit & Loss','Discount',
+    'Simple Interest','Compound Interest','Ratio & Proportion','Mixture & Alligation',
+    'Time & Work','Pipes & Cisterns','Time Speed Distance','Boats & Streams','Trains',
+    'Algebra — Identities','Algebra — Equations','Sequence & Series',
+    'Trigonometry — Identities','Trigonometry — Ratios','Trigonometry — Heights & Distances',
+    'Geometry — Lines & Angles','Geometry — Triangles','Geometry — Circles','Geometry — Quadrilaterals','Geometry — Polygons',
+    'Mensuration — Triangle','Mensuration — Circle & Sector','Mensuration — Rectangle & Square','Mensuration — Trapezium & Rhombus','Mensuration — Parallelogram',
+    'Mensuration — Cube & Cuboid','Mensuration — Cylinder','Mensuration — Cone','Mensuration — Sphere & Hemisphere','Mensuration — Prism & Pyramid',
+    'Statistics','Data Interpretation','Permutation & Combination','Probability'
+];
+
 window.fcTogglePasteForm = function(){
     const f = document.getElementById('fc-paste-form');
     const b = document.getElementById('fc-paste-btn');
-    const hidden = f.classList.contains('hidden');
+    if(!f) return;
+    const wasHidden = f.classList.contains('hidden');
     f.classList.toggle('hidden');
-    if(b) b.textContent = hidden ? '✕ Cancel Paste' : '📋 Paste Cards';
-    if(hidden){
-        document.getElementById('fc-paste-input').focus();
+    if(b) b.innerHTML = wasHidden ? '<span>✕</span> Cancel' : '<span>📋</span> Paste from AI';
+    if(wasHidden){
+        // Open — reset to tab 1 (prompt generator)
+        fcPasteSetTab('prompt');
         document.getElementById('fc-paste-preview').classList.add('hidden');
         document.getElementById('fc-paste-confirm-btn').classList.add('hidden');
         document.getElementById('fc-paste-result').classList.add('hidden');
         document.getElementById('fc-paste-live-count').classList.add('hidden');
+        document.getElementById('fc-prompt-output-wrap').classList.add('hidden');
         window._fcPendingCards = [];
     }
 };
 
-// Live card count as user types
+// ── TAB SWITCHING ──────────────────────────────────────────
+window.fcPasteSetTab = function(tab){
+    const isPrompt = tab === 'prompt';
+    document.getElementById('fc-paste-pane-prompt').classList.toggle('hidden', !isPrompt);
+    document.getElementById('fc-paste-pane-paste').classList.toggle('hidden', isPrompt);
+    const tabP = document.getElementById('fc-paste-tab-prompt');
+    const tabS = document.getElementById('fc-paste-tab-paste');
+    tabP.className = 'px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ' +
+        (isPrompt ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700');
+    tabS.className = 'px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ' +
+        (!isPrompt ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700');
+    if(!isPrompt){
+        setTimeout(()=>{ const ta = document.getElementById('fc-paste-input'); if(ta) ta.focus(); }, 100);
+    }
+};
+
+// ── TAB 1: BUILD UNIVERSAL AI PROMPT ──────────────────────
+window.fcBuildPromptText = function(){
+    const topic = (document.getElementById('fc-prompt-topic').value || '').trim();
+    const count = parseInt(document.getElementById('fc-prompt-count').value || '10', 10);
+    const diffMode = document.getElementById('fc-prompt-diff').value;
+    const style = (document.getElementById('fc-prompt-style').value || '').trim();
+
+    if(!topic){ alert('Please enter a topic / chapter first.'); document.getElementById('fc-prompt-topic').focus(); return; }
+    if(!count || count < 1){ alert('Please enter how many cards you want (1–100).'); return; }
+
+    const chapters = (window._FC_CHAPTERS || []).join(' | ');
+    const diffLine = diffMode === 'mixed'
+        ? 'Use a healthy mix of easy / medium / hard.'
+        : `All cards should be DIFFICULTY: ${diffMode}.`;
+    const styleLine = style ? `Extra preference: ${style}` : '';
+
+    const prompt =
+`You are generating math/formula flashcards for the Mega Quiz Hub — an SSC CGL exam-prep flashcard app. Output MUST follow the EXACT format below. No preamble. No commentary. No markdown code fences. Just the cards, separated by "=== CARD ===".
+
+OUTPUT FORMAT (one card looks like this):
+
+=== CARD ===
+TITLE: <short formula name, 3–6 words, e.g. "Heron's Formula">
+CHAPTER: <pick ONE exact chapter name from the list below>
+DIFFICULTY: <easy | medium | hard>
+FRONT: <the question a student asks themselves to recall the formula. ONE clear question. Example: "Area of triangle given all 3 sides (a, b, c)?">
+FORMULA:
+• <formula line 1>
+• <formula line 2 if any>
+• <formula line 3 if any>
+HINT: <ONE short memory trick or mnemonic, max 1 sentence>
+EXAMPLE: <optional sample problem with answer, in plain English>
+
+═══════════════════════════════════════════════════════════════
+ALLOWED CHAPTER VALUES (use EXACTLY these strings — no variations):
+${chapters}
+═══════════════════════════════════════════════════════════════
+
+CRITICAL FORMATTING RULES:
+1. Every card starts with "=== CARD ===" on its own line. NO exceptions.
+2. FORMULA: section can have MULTIPLE LINES — each formula on its own line, starting with "• " (bullet). The app will render each as a numbered row, like a formula book.
+3. Math can be written EITHER way (both render perfectly):
+   - Plain symbols: A = πr²,  V = (4/3)πr³,  x = (-b ± √(b²-4ac)) / 2a
+   - LaTeX: A = \\pi r^2,  V = \\frac{4}{3}\\pi r^3,  x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}
+4. NEVER skip a label. NEVER add labels not in the format.
+5. Keep FRONT short and answerable in one breath. Keep HINT to one line.
+6. DIFFICULTY must be one of: easy, medium, hard (lowercase).
+7. CHAPTER must be exactly one of the allowed strings above — pick the closest fit.
+
+═══════════════════════════════════════════════════════════════
+EXAMPLE OUTPUT (3 cards — follow this style precisely):
+
+=== CARD ===
+TITLE: Heron's Formula
+CHAPTER: Mensuration — Triangle
+DIFFICULTY: hard
+FRONT: Area of triangle given all 3 sides (a, b, c)?
+FORMULA:
+• s = (a + b + c) / 2
+• Area = √[s(s-a)(s-b)(s-c)]
+HINT: 's' is the semi-perimeter (half of total perimeter)
+EXAMPLE: a=3, b=4, c=5 → s=6, Area = √(6·3·2·1) = 6
+
+=== CARD ===
+TITLE: Quadratic Formula
+CHAPTER: Algebra — Equations
+DIFFICULTY: medium
+FRONT: Roots of ax² + bx + c = 0?
+FORMULA:
+• x = (-b ± √(b² - 4ac)) / 2a
+• Discriminant D = b² - 4ac
+HINT: Minus-b plus-or-minus root-D, all over 2a
+EXAMPLE: x²-5x+6=0 → x = (5 ± 1)/2 → x = 3 or 2
+
+=== CARD ===
+TITLE: Cylinder Surface Areas
+CHAPTER: Mensuration — Cylinder
+DIFFICULTY: medium
+FRONT: All three surface areas of a closed cylinder?
+FORMULA:
+• CSA = 2πrh
+• TSA = 2πr(r + h)
+• Base area = πr²
+HINT: CSA is just the wraparound; TSA adds two circles
+EXAMPLE: r=7, h=10 → CSA = 440, TSA = 748
+
+═══════════════════════════════════════════════════════════════
+YOUR TASK:
+
+Generate ${count} flashcard${count>1?'s':''} on this topic: **${topic}**
+
+${diffLine}
+${styleLine}
+
+Now output the ${count} card${count>1?'s':''} in the exact format above. Start immediately with "=== CARD ===". No introduction. No conclusion.`;
+
+    const out = document.getElementById('fc-prompt-output');
+    out.value = prompt;
+    document.getElementById('fc-prompt-output-wrap').classList.remove('hidden');
+    // Scroll the output into view
+    setTimeout(() => out.scrollIntoView({behavior:'smooth', block:'nearest'}), 100);
+};
+
+// ── COPY PROMPT TO CLIPBOARD ───────────────────────────────
+window.fcCopyPromptToClipboard = async function(){
+    const out = document.getElementById('fc-prompt-output');
+    const btn = document.getElementById('fc-copy-prompt-btn');
+    if(!out || !out.value) return;
+    try {
+        await navigator.clipboard.writeText(out.value);
+        const origHTML = btn.innerHTML;
+        btn.innerHTML = '✅ Copied!';
+        btn.classList.remove('bg-emerald-500','hover:bg-emerald-600');
+        btn.classList.add('bg-emerald-600');
+        setTimeout(() => {
+            btn.innerHTML = origHTML;
+            btn.classList.add('bg-emerald-500','hover:bg-emerald-600');
+            btn.classList.remove('bg-emerald-600');
+        }, 1600);
+    } catch(e) {
+        // Fallback: select & let user Ctrl+C
+        out.select();
+        document.execCommand('copy');
+        btn.innerHTML = '✅ Copied (fallback)!';
+        setTimeout(()=> btn.innerHTML = '📋 Copy Prompt', 1600);
+    }
+};
+
+// ── LIVE CARD COUNT (as user types in paste box) ──────────
 window.fcPasteLiveCount = function(){
     const raw = document.getElementById('fc-paste-input').value;
     if(!raw.trim()){ document.getElementById('fc-paste-live-count').classList.add('hidden'); return; }
@@ -8982,69 +9052,123 @@ window.fcPasteLiveCount = function(){
     }
 };
 
-// Smart multi-format parser — handles blank-line blocks, Card N: headers, labelled fields
+// ═══════════════════════════════════════════════════════════
+// UNIVERSAL PARSER
+// Primary format: "=== CARD ===" separated blocks with labelled fields
+// Fallback: old labelled / blank-line / "Card N:" formats (backward compat)
+// ═══════════════════════════════════════════════════════════
 function fcSmartParseCards(raw){
-    raw = raw.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+    raw = raw.replace(/\r\n/g,'\n').replace(/\r/g,'\n').trim();
+    if(!raw) return [];
 
-    // Split strategy: Card N: headers > double blank lines > single blank lines
+    // Fuzzy-match a chapter name to canonical list
+    const canonicalChapter = (s) => {
+        if(!s) return '';
+        const cands = window._FC_CHAPTERS || [];
+        const lower = s.toLowerCase().trim();
+        // Exact match first
+        for(const c of cands){ if(c.toLowerCase() === lower) return c; }
+        // Contains match
+        for(const c of cands){
+            const cl = c.toLowerCase();
+            if(cl.includes(lower) || lower.includes(cl)) return c;
+        }
+        // Strip "Mensuration —" / "Geometry —" etc., try sub-part
+        const stripped = lower.replace(/^(mensuration|geometry|algebra|trigonometry)\s*[—\-:]\s*/i,'').trim();
+        for(const c of cands){
+            if(c.toLowerCase().includes(stripped) && stripped.length > 3) return c;
+        }
+        return s; // give up, return as-is
+    };
+
     let blocks;
-    if(/^\s*card\s*\d+\s*[:\-]/im.test(raw)){
+    const SEP = /^={3,}\s*card\s*={3,}/im;
+    if(SEP.test(raw)){
+        // PRIMARY: split on "=== CARD ===" (variations: ====, etc.)
+        blocks = raw.split(/^={3,}\s*card\s*={3,}\s*$/im).map(b => b.trim()).filter(Boolean);
+    } else if(/^\s*card\s*\d+\s*[:\-]/im.test(raw)){
+        // Old Format C — numbered "Card 1:"
         blocks = raw.split(/\n(?=\s*card\s*\d+\s*[:\-])/i);
     } else if(/\n\s*\n\s*\n/.test(raw)){
+        // Triple-blank separation
         blocks = raw.split(/\n\s*\n\s*\n/);
     } else {
+        // Double-blank separation
         blocks = raw.split(/\n\s*\n/);
     }
 
     const cards = [];
+
     blocks.forEach(block => {
         block = block.trim();
         if(!block) return;
 
-        // Single-line field extractor (fuzzy label match)
+        // Single-line field extractor (matches "LABEL: value" or "LABEL - value")
         const getField = (...labels) => {
             for(const label of labels){
-                const re = new RegExp('^' + label + '\\s*[:\\-\u2014]\\s*(.+)', 'im');
+                const re = new RegExp('^\\s*' + label + '\\s*[:\\-\u2014]\\s*(.+?)\\s*$', 'im');
                 const m = block.match(re);
                 if(m && m[1].trim()) return m[1].trim();
             }
             return '';
         };
 
-        // Multi-line field extractor
+        // Multi-line field extractor — grabs everything from "LABEL:" until next LABEL: or end
         const getMultiLine = (...labels) => {
             for(const label of labels){
-                const re = new RegExp('(?:^|\\n)' + label + '\\s*[:\\-\u2014]\\s*([\\s\\S]+?)(?=\\n[A-Za-z][^\\n]*[:\\-]|$)', 'im');
+                const re = new RegExp('(?:^|\\n)\\s*' + label + '\\s*[:\\-\u2014]\\s*([\\s\\S]+?)(?=\\n\\s*[A-Z][A-Z_ ]*[:\\-\u2014]|$)', 'im');
                 const m = block.match(re);
-                if(m && m[1].trim()) return m[1].trim().replace(/\n/g,' ');
+                if(m && m[1].trim()) return m[1].trim();
             }
             return '';
         };
 
+        // FORMULA / BACK block — strip bullet/number prefixes and join with \n
+        const parseFormulaBlock = (text) => {
+            if(!text) return '';
+            return text.split('\n')
+                .map(l => l.trim())
+                .filter(Boolean)
+                .map(l => l.replace(/^[•\-\*▪►]\s+/, '').replace(/^\d+[\.\)]\s+/, ''))
+                .filter(Boolean)
+                .join('\n');
+        };
+
         const title      = getField('title', 'card\\s*\\d+', 'name');
-        const chapter    = getField('chapter', 'category', 'subject', 'section');
+        const chapterRaw = getField('chapter', 'category', 'subject', 'section', 'topic');
+        const chapter    = canonicalChapter(chapterRaw);
         const diffRaw    = getField('difficulty', 'level', 'diff').toLowerCase();
         const difficulty = diffRaw.includes('hard')?'hard': diffRaw.includes('easy')?'easy':'medium';
-        const front      = getMultiLine('front[^\\n]*', 'question[^\\n]*', 'q[\\s:]', 'recall[^\\n]*');
-        const back       = getMultiLine('back[^\\n]*', 'answer[^\\n]*', 'formula[^\\n]*', 'ans[\\s:]', 'solution[^\\n]*');
-        const hint       = getField('hint', 'memory\\s*trick', 'trick', 'tip', 'mnemonic', 'note');
+        const front      = getMultiLine('front[^\\n]*', 'question[^\\n]*', 'q[\\s:]', 'recall[^\\n]*').replace(/\n+/g,' ');
+        const backRaw    = getMultiLine('formula[^\\n]*', 'back[^\\n]*', 'answer[^\\n]*', 'ans[\\s:]', 'solution[^\\n]*');
+        const back       = parseFormulaBlock(backRaw);
+        const hint       = getField('hint', 'memory\\s*trick', 'trick', 'tip', 'mnemonic', 'note').replace(/\n+/g,' ');
+        const example    = getMultiLine('example[^\\n]*', 'sample[^\\n]*', 'eg[\\s:]', 'e\\.g\\.').replace(/\n+/g,' ');
 
-        if(!front && !back) return;
+        if(!front && !back && !title) return;
 
-        cards.push({ title: title||'Formula '+(cards.length+1), category: chapter||'General',
-            difficulty, front: front||title||'?', back: back||'—', hint, example:'' });
+        cards.push({
+            title:      title || 'Formula ' + (cards.length + 1),
+            category:   chapter || 'General',
+            difficulty,
+            front:      front || title || '?',
+            back:       back  || '—',
+            hint,
+            example
+        });
     });
+
     return cards;
 }
 
-// Preview: parse and show cards before committing
+// ── PREVIEW: parse, validate, show before committing ─────
 window.fcPreviewPastedCards = function(){
     const raw = document.getElementById('fc-paste-input').value.trim();
-    if(!raw){ alert('Nothing to parse!'); return; }
+    if(!raw){ alert('Nothing to parse! Paste the AI\'s output above first.'); return; }
 
     const cards = fcSmartParseCards(raw);
     if(cards.length === 0){
-        alert('Could not detect any cards.\n\nMake sure each card has a Front and Back line.\nSeparate multiple cards with a blank line.');
+        alert('Could not detect any cards.\n\nMake sure the AI used "=== CARD ===" as separator, with TITLE / CHAPTER / FRONT / FORMULA labels for each card.\n\nIf you used a different format, paste with blank lines between cards and labels like "Title: ..." / "Back: ..." for each.');
         return;
     }
 
@@ -9054,17 +9178,25 @@ window.fcPreviewPastedCards = function(){
     const diffColor = d => d==='hard'?'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
                           :d==='easy'?'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
                                      :'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400';
-    container.innerHTML = cards.map((c,i) => `
-        <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-3 text-xs">
-            <div class="flex items-center gap-2 mb-1">
-                <span class="font-black text-slate-700 dark:text-slate-200">${i+1}. ${c.title}</span>
+    const escapeHtml = (s) => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const knownChapters = new Set((window._FC_CHAPTERS||[]).map(c => c.toLowerCase()));
+
+    container.innerHTML = cards.map((c,i) => {
+        const formulaLines = (c.back||'').split('\n').filter(Boolean);
+        const chapterOK = knownChapters.has((c.category||'').toLowerCase());
+        return `
+        <div class="bg-white dark:bg-slate-800 rounded-xl border ${chapterOK ? 'border-slate-200 dark:border-slate-700' : 'border-amber-300 dark:border-amber-700'} p-3 text-xs">
+            <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+                <span class="font-black text-slate-700 dark:text-slate-200">${i+1}. ${escapeHtml(c.title)}</span>
                 <span class="text-[9px] font-black px-2 py-0.5 rounded-full ${diffColor(c.difficulty)}">${c.difficulty}</span>
-                <span class="text-slate-400 text-[9px]">${c.category}</span>
+                <span class="text-[9px] font-black px-2 py-0.5 rounded-full ${chapterOK ? 'bg-slate-100 dark:bg-slate-700 text-slate-500' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'}" title="${chapterOK ? '' : 'Chapter not in known list — will save as-is'}">${escapeHtml(c.category)}${chapterOK ? '' : ' ⚠️'}</span>
+                ${formulaLines.length > 1 ? `<span class="text-[9px] font-black px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">${formulaLines.length}× formulas</span>` : ''}
             </div>
-            <div class="text-slate-500 dark:text-slate-400"><span class="font-bold text-slate-600 dark:text-slate-300">Q:</span> ${c.front.substring(0,90)}${c.front.length>90?'…':''}</div>
-            <div class="text-slate-500 dark:text-slate-400"><span class="font-bold text-slate-600 dark:text-slate-300">A:</span> ${c.back.substring(0,90)}${c.back.length>90?'…':''}</div>
-            ${c.hint?`<div class="text-indigo-500 dark:text-indigo-400 mt-0.5">💡 ${c.hint.substring(0,70)}${c.hint.length>70?'…':''}</div>`:''}
-        </div>`).join('');
+            <div class="text-slate-500 dark:text-slate-400 mb-0.5"><span class="font-bold text-slate-600 dark:text-slate-300">Q:</span> ${escapeHtml(c.front.substring(0,140))}${c.front.length>140?'…':''}</div>
+            <div class="text-slate-500 dark:text-slate-400"><span class="font-bold text-indigo-600 dark:text-indigo-400">A:</span> ${escapeHtml(formulaLines.join(' | ').substring(0,160))}${formulaLines.join(' | ').length>160?'…':''}</div>
+            ${c.hint?`<div class="text-amber-600 dark:text-amber-400 mt-1 text-[10px]">💡 ${escapeHtml(c.hint.substring(0,100))}${c.hint.length>100?'…':''}</div>`:''}
+        </div>`;
+    }).join('');
 
     document.getElementById('fc-paste-preview').classList.remove('hidden');
     const btn = document.getElementById('fc-paste-confirm-btn');
@@ -9072,19 +9204,37 @@ window.fcPreviewPastedCards = function(){
     btn.classList.remove('hidden');
 };
 
-// Confirm: actually create all previewed cards
+// ── CONFIRM: actually create all previewed cards ─────────
 window.fcConfirmPastedCards = function(){
     const cards = window._fcPendingCards || [];
     if(!cards.length){ alert('Click Preview first.'); return; }
 
+    // Access flashcard internals via the global window functions exposed by the IIFE
+    // We push directly into the fcCards array — but fcCards is private to the IIFE.
+    // So instead use a workaround: write to localStorage, then trigger reload.
+    let fcCardsArr = [];
+    try { fcCardsArr = JSON.parse(localStorage.getItem('yogesh_fc_cards_v2') || '[]'); } catch {}
+
     const ts = Date.now();
     cards.forEach((c,i) => {
-        fcCards.push({ id:'fc_paste_'+ts+'_'+i+'_'+Math.random().toString(36).substr(2,4),
-            category:c.category, difficulty:c.difficulty, title:c.title,
-            front:c.front, back:c.back, hint:c.hint, example:c.example });
+        fcCardsArr.push({
+            id: 'fc_paste_' + ts + '_' + i + '_' + Math.random().toString(36).substr(2,4),
+            category: c.category, difficulty: c.difficulty, title: c.title,
+            front: c.front, back: c.back, hint: c.hint || '', example: c.example || ''
+        });
     });
 
-    fcSave(); fcUpdateStats(); fcBuildCatFilters(); fcRender();
+    try { localStorage.setItem('yogesh_fc_cards_v2', JSON.stringify(fcCardsArr)); } catch(e){
+        alert('Storage error: ' + e.message);
+        return;
+    }
+
+    // Trigger reload from storage (re-reads & re-renders + cloud-sync debounce)
+    if(typeof window.fcReloadFromStorage === 'function') window.fcReloadFromStorage();
+    if(typeof saveData === 'function') {
+        clearTimeout(window._fcSaveTimer);
+        window._fcSaveTimer = setTimeout(saveData, 800);
+    }
 
     document.getElementById('fc-paste-input').value = '';
     document.getElementById('fc-paste-preview').classList.add('hidden');
@@ -9095,10 +9245,10 @@ window.fcConfirmPastedCards = function(){
     const res = document.getElementById('fc-paste-result');
     res.textContent = '✅ ' + cards.length + ' card' + (cards.length>1?'s':'') + ' created!';
     res.classList.remove('hidden');
-    setTimeout(() => res.classList.add('hidden'), 3000);
+    setTimeout(() => res.classList.add('hidden'), 3500);
 };
 
-// Legacy alias
+// Legacy alias for older callers
 window.fcParsePastedCards = window.fcPreviewPastedCards;
 
 // ═══════════════════════════════════════════════════════════════
