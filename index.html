@@ -158,15 +158,16 @@
         .dark .fc-formula-row:hover { background: rgba(165,180,252,0.04); }
         .fc-formula-number {
             flex-shrink: 0;
-            width: 28px; height: 28px;
+            width: 34px; height: 34px;
             display: flex; align-items: center; justify-content: center;
             background: linear-gradient(135deg, #6366f1, #8b5cf6);
             color: white;
             font-weight: 900;
-            font-size: 12px;
-            border-radius: 8px;
+            font-size: 15px;
+            border-radius: 10px;
             font-family: 'Inter', system-ui, sans-serif;
-            box-shadow: 0 2px 6px rgba(99,102,241,0.25);
+            box-shadow: 0 3px 8px rgba(99,102,241,0.35);
+            letter-spacing: -0.02em;
         }
         .fc-formula-body {
             flex: 1;
@@ -181,9 +182,9 @@
         /* When single formula, hide the number */
         .fc-formula-list[data-count="1"] .fc-formula-number { display: none; }
         .fc-formula-list[data-count="1"] .fc-formula-row { padding: 4px; border-bottom: none; }
-        /* Compact variant for browse-grid cards */
-        .fc-formula-list.fc-compact .fc-formula-row { padding: 8px 2px; }
-        .fc-formula-list.fc-compact .fc-formula-number { width: 22px; height: 22px; font-size: 10px; border-radius: 6px; }
+        /* Compact variant for browse-grid cards — slightly smaller badges + body */
+        .fc-formula-list.fc-compact .fc-formula-row { padding: 9px 2px; }
+        .fc-formula-list.fc-compact .fc-formula-number { width: 28px; height: 28px; font-size: 13px; border-radius: 8px; }
         .fc-formula-list.fc-compact .fc-formula-body { font-size: 15px; line-height: 1.6; }
 
         /* MathJax fine-tuning inside formula rows */
@@ -234,6 +235,54 @@
         }
         .fc-formula-input-row .fc-row-del:hover { background: rgb(254 226 226); color: rgb(220 38 38); }
         .dark .fc-formula-input-row .fc-row-del:hover { background: rgba(220,38,38,0.15); color: rgb(248 113 113); }
+
+        /* ============================================================
+           PRINT MODE — turn the page into a formula book PDF
+           ============================================================ */
+        @media print {
+            /* Hide everything outside the print sheet */
+            body.fc-printing > *:not(#fc-print-sheet) { display: none !important; }
+            body.fc-printing #fc-print-sheet { display: block !important; }
+            body.fc-printing { background: white !important; color: #1e293b !important; padding: 0 !important; margin: 0 !important; }
+
+            /* Page settings */
+            @page { size: A4; margin: 18mm 14mm 18mm 14mm; }
+
+            #fc-print-sheet { font-family: Georgia, 'Cambria', 'Times New Roman', serif; color: #1e293b; }
+            #fc-print-sheet .fp-cover { text-align: center; padding: 60mm 0 40mm 0; page-break-after: always; }
+            #fc-print-sheet .fp-cover h1 { font-size: 32pt; font-weight: 900; margin: 0 0 4mm 0; color: #1e1b4b; letter-spacing: -0.02em; }
+            #fc-print-sheet .fp-cover .fp-sub { font-size: 14pt; font-weight: 700; color: #64748b; margin-bottom: 12mm; }
+            #fc-print-sheet .fp-cover .fp-meta { font-size: 10pt; font-weight: 600; color: #94a3b8; }
+
+            #fc-print-sheet .fp-chapter-title { font-size: 22pt; font-weight: 900; color: #1e1b4b; border-bottom: 2pt solid #6366f1; padding-bottom: 3mm; margin: 0 0 8mm 0; page-break-after: avoid; page-break-before: always; letter-spacing: -0.01em; }
+            #fc-print-sheet .fp-chapter-title:first-of-type { page-break-before: auto; }
+            #fc-print-sheet .fp-chapter-meta { font-size: 9pt; color: #64748b; font-weight: 600; margin-bottom: 6mm; text-transform: uppercase; letter-spacing: 0.15em; }
+
+            #fc-print-sheet .fp-card { border: 0.5pt solid #cbd5e1; border-radius: 4mm; padding: 5mm 6mm; margin-bottom: 5mm; page-break-inside: avoid; background: white; }
+            #fc-print-sheet .fp-card-head { display: flex; align-items: baseline; gap: 4mm; margin-bottom: 3mm; }
+            #fc-print-sheet .fp-card-num { font-size: 9pt; font-weight: 900; color: #6366f1; min-width: 8mm; }
+            #fc-print-sheet .fp-card-title { font-size: 13pt; font-weight: 900; color: #1e293b; letter-spacing: -0.01em; flex: 1; }
+            #fc-print-sheet .fp-card-diff { font-size: 8pt; font-weight: 900; padding: 1mm 3mm; border-radius: 2mm; text-transform: uppercase; letter-spacing: 0.1em; }
+            #fc-print-sheet .fp-card-diff.easy { background: #d1fae5; color: #065f46; }
+            #fc-print-sheet .fp-card-diff.medium { background: #fef3c7; color: #92400e; }
+            #fc-print-sheet .fp-card-diff.hard { background: #fee2e2; color: #991b1b; }
+
+            #fc-print-sheet .fp-front { font-size: 11pt; font-weight: 600; color: #475569; margin-bottom: 3mm; font-style: italic; }
+            #fc-print-sheet .fp-back { background: #f8fafc; border-left: 2pt solid #6366f1; padding: 3mm 4mm; border-radius: 1mm; margin-bottom: 2mm; }
+            #fc-print-sheet .fp-back .fc-formula-row { padding: 2mm 0; border-bottom: 0.3pt dashed #cbd5e1; }
+            #fc-print-sheet .fp-back .fc-formula-row:last-child { border-bottom: none; }
+            #fc-print-sheet .fp-back .fc-formula-number { width: 6mm; height: 6mm; font-size: 9pt; box-shadow: none; }
+            #fc-print-sheet .fp-back .fc-formula-body { font-size: 12pt; color: #1e293b; line-height: 1.7; }
+            #fc-print-sheet .fp-hint { font-size: 9pt; color: #92400e; background: #fffbeb; border: 0.3pt solid #fde68a; padding: 2mm 3mm; border-radius: 1mm; margin-top: 2mm; font-weight: 600; }
+            #fc-print-sheet .fp-example { font-size: 9pt; color: #064e3b; background: #ecfdf5; border: 0.3pt solid #a7f3d0; padding: 2mm 3mm; border-radius: 1mm; margin-top: 2mm; font-weight: 600; }
+            #fc-print-sheet .fp-toc { margin: 0 0 10mm 0; page-break-after: always; }
+            #fc-print-sheet .fp-toc h2 { font-size: 18pt; font-weight: 900; color: #1e1b4b; margin: 0 0 5mm 0; border-bottom: 1pt solid #cbd5e1; padding-bottom: 2mm; }
+            #fc-print-sheet .fp-toc ol { padding-left: 6mm; font-size: 11pt; line-height: 1.8; }
+            #fc-print-sheet .fp-toc li { font-weight: 600; color: #334155; }
+            #fc-print-sheet .fp-toc li span.fp-toc-count { color: #94a3b8; font-weight: 600; font-size: 9pt; margin-left: 3mm; }
+        }
+        /* Visible on-screen styling for the print sheet (hidden by default) */
+        #fc-print-sheet { display: none; }
     </style>
     <script>
         window.MathJax = {
@@ -280,6 +329,7 @@
                     </div>
                     <button onclick="fcToggleAddForm()" id="fc-add-btn" class="bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black px-5 py-3 rounded-2xl shadow-lg transition-transform hover:-translate-y-0.5 border border-amber-400 text-sm">+ Add Card</button>
                     <button onclick="fcTogglePasteForm()" id="fc-paste-btn" class="bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-black px-5 py-3 rounded-2xl shadow-lg transition-transform hover:-translate-y-0.5 border border-indigo-400 text-sm flex items-center gap-2"><span>📋</span> Paste from AI</button>
+                    <button onclick="fcOpenPrintModal()" id="fc-print-btn" class="bg-gradient-to-br from-slate-700 to-slate-900 hover:from-slate-600 hover:to-slate-800 text-white font-black px-5 py-3 rounded-2xl shadow-lg transition-transform hover:-translate-y-0.5 border border-slate-600 text-sm flex items-center gap-2" title="Print / save as PDF"><span>🖨️</span> Print</button>
                 </div>
             </div>
 
@@ -354,8 +404,8 @@
                     </div>
                 </div>
                 <div class="mb-4">
-                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1.5">Front — Question prompt</label>
-                    <input id="fc-new-front" type="text" placeholder="e.g. Area of rhombus given diagonals d₁, d₂?" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
+                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1.5">Front — Question prompt <span class="text-amber-500 font-black normal-case">(press Enter for new line, or use 1. / 2. / 3. for numbered list)</span></label>
+                    <textarea id="fc-new-front" rows="2" placeholder="e.g. Area of rhombus given diagonals d₁, d₂?&#10;&#10;Or numbered list:&#10;1. Volume&#10;2. CSA&#10;3. TSA" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200 resize-y leading-relaxed"></textarea>
                 </div>
 
                 <!-- Multi-formula dynamic row list -->
@@ -541,8 +591,8 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                         </div>
                     </div>
                     <div class="mb-4">
-                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1.5">Front — Question prompt</label>
-                        <input id="fc-edit-front" type="text" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200">
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1.5">Front — Question prompt <span class="text-amber-500 font-black normal-case">(Enter = new line)</span></label>
+                        <textarea id="fc-edit-front" rows="2" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-800 dark:text-slate-200 resize-y leading-relaxed"></textarea>
                     </div>
                     <div class="mb-4">
                         <div class="flex items-center justify-between mb-1.5">
@@ -570,6 +620,63 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                 </div>
             </div>
             <!-- ===== END EDIT MODAL ===== -->
+
+            <!-- ===== PRINT MODAL ===== -->
+            <div id="fc-print-modal" class="hidden fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm flex justify-center items-center p-4 overflow-y-auto">
+                <div class="bg-white dark:bg-slate-900 rounded-3xl p-7 w-full max-w-xl shadow-2xl border border-slate-200 dark:border-slate-700 relative my-auto">
+                    <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-slate-700 to-slate-900 rounded-t-3xl"></div>
+                    <div class="flex justify-between items-center mb-5">
+                        <div>
+                            <div class="text-lg font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">🖨️ Print Formula Book</div>
+                            <div class="text-xs text-slate-500 dark:text-slate-400 font-bold mt-0.5">Browser → Choose "Save as PDF" for a digital formula book</div>
+                        </div>
+                        <button onclick="fcClosePrintModal()" class="text-slate-400 hover:text-red-500 font-black text-2xl transition-colors">×</button>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-2">What to print?</label>
+                        <select id="fc-print-scope" onchange="fcUpdatePrintCount()" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-slate-400 text-slate-800 dark:text-slate-200">
+                            <option value="all">📚 ALL cards (organised by chapter)</option>
+                            <option value="filter">🎯 Current filter only</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-2">Pick specific chapters (or leave all unchecked for whole scope)</label>
+                        <div id="fc-print-chapters" class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-56 overflow-y-auto p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700"></div>
+                        <div class="mt-2 flex gap-2 text-[10px] font-black uppercase tracking-widest">
+                            <button onclick="fcPrintCheckAll(true)" class="text-indigo-600 dark:text-indigo-400 hover:underline">Select all</button>
+                            <span class="text-slate-300">|</span>
+                            <button onclick="fcPrintCheckAll(false)" class="text-slate-500 hover:underline">Clear all</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 mb-5">
+                        <label class="flex items-center gap-2 cursor-pointer p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-slate-400 transition-colors">
+                            <input type="checkbox" id="fc-print-show-hint" checked class="w-4 h-4 accent-slate-700">
+                            <span class="text-xs font-bold text-slate-700 dark:text-slate-300">Include 💡 hints</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-slate-400 transition-colors">
+                            <input type="checkbox" id="fc-print-show-example" class="w-4 h-4 accent-slate-700">
+                            <span class="text-xs font-bold text-slate-700 dark:text-slate-300">Include 📝 examples</span>
+                        </label>
+                    </div>
+
+                    <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl px-4 py-3 mb-4 text-xs text-amber-700 dark:text-amber-300 font-bold leading-relaxed">
+                        💡 <span class="font-black">Tip:</span> In the print dialog, choose <span class="text-amber-900 dark:text-amber-200">"Save as PDF"</span> as destination to download a digital formula book.
+                    </div>
+
+                    <div class="flex gap-3">
+                        <button onclick="fcClosePrintModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black py-3 rounded-2xl text-sm transition-colors hover:bg-slate-200 dark:hover:bg-slate-700">Cancel</button>
+                        <button onclick="fcDoPrint()" id="fc-print-go-btn" class="flex-1 bg-gradient-to-br from-slate-700 to-slate-900 hover:from-slate-600 hover:to-slate-800 text-white font-black py-3 rounded-2xl text-sm transition-all shadow-lg flex items-center justify-center gap-2">🖨️ <span id="fc-print-btn-label">Print 0 Cards</span></button>
+                    </div>
+                </div>
+            </div>
+            <!-- ===== END PRINT MODAL ===== -->
+
+            <!-- ===== PRINT SHEET (hidden until print time, populated by fcDoPrint) ===== -->
+            <div id="fc-print-sheet" class="hidden"></div>
+            <!-- ===== END PRINT SHEET ===== -->
 
             <!-- VIEW TABS: Browse | SRS Quiz | Mix Quiz | Chapter Quiz -->
             <div id="fc-main-view">
@@ -6352,7 +6459,48 @@ window.generateQuantNotes = () => {
     // • Auto-converts plain symbols: × ÷ π √ ² ³ ½ → proper LaTeX
     // • Strips list prefixes (•, -, *, 1., 2.)
     // • Splits a "Name = formula" into label + math
+    // • NEW: wraps English words/phrases inside math in \text{} so they render with proper spacing
     // • Wraps for MathJax \( ... \)
+
+    // CRITICAL FIX: inside MathJax math mode, plain English letters get treated as juxtaposed
+    // italic variables with ZERO spacing — "Sum of areas" becomes "Sumofareas". Solution:
+    // wrap English phrases/words in \text{...} which keeps them upright + properly spaced.
+    function fcSmartTextify(s) {
+        if (!s) return s;
+        // Mask LaTeX commands (\sqrt, \pi, \frac, \text{...}) so we don't textify their names
+        const masks = [];
+        const STAMP = '\u0000';  // null char as placeholder marker
+        s = s.replace(/\\text\{[^}]*\}/g, m => { masks.push(m); return STAMP + (masks.length - 1) + STAMP; });
+        s = s.replace(/\\[a-zA-Z]+/g,    m => { masks.push(m); return STAMP + (masks.length - 1) + STAMP; });
+
+        // Math function/symbol names that should stay italic even when long enough to trigger textify
+        const mathFuncs = new Set(['sin','cos','tan','sec','csc','cot','sinh','cosh','tanh',
+            'log','ln','exp','arc','arctan','arcsin','arccos','atan','asin','acos',
+            'sqrt','frac','sum','int','pi','phi','theta','alpha','beta','gamma','delta',
+            'sigma','epsilon','zeta','eta','iota','kappa','lambda','mu','nu','rho','tau',
+            'upsilon','chi','psi','omega','infty','prod','lim','min','max','inf','sup',
+            'gcd','lcm','mod','det','dim','ker','rank']);
+
+        // Match alphabetic words optionally joined by single spaces (a multi-word phrase)
+        s = s.replace(/([A-Za-z]+(?:[ ][A-Za-z]+)*)/g, (phrase) => {
+            const words = phrase.split(' ');
+            const hasMultipleWords = words.length > 1;
+            if (hasMultipleWords) {
+                // Multi-word phrase → always textify
+                return '\\text{' + phrase + '}';
+            }
+            // Single word
+            if (mathFuncs.has(phrase.toLowerCase())) return phrase;
+            if (phrase.length >= 4) return '\\text{' + phrase + '}';
+            return phrase;  // 1–3 letter single word → leave as math variable
+        });
+
+        // Restore masked LaTeX commands
+        const re = new RegExp(STAMP + '(\\d+)' + STAMP, 'g');
+        s = s.replace(re, (_, idx) => masks[parseInt(idx)]);
+        return s;
+    }
+
     function fcMathHTML(text, opts) {
         if (!text) return '';
         opts = opts || {};
@@ -6417,13 +6565,15 @@ window.generateQuantNotes = () => {
                 // Try to split a "Label: expr" or "Label = expr" pattern
                 const labelMatch = line.match(/^([A-Za-z][A-Za-z\s]{0,30}?)\s*[:=]\s*(.+)$/);
                 if (labelMatch && !hasMathSyntax(labelMatch[1])) {
-                    bodyHtml = '<strong style="color:#475569;font-weight:800">' + escapeHtml(labelMatch[1]) + ' =</strong> \\(' + labelMatch[2] + '\\)';
+                    // label outside math, expression inside math (with English textified)
+                    bodyHtml = '<strong style="color:#475569;font-weight:800">' + escapeHtml(labelMatch[1]) + ' =</strong> \\(' + fcSmartTextify(labelMatch[2]) + '\\)';
                 } else {
-                    bodyHtml = '\\(' + line + '\\)';
+                    // whole line into math, but textify English first
+                    bodyHtml = '\\(' + fcSmartTextify(line) + '\\)';
                 }
             } else if (looksMath(line)) {
-                // plain math, just wrap whole thing
-                bodyHtml = '\\(' + line + '\\)';
+                // plain math, just wrap whole thing (still textify any English)
+                bodyHtml = '\\(' + fcSmartTextify(line) + '\\)';
             } else {
                 // plain text
                 bodyHtml = escapeHtml(line);
@@ -6438,17 +6588,34 @@ window.generateQuantNotes = () => {
         return '<div class="fc-formula-list' + compactClass + '" data-count="' + lines.length + '">' + rows.join('') + '</div>';
     }
 
-    // Public helper: build a single-row "front" question rendering (with math support)
+    // Public helper: build "front" question rendering with math support + smart line-breaking
+    // for numbered lists like "1. VOLUME 2. CSA 3. TSA" that user typed without newlines.
     function fcFrontHTML(text) {
         if (!text) return '';
         const escapeHtml = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        const hasMath = /\\[a-zA-Z]|[\^_]\{|\\frac|\\sqrt|π|√|²|³/.test(text);
-        if (!hasMath) return escapeHtml(text).replace(/\n/g, '<br>');
+
+        // SMART LINE-BREAK: auto-split on inline numbered patterns (" 2. ", " 3. ") even when
+        // the user typed everything on one line (e.g. in an old <input type=text>).
+        // We split on " N. " or " N) " when N is 2..20.
+        let normalized = text.trim();
+        if (!/\n/.test(normalized) && / (?:[2-9]|1\d|20)[\.\)] /.test(normalized)) {
+            // Insert newlines before each " N. " or " N) " (keeping the number prefix)
+            normalized = normalized.replace(/\s+((?:[2-9]|1\d|20)[\.\)])\s+/g, '\n$1 ');
+        }
+
+        const hasMath = /\\[a-zA-Z]|[\^_]\{|\\frac|\\sqrt|π|√|²|³/.test(normalized);
+        if (!hasMath) return escapeHtml(normalized).replace(/\n/g, '<br>');
+
         // Soft latexify
-        const latex = text
+        const latex = normalized
             .replace(/×/g, '\\times ').replace(/÷/g, '\\div ').replace(/π/g, '\\pi ').replace(/²/g, '^{2}').replace(/³/g, '^{3}').replace(/√\(([^)]+)\)/g, '\\sqrt{$1}').replace(/√([a-zA-Z0-9]+)/g, '\\sqrt{$1}');
-        // Wrap math fragments in \( \)
-        return latex.split('\n').map(l => /\\[a-zA-Z]|[\^_]\{/.test(l) ? '\\(' + l + '\\)' : escapeHtml(l)).join('<br>');
+        // Wrap math fragments in \( \), textify English inside, line by line
+        return latex.split('\n').map(l => {
+            if (/\\[a-zA-Z]|[\^_]\{/.test(l)) {
+                return '\\(' + fcSmartTextify(l) + '\\)';
+            }
+            return escapeHtml(l);
+        }).join('<br>');
     }
 
     // ============================================================
@@ -6547,6 +6714,8 @@ window.generateQuantNotes = () => {
         if(typeof window.fcBuildCatFilters === 'function') window.fcBuildCatFilters();
         if(typeof window.fcRender === 'function') window.fcRender();
     };
+    // Expose the math renderer to the print system (defined outside this IIFE)
+    window._fcRenderFormulaForPrint = function(back) { return fcMathHTML(back); };
     function fcSave(){
         try { localStorage.setItem(FC_CARDS_KEY, JSON.stringify(fcCards)); localStorage.setItem(FC_PROG_KEY, JSON.stringify(fcProgress)); } catch {}
         // Piggyback on the main app's cloud sync so flashcards sync across devices
@@ -6683,6 +6852,8 @@ window.generateQuantNotes = () => {
     };
 
     window.fcSetCat = function(cat){ fcActiveCat=cat; fcBuildCatFilters(); fcRender(); };
+    // Expose current chapter filter to outside-IIFE code (used by print scope detection)
+    window.fcGetActiveCategory = function() { return fcActiveCat; };
 
     window.fcToggleExample = function(id){
         const el = document.getElementById('fc-example-' + id);
@@ -9250,6 +9421,195 @@ window.fcConfirmPastedCards = function(){
 
 // Legacy alias for older callers
 window.fcParsePastedCards = window.fcPreviewPastedCards;
+
+// ═══════════════════════════════════════════════════════════════
+// FLASHCARD PRINT SYSTEM
+// Browser-native print → user picks "Save as PDF" → digital formula book
+// Reads cards from localStorage (works regardless of IIFE state)
+// ═══════════════════════════════════════════════════════════════
+
+function fcGetAllCardsFromStorage() {
+    try {
+        const s = localStorage.getItem('yogesh_fc_cards_v2');
+        if (!s) return [];
+        const arr = JSON.parse(s);
+        return Array.isArray(arr) ? arr : [];
+    } catch { return []; }
+}
+
+window.fcOpenPrintModal = function() {
+    const cards = fcGetAllCardsFromStorage();
+    if (!cards.length) {
+        alert('No flashcards to print yet! Add some cards first.');
+        return;
+    }
+    // Build the chapter checklist
+    const chaptersFromCards = [...new Set(cards.map(c => c.category || 'General'))].sort();
+    const container = document.getElementById('fc-print-chapters');
+    const counts = {};
+    cards.forEach(c => { const k = c.category || 'General'; counts[k] = (counts[k]||0)+1; });
+    container.innerHTML = chaptersFromCards.map(ch => `
+        <label class="flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 transition-colors">
+            <input type="checkbox" class="fc-print-chap-cb w-3.5 h-3.5 accent-slate-700" data-chapter="${ch.replace(/"/g,'&quot;')}" onchange="fcUpdatePrintCount()">
+            <span class="text-xs font-bold text-slate-700 dark:text-slate-300 flex-1">${ch}</span>
+            <span class="text-[10px] font-black text-slate-400">${counts[ch]}</span>
+        </label>
+    `).join('');
+    document.getElementById('fc-print-modal').classList.remove('hidden');
+    fcUpdatePrintCount();
+};
+
+window.fcClosePrintModal = function() {
+    document.getElementById('fc-print-modal').classList.add('hidden');
+};
+
+window.fcPrintCheckAll = function(state) {
+    document.querySelectorAll('.fc-print-chap-cb').forEach(cb => cb.checked = state);
+    fcUpdatePrintCount();
+};
+
+// Calculate how many cards will print based on current modal state
+function fcCalcPrintSet() {
+    const allCards = fcGetAllCardsFromStorage();
+    const scope = document.getElementById('fc-print-scope').value;
+    // 1. Restrict to scope
+    let scoped = allCards;
+    if (scope === 'filter') {
+        // Use the same filter as the browse view (chapter + search)
+        const search = (document.getElementById('fc-search')||{value:''}).value.toLowerCase();
+        // Use the exposed getter (preferred) with DOM-scrape fallback for safety
+        let activeChapter = 'All';
+        if (typeof window.fcGetActiveCategory === 'function') {
+            activeChapter = window.fcGetActiveCategory() || 'All';
+        } else {
+            const activeBtn = document.querySelector('#fc-cat-filters button.bg-amber-500');
+            if (activeBtn) activeChapter = activeBtn.textContent.trim();
+        }
+        scoped = scoped.filter(c =>
+            (activeChapter === 'All' || c.category === activeChapter) &&
+            (!search || (c.title||'').toLowerCase().includes(search) || (c.front||'').toLowerCase().includes(search))
+        );
+    }
+    // 2. Further restrict by checked chapters (if any are checked)
+    const checked = Array.from(document.querySelectorAll('.fc-print-chap-cb:checked')).map(cb => cb.dataset.chapter);
+    if (checked.length > 0) {
+        const set = new Set(checked);
+        scoped = scoped.filter(c => set.has(c.category || 'General'));
+    }
+    return scoped;
+}
+
+window.fcUpdatePrintCount = function() {
+    const set = fcCalcPrintSet();
+    const lbl = document.getElementById('fc-print-btn-label');
+    if (lbl) lbl.textContent = 'Print ' + set.length + ' Card' + (set.length === 1 ? '' : 's');
+    const btn = document.getElementById('fc-print-go-btn');
+    if (btn) btn.disabled = set.length === 0;
+};
+
+window.fcDoPrint = function() {
+    const set = fcCalcPrintSet();
+    if (!set.length) {
+        alert('Nothing to print — adjust the scope / chapters above.');
+        return;
+    }
+    const showHint = document.getElementById('fc-print-show-hint').checked;
+    const showExample = document.getElementById('fc-print-show-example').checked;
+
+    // Group by chapter
+    const grouped = {};
+    set.forEach(c => {
+        const key = c.category || 'General';
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(c);
+    });
+    const chapterOrder = Object.keys(grouped).sort();
+
+    const escapeHtml = (s) => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    // Use the existing fcMathHTML if exposed (it's inside an IIFE so we need a window export)
+    // We'll write a local fallback that mirrors core logic
+    const renderFormula = (back) => {
+        // Try the global helper if exposed via window; else fall back to a simple version
+        if (typeof window._fcRenderFormulaForPrint === 'function') {
+            return window._fcRenderFormulaForPrint(back);
+        }
+        // Simple fallback: numbered list of lines with light LaTeXify
+        const lines = (back||'').split('\n').map(l => l.trim()).filter(Boolean);
+        const latexify = (s) => s.replace(/×/g,'\\times ').replace(/÷/g,'\\div ').replace(/π/g,'\\pi ').replace(/²/g,'^{2}').replace(/³/g,'^{3}').replace(/√\(([^)]+)\)/g,'\\sqrt{$1}').replace(/√([a-zA-Z0-9]+)/g,'\\sqrt{$1}').replace(/½/g,'\\frac{1}{2}');
+        const rows = lines.map((line, i) => {
+            const clean = line.replace(/^[\s]*(?:[•\-*▪►]|\d+[\.\)])\s+/, '');
+            const hasMath = /[=+\-*/^√×÷πθα\\\[\]]|\d/.test(clean);
+            const body = hasMath ? '\\(' + latexify(clean) + '\\)' : escapeHtml(clean);
+            return `<div class="fc-formula-row"><div class="fc-formula-number">${i+1}</div><div class="fc-formula-body">${body}</div></div>`;
+        });
+        return `<div class="fc-formula-list" data-count="${lines.length}">${rows.join('')}</div>`;
+    };
+
+    // Build the print sheet HTML
+    const totalCards = set.length;
+    let html = '';
+    // Cover page
+    html += `<div class="fp-cover">
+        <h1>📐 Formula Vault</h1>
+        <div class="fp-sub">SSC CGL — Math Formula Book</div>
+        <div class="fp-meta">Yogesh's Mega Quiz Hub<br>${totalCards} formulas · ${chapterOrder.length} chapter${chapterOrder.length>1?'s':''} · Printed ${new Date().toLocaleDateString('en-IN', {day:'numeric', month:'long', year:'numeric'})}</div>
+    </div>`;
+    // Table of contents
+    html += `<div class="fp-toc">
+        <h2>📚 Contents</h2>
+        <ol>
+            ${chapterOrder.map(ch => `<li>${escapeHtml(ch)} <span class="fp-toc-count">— ${grouped[ch].length} card${grouped[ch].length>1?'s':''}</span></li>`).join('')}
+        </ol>
+    </div>`;
+    // Chapters
+    chapterOrder.forEach(ch => {
+        html += `<h2 class="fp-chapter-title">${escapeHtml(ch)}</h2>`;
+        html += `<div class="fp-chapter-meta">${grouped[ch].length} formula${grouped[ch].length>1?'s':''}</div>`;
+        grouped[ch].forEach((c, idx) => {
+            html += `<div class="fp-card">
+                <div class="fp-card-head">
+                    <span class="fp-card-num">#${idx+1}</span>
+                    <span class="fp-card-title">${escapeHtml(c.title)}</span>
+                    <span class="fp-card-diff ${c.difficulty||'medium'}">${c.difficulty||'medium'}</span>
+                </div>
+                <div class="fp-front">${escapeHtml(c.front||'').replace(/\n/g,'<br>')}</div>
+                <div class="fp-back">${renderFormula(c.back||'')}</div>
+                ${showHint && c.hint ? `<div class="fp-hint">💡 ${escapeHtml(c.hint)}</div>` : ''}
+                ${showExample && c.example ? `<div class="fp-example">📝 ${escapeHtml(c.example)}</div>` : ''}
+            </div>`;
+        });
+    });
+
+    // Inject into the print sheet
+    const sheet = document.getElementById('fc-print-sheet');
+    sheet.innerHTML = html;
+    // Show the sheet, hide everything else
+    document.body.classList.add('fc-printing');
+    sheet.classList.remove('hidden');
+
+    // Typeset MathJax synchronously-ish, then print
+    const afterTypeset = () => {
+        // Close the modal so it isn't in the way (though print CSS hides it anyway)
+        document.getElementById('fc-print-modal').classList.add('hidden');
+        // Wait one frame so layout settles
+        setTimeout(() => {
+            window.print();
+            // After print dialog closes, cleanup
+            setTimeout(() => {
+                document.body.classList.remove('fc-printing');
+                sheet.classList.add('hidden');
+                sheet.innerHTML = '';
+            }, 500);
+        }, 100);
+    };
+
+    if (window.MathJax && MathJax.typesetPromise) {
+        MathJax.typesetPromise([sheet]).then(afterTypeset).catch(afterTypeset);
+    } else {
+        afterTypeset();
+    }
+};
 
 // ═══════════════════════════════════════════════════════════════
 // SYLLABUS COMMAND CENTRE
