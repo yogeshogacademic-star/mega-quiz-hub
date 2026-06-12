@@ -2843,6 +2843,42 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                 }
             });
 
+            // ── EXTENDED SYNC (Jun 12 fix): cover sleepLog / wake & sleep targets / weeklyTasks / wtArchive / wtWeekStart / target ──
+            // All driven by D.meta[field+'At'] timestamps so most-recent-edit wins cross-device.
+            const localMeta = _lp.meta || {};
+            const cloudMeta = merged.meta || {};
+            merged.meta = merged.meta || {};
+
+            // Per-day sleepLog: each day has its own updatedAt, latest wins
+            const localSL = _lp.sleepLog || {};
+            merged.sleepLog = merged.sleepLog || {};
+            Object.keys(localSL).forEach(d => {
+                const local = localSL[d] || {};
+                const cloud = merged.sleepLog[d] || {};
+                if (!merged.sleepLog[d]) { merged.sleepLog[d] = local; return; }
+                const lTs = local.updatedAt || 0;
+                const cTs = cloud.updatedAt || 0;
+                if (lTs > cTs) merged.sleepLog[d] = local;
+                // If neither has updatedAt but they differ, take the one with MORE data (both wake+sleep > just one)
+                else if (lTs === 0 && cTs === 0) {
+                    const lScore = (local.wake?1:0)+(local.sleep?1:0);
+                    const cScore = (cloud.wake?1:0)+(cloud.sleep?1:0);
+                    if (lScore > cScore) merged.sleepLog[d] = local;
+                }
+            });
+
+            // Last-write-wins fields driven by D.meta timestamps
+            ['wakeTarget','sleepTarget','target','wtWeekStart','weeklyTasks','wtArchive'].forEach(field => {
+                const lTs = localMeta[field+'At'] || 0;
+                const cTs = cloudMeta[field+'At'] || 0;
+                if (lTs > cTs && _lp[field] !== undefined) {
+                    merged[field] = _lp[field];
+                    merged.meta[field+'At'] = lTs;
+                } else if (cTs > 0) {
+                    merged.meta[field+'At'] = cTs;
+                }
+            });
+
             localStorage.setItem('warroom_v1', JSON.stringify(merged));
 
             // Hot-reload if War Room is open
@@ -12693,11 +12729,7 @@ body.light select.inp option { background:white; }
       <button class="btn btn-primary" style="width:100%;padding:13px;font-size:13px" onclick="saveLog()">✅ LOG IT</button>
     </div>
 
-    <!-- Today's logs -->
-    <div style="margin-top:20px">
-      <div style="font-size:14px;font-weight:900;color:var(--text);margin-bottom:10px">Today's Sessions</div>
-      <div id="l-today-logs"></div>
-    </div>
+    <!-- Today's Sessions removed Jun 12 — the Home tab "Today Logged" feed already shows this list with pause/resume/done controls. -->
   </div>
 </div>
 
@@ -12834,7 +12866,7 @@ body.light select.inp option { background:white; }
 function noteHtml(note){ return note ? '<div style="font-size:10px;color:#64748b;margin-top:3px;font-style:italic">&quot;'+note+'&quot;</div>' : ''; }
 // ════════════════ DATA ════════════════
 const STORE = 'warroom_v1';
-let D = { blocks:{}, logs:{}, debt:{}, streak:{count:0,last:''}, target:50, sleepLog:{}, wakeTarget:'05:00', sleepTarget:'23:30', weeklyTasks:[], wtWeekStart:'', wtArchive:[] };
+let D = { blocks:{}, logs:{}, debt:{}, streak:{count:0,last:''}, target:50, sleepLog:{}, wakeTarget:'05:00', sleepTarget:'23:30', weeklyTasks:[], wtWeekStart:'', wtArchive:[], meta:{} };
 
 const SUB_COLORS = {
   'Arithmetic':'#8b5cf6','Advanced Maths':'#6366f1','Reasoning':'#3b82f6',
@@ -12879,7 +12911,11 @@ function save(){
     if(typeof pushFn === 'function') pushFn().catch(function(){});
   }, 2000);
 }
-function load(){ const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);}catch(e){} D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||50; D.checklist=D.checklist||{}; D.sleepLog=D.sleepLog||{}; D.wakeTarget=D.wakeTarget||'05:00'; D.sleepTarget=D.sleepTarget||'23:30'; D.weeklyTasks=D.weeklyTasks||[]; D.wtWeekStart=D.wtWeekStart||''; D.wtArchive=D.wtArchive||[]; wtMigrateMockDates(); wtCheckWeekReset(); }
+function load(){ const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);}catch(e){} D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||50; D.checklist=D.checklist||{}; D.sleepLog=D.sleepLog||{}; D.wakeTarget=D.wakeTarget||'05:00'; D.sleepTarget=D.sleepTarget||'23:30'; D.weeklyTasks=D.weeklyTasks||[]; D.wtWeekStart=D.wtWeekStart||''; D.wtArchive=D.wtArchive||[]; D.meta=D.meta||{}; wtMigrateMockDates(); wtCheckWeekReset(); }
+
+// Stamp last-edited time on a setting so cloud-sync merge picks the freshest version cross-device.
+// Call this whenever you mutate D.wakeTarget / D.sleepTarget / D.target / D.weeklyTasks / D.wtArchive / D.wtWeekStart
+function _dStamp(field){ D.meta=D.meta||{}; D.meta[field+'At']=Date.now(); }
 
 // One-time migration: move mock logs that were stored under the wrong date
 // (logged before the date-fix) to their true mock date from the mock tracker.
@@ -13242,19 +13278,81 @@ function logResume(date, id){
   save(); renderTodayLogList(); renderHomeTodayLogged();
 }
 
+// ── MIDNIGHT SPLIT HELPER ─────────────────────────────────────────────────
+// Returns { 'YYYY-MM-DD': ms } for each IST calendar day a segment falls on.
+function _splitSegsByDate(segments){
+  var byDate={};
+  (segments||[]).forEach(function(seg){
+    if(!seg||!seg.from||!seg.to||seg.to<=seg.from) return;
+    var cur=seg.from;
+    while(cur < seg.to){
+      var dayStr=new Date(cur).toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
+      // midnight IST of next day
+      var nd=new Date(dayStr+'T00:00:00+05:30'); nd.setDate(nd.getDate()+1);
+      var nextMidnight=nd.getTime();
+      var end=Math.min(seg.to, nextMidnight);
+      byDate[dayStr]=(byDate[dayStr]||0)+(end-cur);
+      cur=end;
+    }
+  });
+  return byDate;
+}
+
 function logDone(date, id){
   const l=(D.logs[date]||[]).find(x=>x.id===id); if(!l) return;
   if(l.status==='done'||l.status==='cancelled') return;
   const now=Date.now();
   l.segments=l.segments||[];
-  if(l.startTs) l.segments.push({from:l.startTs, to:now});
+  // Stale-doing safeguard: trailing active segment > 4h => confirm
+  if(l.startTs){
+    const liveMs=now-l.startTs;
+    if(liveMs > 4*3600*1000){
+      const liveH=Math.round(liveMs/3600000*10)/10;
+      const ok=confirm('This session has been DOING for ~'+liveH+'h with no pause.\n\nOK = count it all. Cancel = enter actual minutes.');
+      if(!ok){
+        const m=prompt('How many minutes were you actually active on this resume?','60');
+        const mins=parseFloat(m);
+        if(!isNaN(mins)&&mins>=0){ l.segments.push({from:now-Math.round(mins*60000),to:now}); }
+        else { l.segments.push({from:l.startTs,to:now}); }
+      } else { l.segments.push({from:l.startTs,to:now}); }
+    } else { l.segments.push({from:l.startTs,to:now}); }
+  }
   l.status='done'; l.startTs=null; l.ts=now;
-  l.hrs=Math.round(l.segments.reduce((a,s)=>(a+(s.to-s.from)),0)/3600000*100)/100;
-  if(l.hrs<=0) l.hrs=0.1;
+
+  // ── OVERNIGHT SPLIT ──────────────────────────────────────────────────────
+  // If segments cross midnight (IST), original log keeps only hours for its
+  // own date; each later date gets a "continuation" log entry automatically.
+  const byDate=_splitSegsByDate(l.segments);
+  const dates=Object.keys(byDate).sort();
+  if(dates.length>1){
+    l.hrs=Math.round((byDate[date]||0)/3600000*100)/100;
+    if(l.hrs<=0) l.hrs=0;
+    dates.forEach(function(d){
+      if(d===date) return;
+      const ms=byDate[d]; if(!ms) return;
+      const contHrs=Math.round(ms/3600000*100)/100; if(contHrs<=0) return;
+      if(!D.logs[d]) D.logs[d]=[];
+      const already=D.logs[d].find(function(x){ return x._continuationOf===l.id; });
+      if(already){ already.hrs=contHrs; already.ts=now; updateDebt(d); return; }
+      D.logs[d].push({
+        id:now+Math.floor(Math.random()*9000)+1000,
+        date:d, type:l.type||'lecture', status:'done',
+        subject:l.subject||'', chapter:l.chapter||'', topic:l.topic||'', custom:l.custom||'',
+        label:(l.label||l.subject||'Session')+' (cont.)',
+        title:(l.title||l.label||l.subject||'Session')+' (cont.)',
+        hrs:contHrs, note:l.note||'', priority:l.priority||'medium',
+        auto:false, _continuationOf:l.id, ts:now,
+        time:new Date(now).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',hour12:true})
+      });
+      updateDebt(d);
+    });
+  } else {
+    l.hrs=Math.round(l.segments.reduce((a,s)=>(a+(s.to-s.from)),0)/3600000*100)/100;
+    if(l.hrs<=0) l.hrs=0.1;
+  }
   updateDebt(date); updateStreak();
   save(); renderTodayLogList(); renderHomeTodayLogged(); renderHome();
 }
-
 function logCancel(date, id){
   const l=(D.logs[date]||[]).find(x=>x.id===id); if(!l) return;
   l.status='cancelled'; l.hrs=0; l.startTs=null; l.ts=Date.now();
@@ -13553,9 +13651,21 @@ function renderHomeTodayLogged(){
   if(titleEl) titleEl.textContent = isToday ? 'Today Logged' : new Date(viewDate+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'}) + ' Logged';
   if(pickEl && pickEl.value !== viewDate) pickEl.value = viewDate;
   let logs=D.logs[viewDate]||[];
-  // Hide redundant zero-hour 'revision' marker logs — the matching 'quiz' log already
-  // shows the real session. These markers duplicate every R1/R2/R3/R4 entry.
+  // Hide redundant zero-hour 'revision' marker logs
   logs = logs.filter(function(l){ return !(l.type==='revision' && (!l.hrs || l.hrs<=0)); });
+
+  // OVERNIGHT CARRY-OVER: when viewing today, pull in doing/paused sessions from prior dates
+  if(isToday){
+    for(var _ci=1;_ci<=3;_ci++){
+      var _cd=new Date(viewDate+'T00:00:00'); _cd.setDate(_cd.getDate()-_ci);
+      var _cds=_cd.toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
+      (D.logs[_cds]||[]).forEach(function(l){
+        if(l.status!=='doing'&&l.status!=='paused') return;
+        logs.push(Object.assign({},l,{_carryOver:true,_carryDate:_cds}));
+      });
+    }
+  }
+
   // Apply auto/manual filter
   const filt = window._wrLogFilter || 'all';
   if(filt === 'manual') logs = logs.filter(function(l){ return !l.auto; });
@@ -13568,6 +13678,7 @@ function renderHomeTodayLogged(){
     const isAuto=l.auto;
     const status=l.status||(isAuto?'done':'done');
     const icon=l.type==='srs'?'🧠':l.type==='mock'?'📝':l.type==='quiz'?'⚡':l.type==='lecture'?(l.isRevision?'🔄':'🎬'):l.type==='revision'?'📚':'✍️';
+    const _logDate=l._carryDate||l.date||viewDate;
     let statusBadge='';
     if(!isAuto){
       if(status==='doing') statusBadge='<span style="font-size:8px;background:rgba(245,158,11,0.2);color:#fbbf24;padding:1px 6px;border-radius:999px;font-weight:900;margin-left:4px">DOING</span>';
@@ -13576,6 +13687,7 @@ function renderHomeTodayLogged(){
     } else {
       statusBadge='<span style="font-size:8px;background:rgba(99,102,241,0.15);color:#818cf8;padding:1px 6px;border-radius:999px;font-weight:900;margin-left:4px">AUTO</span>';
     }
+    if(l._carryOver&&l._carryDate){var _cdo=new Date(l._carryDate+'T00:00:00'),_cdd=_cdo.getDate(),_cdm=_cdo.toLocaleString('en-IN',{month:'short'});statusBadge+='<span style="font-size:8px;background:rgba(251,191,36,0.15);color:#fbbf24;padding:1px 6px;border-radius:999px;font-weight:900;margin-left:4px">from '+_cdd+' '+_cdm+'</span>';}
     const pastMs=(l.segments||[]).reduce((a,s)=>a+(s.to-s.from),0);
     const currMs=(status==='doing'&&l.startTs)?(Date.now()-l.startTs):0;
     const totalMin=Math.floor((pastMs+currMs)/60000);
@@ -13593,9 +13705,9 @@ function renderHomeTodayLogged(){
     const bgC=isAuto?'rgba(99,102,241,0.05)':status==='doing'?'rgba(245,158,11,0.04)':status==='paused'?'rgba(99,102,241,0.04)':isCan?'rgba(239,68,68,0.03)':'var(--bg3)';
     let actionBtns='';
     if(!isAuto){
-      if(status==='doing') actionBtns=`<button onclick="logPause('${l.date}',${l.id})" style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#818cf8;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Pause</button> <button onclick="logDone('${l.date}',${l.id})" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#4ade80;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Done</button> <button onclick="logCancel('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px">x</button>`;
-      else if(status==='paused') actionBtns=`<button onclick="logResume('${l.date}',${l.id})" style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);color:#fbbf24;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Resume</button> <button onclick="logDone('${l.date}',${l.id})" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#4ade80;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Done</button> <button onclick="logCancel('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px">x</button>`;
-      else actionBtns=`<button onclick="deleteLog('${l.date}',${l.id});renderHomeTodayLogged();renderHome()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 4px">×</button>`;
+      if(status==='doing') actionBtns=`<button onclick="logPause('${_logDate}',${l.id})" style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#818cf8;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Pause</button> <button onclick="logDone('${_logDate}',${l.id})" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#4ade80;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Done</button> <button onclick="logCancel('${_logDate}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px">x</button>`;
+      else if(status==='paused') actionBtns=`<button onclick="logResume('${_logDate}',${l.id})" style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);color:#fbbf24;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Resume</button> <button onclick="logDone('${_logDate}',${l.id})" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#4ade80;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Done</button> <button onclick="logCancel('${_logDate}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px">x</button>`;
+      else actionBtns=`<button onclick="deleteLog('${_logDate}',${l.id});renderHomeTodayLogged();renderHome()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 4px">×</button>`;
     }
     const hrsDisp=(status==='doing'||status==='paused')?`<span data-liveid="${l.id}" data-livedate="${l.date}" style="font-size:12px;font-weight:900;color:#fbbf24;flex-shrink:0;white-space:nowrap">${liveStr||'0m'}</span>`:`<span style="font-size:12px;font-weight:900;color:${isCan?'var(--muted)':subColor(l.subject||'Other')};flex-shrink:0;white-space:nowrap;${isCan?'text-decoration:line-through':''}">${hDisp(l.hrs)}</span>`;
     return `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:11px;border:1px solid ${borderC};background:${bgC};margin-bottom:7px;${isCan?'opacity:0.5':''}">
@@ -14023,6 +14135,7 @@ function editWeeklyTarget(){
   const n=parseFloat(v);
   if(isNaN(n)||n<=0){ alert('Enter a valid number'); return; }
   D.target=n;
+  _dStamp('target');
   save(); renderHome();
 }
 
@@ -14112,45 +14225,122 @@ const WR_BUCKETS = [
   { key:'b2330', label:'Before 11:30 PM', start:18,   end:24,   target:3 },
 ];
 
-// Get the start hour (0-23) of a log entry
-function wrLogStartHour(l){
-  // Parse a time string that may be 24h ("15:42") or 12h ("3:42 pm")
-  function parseHour(str){
-    if(!str || typeof str!=='string' || str.indexOf(':')===-1) return null;
-    const s=str.trim().toLowerCase();
-    let h=parseInt(s.split(':')[0],10);
-    if(isNaN(h)) return null;
-    const isPM = s.indexOf('pm')>-1;
-    const isAM = s.indexOf('am')>-1;
-    if(isPM && h!==12) h+=12;       // 3 pm → 15
-    if(isAM && h===12) h=0;         // 12 am → 0
-    return h;
-  }
-  // Prefer explicit start time strings (the ACTUAL study time, not when it was logged)
-  let h = parseHour(l.start);
-  if(h===null) h = parseHour(l.startTime);
-  if(h===null) h = parseHour(l.startTime12);
-  if(h===null) h = parseHour(l.time);   // 'time' is the 12hr label of when it happened
-  if(h!==null) return h;
-  // Fall back to any available timestamp (startTs, ts, or the log id which is Date.now())
-  const ts = l.startTs || l.ts || l.id;
-  if(ts && ts > 1000000000000){ // valid ms timestamp
-    try { return parseInt(new Date(ts).toLocaleString('en-GB',{timeZone:'Asia/Kolkata',hour:'2-digit',hour12:false}).split(':')[0],10); }
-    catch(e){ return new Date(ts).getHours(); }
-  }
-  return -1; // unknown — caller will skip bucket assignment
+// Parse a time string to minutes-of-day. Accepts "15:42", "3:42 PM", "9:00am", etc. Returns null if invalid.
+function _wrParseToMin(str){
+  if(!str || typeof str!=='string') return null;
+  const s=str.trim().toLowerCase();
+  const m=s.match(/^(\d{1,2}):(\d{2})\s*(am|pm)?$/);
+  if(!m) return null;
+  let h=parseInt(m[1],10); const mm=parseInt(m[2],10);
+  if(isNaN(h)||isNaN(mm)||mm<0||mm>59) return null;
+  const ap=m[3];
+  if(ap==='pm'&&h!==12) h+=12;
+  if(ap==='am'&&h===12) h=0;
+  if(h<0||h>=24) return null;
+  return h*60+mm;
+}
+// Convert ms timestamp → IST minutes-of-day. Returns null on failure.
+function _wrTsToISTMin(ts){
+  if(!ts||ts<1000000000000) return null;
+  try {
+    const s=new Date(ts).toLocaleString('en-GB',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',hour12:false});
+    const [hh,mm]=s.split(':').map(Number);
+    if(isNaN(hh)||isNaN(mm)) return null;
+    return hh*60+mm;
+  } catch(e){ return null; }
+}
+// Convert ms timestamp → IST date (YYYY-MM-DD).
+function _wrTsToISTDate(ts){
+  if(!ts||ts<1000000000000) return null;
+  try { return new Date(ts).toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'}); }
+  catch(e){ return null; }
 }
 
-// Compute hours per bucket for a given date
+// Get the start hour (0-23) of a log entry — used by older code paths
+function wrLogStartHour(l){
+  let m=_wrParseToMin(l.start);
+  if(m===null) m=_wrParseToMin(l.startTime);
+  if(m===null) m=_wrParseToMin(l.startTime12);
+  if(m===null) m=_wrParseToMin(l.time);
+  if(m!==null) return Math.floor(m/60);
+  const ts=l.startTs||l.ts||l.id;
+  const tm=_wrTsToISTMin(ts);
+  return tm===null ? -1 : Math.floor(tm/60);
+}
+
+// Build the actual study intervals [startMin, endMin] (in IST minutes-of-day, clipped to `date`) for one log.
+// Uses real segments when available so PAUSED time is correctly excluded from buckets.
+function _wrLogIntervals(l, date){
+  const out=[];
+  const dayStart=0, dayEnd=1440;
+  const clip=(s,e)=>{ s=Math.max(dayStart,s); e=Math.min(dayEnd,e); if(e>s) out.push([s,e]); };
+
+  // Best fidelity: real segments from pause/resume/done
+  if(Array.isArray(l.segments) && l.segments.length){
+    l.segments.forEach(seg=>{
+      if(!seg||!seg.from||!seg.to||seg.to<=seg.from) return;
+      const fromDate=_wrTsToISTDate(seg.from), toDate=_wrTsToISTDate(seg.to);
+      const fromMin=_wrTsToISTMin(seg.from), toMin=_wrTsToISTMin(seg.to);
+      if(fromMin===null||toMin===null) return;
+      // Segment entirely within target date
+      if(fromDate===date && toDate===date){ clip(fromMin,toMin); return; }
+      // Segment starts on date, ends later → from fromMin to 1440
+      if(fromDate===date && toDate>date){ clip(fromMin,1440); return; }
+      // Segment started earlier, ends on date → from 0 to toMin
+      if(fromDate<date && toDate===date){ clip(0,toMin); return; }
+      // Spans target date completely
+      if(fromDate<date && toDate>date){ clip(0,1440); return; }
+      // Different date entirely → skip
+    });
+    // Active "doing" portion since last resume — if status=='doing' and l.startTs valid AND on this date
+    if(l.status==='doing' && l.startTs){
+      const sDate=_wrTsToISTDate(l.startTs), sMin=_wrTsToISTMin(l.startTs);
+      if(sDate && sMin!==null){
+        const nowDate=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
+        const nowMin=_wrTsToISTMin(Date.now());
+        if(sDate===date && (nowDate===date || nowDate>date)){
+          clip(sMin, nowDate===date ? (nowMin||1440) : 1440);
+        } else if(sDate<date && (nowDate===date || nowDate>date)){
+          clip(0, nowDate===date ? (nowMin||1440) : 1440);
+        }
+      }
+    }
+    if(out.length) return out;
+  }
+
+  // Fallback: derive interval from start/end time strings + hrs
+  const hrs=l.hrs||0;
+  const sMin=_wrParseToMin(l.start) ?? _wrParseToMin(l.startTime) ?? _wrParseToMin(l.startTime12);
+  const eMin=_wrParseToMin(l.end)   ?? _wrParseToMin(l.endTime)   ?? _wrParseToMin(l.endTime12);
+  if(sMin!==null && eMin!==null && eMin>sMin){ clip(sMin,eMin); return out; }
+  if(sMin!==null && hrs>0){ clip(sMin, sMin + hrs*60); return out; }
+  // Last resort: use ts hour + hrs (assumes session is on `date`)
+  const tm=_wrTsToISTMin(l.startTs||l.ts||l.id);
+  if(tm!==null && hrs>0){ clip(tm - hrs*60, tm); return out; } // ts is when "done" was clicked → walk backward
+  return out;
+}
+
+// Compute hours per bucket for a given date — splits sessions that cross bucket boundaries
 function wrBucketHours(date){
-  const res = {}; WR_BUCKETS.forEach(b=>res[b.key]=0);
+  const res={}; WR_BUCKETS.forEach(b=>res[b.key]=0);
   (D.logs[date]||[]).forEach(l=>{
     if(l.status==='cancelled') return;
-    const hrs = l.hrs||0; if(hrs<=0) return;
-    const hr = wrLogStartHour(l);
-    if(hr < 0) return; // unknown time — don't dump into wrong bucket
-    const bucket = WR_BUCKETS.find(b=>hr>=b.start && hr<b.end) || WR_BUCKETS[WR_BUCKETS.length-1];
-    res[bucket.key]+=hrs;
+    const intervals=_wrLogIntervals(l, date);
+    if(!intervals.length){
+      // unknown time placement — fall back to old "all-in-start-hour" behaviour so totals don't disappear
+      const hrs=l.hrs||0; if(hrs<=0) return;
+      const hr=wrLogStartHour(l); if(hr<0) return;
+      const bucket=WR_BUCKETS.find(b=>hr>=b.start && hr<b.end) || WR_BUCKETS[WR_BUCKETS.length-1];
+      res[bucket.key]+=hrs;
+      return;
+    }
+    intervals.forEach(([sMin,eMin])=>{
+      WR_BUCKETS.forEach(b=>{
+        const bs=b.start*60, be=b.end*60;
+        const overlap=Math.max(0, Math.min(eMin,be) - Math.max(sMin,bs));
+        if(overlap>0) res[b.key] += overlap/60;
+      });
+    });
   });
   return res;
 }
@@ -14202,6 +14392,7 @@ window.wrLogWake=function(manualTime){
   const t = manualTime || new Date().toLocaleTimeString('en-GB',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',hour12:false});
   D.sleepLog[today]=D.sleepLog[today]||{};
   D.sleepLog[today].wake=t;
+  D.sleepLog[today].updatedAt=Date.now();
   save(); renderSleep();
 };
 window.wrLogSleep=function(manualTime){
@@ -14210,6 +14401,7 @@ window.wrLogSleep=function(manualTime){
   const t = manualTime || new Date().toLocaleTimeString('en-GB',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',hour12:false});
   D.sleepLog[today]=D.sleepLog[today]||{};
   D.sleepLog[today].sleep=t;
+  D.sleepLog[today].updatedAt=Date.now();
   save(); renderSleep();
 };
 window.wrPromptWake=function(){
@@ -14295,8 +14487,8 @@ window.wrEditSleepTargets=function(){
   const w=prompt('Target WAKE time (e.g. 5:00 AM):', _to12hrSafe(D.wakeTarget||'05:00')); if(w===null) return;
   const s=prompt('Target SLEEP time (e.g. 11:30 PM):', _to12hrSafe(D.sleepTarget||'23:30')); if(s===null) return;
   const w24=_parse12hr(w), s24=_parse12hr(s);
-  if(w24) D.wakeTarget=w24;
-  if(s24) D.sleepTarget=s24;
+  if(w24){ D.wakeTarget=w24; _dStamp('wakeTarget'); }
+  if(s24){ D.sleepTarget=s24; _dStamp('sleepTarget'); }
   save(); renderSleep();
 };
 
@@ -14349,6 +14541,7 @@ function wtCheckWeekReset(){
   D.weeklyTasks = D.weeklyTasks.filter(function(s){ return s.tasks.length>0; });
 
   D.wtWeekStart = thisMon;
+  _dStamp('wtWeekStart'); _dStamp('weeklyTasks'); _dStamp('wtArchive');
   save();
 }
 
@@ -14378,12 +14571,14 @@ window.wtAddSubject=function(){
   if(!subjName) return;
   if(D.weeklyTasks.some(s=>s.subject.toLowerCase()===subjName.toLowerCase())){ alert('Already added.'); renderWeeklyTasks(); return; }
   D.weeklyTasks.push({ subject:subjName, tasks:[] });
+  _dStamp('weeklyTasks');
   save(); renderWeeklyTasks();
 };
 
 window.wtRemoveSubject=function(subj){
   if(!confirm('Remove "'+subj+'" and all its tasks?')) return;
   D.weeklyTasks=D.weeklyTasks.filter(s=>s.subject!==subj);
+  _dStamp('weeklyTasks');
   save(); renderWeeklyTasks();
 };
 
@@ -14394,6 +14589,7 @@ window.wtAddTask=function(subj){
   const starredCount=s.tasks.filter(t=>t.starred && !t.done).length;
   const t={ id:Date.now()+Math.floor(Math.random()*1000), text:txt.trim(), done:false, starred:starredCount<3 };
   s.tasks.push(t);
+  _dStamp('weeklyTasks');
   save(); renderWeeklyTasks();
 };
 
@@ -14405,6 +14601,7 @@ window.wtToggleStar=function(subj,id){
     if(starredCount>=3){ alert('Already 3 focus tasks for '+subj+'. Unstar one or finish it first.'); return; }
   }
   t.starred=!t.starred;
+  _dStamp('weeklyTasks');
   save(); renderWeeklyTasks();
 };
 
@@ -14412,6 +14609,7 @@ window.wtToggleDone=function(subj,id){
   const s=D.weeklyTasks.find(x=>x.subject===subj); if(!s) return;
   const t=s.tasks.find(x=>x.id===id); if(!t) return;
   t.done=!t.done;
+  _dStamp('weeklyTasks');
   save(); renderWeeklyTasks();
   // If a starred (focus) task was completed, and fewer than 3 focus tasks remain, prompt next
   if(t.done && t.starred){
@@ -14422,7 +14620,7 @@ window.wtToggleDone=function(subj,id){
         let msg='✅ Focus task done in '+subj+'!\n\nPick your next focus task:\n\n';
         availNext.forEach((x,i)=>{ msg+=(i+1)+'. '+x.text+'\n'; });
         const pick=prompt(msg+'\nEnter number (or Cancel to skip):');
-        if(pick){ const n=parseInt(pick,10); if(!isNaN(n)&&n>=1&&n<=availNext.length){ availNext[n-1].starred=true; save(); renderWeeklyTasks(); } }
+        if(pick){ const n=parseInt(pick,10); if(!isNaN(n)&&n>=1&&n<=availNext.length){ availNext[n-1].starred=true; _dStamp('weeklyTasks'); save(); renderWeeklyTasks(); } }
       },200);
     }
   }
@@ -14431,6 +14629,7 @@ window.wtToggleDone=function(subj,id){
 window.wtDeleteTask=function(subj,id){
   const s=D.weeklyTasks.find(x=>x.subject===subj); if(!s) return;
   s.tasks=s.tasks.filter(x=>x.id!==id);
+  _dStamp('weeklyTasks');
   save(); renderWeeklyTasks();
 };
 
@@ -14802,6 +15001,12 @@ function editLog(date,id){
 window._wrAutoLog = function(entry) {
   try {
     if(typeof D === 'undefined' || typeof save !== 'function') return;
+    // Skip noise: any session-type log under 1 minute. Doesn't apply to revision markers
+    // (no duration field) or to mock logs that pass explicit hrs.
+    if(entry && typeof entry.duration === 'number' && entry.duration > 0 && entry.duration < 1) {
+      console.log('[War Room] Skipping sub-minute auto-log:', entry.type, entry.title, '('+entry.duration+'m)');
+      return;
+    }
     // Auto-init planner if not loaded yet — so logs are never lost even if War Zone not opened
     if(!window._plannerLoaded) {
       if(typeof load === 'function' && typeof loadHub === 'function') {
