@@ -13315,160 +13315,122 @@ let weeklyChart = null, debtChart = null;
 
 // ════════════════ UTILS ════════════════
 function istNow(){ return new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'})); }
-function todayStr(){ const d=istNow(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
-
 // ══════════════════════════════════════════════════════════════════════════
-// IDLE SENTINEL — Mamba mode enforcer.
-// If you log NOTHING for 1 hour during active study hours (wake→sleep window),
-// fires a loud repeating SOS beep + full-screen red takeover that shows your
-// hours-done vs 8h target and hands you ONE specific task to start NOW.
-// You must hit START to silence it. Snooze gives 15 min grace.
+// IDLE SENTINEL — Mamba pace enforcer (escape-window logic).
+// Tied to your 4 daily blocks. For the block you're in NOW it computes:
+//   required pace = (block target - hours logged) / hours remaining in block
+// The siren fires the moment required pace crosses 50% — i.e. when finishing
+// would start to need more than half of every remaining minute. That's EARLY,
+// while recovery is still easy, never when you're already cornered. If you keep
+// pace, your remaining target shrinks with the clock, pace stays low, total
+// silence. It only screams when you're genuinely drifting, with max runway left.
 // ══════════════════════════════════════════════════════════════════════════
 (function IdleSentinel(){
-  const DAILY_TARGET_MIN = 8 * 60;     // 8 hours
-  const IDLE_MS          = 60 * 60000; // 1 hour
-  const CHECK_MS         = 60000;      // check every minute
-  let alarmCtx = null, alarmTimer = null, snoozeUntil = 0, firing = false;
+  const TRIGGER   = 0.50;       // fire when required pace ≥ 50%
+  const CHECK_MS  = 60000;      // re-check every minute
+  const REFIRE_MS = 20*60000;   // if snoozed/dismissed, don't renag same block for 20 min
+  let alarmCtx=null, alarmTimer=null, firing=false;
+  let mutedBlockUntil={};       // { blockKey: timestamp } suppress re-fire per block
 
   function hhmmToMin(s){ const m=(s||'').split(':'); return (+m[0]||0)*60+(+m[1]||0); }
+  function curMinOfDay(){ const n=istNow(); return n.getHours()*60+n.getMinutes(); }
 
-  // Sum today's logged minutes from the War Room data object D.
-  function todayLoggedMin(){
-    try {
-      const logs = (typeof D!=='undefined' && D.logs && D.logs[todayStr()]) || [];
-      return logs.reduce((s,e)=> s + (Number(e.duration)||0), 0);
-    } catch(e){ return 0; }
+  // Which block are we in right now? Respects sleep window (no fire while asleep).
+  function currentBlock(){
+    try{
+      const cur=curMinOfDay();
+      const wake=hhmmToMin((D&&D.wakeTarget)||'05:00');
+      let sleep=hhmmToMin((D&&D.sleepTarget)||'23:30');
+      // outside wake→sleep window → no block (silent)
+      let c=cur, sl=sleep; if(sl<=wake) sl+=1440; let cc=c; if(cc<wake) cc+=1440;
+      if(!(cc>=wake && cc<=sl)) return null;
+      for(const b of WR_BUCKETS){ if(cur>=b.start*60 && cur<b.end*60) return b; }
+      return null;
+    }catch(e){ return null; }
   }
-  // Most recent log timestamp today (ms). 0 if nothing logged.
-  function lastLogTs(){
-    try {
-      const logs = (typeof D!=='undefined' && D.logs && D.logs[todayStr()]) || [];
-      return logs.reduce((mx,e)=> Math.max(mx, Number(e.ts)||0), 0);
-    } catch(e){ return 0; }
+
+  // required pace for the active block (0..∞). Lower is safer.
+  function blockPace(b){
+    const logged = (typeof wrBucketHours==='function' ? (wrBucketHours(todayStr())[b.key]||0) : 0);
+    const remainTarget = Math.max(0, b.target - logged);
+    if(remainTarget<=0) return { pace:0, logged, remainTarget:0, remainMin:0 };
+    const remainMin = Math.max(1, b.end*60 - curMinOfDay());
+    const remainTargetMin = remainTarget*60;
+    return { pace: remainTargetMin/remainMin, logged, remainTarget, remainMin };
   }
-  // Are we inside the active study window (wake → sleep target)?
-  function inActiveHours(){
-    try {
-      const now = istNow(); const cur = now.getHours()*60 + now.getMinutes();
-      const wake  = hhmmToMin((D&&D.wakeTarget) || '05:00');
-      let   sleep = hhmmToMin((D&&D.sleepTarget)|| '23:30');
-      if (sleep <= wake) sleep += 1440; // crosses midnight
-      let c = cur; if (c < wake) c += 1440;
-      return c >= wake && c <= sleep;
-    } catch(e){ return true; }
-  }
-  // Pick ONE concrete task to throw at the user right now.
+
   function pickTask(){
-    // 1) An unfinished, starred weekly task wins (your own top-3 priority).
-    try {
-      const wt = (D&&D.weeklyTasks)||[];
-      for (const grp of wt){
-        const star = (grp.tasks||[]).find(t=>t.starred && !t.done);
-        if (star) return { label:`${grp.subject}: ${star.text}`, action:()=>showScreen('planner') };
-      }
-      for (const grp of wt){
-        const any = (grp.tasks||[]).find(t=>!t.done);
-        if (any) return { label:`${grp.subject}: ${any.text}`, action:()=>showScreen('planner') };
-      }
-    } catch(e){}
-    // 2) Else SRS if cards are due.
-    try {
-      const due = (typeof mistakesDb!=='undefined'?mistakesDb:[]).filter(m=>m && m.srs && m.srs.nextReview<=Date.now() && !m.isMastered).length;
-      if (due>0) return { label:`Clear SRS — ${due} card${due!==1?'s':''} due`, action:()=>{ const b=document.getElementById('srs-open-btn'); if(b) b.click(); else showScreen('home'); } };
-    } catch(e){}
-    // 3) Fallback: just start a quiz.
-    return { label:'Start any quiz — just 25 questions. Move.', action:()=>showScreen('home') };
+    try{
+      const wt=(D&&D.weeklyTasks)||[];
+      for(const g of wt){ const s=(g.tasks||[]).find(t=>t.starred&&!t.done); if(s) return {label:`${g.subject}: ${s.text}`,action:()=>showScreen('planner')}; }
+      for(const g of wt){ const a=(g.tasks||[]).find(t=>!t.done); if(a) return {label:`${g.subject}: ${a.text}`,action:()=>showScreen('planner')}; }
+    }catch(e){}
+    try{ const due=(typeof mistakesDb!=='undefined'?mistakesDb:[]).filter(m=>m&&m.srs&&m.srs.nextReview<=Date.now()&&!m.isMastered).length;
+      if(due>0) return {label:`Clear SRS — ${due} card${due!==1?'s':''} due`,action:()=>showScreen('home')}; }catch(e){}
+    return {label:'Start any quiz — 25 questions. Move.',action:()=>showScreen('home')};
   }
 
-  // ── Loud repeating SOS beep (Web Audio, no asset needed) ──
-  function beepOnce(ctx, t0){
-    const pat=[0,140,140,280,280,420, 600,800,800,1000,1000,1200, 1380,1520,1520,1660,1660,1800]; // S-O-S dot/dash starts
-    // simpler: 3 short, 3 long, 3 short
+  function beepOnce(ctx,t0){
     const seq=[[0,90],[150,90],[300,90],[480,260],[800,260],[1120,260],[1450,90],[1600,90],[1750,90]];
-    seq.forEach(([off,dur])=>{
-      const o=ctx.createOscillator(), g=ctx.createGain();
-      o.type='square'; o.frequency.value=880;
-      o.connect(g); g.connect(ctx.destination);
-      const s=t0+off/1000;
-      g.gain.setValueAtTime(0.0001,s);
-      g.gain.exponentialRampToValueAtTime(0.6,s+0.01);
-      g.gain.exponentialRampToValueAtTime(0.0001,s+dur/1000);
-      o.start(s); o.stop(s+dur/1000+0.02);
-    });
-    return 2.1; // seconds the pattern lasts
+    seq.forEach(([off,dur])=>{ const o=ctx.createOscillator(),g=ctx.createGain(); o.type='square'; o.frequency.value=880; o.connect(g); g.connect(ctx.destination);
+      const s=t0+off/1000; g.gain.setValueAtTime(0.0001,s); g.gain.exponentialRampToValueAtTime(0.6,s+0.01); g.gain.exponentialRampToValueAtTime(0.0001,s+dur/1000); o.start(s); o.stop(s+dur/1000+0.02); });
+    return 2.1;
   }
   function startAlarm(){
-    try {
-      alarmCtx = alarmCtx || new (window.AudioContext||window.webkitAudioContext)();
-      if (alarmCtx.state==='suspended') alarmCtx.resume();
-      const loop=()=>{ if(!firing) return; const len=beepOnce(alarmCtx, alarmCtx.currentTime+0.05); alarmTimer=setTimeout(loop, (len+0.6)*1000); };
-      loop();
-    } catch(e){}
-    try { if (navigator.vibrate) { const v=()=>{ if(!firing) return; navigator.vibrate([200,100,200,100,200,300,400,200,400]); }; v(); } } catch(e){}
+    try{ alarmCtx=alarmCtx||new (window.AudioContext||window.webkitAudioContext)(); if(alarmCtx.state==='suspended') alarmCtx.resume();
+      const loop=()=>{ if(!firing) return; const len=beepOnce(alarmCtx,alarmCtx.currentTime+0.05); alarmTimer=setTimeout(loop,(len+0.6)*1000); }; loop(); }catch(e){}
+    try{ if(navigator.vibrate){ const v=()=>{ if(!firing) return; navigator.vibrate([200,100,200,100,200,300,400,200,400]); }; v(); } }catch(e){}
   }
   function stopAlarm(){ firing=false; if(alarmTimer){ clearTimeout(alarmTimer); alarmTimer=null; } try{ if(navigator.vibrate) navigator.vibrate(0); }catch(e){} }
 
-  function fire(){
-    if (firing || document.getElementById('idle-sentinel-overlay')) return;
-    firing = true;
-    const doneMin = todayLoggedMin();
-    const doneH = Math.floor(doneMin/60), doneM = doneMin%60;
-    const remain = Math.max(0, DAILY_TARGET_MIN - doneMin);
-    const remH = Math.floor(remain/60), remM = remain%60;
-    const task = pickTask();
-
-    const ov = document.createElement('div');
-    ov.id='idle-sentinel-overlay';
+  function fire(b,info){
+    if(firing||document.getElementById('idle-sentinel-overlay')) return;
+    firing=true;
+    const need=info.remainTarget, mins=info.remainMin;
+    const needH=Math.floor(need), needM=Math.round((need-needH)*60);
+    const loggedH=Math.floor(info.logged), loggedM=Math.round((info.logged-loggedH)*60);
+    const task=pickTask();
+    const ov=document.createElement('div'); ov.id='idle-sentinel-overlay';
     ov.style.cssText='position:fixed;inset:0;z-index:2147483647;background:radial-gradient(circle at 50% 40%,#7f1d1d,#450a0a 70%,#1c0505);display:flex;align-items:center;justify-content:center;padding:24px;font-family:inherit;animation:idlePulse 1s ease-in-out infinite';
-    ov.innerHTML = `
-      <style>@keyframes idlePulse{0%,100%{background-color:#450a0a}50%{background-color:#7f1d1d}}
-      @keyframes idleShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}</style>
+    ov.innerHTML=`
+      <style>@keyframes idlePulse{0%,100%{background-color:#450a0a}50%{background-color:#7f1d1d}}@keyframes idleShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}</style>
       <div style="max-width:440px;width:100%;text-align:center;color:#fff;animation:idleShake .5s ease-in-out 3">
-        <div style="font-size:64px;line-height:1;margin-bottom:8px">🚨</div>
-        <div style="font-size:26px;font-weight:900;letter-spacing:.02em;margin-bottom:6px">WHAT ARE YOU DOING?</div>
-        <div style="font-size:14px;font-weight:700;color:#fecaca;margin-bottom:18px">1 hour. Nothing logged. The exam doesn't wait.</div>
-        <div style="background:rgba(0,0,0,.35);border:1px solid #ef4444;border-radius:14px;padding:14px;margin-bottom:16px">
-          <div style="font-size:12px;font-weight:900;color:#fca5a5;text-transform:uppercase;letter-spacing:.08em">Today</div>
-          <div style="font-size:30px;font-weight:900;margin:4px 0">${doneH}h ${doneM}m <span style="font-size:15px;color:#fca5a5">/ 8h</span></div>
-          <div style="font-size:13px;font-weight:800;color:#fecaca">${remH}h ${remM}m left to hit target</div>
+        <div style="font-size:60px;line-height:1;margin-bottom:6px">🚨</div>
+        <div style="font-size:24px;font-weight:900;margin-bottom:4px">${b.label.toUpperCase()} IS SLIPPING</div>
+        <div style="font-size:13px;font-weight:700;color:#fecaca;margin-bottom:16px">You're falling behind pace. Catch it NOW — still easy.</div>
+        <div style="background:rgba(0,0,0,.35);border:1px solid #ef4444;border-radius:14px;padding:14px;margin-bottom:14px">
+          <div style="font-size:28px;font-weight:900;margin:2px 0">${needH}h ${needM}m <span style="font-size:14px;color:#fca5a5">needed in ${Math.floor(mins/60)}h ${mins%60}m</span></div>
+          <div style="font-size:12px;font-weight:800;color:#fecaca">Logged this block: ${loggedH}h ${loggedM}m of ${b.target}h</div>
         </div>
-        <div style="font-size:12px;font-weight:900;color:#fca5a5;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Do this NOW</div>
-        <div style="font-size:16px;font-weight:800;background:#fff;color:#7f1d1d;border-radius:12px;padding:12px;margin-bottom:18px">${task.label}</div>
+        <div style="font-size:11px;font-weight:900;color:#fca5a5;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Do this NOW</div>
+        <div style="font-size:15px;font-weight:800;background:#fff;color:#7f1d1d;border-radius:12px;padding:11px;margin-bottom:16px">${task.label}</div>
         <button id="idle-start-btn" style="width:100%;background:#16a34a;color:#fff;font-weight:900;font-size:17px;padding:15px;border:none;border-radius:12px;cursor:pointer;box-shadow:0 6px 20px rgba(22,163,74,.5);margin-bottom:10px">▶ START NOW</button>
-        <button id="idle-snooze-btn" style="width:100%;background:transparent;color:#fca5a5;font-weight:700;font-size:13px;padding:10px;border:1px solid #b91c1c;border-radius:10px;cursor:pointer">Snooze 15 min (you'll regret it)</button>
+        <button id="idle-snooze-btn" style="width:100%;background:transparent;color:#fca5a5;font-weight:700;font-size:13px;padding:10px;border:1px solid #b91c1c;border-radius:10px;cursor:pointer">Snooze 20 min</button>
       </div>`;
-    document.body.appendChild(ov);
-    startAlarm();
-
-    document.getElementById('idle-start-btn').onclick = ()=>{ stopAlarm(); ov.remove(); try{ task.action(); }catch(e){} };
-    document.getElementById('idle-snooze-btn').onclick = ()=>{ stopAlarm(); ov.remove(); snoozeUntil = Date.now()+15*60000; };
+    document.body.appendChild(ov); startAlarm();
+    const mute=()=>{ mutedBlockUntil[b.key]=Date.now()+REFIRE_MS; };
+    document.getElementById('idle-start-btn').onclick=()=>{ stopAlarm(); ov.remove(); mute(); try{task.action();}catch(e){} };
+    document.getElementById('idle-snooze-btn').onclick=()=>{ stopAlarm(); ov.remove(); mute(); };
   }
 
   function check(){
-    try {
-      if (firing) return;
-      if (Date.now() < snoozeUntil) return;
-      if (document.hidden) return;            // don't fire when tab not visible
-      if (!inActiveHours()) return;           // respect sleep window
-      // Reference point = last log today, or wake time if nothing logged yet.
-      let ref = lastLogTs();
-      if (!ref) {
-        const now=istNow(); const wk=hhmmToMin((D&&D.wakeTarget)||'05:00');
-        const wakeDate=new Date(now); wakeDate.setHours(Math.floor(wk/60), wk%60, 0, 0);
-        ref = wakeDate.getTime();
-      }
-      if (Date.now() - ref >= IDLE_MS) fire();
-    } catch(e){}
+    try{
+      if(firing||document.hidden) return;
+      const b=currentBlock(); if(!b) return;
+      if(mutedBlockUntil[b.key] && Date.now()<mutedBlockUntil[b.key]) return;
+      const info=blockPace(b);
+      if(info.remainTarget<=0) return;            // block target already met → silent
+      if(info.pace>=TRIGGER) fire(b,info);
+    }catch(e){}
   }
 
-  // Unlock audio on first user interaction (browsers block autoplay audio).
-  function primeAudio(){ try{ alarmCtx = alarmCtx || new (window.AudioContext||window.webkitAudioContext)(); if(alarmCtx.state==='suspended') alarmCtx.resume(); }catch(e){} document.removeEventListener('pointerdown',primeAudio); document.removeEventListener('keydown',primeAudio); }
-  document.addEventListener('pointerdown', primeAudio);
-  document.addEventListener('keydown', primeAudio);
-
-  setInterval(check, CHECK_MS);
-  window._idleSentinelTest = fire; // type _idleSentinelTest() in console to preview
+  function primeAudio(){ try{ alarmCtx=alarmCtx||new (window.AudioContext||window.webkitAudioContext)(); if(alarmCtx.state==='suspended') alarmCtx.resume(); }catch(e){} document.removeEventListener('pointerdown',primeAudio); document.removeEventListener('keydown',primeAudio); }
+  document.addEventListener('pointerdown',primeAudio); document.addEventListener('keydown',primeAudio);
+  setInterval(check,CHECK_MS);
+  window._idleSentinelTest=function(){ const b=currentBlock()||WR_BUCKETS[2]; fire(b, blockPace(b)); }; // preview in console
 })();
+
+function todayStr(){ const d=istNow(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function dateStr(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function fmtDate(s){ const d=new Date(s+'T00:00:00'); return d.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'}); }
 function fmtShort(s){ const d=new Date(s+'T00:00:00'); return d.toLocaleDateString('en-IN',{day:'numeric',month:'short'}); }
