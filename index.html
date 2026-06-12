@@ -11019,6 +11019,17 @@ window.scStartRevision = (key, rev) => {
     // Also reset r1QuestionsAttempted on fresh R1
     if (rev === 'r1') {
       t.r1QuestionsAttempted = [];
+      // COLOUR RESET: a fresh R1 means the whole cycle starts over, so wipe ALL
+      // completion flags + dates. The topic goes colourless (blank) and re-earns
+      // each colour as R1→R2→R3→R4 are completed again. This also clears the
+      // "new questions" red badge, since the new Qs are now part of this fresh R1.
+      t.r1 = false; t.r1Date = '';
+      t.r2 = false; t.r2Date = '';
+      t.r3 = false; t.r3Date = '';
+      t.r4 = false; t.r4Date = '';
+      // r1QsTotalRaw will be re-stamped to the CURRENT question count when this
+      // R1 completes, so future new-question detection compares against this cycle.
+      t.r1QsTotalRaw = 0;
       // Stamp restart time so cloud merge knows this was an intentional fresh start
       // and won't union-restore stale cloud QA from before this restart
       t.r1RestartTs = Date.now();
