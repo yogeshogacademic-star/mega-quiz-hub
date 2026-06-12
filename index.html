@@ -3533,10 +3533,12 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                 !db[id].isScRevision &&
                 !(id && id.startsWith('quiz_sc_rev_'))
             ).sort((a,b) => {
-                // Pin Spotted Questions bucket to the TOP of its section
+                // Pin Spotted quizzes to the TOP of its section; newest batch first within the group
                 var aS = db[a].isSpottedQuiz ? 0 : 1;
                 var bS = db[b].isSpottedQuiz ? 0 : 1;
-                return aS - bS;
+                if (aS !== bS) return aS - bS;
+                if (aS === 0) return (db[b].createdAt||0) - (db[a].createdAt||0);
+                return 0;
             });
             let listHTML = subjectQuizzes.length === 0 ? `<div class="text-xs text-slate-400 font-bold py-4 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg mb-2">No quizzes imported yet.</div>` : '';
             
@@ -16095,9 +16097,11 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
 
 <script>
 /* ═══════════════════ SPOTTED QUESTIONS MODULE ═══════════════════
-   Screenshot → Claude.ai → JSON → permanent per-subject bucket.
-   Buckets: db['spotted_<slug>'], titled "📸 Spotted Questions — <Subject>".
-   Grows forever (no weekly split). Questions tagged → flow to syllabus/SRS. */
+   Screenshot → Claude.ai → JSON → ONE NEW NUMBERED QUIZ PER BATCH.
+   Keys: db['spotted_<slug>_<N>'], titled "📸 Spotted <Subject> #N".
+   Legacy single bucket db['spotted_<slug>'] is untouched & still playable.
+   Dedup is global across ALL spotted quizzes of a subject.
+   Questions tagged → flow to syllabus/SRS like any other quiz. */
 (function(){
   const SPQ = { subject:null, parsed:[] };
   const SPQ_SUBJECTS = {
@@ -16148,7 +16152,7 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
         <div style="font-size:18px;font-weight:900;color:#f1f5f9">📸 Spotted Questions</div>
         <button onclick="document.getElementById('spq-modal').remove()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer">×</button>
       </div>
-      <div style="font-size:12px;color:#94a3b8;font-weight:700;margin-bottom:16px">Pick subject → screenshot → Claude.ai → paste JSON. Saves to a permanent bucket per subject.</div>
+      <div style="font-size:12px;color:#94a3b8;font-weight:700;margin-bottom:16px">Pick subject → screenshot → Claude.ai → paste JSON. Each batch saves as a NEW numbered quiz on the dashboard (📸 Spotted Quant #1, #2, …).</div>
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px">
         ${Object.keys(SPQ_SUBJECTS).map(s=>`<button onclick="spqPick('${s}')" style="padding:14px;background:${SPQ.subject===s?'#7c3aed':'#1e293b'};border:1.5px solid ${SPQ.subject===s?'#a78bfa':'#334155'};border-radius:12px;color:#f1f5f9;font-weight:900;font-size:14px;cursor:pointer">${SPQ_SUBJECTS[s].icon} ${s}<br><span style="font-size:9px;color:#94a3b8;font-weight:700">${spqCount(s)} saved</span></button>`).join('')}
       </div>
@@ -16168,7 +16172,13 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
   window.spqPick = function(s){ SPQ.subject=s; SPQ.parsed=[]; spqOpen(); };
 
   function spqCount(s){
-    try{ const key='spotted_'+SPQ_SUBJECTS[s].slug; return (db[key]&&db[key].questions)?db[key].questions.length:0; }catch(e){ return 0; }
+    try{
+      const slug=SPQ_SUBJECTS[s].slug;
+      const re=new RegExp('^spotted_'+slug+'(_\\d+)?$');
+      let c=0;
+      Object.keys(db).forEach(k=>{ if(re.test(k)&&db[k]&&Array.isArray(db[k].questions)) c+=db[k].questions.length; });
+      return c;
+    }catch(e){ return 0; }
   }
 
   window.spqCopyPrompt = function(){
@@ -16200,30 +16210,46 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
           <div style="font-size:9px;color:#94a3b8;margin-top:3px">${esc((q.tags||[]).filter(Boolean).join(' › '))}</div>
         </div>`;
       }).join('')+
-      `<button onclick="spqCommit()" style="width:100%;padding:13px;background:#16a34a;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:14px;cursor:pointer;margin-top:6px">✅ Save to ${SPQ.subject} Bucket</button>`;
+      `<button onclick="spqCommit()" style="width:100%;padding:13px;background:#16a34a;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:14px;cursor:pointer;margin-top:6px">✅ Save as New ${SPQ.subject} Quiz</button>`;
   };
+
+  /* ── Helpers for the per-batch quiz model ──
+     Keys: spotted_<slug>_<N> (one per paste-commit). The OLD single bucket
+     spotted_<slug> (no number) is kept untouched as a legacy quiz — still
+     playable, still counted, still in the tree. */
+  function spqAllKeys(subject){
+    const slug=SPQ_SUBJECTS[subject].slug;
+    const re=new RegExp('^spotted_'+slug+'(_\\d+)?$');
+    if(typeof db==='undefined'||!db) return [];
+    return Object.keys(db).filter(k=>re.test(k));
+  }
+  function spqNextNum(subject){
+    const slug=SPQ_SUBJECTS[subject].slug;
+    const re=new RegExp('^spotted_'+slug+'_(\\d+)$');
+    let max=0;
+    if(typeof db!=='undefined'&&db) Object.keys(db).forEach(k=>{
+      const m=k.match(re); if(m){ const n=parseInt(m[1],10); if(n>max) max=n; }
+    });
+    return max+1;
+  }
 
   window.spqCommit = async function(){
     if(!SPQ.parsed.length){ toast('Nothing to save'); return; }
     const cfg=SPQ_SUBJECTS[SPQ.subject];
-    const key='spotted_'+cfg.slug;
     if(typeof db==='undefined'||!db){ toast('DB not loaded'); return; }
-    let bucket=db[key];
-    if(!bucket){ bucket={ title:'📸 Spotted Questions — '+SPQ.subject, subject:cfg.container, timeInMinutes:0, isSpottedQuiz:true, questions:[] }; }
-    bucket.questions=Array.isArray(bucket.questions)?bucket.questions:[];
-    // Dedup by BOTH stored hash AND normalized question text (robust against older entries)
+    // Dedup against EVERY spotted quiz of this subject (legacy bucket + all numbered batches)
     const existing=new Set();
-    bucket.questions.forEach(function(q){
-      if(q.qHash) existing.add(q.qHash);
-      existing.add(qHash(q.question)); // recompute in case old entries lack qHash
+    spqAllKeys(SPQ.subject).forEach(function(k){
+      const qs=(db[k]&&Array.isArray(db[k].questions))?db[k].questions:[];
+      qs.forEach(function(q){ if(q.qHash) existing.add(q.qHash); existing.add(qHash(q.question)); });
     });
-    let added=0,skipped=0;
+    const newQs=[]; let skipped=0;
     SPQ.parsed.forEach(q=>{
       const h=qHash(q.question);
       if(existing.has(h)){ skipped++; return; }
       var rawTags=[(q.tags&&q.tags[0])||'',(q.tags&&q.tags[1])||'',(q.tags&&q.tags[2])||'',(q.tags&&q.tags[3])||''];
       var norm = (typeof window.normalizeHubTags==='function') ? window.normalizeHubTags(rawTags) : { tags:rawTags, needsRetag:false };
-      bucket.questions.push({
+      newQs.push({
         question:q.question,
         options:q.options,
         tags:norm.tags,
@@ -16233,20 +16259,33 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
         addedAt:Date.now(),
         qHash:h
       });
-      existing.add(h); added++;
+      existing.add(h);
     });
-    bucket.timeInMinutes=Math.max(1,Math.ceil(bucket.questions.length*1.5));
-    db[key]=bucket;
-    console.log('[SPQ] Committing to db['+key+'] — now has '+bucket.questions.length+' questions');
+    if(!newQs.length){
+      toast('⚠️ All '+skipped+' question(s) already exist in your Spotted quizzes — nothing new to save');
+      SPQ.parsed=[];
+      return;
+    }
+    // Create a brand-new numbered quiz for THIS batch
+    const num=spqNextNum(SPQ.subject);
+    const key='spotted_'+cfg.slug+'_'+num;
+    db[key]={
+      title:'📸 Spotted '+SPQ.subject+' #'+num,
+      subject:cfg.container,
+      timeInMinutes:Math.max(1,Math.ceil(newQs.length*1.5)),
+      isSpottedQuiz:true,
+      createdAt:Date.now(),
+      questions:newQs
+    };
+    console.log('[SPQ] Created db['+key+'] — '+newQs.length+' questions ('+skipped+' dup skipped)');
     try{
       if(typeof saveData==='function'){ await saveData(); console.log('[SPQ] saveData() completed'); }
       else { console.warn('[SPQ] saveData not found!'); }
       if(typeof window.rebuildSearchCache==='function') window.rebuildSearchCache();
       if(typeof renderDashboard==='function') renderDashboard();
-      // Verify it persisted
       console.log('[SPQ] Verify: db['+key+'] exists after save?', !!db[key], '| questions:', db[key]?db[key].questions.length:0);
     }catch(e){ console.error('[SPQ] save failed',e); toast('Save failed — check console'); return; }
-    toast('✅ Saved: '+added+' added, '+skipped+' dup skipped → '+bucket.questions.length+' total');
+    toast('✅ Spotted '+SPQ.subject+' #'+num+' created — '+newQs.length+' Qs'+(skipped?(' ('+skipped+' dup skipped)'):''));
     SPQ.parsed=[];
     const mm=document.getElementById('spq-modal'); if(mm) mm.remove();
   };
@@ -16282,8 +16321,14 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
 
   function spqRenderTree(){
     const body=document.getElementById('spq-tree-body'); if(!body) return;
-    const key='spotted_'+SPQ_SUBJECTS[SPQ.subject].slug;
-    let qs=(db[key]&&Array.isArray(db[key].questions))?db[key].questions.slice():[];
+    // Aggregate questions from EVERY spotted quiz of this subject (legacy + numbered batches)
+    let qs=[];
+    spqAllKeys(SPQ.subject).forEach(function(k){
+      if(db[k]&&Array.isArray(db[k].questions)){
+        const label=(db[k].title||k).replace('📸 ','');
+        db[k].questions.forEach(function(q){ qs.push(Object.assign({_spqBatch:label},q)); });
+      }
+    });
     const search=(SPQ._brSearch||'').trim().toLowerCase();
     if(search) qs=qs.filter(q=>(q.question||'').toLowerCase().includes(search));
     if(SPQ._brRetag) qs=qs.filter(q=>q.needsRetag);
@@ -16317,6 +16362,7 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
             html+=`<div style="margin-left:10px;background:#0b1220;border:1px solid #1e293b;border-radius:8px;padding:8px 10px;margin-bottom:5px">
               <div style="font-size:11px;color:#e2e8f0;font-weight:600;line-height:1.4">${esc((q.question||'').substring(0,150))}${(q.question||'').length>150?'…':''}${flag}</div>
               <div style="font-size:10px;color:#34d399;margin-top:3px">✓ ${esc(String(correct).substring(0,70))}</div>
+              <div style="font-size:9px;color:#64748b;margin-top:2px">${esc(q._spqBatch||'')}</div>
             </div>`;
           });
           html+='</div>';
@@ -16333,16 +16379,48 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
 
   console.log('[SPQ] Spotted Questions module loaded');
 
-  // One-time: ensure spotted buckets sit in their mock sections
-  (function spqMigrateSubjects(){
+  // ═══ ONE-TIME MIGRATION: kill the OLD bulk single-bucket format ═══
+  // Each legacy db['spotted_<slug>'] is converted into a numbered quiz
+  // (📸 Spotted <Subject> #N) and the legacy key is DELETED.
+  // All questions are preserved — only the container changes.
+  // Idempotent: once the legacy key is gone, this does nothing.
+  (function spqMigrateLegacyBuckets(){
     try{
-      var map={ 'spotted_quant':'QUANT MOCK QUESTIONS', 'spotted_gs':'GS MOCK QUESTIONS', 'spotted_reasoning':'Reasoning', 'spotted_english':'English' };
+      if(typeof db==='undefined'||!db) return;
       var changed=false;
-      Object.keys(map).forEach(function(k){
-        if(typeof db!=='undefined' && db && db[k] && db[k].subject!==map[k]){ db[k].subject=map[k]; changed=true; }
+      Object.keys(SPQ_SUBJECTS).forEach(function(sub){
+        var cfg=SPQ_SUBJECTS[sub];
+        var oldKey='spotted_'+cfg.slug;
+        var legacy=db[oldKey];
+        if(!legacy) return;
+        var qs=Array.isArray(legacy.questions)?legacy.questions:[];
+        if(qs.length){
+          var num=spqNextNum(sub);
+          var newKey='spotted_'+cfg.slug+'_'+num;
+          // createdAt = earliest addedAt so the old bulk sorts BELOW newer batches
+          var earliest=Infinity;
+          qs.forEach(function(q){ if(q.addedAt&&q.addedAt<earliest) earliest=q.addedAt; });
+          db[newKey]={
+            title:'📸 Spotted '+sub+' #'+num,
+            subject:cfg.container,
+            timeInMinutes:Math.max(1,Math.ceil(qs.length*1.5)),
+            isSpottedQuiz:true,
+            createdAt:(earliest===Infinity?Date.now():earliest),
+            questions:qs
+          };
+          console.log('[SPQ] Migrated legacy '+oldKey+' ('+qs.length+'q) → '+newKey);
+        } else {
+          console.log('[SPQ] Legacy '+oldKey+' was empty — removed');
+        }
+        delete db[oldKey];
+        changed=true;
       });
-      if(changed && typeof saveData==='function'){ saveData(); console.log('[SPQ] Migrated spotted buckets'); }
-    }catch(e){}
+      if(changed){
+        if(typeof saveData==='function') saveData();
+        if(typeof renderDashboard==='function') setTimeout(function(){ try{ renderDashboard(); }catch(e){} },300);
+        console.log('[SPQ] Legacy bucket migration complete — old bulk format removed');
+      }
+    }catch(e){ console.error('[SPQ] legacy migration failed',e); }
   })();
 
   // ═══ SRS AUDIT VIEWER — call srsAudit() or srsAudit('Judiciary') in console ═══
