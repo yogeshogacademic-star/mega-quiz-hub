@@ -2359,6 +2359,8 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
         }
 
         let mockTrackerCloud = []; try { mockTrackerCloud = JSON.parse(localStorage.getItem('ssc_mock_tracker')||'[]'); } catch{}
+        // BAT-SCAN v2: "not a duplicate" ignore-list — synced so all 3 devices respect it
+        let dupIgnoreCloud = []; try { dupIgnoreCloud = JSON.parse(localStorage.getItem('dup_ignore_v1')||'[]'); } catch{}
         let plannerCloud = {}; try { plannerCloud = JSON.parse(localStorage.getItem('warroom_v1')||'{}'); } catch{}
         let scDataCloud = {}; try { scDataCloud = JSON.parse(localStorage.getItem('sc_syllabus_v1')||'{}'); } catch{}
         // Strip reviewData before cloud upload — reduces payload from ~5MB to ~1MB
@@ -2382,7 +2384,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
             }
             return base;
         });
-        const payload = { subjects: SUBJECTS, db: cleanDb, syllabusData: scDataCloud, syllabusLastSave: parseInt(localStorage.getItem('sc_syllabus_lastSave')||'0'), history: historyForCloud, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, mockTracker: mockTrackerCloud, plannerData: plannerCloud, srsAuditLog: (window.srsAuditLog||[]), savedAt: nowTs };
+        const payload = { subjects: SUBJECTS, db: cleanDb, syllabusData: scDataCloud, syllabusLastSave: parseInt(localStorage.getItem('sc_syllabus_lastSave')||'0'), history: historyForCloud, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, mockTracker: mockTrackerCloud, plannerData: plannerCloud, srsAuditLog: (window.srsAuditLog||[]), dupIgnore: dupIgnoreCloud, savedAt: nowTs };
         // Expose saveData globally for syllabus functions in other script blocks
         window._saveDataGlobal = saveData;
         try {
@@ -2738,6 +2740,16 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                 window.srsAuditLog = merged;
                 localStorage.setItem('srsAuditLog', JSON.stringify(merged));
             } catch(e){ console.warn('Audit merge error', e); }
+        }
+
+        // BAT-SCAN v2: UNION-merge the "not a duplicate" ignore-list — monotonic set,
+        // ignoring a pair on any device ignores it everywhere, forever. Never shrinks.
+        if (data.dupIgnore && Array.isArray(data.dupIgnore)) {
+            try {
+                let localIg = []; try { localIg = JSON.parse(localStorage.getItem('dup_ignore_v1')||'[]'); } catch(e){}
+                const u = new Set(localIg); data.dupIgnore.forEach(k => { if (k) u.add(k); });
+                localStorage.setItem('dup_ignore_v1', JSON.stringify([...u]));
+            } catch(e){ console.warn('dupIgnore merge error', e); }
         }
 
         if(data.plannerData && typeof data.plannerData === 'object'){ try {
@@ -5518,11 +5530,39 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         scDebugToast(`R4 Graduation — ${(t&&t.name)||key}`, rows, 'purple');
     };
 
-    // ── DUPLICATE SCANNER ─────────────────────────────────────────────────
-    // ── DUPLICATE-DETECTION CORE ──────────────────────────────────────────────
-    // Canonical fingerprint: two questions with the SAME fingerprint are certainly
-    // the same question (ignores case, spacing, punctuation, currency symbol,
-    // number-commas, and common math glyphs). Used by import-dedup AND the scanner.
+    // ════════════════════════════════════════════════════════════════════════
+    // 🦇 BAT-SCAN v2 — DUPLICATE DETECTIVE (hub + SRS + import, one shared engine)
+    // ════════════════════════════════════════════════════════════════════════
+    // WHY v2 (root causes of "daily repeats" in v1, verified):
+    //   1. v1 near-dupe pass only compared questions with IDENTICAL number
+    //      signatures and SKIPPED questions with no numbers entirely → Polity /
+    //      English / Reasoning theory questions were NEVER fuzzy-scanned.
+    //   2. __qWords didn't strip HTML → SVG/<img> markup tokens polluted scores.
+    //   3. SRS scan demanded 0.9 jaccard + identical numbers → too strict.
+    // v2 DESIGN:
+    //   • One engine powers hub scan, SRS scan, and post-import check.
+    //   • HTML stripped; media (svg/img) hashed into an identity token so two
+    //     geometry questions with identical text but DIFFERENT diagrams are
+    //     treated as different questions (never falsely merged).
+    //   • Exam-boilerplate stopwords removed so "find the value of…" doesn't
+    //     inflate similarity.
+    //   • Inverted-index candidate generation → near-O(n) instead of O(n²),
+    //     fast even on iPhone with 4000+ questions.
+    //   • Composite score: word overlap + number-signature + correct-answer
+    //     agreement → flag everything ≥ 60%.
+    //   • "Not a duplicate — never show again": pair tombstone stored in
+    //     localStorage 'dup_ignore_v1' AND cloud-synced (UNION merge) so all
+    //     devices respect it, in BOTH scanners, forever.
+    //   • Hub deletions run SRS reconciliation: duplicate cards merge (best
+    //     progress survives) and lone cards RELINK to the surviving question —
+    //     zero orphans, zero lost Track-A/B progress.
+    // ────────────────────────────────────────────────────────────────────────
+
+    // Canonical fingerprint — UNCHANGED from v1 ON PURPOSE. It is the identity
+    // key used by import-dedup, the cloud SRS merge auto-collapse, and SRS
+    // tombstones. It does NOT strip HTML, so questions that differ only by an
+    // embedded diagram keep DIFFERENT fingerprints (cloud merge must never
+    // collapse two different geometry figures).
     window.__qFingerprint = function(text) {
         let s = String(text || '').toLowerCase();
         s = s.replace(/₹/g, 'rs').replace(/²/g, '2').replace(/³/g, '3')
@@ -5531,27 +5571,151 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         s = s.replace(/[^a-z0-9]/g, '');       // strip all non-alphanumeric
         return s;
     };
-    // Sorted multiset of every number in the question — the "number signature".
+
+    // djb2 hash → short stable key (for ignore-list pair keys & media tokens)
+    window.__dupHash = function(s) {
+        let h = 5381; s = String(s || '');
+        for (let i = 0; i < s.length; i++) h = (((h << 5) + h) + s.charCodeAt(i)) >>> 0;
+        return h.toString(36);
+    };
+
+    // Pull <svg>…</svg> and <img …> blocks OUT of the text; return {plain, mediaTokens}
+    window.__qSplitMedia = function(text) {
+        let s = String(text || '');
+        const media = [];
+        s = s.replace(/<svg[\s\S]*?<\/svg>/gi, m => { media.push('__media_' + window.__dupHash(m.replace(/\s+/g, ''))); return ' '; });
+        s = s.replace(/<img[^>]*>/gi, m => { media.push('__media_' + window.__dupHash(m.replace(/\s+/g, ''))); return ' '; });
+        s = s.replace(/<[^>]*>/g, ' ');        // strip remaining HTML tags
+        return { plain: s, mediaTokens: media };
+    };
+
+    // Sorted multiset of every number — computed on MEDIA-STRIPPED text so SVG
+    // coordinates / style widths never count as question numbers.
     window.__qNumbers = function(text) {
-        const m = String(text || '').replace(/(\d),(\d)/g, '$1$2').match(/\d+\.?\d*/g) || [];
+        const plain = window.__qSplitMedia(text).plain;
+        const m = plain.replace(/(\d),(\d)/g, '$1$2').match(/\d+\.?\d*/g) || [];
         return m.map(Number).sort((a, b) => a - b).join('|');
     };
-    // Significant word set (for fuzzy overlap).
+
+    // Exam boilerplate that inflates similarity between unrelated questions.
+    window.__DUP_STOPWORDS = new Set(('a an the of in on at to for from by with and or is are was were be been will would ' +
+        'can could may shall if then than that this these those it its as such what which who whose whom how when where why ' +
+        'find value given following correct option options answer respectively statement statements consider according ' +
+        'select choose identify number questions question per cm km kg the').split(/\s+/));
+
+    // Significant word set — HTML stripped, media hashed in as identity tokens,
+    // numbers kept as tokens, stopwords removed.
     window.__qWords = function(text) {
-        return new Set(String(text || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ')
-            .split(/\s+/).filter(w => w.length > 2));
+        const { plain, mediaTokens } = window.__qSplitMedia(text);
+        const norm = plain.toLowerCase()
+            .replace(/₹/g, ' rs ').replace(/²/g, '2').replace(/³/g, '3')
+            .replace(/√/g, ' sqrt ').replace(/×/g, ' x ').replace(/[–—]/g, '-')
+            .replace(/(\d),(\d)/g, '$1$2')
+            .replace(/[^a-z0-9 ]/g, ' ');
+        const out = new Set();
+        norm.split(/\s+/).forEach(w => { if (w.length > 1 && !window.__DUP_STOPWORDS.has(w)) out.add(w); });
+        mediaTokens.forEach(t => out.add(t));
+        return out;
     };
+
     window.__jaccard = function(a, b) {
         if (!a.size || !b.size) return 0;
-        let inter = 0; a.forEach(w => { if (b.has(w)) inter++; });
+        let inter = 0;
+        const small = a.size <= b.size ? a : b, big = a.size <= b.size ? b : a;
+        small.forEach(w => { if (big.has(w)) inter++; });
         return inter / (a.size + b.size - inter);
     };
 
-    // ───────── SRS DUPLICATE FINDER (searches ONLY the SRS deck = mistakesDb) ─────────
-    // Survivor in every group = the copy NEAREST MASTERED (mastered › higher interval ›
-    // later nextReview). Deletions persist to cloud and are tombstoned so a near-duplicate
-    // can't resurrect from another device. Same-fingerprint variants don't need a tombstone —
-    // the cloud merge auto-collapses them.
+    // ── Build one comparable record per question ─────────────────────────────
+    window.__dupBuildRec = function(qObj, meta) {
+        const qText = (qObj && qObj.question) || '';
+        const correct = ((qObj.options || []).find(o => o && o.correct) || {}).text || '';
+        return Object.assign({
+            question: qText,
+            options: qObj.options || [],
+            fp: window.__qFingerprint(qText),
+            words: window.__qWords(qText),
+            nums: window.__qNumbers(qText),
+            correctFp: window.__qFingerprint(correct)
+        }, meta || {});
+    };
+
+    // ── Composite similarity (0–100). The Batman scoring. ───────────────────
+    // word overlap is the base; numbers are a hard discriminator (same template
+    // with different values = a DIFFERENT practice question, not a duplicate);
+    // matching correct answers nudge the score up, conflicting ones down.
+    window.__dupSim = function(ra, rb) {
+        let s = window.__jaccard(ra.words, rb.words);
+        if (s === 0) return 0;
+        if (ra.nums || rb.nums) {
+            if (ra.nums === rb.nums) s = Math.min(1, s + 0.08);
+            else s *= 0.55;                       // different numbers → almost never a dupe
+        }
+        if (ra.correctFp && rb.correctFp) {
+            if (ra.correctFp === rb.correctFp) s = Math.min(1, s + 0.06);
+            else s *= 0.85;
+        }
+        return Math.round(s * 100);
+    };
+
+    // ── Candidate generation: inverted index over discriminative words ──────
+    // Returns fuzzy pairs [{a, b, pct}] with pct >= threshold, EXCLUDING pairs
+    // that share a fingerprint (those are exact-tier) and ignored pairs.
+    window.__dupFindPairs = function(recs, thresholdPct, ignoreSet) {
+        const N = recs.length;
+        if (N < 2) return [];
+        const df = {};
+        recs.forEach(r => r.words.forEach(w => { df[w] = (df[w] || 0) + 1; }));
+        const dfCap = Math.max(30, Math.round(N * 0.03));      // skip ultra-common words
+        const postings = {};
+        recs.forEach((r, i) => {
+            let indexed = 0;
+            r.words.forEach(w => { if (df[w] <= dfCap) { (postings[w] = postings[w] || []).push(i); indexed++; } });
+            if (indexed === 0) {
+                // tiny/generic question — index its 3 rarest words so it's never invisible
+                [...r.words].sort((x, y) => df[x] - df[y]).slice(0, 3)
+                    .forEach(w => { (postings[w] = postings[w] || []).push(i); });
+            }
+        });
+        const shared = new Map();                               // "i:j" -> shared indexed-word count
+        Object.values(postings).forEach(list => {
+            if (list.length < 2 || list.length > 400) return;   // safety cap
+            for (let x = 0; x < list.length; x++)
+                for (let y = x + 1; y < list.length; y++) {
+                    const k = list[x] + ':' + list[y];
+                    shared.set(k, (shared.get(k) || 0) + 1);
+                }
+        });
+        const pairs = [];
+        shared.forEach((cnt, k) => {
+            const [i, j] = k.split(':').map(Number);
+            const ra = recs[i], rb = recs[j];
+            if (ra.fp && ra.fp === rb.fp) return;               // exact tier handles these
+            const minSize = Math.min(ra.words.size, rb.words.size);
+            if (cnt < 2 && minSize > 4) return;                 // prefilter
+            if (ignoreSet && ignoreSet.has(window.__dupPairKey(ra.question, rb.question))) return;
+            const pct = window.__dupSim(ra, rb);
+            if (pct >= thresholdPct) pairs.push({ a: ra, b: rb, pct });
+        });
+        pairs.sort((x, y) => y.pct - x.pct);
+        return pairs;
+    };
+
+    // ── "Not a duplicate" ignore-list (cloud-synced, see saveData payload) ──
+    window.__dupPairKey = function(qa, qb) {
+        const a = window.__dupHash(window.__qFingerprint(qa)), b = window.__dupHash(window.__qFingerprint(qb));
+        return a <= b ? a + '~' + b : b + '~' + a;
+    };
+    window.__dupIgnoreSet = function() {
+        try { return new Set(JSON.parse(localStorage.getItem('dup_ignore_v1') || '[]')); } catch (e) { return new Set(); }
+    };
+    window.__dupIgnoreAdd = function(keys) {
+        const s = window.__dupIgnoreSet(); (keys || []).forEach(k => { if (k) s.add(k); });
+        try { localStorage.setItem('dup_ignore_v1', JSON.stringify([...s])); } catch (e) {}
+        if (typeof window._saveDataGlobal === 'function') window._saveDataGlobal().catch(() => {});
+    };
+
+    // ── SRS survivor logic + tombstones (unchanged behaviour from v1) ───────
     window.__srsBetterCard = function(a, b) {
         if (!!(a && a.isMastered) !== !!(b && b.isMastered)) return (a && a.isMastered) ? a : b;
         const ia = (a.srs && a.srs.interval) || 0, ib = (b.srs && b.srs.interval) || 0;
@@ -5569,98 +5733,396 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         try { localStorage.setItem('srs_dedup_tomb_v1', JSON.stringify([...s])); } catch (e) {}
     };
 
-    window._srsDupGroups = [];
-    window.srsDedupScan = function() {
-        const fp = window.__qFingerprint, nums = window.__qNumbers, words = window.__qWords, jac = window.__jaccard;
+    // ── SRS RECONCILIATION on hub-copy deletion (the permanent fix) ─────────
+    // removedQText = exact text of the question copy being deleted from db.
+    // keptQObj     = the full question object that SURVIVES (or null).
+    // Cases:
+    //   A) cards exist for BOTH texts → kept-text card inherits the BETTER
+    //      progress, removed-text card deleted + fingerprint tombstoned.
+    //   B) card exists ONLY for removed text → card is RELINKED: question/
+    //      options/explanation/tags rewritten to the surviving copy, SRS
+    //      progress untouched. No orphan, no lost Track-A/B progress.
+    //   C) no card → nothing to do.
+    window.__dupSrsReconcile = function(removedQText, keptQObj) {
+        if (!removedQText || removedQText === (keptQObj && keptQObj.question)) return 'none';
+        const ri = mistakesDb.findIndex(m => m && m.question === removedQText);
+        if (ri === -1) return 'none';
+        const removedCard = mistakesDb[ri];
+        const removedFp = window.__qFingerprint(removedQText);
+        const keptText = keptQObj && keptQObj.question;
+        const ki = keptText ? mistakesDb.findIndex(m => m && m.question === keptText) : -1;
+        if (ki !== -1) {
+            // Case A — merge: kept-text card inherits better progress
+            const keptCard = mistakesDb[ki];
+            const better = window.__srsBetterCard(removedCard, keptCard);
+            if (better === removedCard) {
+                keptCard.srs = removedCard.srs;
+                if (removedCard.isMastered) keptCard.isMastered = true;
+                if (removedCard.reps !== undefined) keptCard.reps = removedCard.reps;
+            }
+            mistakesDb.splice(ri, 1);
+            window.__srsTombstoneAdd([removedFp]);
+            return 'merged';
+        }
+        if (keptQObj) {
+            // Case B — relink card to surviving copy (content swap, progress kept)
+            removedCard.question = keptQObj.question;
+            removedCard.options = JSON.parse(JSON.stringify(keptQObj.options || removedCard.options || []));
+            if (keptQObj.explanation !== undefined) removedCard.explanation = keptQObj.explanation;
+            if (keptQObj.tags !== undefined) removedCard.tags = JSON.parse(JSON.stringify(keptQObj.tags));
+            if (removedCard.srs) removedCard.srs.updatedAt = Date.now();
+            window.__srsTombstoneAdd([removedFp]);
+            return 'relinked';
+        }
+        return 'none';
+    };
+
+    // ── Post-import near-duplicate sentinel (≥85%) ───────────────────────────
+    // Cheap check used by the importer: how many incoming questions look like
+    // reworded copies of something already in the bank?
+    window.__dupQuickNearCount = function(incomingQuestions) {
+        try {
+            if (!Array.isArray(incomingQuestions) || !incomingQuestions.length || incomingQuestions.length > 400) return 0;
+            const recs = [];
+            Object.entries(db).forEach(([quizId, quiz]) => {
+                if (!quiz || !Array.isArray(quiz.questions) || quiz.isScRevision || quiz.isSRS || quiz.isWeakBank) return;
+                if (quizId.startsWith('spotted_') || quizId.startsWith('quiz_mock_wrong_')) return;
+                quiz.questions.forEach(q => { if (q && q.question) recs.push(window.__dupBuildRec(q, { src: 'bank' })); });
+            });
+            const startIncoming = recs.length;
+            incomingQuestions.forEach(q => { if (q && q.question) recs.push(window.__dupBuildRec(q, { src: 'in' })); });
+            const pairs = window.__dupFindPairs(recs, 85, window.__dupIgnoreSet());
+            const flagged = new Set();
+            pairs.forEach(p => {
+                if (p.a.src !== p.b.src) flagged.add(p.a.src === 'in' ? p.a.question : p.b.question);
+            });
+            void startIncoming;
+            return flagged.size;
+        } catch (e) { return 0; }
+    };
+
+    // ════════════════════════ HUB-WIDE SCANNER ══════════════════════════════
+    window.__dupScan2 = { exactGroups: [], fuzzyPairs: [], total: 0, exactShown: 30, fuzzyShown: 30 };
+
+    window.scanDuplicates = function() {
+        const btn = document.querySelector('button[onclick="scanDuplicates()"]');
+        if (btn) { btn.textContent = '🦇 Scanning...'; btn.disabled = true; }
+        setTimeout(() => {            // let the button repaint before heavy work
+            try { window.__dupRunScan(); } finally {
+                if (btn) { btn.textContent = '🔍 Scan Duplicates'; btn.disabled = false; }
+            }
+        }, 30);
+    };
+
+    window.__dupRunScan = function() {
+        const ignore = window.__dupIgnoreSet();
+        const recs = [];
+        Object.entries(db).forEach(([quizId, quiz]) => {
+            if (!quiz || !Array.isArray(quiz.questions) || quiz.isScRevision || quiz.isSRS || quiz.isWeakBank) return;
+            if (quizId.startsWith('spotted_') || quizId.startsWith('quiz_mock_wrong_')) return;
+            quiz.questions.forEach(q => {
+                if (!q || !q.question) return;
+                recs.push(window.__dupBuildRec(q, { quizId, title: quiz.title || quizId, qObj: q }));
+            });
+        });
+        // Tier 1 — identical fingerprint groups (skip ignored groups)
         const byFp = {};
-        mistakesDb.forEach((m, idx) => { if (m && m.question) { const f = fp(m.question); (byFp[f] = byFp[f] || []).push(idx); } });
-        const groups = []; const used = new Set();
-        Object.values(byFp).forEach(idxs => { if (idxs.length > 1) { groups.push({ pct: 100, idxs: idxs.slice() }); idxs.forEach(i => used.add(i)); } });
-        const rem = []; mistakesDb.forEach((m, idx) => { if (m && m.question && !used.has(idx)) rem.push(idx); });
-        const sig = {}; rem.forEach(idx => { const s = nums(mistakesDb[idx].question); (sig[s] = sig[s] || []).push(idx); });
-        Object.values(sig).forEach(idxs => {
-            if (idxs.length < 2) return;
-            const ws = idxs.map(i => words(mistakesDb[i].question));
-            const seen = new Set();
-            for (let a = 0; a < idxs.length; a++) {
-                if (seen.has(idxs[a])) continue;
-                const cl = [idxs[a]]; seen.add(idxs[a]);
-                for (let b = a + 1; b < idxs.length; b++) { if (seen.has(idxs[b])) continue; if (jac(ws[a], ws[b]) >= 0.9) { cl.push(idxs[b]); seen.add(idxs[b]); } }
-                if (cl.length > 1) groups.push({ pct: 90, idxs: cl });
+        recs.forEach(r => { if (r.fp) (byFp[r.fp] = byFp[r.fp] || []).push(r); });
+        const exactGroups = [];
+        Object.values(byFp).forEach(locs => {
+            if (locs.length < 2) return;
+            const gKey = window.__dupPairKey(locs[0].question, locs[0].question);
+            if (ignore.has(gKey)) return;
+            exactGroups.push({ locs, key: gKey, conflict: [...new Set(locs.map(l => l.correctFp))].length > 1 });
+        });
+        exactGroups.sort((a, b) => b.locs.length - a.locs.length);
+        // Tier 2 — fuzzy pairs ≥60% (theory questions INCLUDED — the v1 blind spot is dead)
+        const fuzzyPairs = window.__dupFindPairs(recs, 60, ignore);
+        window.__dupScan2 = { exactGroups, fuzzyPairs, total: recs.length, exactShown: 30, fuzzyShown: 30 };
+        window.__dupRenderModal();
+    };
+
+    // ── shared mini-renderers ────────────────────────────────────────────────
+    window.__dupEsc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    window.__dupQHtml = function(rec, max) {
+        const esc = window.__dupEsc;
+        const plain = window.__qSplitMedia(rec.question).plain.replace(/\s+/g, ' ').trim();
+        const hasMedia = /(<svg|<img)/i.test(rec.question);
+        const opts = (rec.options || []).map((o, i) => {
+            const t = window.__qSplitMedia((o && o.text) || '').plain.replace(/\s+/g, ' ').trim();
+            return `<div style="font-size:11px;padding:1px 0;color:${o && o.correct ? '#4ade80' : '#cbd5e1'}">${String.fromCharCode(65 + i)}. ${esc(t.slice(0, 110))}${o && o.correct ? ' ✓' : ''}</div>`;
+        }).join('');
+        return `<div style="font-size:12px;color:#f1f5f9;line-height:1.5;margin-bottom:4px">${esc(plain.slice(0, max || 320))}${plain.length > (max || 320) ? '…' : ''}${hasMedia ? ' <span style="color:#a78bfa;font-size:9px;font-weight:800">[+diagram]</span>' : ''}</div>
+        <div style="margin-bottom:4px">${opts}</div>`;
+    };
+
+    window.__dupRenderModal = function() {
+        const S = window.__dupScan2;
+        const esc = window.__dupEsc;
+        let m = document.getElementById('dup-scan-modal');
+        if (!m) { m = document.createElement('div'); m.id = 'dup-scan-modal'; document.body.appendChild(m); }
+        m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);backdrop-filter:blur(6px);z-index:100002;display:flex;align-items:flex-start;justify-content:center;padding:12px;overflow-y:auto';
+        const dupCopies = S.exactGroups.reduce((s, g) => s + g.locs.length - 1, 0);
+        const conflicts = S.exactGroups.filter(g => g.conflict).length;
+
+        // TIER 1 — exact groups: full Q + options, per-copy delete, ignore-forever
+        let exactHtml = '';
+        if (!S.exactGroups.length) exactHtml = '<div style="color:#10b981;font-size:12px;padding:8px">✅ No identical duplicates.</div>';
+        else {
+            exactHtml = S.exactGroups.slice(0, S.exactShown).map((g, gi) => {
+                const copies = g.locs.map((l, ci) => {
+                    const corr = window.__qSplitMedia((((l.options || []).find(o => o && o.correct)) || {}).text || '').plain.trim();
+                    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:10px;padding:4px 8px;border-radius:7px;margin-top:3px;background:${ci === 0 ? 'rgba(16,185,129,0.10)' : 'rgba(239,68,68,0.08)'}">
+                        <span style="color:#94a3b8;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ci === 0 ? '<b style="color:#4ade80">★ suggested keep</b> · ' : ''}📁 ${esc(l.title)}${g.conflict ? ' · ans: <b style="color:#fbbf24">' + esc(corr.slice(0, 30)) + '</b>' : ''}</span>
+                        <button onclick="__dupRemoveCopy('exact',${gi},${ci})" style="background:#7f1d1d;color:#fff;border:none;border-radius:6px;font-size:9px;font-weight:900;padding:3px 8px;cursor:pointer;flex-shrink:0">🗑 remove this copy</button>
+                    </div>`;
+                }).join('');
+                return `<div style="background:#0b1220;border:1px solid #1e293b;border-radius:10px;padding:10px;margin-bottom:8px">
+                    <div style="font-size:9px;font-weight:900;color:#fbbf24;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px">100% identical · ${g.locs.length} copies${g.conflict ? ' · <span style="color:#f59e0b">⚠️ DIFFERENT ANSWERS — fix by hand</span>' : ''}</div>
+                    ${window.__dupQHtml(g.locs[0])}
+                    ${copies}
+                    <div style="display:flex;gap:6px;margin-top:7px">
+                        ${!g.conflict ? `<button onclick="__dupKeepBest('exact',${gi})" style="flex:1;background:#dc2626;color:#fff;border:none;border-radius:7px;font-weight:900;font-size:10px;padding:7px;cursor:pointer">🗑 Delete ${g.locs.length - 1} extra (keep ★)</button>` : ''}
+                        <button onclick="__dupIgnoreGroup('exact',${gi})" style="flex:1;background:#334155;color:#cbd5e1;border:none;border-radius:7px;font-weight:800;font-size:10px;padding:7px;cursor:pointer">🙈 Not duplicate — never show again</button>
+                    </div>
+                </div>`;
+            }).join('');
+            if (S.exactGroups.length > S.exactShown) exactHtml += `<button onclick="__dupShowMore('exact')" style="width:100%;background:#1e293b;color:#94a3b8;border:none;border-radius:8px;font-weight:800;font-size:11px;padding:8px;cursor:pointer;margin-bottom:6px">▼ Show ${Math.min(30, S.exactGroups.length - S.exactShown)} more (${S.exactGroups.length - S.exactShown} hidden)</button>`;
+        }
+
+        // TIER 2 — fuzzy pairs ≥60%: full Q + options BOTH sides, choose which to remove, ignore-forever
+        let fuzzyHtml = '';
+        if (!S.fuzzyPairs.length) fuzzyHtml = '<div style="color:#10b981;font-size:12px;padding:8px">✅ No reworded near-duplicates (≥60%).</div>';
+        else {
+            fuzzyHtml = S.fuzzyPairs.slice(0, S.fuzzyShown).map((p, pi) => {
+                const col = p.pct >= 85 ? '#f87171' : p.pct >= 72 ? '#fbbf24' : '#a78bfa';
+                return `<div style="background:#0b1220;border:1px solid #2a2113;border-radius:10px;padding:10px;margin-bottom:8px">
+                    <div style="font-size:9px;font-weight:900;color:${col};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">${p.pct}% match</div>
+                    <div style="border-left:3px solid #475569;padding-left:8px;margin-bottom:7px">
+                        <div style="font-size:9px;color:#64748b;font-weight:800;margin-bottom:3px">A · 📁 ${esc(p.a.title)}</div>
+                        ${window.__dupQHtml(p.a, 240)}
+                        <button onclick="__dupRemoveCopy('fuzzy',${pi},0)" style="background:#7f1d1d;color:#fff;border:none;border-radius:6px;font-size:9px;font-weight:900;padding:3px 9px;cursor:pointer">🗑 remove A (keep B)</button>
+                    </div>
+                    <div style="border-left:3px solid #475569;padding-left:8px;margin-bottom:7px">
+                        <div style="font-size:9px;color:#64748b;font-weight:800;margin-bottom:3px">B · 📁 ${esc(p.b.title)}</div>
+                        ${window.__dupQHtml(p.b, 240)}
+                        <button onclick="__dupRemoveCopy('fuzzy',${pi},1)" style="background:#7f1d1d;color:#fff;border:none;border-radius:6px;font-size:9px;font-weight:900;padding:3px 9px;cursor:pointer">🗑 remove B (keep A)</button>
+                    </div>
+                    <button onclick="__dupIgnoreGroup('fuzzy',${pi})" style="width:100%;background:#334155;color:#cbd5e1;border:none;border-radius:7px;font-weight:800;font-size:10px;padding:7px;cursor:pointer">🙈 Not duplicates — never show this pair again</button>
+                </div>`;
+            }).join('');
+            if (S.fuzzyPairs.length > S.fuzzyShown) fuzzyHtml += `<button onclick="__dupShowMore('fuzzy')" style="width:100%;background:#1e293b;color:#94a3b8;border:none;border-radius:8px;font-weight:800;font-size:11px;padding:8px;cursor:pointer">▼ Show ${Math.min(30, S.fuzzyPairs.length - S.fuzzyShown)} more (${S.fuzzyPairs.length - S.fuzzyShown} hidden)</button>`;
+        }
+
+        m.innerHTML = `<div style="background:#0f172a;border:1px solid #334155;border-radius:16px;max-width:640px;width:100%;margin:18px 0;padding:16px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <div style="font-size:16px;font-weight:900;color:#f1f5f9">🦇 BAT-SCAN · Duplicate Detective</div>
+                <button onclick="document.getElementById('dup-scan-modal').remove()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer">×</button>
+            </div>
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:12px">Scanned <b style="color:#e2e8f0">${S.total}</b> questions · <b style="color:#f87171">${dupCopies}</b> identical extra copies · <b style="color:#fbbf24">${S.fuzzyPairs.length}</b> reworded pairs (≥60%) · deletions auto-fix SRS cards</div>
+
+            <div style="font-size:12px;font-weight:900;color:#f87171;margin-bottom:6px">TIER 1 · Identical copies</div>
+            <div style="max-height:300px;overflow-y:auto;margin-bottom:8px">${exactHtml}</div>
+            ${S.exactGroups.length ? `<button onclick="__dupRemoveExtras()" style="width:100%;background:#dc2626;color:#fff;border:none;border-radius:9px;font-weight:900;font-size:12px;padding:10px;cursor:pointer;margin-bottom:14px">🗑️ Bulk: remove ALL identical extras (keep ★ each)${conflicts ? ` — ${conflicts} conflict group(s) skipped` : ''}</button>` : ''}
+
+            <div style="font-size:12px;font-weight:900;color:#fbbf24;margin-bottom:6px">TIER 2 · Reworded suspects ≥60% (you decide — never auto-deleted)</div>
+            <div style="max-height:340px;overflow-y:auto">${fuzzyHtml}</div>
+        </div>`;
+    };
+
+    window.__dupShowMore = function(tier) {
+        if (tier === 'exact') window.__dupScan2.exactShown += 30; else window.__dupScan2.fuzzyShown += 30;
+        window.__dupRenderModal();
+    };
+
+    // Remove ONE question instance by quiz + exact text (first match in that quiz)
+    window.__dupRemove = function(quizId, qText) {
+        const quiz = db[quizId];
+        if (!quiz || !Array.isArray(quiz.questions)) return false;
+        const i = quiz.questions.findIndex(q => q && q.question === qText);
+        if (i === -1) return false;
+        quiz.questions.splice(i, 1);
+        return true;
+    };
+
+    function __dupPersistAfterRemoval() {
+        try { idbKeyval.set('megaQuizMistakes_v5', mistakesDb); } catch (e) {}
+        saveData(); rebuildSearchCache();
+        if (window.syncTagsFromDb) window.syncTagsFromDb();
+        if (window._saveDataGlobal) window._saveDataGlobal().catch(() => {});
+        if (typeof updateSRSBadge === 'function') updateSRSBadge();
+    }
+
+    // Per-copy removal from the modal — runs SRS reconciliation with the kept copy
+    window.__dupRemoveCopy = function(tier, gi, ci) {
+        const S = window.__dupScan2;
+        let removed, kept;
+        if (tier === 'exact') {
+            const g = S.exactGroups[gi]; if (!g) return;
+            removed = g.locs[ci]; if (!removed) return;
+            kept = g.locs.find((l, i) => i !== ci) || null;
+            if (g.locs.length === 2 && !confirm('Remove this copy? The other copy stays. SRS progress is preserved/relinked automatically.')) return;
+        } else {
+            const p = S.fuzzyPairs[gi]; if (!p) return;
+            removed = ci === 0 ? p.a : p.b;
+            kept = ci === 0 ? p.b : p.a;
+            if (!confirm(`Remove copy ${ci === 0 ? 'A' : 'B'} and keep ${ci === 0 ? 'B' : 'A'}?\n\nSRS card (if any) will be merged/relinked to the kept question — no progress lost.`)) return;
+        }
+        if (!window.__dupRemove(removed.quizId, removed.question)) { alert('⚠️ Copy not found (already removed?). Re-scanning.'); window.__dupRunScan(); return; }
+        const rec = window.__dupSrsReconcile(removed.question, kept ? (kept.qObj || kept) : null);
+        __dupPersistAfterRemoval();
+        if (rec === 'relinked') console.log('[BAT-SCAN] SRS card relinked to surviving copy.');
+        if (rec === 'merged') console.log('[BAT-SCAN] Duplicate SRS cards merged (best progress kept).');
+        window.__dupRunScan();
+    };
+
+    // Per-group "keep ★, delete rest" (exact tier, non-conflict only)
+    window.__dupKeepBest = function(tier, gi) {
+        const g = window.__dupScan2.exactGroups[gi]; if (!g || g.conflict) return;
+        if (!confirm(`Delete ${g.locs.length - 1} extra cop${g.locs.length - 1 > 1 ? 'ies' : 'y'}? The ★ copy stays. SRS auto-reconciled.`)) return;
+        const kept = g.locs[0];
+        for (let k = 1; k < g.locs.length; k++) {
+            if (window.__dupRemove(g.locs[k].quizId, g.locs[k].question))
+                window.__dupSrsReconcile(g.locs[k].question, kept.qObj || kept);
+        }
+        __dupPersistAfterRemoval();
+        window.__dupRunScan();
+    };
+
+    // "Not a duplicate" — tombstone the pair/group forever (cloud-synced)
+    window.__dupIgnoreGroup = function(tier, gi) {
+        const S = window.__dupScan2;
+        if (tier === 'exact') {
+            const g = S.exactGroups[gi]; if (!g) return;
+            window.__dupIgnoreAdd([g.key]);
+        } else {
+            const p = S.fuzzyPairs[gi]; if (!p) return;
+            window.__dupIgnoreAdd([window.__dupPairKey(p.a.question, p.b.question)]);
+        }
+        window.__dupRunScan();
+    };
+
+    // Bulk: remove all identical extras (keep ★ of each non-conflict group)
+    window.__dupRemoveExtras = function() {
+        const groups = (window.__dupScan2 && window.__dupScan2.exactGroups) || [];
+        const removable = groups.filter(g => !g.conflict);
+        if (!removable.length) { alert('No safe groups to auto-remove (answer conflicts must be fixed by hand).'); return; }
+        if (!confirm(`Remove duplicate copies from ${removable.length} group(s)? Keeps the ★ copy of each, deletes the rest. SRS cards auto-merged/relinked. (${groups.length - removable.length} conflict group(s) untouched.)`)) return;
+        let removed = 0;
+        removable.forEach(g => {
+            const kept = g.locs[0];
+            for (let k = 1; k < g.locs.length; k++) {
+                if (window.__dupRemove(g.locs[k].quizId, g.locs[k].question)) {
+                    window.__dupSrsReconcile(g.locs[k].question, kept.qObj || kept);
+                    removed++;
+                }
             }
         });
-        groups.sort((a, b) => b.pct - a.pct || b.idxs.length - a.idxs.length);
-        window._srsDupGroups = groups;
-        srsDedupRenderModal();
+        __dupPersistAfterRemoval();
+        alert(`✅ Removed ${removed} duplicate copy(ies). SRS reconciled. Re-scanning...`);
+        window.__dupRunScan();
+    };
+
+    // ════════════════════════ SRS DECK SCANNER ══════════════════════════════
+    // Same engine, same ignore-list, ≥60%. Survivor = nearest mastered.
+    window._srsDup2 = { exactGroups: [], fuzzyPairs: [] };
+
+    window.srsDedupScan = function() {
+        const ignore = window.__dupIgnoreSet();
+        const recs = [];
+        mistakesDb.forEach((m, idx) => { if (m && m.question) recs.push(window.__dupBuildRec(m, { mIdx: idx, card: m })); });
+        // exact fingerprint groups
+        const byFp = {};
+        recs.forEach(r => { if (r.fp) (byFp[r.fp] = byFp[r.fp] || []).push(r); });
+        const exactGroups = [];
+        Object.values(byFp).forEach(rs => {
+            if (rs.length < 2) return;
+            const gKey = window.__dupPairKey(rs[0].question, rs[0].question);
+            if (ignore.has(gKey)) return;
+            exactGroups.push({ recs: rs, key: gKey });
+        });
+        // fuzzy pairs ≥60%
+        const fuzzyPairs = window.__dupFindPairs(recs, 60, ignore);
+        window._srsDup2 = { exactGroups, fuzzyPairs };
+        window.srsDedupRenderModal();
     };
 
     window.srsDedupRenderModal = function() {
-        const groups = window._srsDupGroups || [];
+        const D = window._srsDup2;
+        const esc = window.__dupEsc;
         let host = document.getElementById('srs-dedup-modal'); if (host) host.remove();
         host = document.createElement('div'); host.id = 'srs-dedup-modal';
         host.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);z-index:10000;display:flex;align-items:center;justify-content:center;padding:14px;';
-        const esc = s => String(s || '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
-        const totalDup = groups.reduce((a, g) => a + (g.idxs.length - 1), 0);
-        if (!groups.length) {
+        const totalGroups = D.exactGroups.length + D.fuzzyPairs.length;
+        if (!totalGroups) {
             host.innerHTML = `<div style="background:#0f172a;border:1px solid #1e293b;border-radius:20px;padding:28px;max-width:420px;text-align:center;color:#e2e8f0">
-                <div style="font-size:40px;margin-bottom:8px">✨</div>
+                <div style="font-size:40px;margin-bottom:8px">🦇</div>
                 <div style="font-size:18px;font-weight:900;margin-bottom:6px">No duplicates in your SRS</div>
-                <div style="font-size:12px;color:#94a3b8">Your spaced-repetition deck is clean.</div>
+                <div style="font-size:12px;color:#94a3b8">Gotham deck is clean. (Pairs you marked "not duplicate" stay hidden forever.)</div>
                 <button onclick="document.getElementById('srs-dedup-modal').remove()" style="margin-top:18px;background:#334155;color:#fff;border:none;border-radius:10px;font-weight:800;padding:10px 22px;cursor:pointer">Close</button>
             </div>`;
             document.body.appendChild(host); return;
         }
         const statLabel = (m) => (window.srsCardStatusLabel ? window.srsCardStatusLabel(m).label : '?');
-        let bodyHtml = '';
-        groups.forEach((g, gi) => {
-            const cards = g.idxs.map(i => mistakesDb[i]).filter(Boolean);
-            if (cards.length < 2) return;
-            const survivor = cards.reduce((a, b) => window.__srsBetterCard(a, b));
-            const q = survivor.question || cards[0].question;
-            const opts = (survivor.options || []).map((o, i) => `<div style="font-size:11px;color:#cbd5e1;padding:1px 0">${String.fromCharCode(65 + i)}. ${esc((o.text || '').replace(/<[^>]*>/g, ' ').slice(0, 90))}${o.correct ? ' <span style="color:#4ade80">✓</span>' : ''}</div>`).join('');
-            const copies = cards.map(c => {
-                const keep = c === survivor;
-                return `<div style="display:flex;justify-content:space-between;gap:8px;font-size:10px;padding:3px 7px;border-radius:6px;margin-top:3px;background:${keep ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.10)'}">
-                    <span style="color:${keep ? '#4ade80' : '#f87171'};font-weight:800">${keep ? '✓ KEEP · nearest mastered' : '✗ delete'}</span>
-                    <span style="color:#94a3b8">${esc(statLabel(c))}${c.isMastered ? '' : ' · iv ' + ((c.srs && c.srs.interval) || 0) + 'd'}</span>
-                </div>`;
-            }).join('');
-            bodyHtml += `<div style="background:#1e293b;border:1px solid #334155;border-radius:14px;padding:12px;margin-bottom:10px">
-                <div style="font-size:9px;font-weight:900;color:${g.pct === 100 ? '#fbbf24' : '#a78bfa'};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">${g.pct}% match · ${cards.length} copies</div>
-                <div style="font-size:12px;color:#f1f5f9;line-height:1.5;margin-bottom:6px">${esc((q || '').replace(/<[^>]*>/g, ' ').slice(0, 240))}${q.length > 240 ? '…' : ''}</div>
-                <div style="margin-bottom:6px">${opts}</div>
-                ${copies}
-                <button onclick="srsDedupDeleteGroup(${gi})" style="width:100%;margin-top:9px;background:#dc2626;color:#fff;border:none;border-radius:9px;font-weight:900;font-size:11px;padding:8px;cursor:pointer">🗑 Delete ${cards.length - 1} duplicate${cards.length - 1 > 1 ? 's' : ''} (keep best)</button>
+        const cardRow = (r, survivor, tier, gi, ci) => {
+            const c = r.card; const keep = c === survivor;
+            return `<div style="border-left:3px solid ${keep ? '#10b981' : '#475569'};padding-left:8px;margin-bottom:7px;background:${keep ? 'rgba(16,185,129,0.06)' : 'transparent'};border-radius:0 6px 6px 0;padding-top:3px;padding-bottom:3px">
+                <div style="display:flex;justify-content:space-between;gap:8px;font-size:9px;font-weight:800;margin-bottom:3px">
+                    <span style="color:${keep ? '#4ade80' : '#94a3b8'}">${keep ? '★ KEEP · nearest mastered · ' : ''}${esc(statLabel(c))}${c.isMastered ? ' · mastered' : ' · iv ' + ((c.srs && c.srs.interval) || 0) + 'd'}</span>
+                    ${keep ? '' : `<button onclick="srsDedupDeleteCard('${tier}',${gi},${ci})" style="background:#7f1d1d;color:#fff;border:none;border-radius:5px;font-size:9px;font-weight:900;padding:2px 8px;cursor:pointer;flex-shrink:0">🗑 delete this card</button>`}
+                </div>
+                ${window.__dupQHtml(r, 220)}
+            </div>`;
+        };
+        let body = '';
+        D.exactGroups.forEach((g, gi) => {
+            const survivor = g.recs.map(r => r.card).reduce((a, b) => window.__srsBetterCard(a, b));
+            body += `<div style="background:#1e293b;border:1px solid #334155;border-radius:14px;padding:11px;margin-bottom:10px">
+                <div style="font-size:9px;font-weight:900;color:#fbbf24;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">100% identical · ${g.recs.length} cards</div>
+                ${g.recs.map((r, ci) => cardRow(r, survivor, 'exact', gi, ci)).join('')}
+                <div style="display:flex;gap:6px;margin-top:5px">
+                    <button onclick="srsDedupDeleteGroup('exact',${gi})" style="flex:1;background:#dc2626;color:#fff;border:none;border-radius:8px;font-weight:900;font-size:10px;padding:7px;cursor:pointer">🗑 Delete ${g.recs.length - 1} duplicate${g.recs.length - 1 > 1 ? 's' : ''} (keep ★)</button>
+                    <button onclick="srsDedupIgnore('exact',${gi})" style="flex:1;background:#334155;color:#cbd5e1;border:none;border-radius:8px;font-weight:800;font-size:10px;padding:7px;cursor:pointer">🙈 Not duplicate — never again</button>
+                </div>
             </div>`;
         });
-        host.innerHTML = `<div style="background:#0f172a;border:1px solid #1e293b;border-radius:20px;width:100%;max-width:560px;max-height:90vh;display:flex;flex-direction:column">
+        D.fuzzyPairs.forEach((p, pi) => {
+            const survivor = window.__srsBetterCard(p.a.card, p.b.card);
+            const col = p.pct >= 85 ? '#f87171' : p.pct >= 72 ? '#fbbf24' : '#a78bfa';
+            body += `<div style="background:#1e293b;border:1px solid #334155;border-radius:14px;padding:11px;margin-bottom:10px">
+                <div style="font-size:9px;font-weight:900;color:${col};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">${p.pct}% match · reworded suspect</div>
+                ${cardRow(p.a, survivor, 'fuzzy', pi, 0)}
+                ${cardRow(p.b, survivor, 'fuzzy', pi, 1)}
+                <div style="display:flex;gap:6px;margin-top:5px">
+                    <button onclick="srsDedupDeleteGroup('fuzzy',${pi})" style="flex:1;background:#dc2626;color:#fff;border:none;border-radius:8px;font-weight:900;font-size:10px;padding:7px;cursor:pointer">🗑 Delete the non-★ card</button>
+                    <button onclick="srsDedupIgnore('fuzzy',${pi})" style="flex:1;background:#334155;color:#cbd5e1;border:none;border-radius:8px;font-weight:800;font-size:10px;padding:7px;cursor:pointer">🙈 Not duplicates — never again</button>
+                </div>
+            </div>`;
+        });
+        const totalDup = D.exactGroups.reduce((a, g) => a + g.recs.length - 1, 0) + D.fuzzyPairs.length;
+        host.innerHTML = `<div style="background:#0f172a;border:1px solid #1e293b;border-radius:20px;width:100%;max-width:600px;max-height:90vh;display:flex;flex-direction:column">
             <div style="padding:16px 18px;border-bottom:1px solid #1e293b">
-                <div style="font-size:16px;font-weight:900;color:#fff">🔍 SRS Duplicate Finder</div>
-                <div style="font-size:11px;color:#94a3b8;margin-top:2px">${groups.length} group(s) · ${totalDup} duplicate card(s) · survivor = nearest mastered</div>
+                <div style="font-size:16px;font-weight:900;color:#fff">🦇 SRS Duplicate Detective</div>
+                <div style="font-size:11px;color:#94a3b8;margin-top:2px">${D.exactGroups.length} identical group(s) · ${D.fuzzyPairs.length} reworded pair(s) ≥60% · ★ = nearest mastered survives</div>
             </div>
-            <div style="padding:14px 16px;overflow-y:auto;flex:1">${bodyHtml}</div>
+            <div style="padding:14px 16px;overflow-y:auto;flex:1">${body}</div>
             <div style="padding:12px 16px;border-top:1px solid #1e293b;display:flex;gap:8px">
-                <button onclick="srsDedupDeleteAll()" style="flex:1;background:#dc2626;color:#fff;border:none;border-radius:11px;font-weight:900;font-size:13px;padding:12px;cursor:pointer">🗑 Delete ALL ${totalDup}</button>
+                <button onclick="srsDedupDeleteAll()" style="flex:1;background:#dc2626;color:#fff;border:none;border-radius:11px;font-weight:900;font-size:13px;padding:12px;cursor:pointer">🗑 Delete ALL ${totalDup} (keep ★ each)</button>
                 <button onclick="document.getElementById('srs-dedup-modal').remove()" style="background:#334155;color:#fff;border:none;border-radius:11px;font-weight:800;padding:12px 18px;cursor:pointer">Close</button>
             </div>
         </div>`;
         document.body.appendChild(host);
     };
 
-    function _srsDedupRemove(groups) {
+    // Delete a set of SRS cards (tombstone fps that differ from their survivor's)
+    function _srsDedupRemoveCards(pairsOfCardAndSurvivor) {
         const fp = window.__qFingerprint;
         const toDelete = new Set(); const tombFps = [];
-        groups.forEach(g => {
-            const cards = g.idxs.map(i => mistakesDb[i]).filter(Boolean);
-            if (cards.length < 2) return;
-            const survivor = cards.reduce((a, b) => window.__srsBetterCard(a, b));
-            const sf = fp(survivor.question);
-            cards.forEach(c => {
-                if (c === survivor) return;
-                toDelete.add(c);
-                const cf = fp(c.question);
-                if (cf !== sf) tombFps.push(cf);   // near-dupe (diff fp) → tombstone so it won't resync
-            });
+        pairsOfCardAndSurvivor.forEach(({ card, survivor }) => {
+            if (!card || card === survivor) return;
+            toDelete.add(card);
+            const cf = fp(card.question), sf = fp(survivor ? survivor.question : '');
+            if (cf !== sf) tombFps.push(cf);
         });
         if (!toDelete.size) return 0;
         const before = mistakesDb.length;
@@ -5672,150 +6134,68 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         if (typeof updateSRSBadge === 'function') updateSRSBadge();
         return before - mistakesDb.length;
     }
-    window.srsDedupDeleteGroup = function(gi) {
-        const g = (window._srsDupGroups || [])[gi]; if (!g) return;
-        _srsDedupRemove([g]);
-        window.srsDedupScan();   // rescan → fresh indices + re-render
+
+    window.srsDedupDeleteCard = function(tier, gi, ci) {
+        const D = window._srsDup2;
+        if (tier === 'exact') {
+            const g = D.exactGroups[gi]; if (!g) return;
+            const survivor = g.recs.map(r => r.card).reduce((a, b) => window.__srsBetterCard(a, b));
+            const card = g.recs[ci] && g.recs[ci].card; if (!card || card === survivor) return;
+            _srsDedupRemoveCards([{ card, survivor }]);
+        } else {
+            const p = D.fuzzyPairs[gi]; if (!p) return;
+            const card = ci === 0 ? p.a.card : p.b.card;
+            const survivor = ci === 0 ? p.b.card : p.a.card;
+            _srsDedupRemoveCards([{ card, survivor }]);
+        }
+        window.srsDedupScan();
     };
+
+    window.srsDedupDeleteGroup = function(tier, gi) {
+        const D = window._srsDup2;
+        const jobs = [];
+        if (tier === 'exact') {
+            const g = D.exactGroups[gi]; if (!g) return;
+            const survivor = g.recs.map(r => r.card).reduce((a, b) => window.__srsBetterCard(a, b));
+            g.recs.forEach(r => jobs.push({ card: r.card, survivor }));
+        } else {
+            const p = D.fuzzyPairs[gi]; if (!p) return;
+            const survivor = window.__srsBetterCard(p.a.card, p.b.card);
+            jobs.push({ card: p.a.card === survivor ? p.b.card : p.a.card, survivor });
+        }
+        _srsDedupRemoveCards(jobs);
+        window.srsDedupScan();
+    };
+
+    window.srsDedupIgnore = function(tier, gi) {
+        const D = window._srsDup2;
+        if (tier === 'exact') {
+            const g = D.exactGroups[gi]; if (!g) return;
+            window.__dupIgnoreAdd([g.key]);
+        } else {
+            const p = D.fuzzyPairs[gi]; if (!p) return;
+            window.__dupIgnoreAdd([window.__dupPairKey(p.a.question, p.b.question)]);
+        }
+        window.srsDedupScan();
+    };
+
     window.srsDedupDeleteAll = function() {
-        const n = (window._srsDupGroups || []).reduce((a, g) => a + (g.idxs.length - 1), 0);
-        if (!confirm(`Delete all ${n} duplicate copies? The copy nearest to mastered is kept in each group. This syncs to all your devices.`)) return;
-        const removed = _srsDedupRemove(window._srsDupGroups || []);
+        const D = window._srsDup2;
+        const n = D.exactGroups.reduce((a, g) => a + g.recs.length - 1, 0) + D.fuzzyPairs.length;
+        if (!confirm(`Delete all ${n} duplicate cards? The ★ (nearest mastered) survives in each group. Syncs to all devices.`)) return;
+        const jobs = [];
+        D.exactGroups.forEach(g => {
+            const survivor = g.recs.map(r => r.card).reduce((a, b) => window.__srsBetterCard(a, b));
+            g.recs.forEach(r => jobs.push({ card: r.card, survivor }));
+        });
+        D.fuzzyPairs.forEach(p => {
+            const survivor = window.__srsBetterCard(p.a.card, p.b.card);
+            jobs.push({ card: p.a.card === survivor ? p.b.card : p.a.card, survivor });
+        });
+        const removed = _srsDedupRemoveCards(jobs);
         window.srsDedupScan();
         setTimeout(() => alert(`✅ Removed ${removed} duplicate card(s) from your SRS. Synced.`), 100);
     };
-
-    window.scanDuplicates = function() {
-        const btn = document.querySelector('button[onclick="scanDuplicates()"]');
-        if (btn) { btn.textContent = '⏳ Scanning...'; btn.disabled = true; }
-        const fp = window.__qFingerprint, nums = window.__qNumbers, words = window.__qWords, jac = window.__jaccard;
-
-        const fpMap = {};   // fingerprint -> [records]
-        const all = [];     // for near-dupe pass
-        let total = 0;
-        Object.entries(db).forEach(([quizId, quiz]) => {
-            if (!quiz || !Array.isArray(quiz.questions) || quiz.isScRevision || quiz.isSRS || quiz.isWeakBank) return;
-            if (quizId.startsWith('spotted_') || quizId.startsWith('quiz_mock_wrong_')) return;
-            quiz.questions.forEach((q, idx) => {
-                if (!q || !q.question) return;
-                total++;
-                const f = fp(q.question);
-                const correct = ((q.options && q.options.find(o => o.correct)) || {}).text || '';
-                const rec = { quizId, title: quiz.title || quizId, idx, question: q.question, correct, fp: f };
-                (fpMap[f] = fpMap[f] || []).push(rec);
-                all.push({ ...rec, nums: nums(q.question), words: words(q.question) });
-            });
-        });
-
-        // Tier 1 — exact / formatting-variant groups
-        const exactGroups = Object.entries(fpMap).filter(([, l]) => l.length > 1)
-            .map(([f, locs]) => ({ f, locs, conflict: [...new Set(locs.map(l => fp(l.correct)))].length > 1 }));
-        // Tier 2 — likely reworded: same number signature, different fingerprint, high word overlap
-        const byNums = {};
-        all.forEach(r => { if (r.nums) (byNums[r.nums] = byNums[r.nums] || []).push(r); });
-        const nearPairs = [];
-        Object.values(byNums).forEach(g => {
-            if (g.length < 2) return;
-            for (let i = 0; i < g.length; i++) for (let j = i + 1; j < g.length; j++) {
-                if (g[i].fp === g[j].fp) continue; // exact handled in Tier 1
-                const sim = jac(g[i].words, g[j].words);
-                if (sim >= 0.6) nearPairs.push({ a: g[i], b: g[j], sim });
-            }
-        });
-        nearPairs.sort((x, y) => y.sim - x.sim);
-
-        if (btn) { btn.textContent = '🔍 Scan Duplicates'; btn.disabled = false; }
-        window.__dupScan = { exactGroups, nearPairs, total };
-        renderDupModal();
-    };
-
-    // Remove one question instance by quiz + exact text (first match in that quiz)
-    window.__dupRemove = function(quizId, qText) {
-        const quiz = db[quizId];
-        if (!quiz || !Array.isArray(quiz.questions)) return false;
-        const i = quiz.questions.findIndex(q => q && q.question === qText);
-        if (i === -1) return false;
-        quiz.questions.splice(i, 1);
-        return true;
-    };
-
-    window.__dupRemoveExtras = function() {
-        const groups = (window.__dupScan && window.__dupScan.exactGroups) || [];
-        const removable = groups.filter(g => !g.conflict);
-        if (!removable.length) { alert('No safe groups to auto-remove (answer conflicts must be fixed by hand).'); return; }
-        if (!confirm(`Remove duplicate copies from ${removable.length} group(s)? Keeps the first copy of each, deletes the rest. (${groups.length - removable.length} group(s) with answer conflicts are left untouched.)`)) return;
-        let removed = 0;
-        removable.forEach(g => {
-            // keep locs[0], remove the rest
-            for (let k = 1; k < g.locs.length; k++) { if (window.__dupRemove(g.locs[k].quizId, g.locs[k].question)) removed++; }
-        });
-        saveData(); rebuildSearchCache(); if (window.syncTagsFromDb) window.syncTagsFromDb();
-        if (window._saveDataGlobal) window._saveDataGlobal();
-        alert(`✅ Removed ${removed} duplicate copy(ies). Re-scanning...`);
-        scanDuplicates();
-    };
-
-    window.__dupRemoveOne = function(quizId, qTextEnc) {
-        const qText = decodeURIComponent(qTextEnc);
-        if (window.__dupRemove(quizId, qText)) {
-            saveData(); rebuildSearchCache(); if (window.syncTagsFromDb) window.syncTagsFromDb();
-            if (window._saveDataGlobal) window._saveDataGlobal();
-            scanDuplicates();
-        }
-    };
-
-    function renderDupModal() {
-        const { exactGroups, nearPairs, total } = window.__dupScan;
-        const dupCopies = exactGroups.reduce((s, g) => s + g.locs.length - 1, 0);
-        const conflicts = exactGroups.filter(g => g.conflict).length;
-        let m = document.getElementById('dup-scan-modal');
-        if (!m) { m = document.createElement('div'); m.id = 'dup-scan-modal'; document.body.appendChild(m); }
-        m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100002;display:flex;align-items:flex-start;justify-content:center;padding:12px;overflow-y:auto';
-        const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-
-        let exactHtml = '';
-        if (!exactGroups.length) exactHtml = '<div style="color:#10b981;font-size:12px;padding:8px">✅ No exact or formatting-variant duplicates.</div>';
-        else {
-            exactHtml = exactGroups.slice(0, 40).map(g => {
-                const head = esc(g.locs[0].question.slice(0, 110));
-                const where = g.locs.map(l => esc(l.title)).join(' · ');
-                return `<div style="background:#0b1220;border:1px solid #1e293b;border-radius:8px;padding:8px 10px;margin-bottom:6px">
-                    <div style="font-size:11px;color:#e2e8f0;font-weight:600">${head}${g.locs[0].question.length>110?'…':''}</div>
-                    <div style="font-size:10px;color:#64748b;margin-top:3px">${g.locs.length} copies · ${where}${g.conflict?' · <span style="color:#f59e0b">⚠️ DIFFERENT ANSWERS</span>':''}</div>
-                </div>`;
-            }).join('');
-            if (exactGroups.length > 40) exactHtml += `<div style="font-size:10px;color:#64748b;padding:4px">…and ${exactGroups.length-40} more groups</div>`;
-        }
-
-        let nearHtml = '';
-        if (!nearPairs.length) nearHtml = '<div style="color:#10b981;font-size:12px;padding:8px">✅ No likely-reworded near-duplicates.</div>';
-        else {
-            nearHtml = nearPairs.slice(0, 40).map(p => {
-                const aEnc = encodeURIComponent(p.a.question), bEnc = encodeURIComponent(p.b.question);
-                return `<div style="background:#0b1220;border:1px solid #2a2113;border-radius:8px;padding:8px 10px;margin-bottom:6px">
-                    <div style="font-size:9px;color:#f59e0b;font-weight:800;margin-bottom:4px">${Math.round(p.sim*100)}% word match · same numbers</div>
-                    <div style="font-size:11px;color:#e2e8f0;margin-bottom:3px"><b>A</b> [${esc(p.a.title)}]: ${esc(p.a.question.slice(0,100))}${p.a.question.length>100?'…':''} <button onclick="__dupRemoveOne('${p.a.quizId}','${aEnc}')" style="background:#7f1d1d;color:#fff;border:none;border-radius:5px;font-size:9px;padding:2px 6px;cursor:pointer;margin-left:4px">remove A</button></div>
-                    <div style="font-size:11px;color:#e2e8f0"><b>B</b> [${esc(p.b.title)}]: ${esc(p.b.question.slice(0,100))}${p.b.question.length>100?'…':''} <button onclick="__dupRemoveOne('${p.b.quizId}','${bEnc}')" style="background:#7f1d1d;color:#fff;border:none;border-radius:5px;font-size:9px;padding:2px 6px;cursor:pointer;margin-left:4px">remove B</button></div>
-                </div>`;
-            }).join('');
-            if (nearPairs.length > 40) nearHtml += `<div style="font-size:10px;color:#64748b;padding:4px">…and ${nearPairs.length-40} more pairs</div>`;
-        }
-
-        m.innerHTML = `<div style="background:#0f172a;border:1px solid #334155;border-radius:16px;max-width:600px;width:100%;margin:18px 0;padding:16px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                <div style="font-size:16px;font-weight:900;color:#f1f5f9">🔍 Duplicate Scan</div>
-                <button onclick="document.getElementById('dup-scan-modal').remove()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer">×</button>
-            </div>
-            <div style="font-size:11px;color:#94a3b8;margin-bottom:12px">Scanned <b style="color:#e2e8f0">${total}</b> questions · <b style="color:#f87171">${dupCopies}</b> exact duplicate copies · <b style="color:#fbbf24">${nearPairs.length}</b> likely-reworded pairs</div>
-
-            <div style="font-size:12px;font-weight:900;color:#f87171;margin-bottom:6px">TIER 1 · Exact / formatting duplicates</div>
-            <div style="max-height:220px;overflow-y:auto;margin-bottom:8px">${exactHtml}</div>
-            ${exactGroups.length ? `<button onclick="__dupRemoveExtras()" style="width:100%;background:#dc2626;color:#fff;border:none;border-radius:9px;font-weight:900;font-size:12px;padding:10px;cursor:pointer;margin-bottom:14px">🗑️ Remove duplicate copies (keep 1 each)${conflicts?` — ${conflicts} conflict group(s) skipped`:''}</button>` : ''}
-
-            <div style="font-size:12px;font-weight:900;color:#fbbf24;margin-bottom:6px">TIER 2 · Likely reworded (review — never auto-deleted)</div>
-            <div style="max-height:240px;overflow-y:auto">${nearHtml}</div>
-        </div>`;
-    }
 
     window.factoryReset = async () => {
         requireAuth(async () => {
@@ -6171,7 +6551,11 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                         repairAllTags();
                         if(typeof window.syncTagsFromDb==='function') window.syncTagsFromDb();
                         saveData(); rebuildSearchCache(); renderDashboard(); 
-                        alert(`✅ Imported ${importedData.questions.length} question(s) into ${targetImportSubject}!` + (dupSkipped > 0 ? `\n\n🛡️ Skipped ${dupSkipped} duplicate(s) already in the hub.` : ''));
+                        // BAT-SCAN v2 sentinel: warn about reworded near-dupes (≥85%) that slipped past exact dedup
+                        let nearWarn = '';
+                        try { const nc = window.__dupQuickNearCount ? window.__dupQuickNearCount(importedData.questions) : 0;
+                              if (nc > 0) nearWarn = `\n\n🦇 ${nc} imported question(s) look ≥85% similar to existing ones — run 🔍 Scan Duplicates to review.`; } catch(e){}
+                        alert(`✅ Imported ${importedData.questions.length} question(s) into ${targetImportSubject}!` + (dupSkipped > 0 ? `\n\n🛡️ Skipped ${dupSkipped} duplicate(s) already in the hub.` : '') + nearWarn);
                     }
                 } catch(err) { alert("❌ Error: Invalid JSON file. Make sure your formatting is perfect."); }
                 e.target.value = ''; 
