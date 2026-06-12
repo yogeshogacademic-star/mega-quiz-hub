@@ -2502,6 +2502,37 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
         return { srs, hist };
     };
 
+    // ── PERMANENT SAFE TAG RENAMER ────────────────────────────────────────────
+    // The ONE correct way to bulk-rename a tag slot. Never poke idbKeyval directly.
+    // Edits the live in-memory db (single source of truth the whole app reads),
+    // propagates to SRS cards + history via syncTagsFromDb, then persists through
+    // the app's own save path (IndexedDB + cloud) in the correct order so a later
+    // sync can never revert it.
+    //
+    // Usage:
+    //   await window.renameTag('Polity', 1, { 'Old Name': 'New Name', ... });
+    //   subject = tag[0] to scope to (or null for ALL subjects)
+    //   slot    = which tag index to rename (0,1,2,3)
+    //   map     = { oldValue: newValue }
+    window.renameTag = async function(subject, slot, map) {
+        let changed = 0;
+        Object.keys(db).forEach(qid => {
+            if (!db[qid] || !Array.isArray(db[qid].questions)) return;
+            db[qid].questions.forEach(q => {
+                if (!q || !Array.isArray(q.tags)) return;
+                if (subject && q.tags[0] !== subject) return;
+                const cur = q.tags[slot];
+                if (map[cur]) { q.tags[slot] = map[cur]; changed++; }
+            });
+        });
+        console.log(`[renameTag] ${changed} question(s) updated in db.`);
+        if (typeof window.syncTagsFromDb === 'function') window.syncTagsFromDb();
+        await updateLocalCache();
+        await window._saveDataGlobal();
+        console.log('[renameTag] ✅ db + SRS + history + IndexedDB + cloud all updated.');
+        return changed;
+    };
+
     async function applyCloudData(data) {
         if (!data || !data.db || typeof data.db !== 'object') return false;
         // Safety: if cloud returned empty db but local has quizzes, keep local
