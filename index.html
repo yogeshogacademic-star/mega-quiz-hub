@@ -10202,10 +10202,31 @@ function scInitDefault() {
     if (t.r2QsTotal === undefined)              t.r2QsTotal = 0;
     if (t.r3QsTotal === undefined)              t.r3QsTotal = 0;
     if (t.r4QsTotal === undefined)              t.r4QsTotal = 0;
-    // R4 REMOVED: any topic that finished R3 is now cycle-complete. Close it so the UI
-    // doesn't dangle on a non-existent R4 step. (r4 flag retained as the "fully done" marker.)
-    if (t.r3 && !t.r4) { t.r4 = true; if (!t.r4Date) t.r4Date = t.r3Date || scToday(); }
-  });
+  // ── ONE-TIME CLEANUP (runs once, then flags itself done — never re-runs) ──
+  // Removes topics renamed away (old empty names left behind by the additive merge).
+  // This is a conscious one-shot migration: it executes a single time per device,
+  // sets a localStorage flag, and is permanently skipped on every future load.
+  // Not a forever-scanning patch sitting in the hot path.
+  (function scPurgeDeadTopicsOnce(){
+    try{
+      if(localStorage.getItem('scPurgeDeadTopics_v1')==='done') return;
+      Object.keys(scDb).forEach(key => {
+        const t = scDb[key]; if(!t) return;
+        const inDefault = (SC_DEFAULT[t.subject]||[]).includes(t.name);
+        if(inDefault) return;                       // current valid topic — keep
+        const hasProgress = t.lec||t.r1||t.r2||t.r3||t.r4
+          || (t.r1Progress||0)>0 || (t.r2Progress||0)>0 || (t.r3Progress||0)>0
+          || (t.r1Wrong&&t.r1Wrong.length) || (t.r1QuestionsAttempted&&t.r1QuestionsAttempted.length)
+          || t.priority || (t.notes&&t.notes.trim());
+        if(hasProgress) return;                     // user did work here — keep
+        let hasQs = false;
+        try{ if(typeof scGetTopicQsCount==='function'){ const c=scGetTopicQsCount(t.name,t.subject); hasQs = (typeof c==='number'&&c>0); } }catch(e){}
+        if(hasQs) return;                           // still has questions — keep
+        delete scDb[key];                           // dead empty leftover — remove
+      });
+      localStorage.setItem('scPurgeDeadTopics_v1','done');
+    }catch(e){ console.warn('[scPurgeDeadTopicsOnce] skipped:', e); }
+  })();
   scSave();
 }
 
@@ -14946,6 +14967,18 @@ window.wrLogSleep=function(manualTime){
   D.sleepLog[today].sleep=t;
   D.sleepLog[today].updatedAt=Date.now();
   save(); renderSleep();
+  // PROTECT-TOMORROW reframe if late — don't let a late night spiral.
+  try{
+    const lost=wrMinsLost(t, D.sleepTarget||'23:30');
+    if(lost>0){
+      const msg=`Late by ${Math.floor(lost/60)}h ${lost%60}m. It's gone — don't chase it. Win = wake ${to12hr(D.wakeTarget||'05:00')} tomorrow. Phone across the room.`;
+      const el=document.createElement('div');
+      el.textContent=msg;
+      el.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);max-width:340px;background:#4f46e5;color:#fff;padding:13px 18px;border-radius:12px;font-size:13px;font-weight:800;line-height:1.45;z-index:2147483647;box-shadow:0 8px 24px rgba(0,0,0,.35);text-align:center';
+      document.body.appendChild(el);
+      setTimeout(()=>el.remove(),6500);
+    }
+  }catch(e){}
 };
 window.wrPromptWake=function(){
   const v=prompt('What time did you WAKE UP today?\n(e.g. 5:30 AM)', _to12hrSafe(D.wakeTarget||'05:00'));
@@ -14967,6 +15000,40 @@ function _parse12hr(s){
   return null;
 }
 function _to12hrSafe(t){ return (typeof to12hr==='function')?to12hr(t):t; }
+
+// ── SLEEP/WAKE STREAK: consecutive past days where BOTH wake & sleep hit target ──
+function wrSleepStreak(){
+  try{
+    const wakeT=D.wakeTarget||'05:00', sleepT=D.sleepTarget||'23:30';
+    let count=0;
+    // walk backwards from YESTERDAY (today's sleep not logged till tonight)
+    for(let i=1;i<=120;i++){
+      const d=new Date(istNow()); d.setDate(d.getDate()-i);
+      const rec=D.sleepLog[dateStr(d)]||{};
+      if(!rec.wake || !rec.sleep) break;            // missing data ends streak
+      const wLate=wrMinsLost(rec.wake,wakeT)>0;
+      const sLate=wrMinsLost(rec.sleep,sleepT)>0;
+      if(wLate||sLate) break;                        // any miss ends streak
+      count++;
+    }
+    return count;
+  }catch(e){ return 0; }
+}
+// Is it currently past the sleep target (i.e. bedtime passed)?
+function wrPastBedtime(){
+  try{
+    const n=istNow(); const cur=n.getHours()*60+n.getMinutes();
+    const st=(D.sleepTarget||'23:30').split(':'); const sleep=(+st[0])*60+(+st[1]);
+    const wk=(D.wakeTarget||'05:00').split(':'); const wake=(+wk[0])*60+(+wk[1]);
+    // "past bedtime" = after sleep target but before wake target (the danger window)
+    if(sleep < wake){ // normal case e.g. 23:30 sleep, 05:00 wake — window wraps midnight
+      return cur>=sleep || cur<wake;
+    }
+    return cur>=sleep && cur<wake;
+  }catch(e){ return false; }
+}
+function _to12hrNow(){ const n=istNow(); return to12hr(String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')); }
+
 function renderSleep(){
   const el=document.getElementById('h-sleep');
   if(!el) return;
@@ -15022,9 +15089,25 @@ function renderSleep(){
     </div>`;
   }
 
+  // ── Streak hero + weekly bedtime honesty ──
+  const streak = wrSleepStreak();
+  const streakColor = streak>=7?'#34d399':streak>=3?'#fbbf24':streak>0?'#818cf8':'#64748b';
+  // weekly avg actual bedtime (past 7 logged sleeps)
+  let bedMins=[], n7=istNow();
+  for(let i=1;i<=7;i++){ const d=new Date(n7); d.setDate(d.getDate()-i); const r=D.sleepLog[dateStr(d)]||{}; if(r.sleep){ const p=r.sleep.split(':'); let mm=(+p[0])*60+(+p[1]); if(mm<360) mm+=1440; /*after-midnight wraps*/ bedMins.push(mm); } }
+  let bedLine='';
+  if(bedMins.length){ let avg=Math.round(bedMins.reduce((a,b)=>a+b,0)/bedMins.length); if(avg>=1440) avg-=1440; const ah=Math.floor(avg/60), am=avg%60; bedLine=`Avg bedtime (7d): ${to12hr(String(ah).padStart(2,'0')+':'+String(am).padStart(2,'0'))}`; }
+
+  const streakHtml = `<div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:10px;padding:8px;background:var(--bg3);border-radius:10px">
+      <span style="font-size:18px">${streak>0?'🔥':'💤'}</span>
+      <span style="font-size:15px;font-weight:900;color:${streakColor}">${streak} night${streak!==1?'s':''} on target</span>
+      ${streak>0?'<span style="font-size:9px;color:var(--muted);font-weight:700">— protect it</span>':'<span style="font-size:9px;color:var(--muted);font-weight:700">— start tonight</span>'}
+    </div>`;
+
   el.innerHTML=`<div style="display:flex;gap:12px">${wakeHtml}${sleepHtml}</div>
+    ${streakHtml}
     <div style="display:flex;gap:2px;margin-top:10px;border-top:1px solid var(--border);padding-top:8px">${strip}</div>
-    <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:8px;text-align:center">Targets: wake ${to12hr(wakeT)} · sleep ${to12hr(sleepT)} · <button onclick="wrEditSleepTargets()" style="background:none;border:none;color:var(--accent);font-size:9px;font-weight:900;cursor:pointer;text-decoration:underline">edit</button></div>`;
+    <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:8px;text-align:center">${bedLine?bedLine+' · ':''}Targets: wake ${to12hr(wakeT)} · sleep ${to12hr(sleepT)} · <button onclick="wrEditSleepTargets()" style="background:none;border:none;color:var(--accent);font-size:9px;font-weight:900;cursor:pointer;text-decoration:underline">edit</button></div>`;
 }
 window.wrEditSleepTargets=function(){
   const w=prompt('Target WAKE time (e.g. 5:00 AM):', _to12hrSafe(D.wakeTarget||'05:00')); if(w===null) return;
@@ -15035,7 +15118,55 @@ window.wrEditSleepTargets=function(){
   save(); renderSleep();
 };
 
-// ════════════════ WEEKLY TASKS — subject-wise, top-3 per subject (Phase 2) ════════════════
+// ══════════════════════════════════════════════════════════════════════════
+// BEDTIME ENFORCER — kills the night-grind instinct.
+// Once you're past sleep target (e.g. 11:30 PM), shows a STOP screen that names
+// the trap: chasing today's lost hours with a nighter costs tomorrow's 5 AM and
+// 3 days of rhythm. "+10 more min" gives ONE grace window if you truly need a
+// couple minutes. "Sleeping now" logs your real bedtime and lets you go rest.
+// ══════════════════════════════════════════════════════════════════════════
+(function BedtimeEnforcer(){
+  const CHECK_MS=90000;
+  let graceUntil=0, shownThisNight='';
+
+  function nightKey(){ // identify "this night" so we don't re-nag endlessly once dismissed
+    const n=istNow(); const k=dateStr(n); return k;
+  }
+  function show(){
+    if(document.getElementById('bedtime-overlay')) return;
+    const sleepT=D.sleepTarget||'23:30';
+    const ov=document.createElement('div'); ov.id='bedtime-overlay';
+    ov.style.cssText='position:fixed;inset:0;z-index:2147483646;background:linear-gradient(160deg,#0f172a,#1e1b4b 60%,#020617);display:flex;align-items:center;justify-content:center;padding:24px;font-family:inherit';
+    ov.innerHTML=`
+      <div style="max-width:430px;width:100%;text-align:center;color:#e2e8f0">
+        <div style="font-size:54px;margin-bottom:8px">🌙</div>
+        <div style="font-size:24px;font-weight:900;color:#fff;margin-bottom:4px">IT'S ${_to12hrNow()}. BED WAS ${to12hr(sleepT)}.</div>
+        <div style="font-size:14px;font-weight:700;color:#a5b4fc;line-height:1.5;margin-bottom:16px">The "I'll grind tonight to make up for today" thought is a <b style="color:#fca5a5">lie</b>. A nighter costs tomorrow's 5 AM wake and breaks 3 days of rhythm. Today's lost hours are <b>gone</b> — unrepayable. The only thing you can still win is <b style="color:#34d399">tomorrow</b>.</div>
+        <div style="background:rgba(2,6,23,.5);border:1px solid #4338ca;border-radius:14px;padding:13px;margin-bottom:16px;font-size:13px;font-weight:800;color:#c7d2fe">
+          Put the phone across the room. Set the 5 AM alarm. Sleep now → wake fresh → hunt all day.
+        </div>
+        <button id="bt-sleep-btn" style="width:100%;background:#4f46e5;color:#fff;font-weight:900;font-size:17px;padding:15px;border:none;border-radius:12px;cursor:pointer;box-shadow:0 6px 20px rgba(79,70,229,.5);margin-bottom:10px">🌙 SLEEPING NOW (log it)</button>
+        <button id="bt-grace-btn" style="width:100%;background:transparent;color:#94a3b8;font-weight:700;font-size:13px;padding:11px;border:1px solid #334155;border-radius:10px;cursor:pointer">+10 more min (one grace)</button>
+      </div>`;
+    document.body.appendChild(ov);
+    document.getElementById('bt-sleep-btn').onclick=()=>{ try{ if(typeof wrLogSleep==='function') wrLogSleep(); }catch(e){} ov.remove(); shownThisNight=nightKey(); };
+    document.getElementById('bt-grace-btn').onclick=()=>{ graceUntil=Date.now()+10*60000; ov.remove(); shownThisNight=nightKey(); };
+  }
+  function check(){
+    try{
+      if(document.hidden) return;
+      if(Date.now()<graceUntil) return;
+      if(typeof wrPastBedtime!=='function' || !wrPastBedtime()) return;
+      // If already logged sleep for tonight, don't nag.
+      const rec=D.sleepLog[todayStr()]||{};
+      if(rec.sleep) return;
+      // Re-show every 10 min while still up (grace handles the pause); but avoid stacking.
+      show();
+    }catch(e){}
+  }
+  setInterval(check, CHECK_MS);
+  window._bedtimeEnforcerTest=show;
+})();
 // D.weeklyTasks = [ { subject:'Polity', tasks:[ {id, text, done, starred} ] } ]
 const WT_SUBJECTS = ["Mock","Arithmetic","Advanced Maths","Reasoning","English","Polity","Economics","Geography","Modern History","Ancient History","Medieval History","Art & Culture","Physics","Chemistry","Biology","Environment & Ecology","Science & Technology","Static GK","Current Affairs","Computer Knowledge"];
 
@@ -15544,6 +15675,10 @@ function editLog(date,id){
 window._wrAutoLog = function(entry) {
   try {
     if(typeof D === 'undefined' || typeof save !== 'function') return;
+    // NIGHT-GRIND FLAG: any session logged after bedtime target is marked nightGrind.
+    // Shown RED in War Room and never counted as a "win" — kills the compensate-by-
+    // nighter habit by removing its false reward.
+    try { if(entry && typeof wrPastBedtime==='function' && wrPastBedtime()) entry.nightGrind = true; } catch(e){}
     // Skip noise: any session-type log under 1 minute. Doesn't apply to revision markers
     // (no duration field) or to mock logs that pass explicit hrs.
     if(entry && typeof entry.duration === 'number' && entry.duration > 0 && entry.duration < 1) {
