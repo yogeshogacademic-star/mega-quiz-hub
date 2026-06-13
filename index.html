@@ -4068,8 +4068,8 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     //   device agrees on the date (no per-render recompute = no cross-device drift).
     // ─────────────────────────────────────────────────────────────────────────
     window.SRS_TRACKS = {
-        A: [ { base: 7, fuzz: 1 }, { base: 7, fuzz: 2 } ],                 // day 7±1, then +7 (±2) ⇒ ~day14
-        B: [ { base: 3, fuzz: 0 }, { base: 7, fuzz: 1 }, { base: 11, fuzz: 1 } ] // day 3, +7(±1)⇒~10, +11(±1)⇒~21
+        A: [ { base: 8, fuzz: 1 } ],                          // ONE review: day 7-9 → MASTERED
+        B: [ { base: 4, fuzz: 1 }, { base: 10, fuzz: 1 } ]    // TWO reviews: day 3-5, then day 9-11 → MASTERED
     };
     window.srsFuzz = function(base, fuzz) {
         if (!fuzz) return base;
@@ -4710,7 +4710,11 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                 m.srs.interval = 1;
                 m.srs.nextReview = Date.now() + (1 * SRS_DAY);
                 m.isMastered = false;
+                // EDGE CASE #1: flag cards you keep missing (5+ in a row) so they don't pile silently
+                m.srs.failStreak = (m.srs.failStreak || 0) + 1;
+                m.srs.struggling = (m.srs.failStreak >= 5);
             }
+            if (status === 'correct') m.srs.failStreak = 0;
             m.srs.updatedAt = Date.now();
             mistakesDb[mistIdx] = m;
             return m;
@@ -10202,6 +10206,7 @@ function scInitDefault() {
     if (t.r2QsTotal === undefined)              t.r2QsTotal = 0;
     if (t.r3QsTotal === undefined)              t.r3QsTotal = 0;
     if (t.r4QsTotal === undefined)              t.r4QsTotal = 0;
+  });
   // ── ONE-TIME CLEANUP (runs once, then flags itself done — never re-runs) ──
   // Removes topics renamed away (old empty names left behind by the additive merge).
   // This is a conscious one-shot migration: it executes a single time per device,
