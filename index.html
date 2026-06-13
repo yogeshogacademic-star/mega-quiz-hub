@@ -1161,11 +1161,19 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                     <button onclick="closeSRSModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
                 </div>
             </div>
-            <!-- Due Forecast Strip -->
+            <!-- Due Forecast Planner -->
             <div id="srs-forecast-strip" class="mb-5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 border border-slate-200 dark:border-slate-700">
-                <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-3">📅 Review Forecast</div>
-                <div class="flex gap-2" id="srs-forecast-bars"></div>
+                <div class="flex items-center justify-between mb-3">
+                    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">📅 Review Forecast</div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="forecastPage(-1)" id="fc-prev" class="px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-black disabled:opacity-30">◀</button>
+                        <span id="fc-range" class="text-[9px] font-bold text-slate-500 dark:text-slate-400 min-w-[80px] text-center"></span>
+                        <button onclick="forecastPage(1)" id="fc-next" class="px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-black">▶</button>
+                    </div>
+                </div>
+                <div id="srs-forecast-planner" class="space-y-2"></div>
             </div>
+
 
             <!-- Card-Level Breakdown -->
             <div class="mb-5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 border border-slate-200 dark:border-slate-700">
@@ -4068,8 +4076,26 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     //   device agrees on the date (no per-render recompute = no cross-device drift).
     // ─────────────────────────────────────────────────────────────────────────
     window.SRS_TRACKS = {
-        A: [ { base: 8, fuzz: 1 } ],                          // ONE review: day 7-9 → MASTERED
-        B: [ { base: 4, fuzz: 1 }, { base: 10, fuzz: 1 } ]    // TWO reviews: day 3-5, then day 9-11 → MASTERED
+        // ── MATHS (Advanced Maths + Arithmetic) — procedural, pre-filtered in R1 ──
+        MA: [ { base: 8, fuzz: 1 } ],                                                      // right: 1 review (7-9d)
+        MW: [ { base: 4, fuzz: 1 }, { base: 11, fuzz: 1 } ],                               // wrong: 2 reviews (3-5d, 10-12d)
+        // ── OTHERS (Polity/GS/Reasoning/History/etc) — recall ──
+        OA: [ { base: 6, fuzz: 1 }, { base: 14, fuzz: 2 } ],                               // right: 2 reviews (5-7d, 12-16d)
+        OW: [ { base: 3, fuzz: 1 }, { base: 9, fuzz: 1 }, { base: 18, fuzz: 2 } ],         // wrong: 3 reviews (2-4d, 8-10d, 16-20d)
+        // ── ENGLISH — most fade-prone ──
+        EA: [ { base: 5, fuzz: 1 }, { base: 12, fuzz: 2 }, { base: 21, fuzz: 2 } ],        // right: 3 reviews (4-6d, 10-14d, 19-23d)
+        EW: [ { base: 3, fuzz: 1 }, { base: 7, fuzz: 1 }, { base: 13, fuzz: 2 }, { base: 21, fuzz: 2 } ], // wrong: 4 reviews
+        // ── LEGACY (old cards still carry track 'A'/'B'; map to maths schedule — all existing A/B are Adv Maths) ──
+        A: [ { base: 8, fuzz: 1 } ],
+        B: [ { base: 4, fuzz: 1 }, { base: 11, fuzz: 1 } ]
+    };
+
+    // Subject-aware track router: reads tags[0], returns the correct track code.
+    window.pickSRSTrack = function (tags, isCorrect) {
+        const subj = (Array.isArray(tags) && tags.length > 0) ? tags[0] : '';
+        if (subj === 'Advanced Maths' || subj === 'Arithmetic') return isCorrect ? 'MA' : 'MW';
+        if (subj === 'English') return isCorrect ? 'EA' : 'EW';
+        return isCorrect ? 'OA' : 'OW';   // everything else (incl. missing/Miscellaneous) → others
     };
     window.srsFuzz = function(base, fuzz) {
         if (!fuzz) return base;
@@ -4289,20 +4315,22 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                 if (mistIdx === -1) {
                     // New question in R1
                     if (status === 'correct') {
-                        // R1 CORRECT → enter SRS on TRACK A (7±1 → 14±2 → mastered)
+                        // R1 CORRECT → enter SRS on subject-aware RIGHT track
                         let newCard = JSON.parse(JSON.stringify(q));
                         newCard.subject = assignedSubject;
-                        const _d = window.srsFuzz(window.SRS_TRACKS.A[0].base, window.SRS_TRACKS.A[0].fuzz); // ~7 days
-                        newCard.srs = { track: 'A', step: 0, reps: 0, ease: 2.5, interval: _d, nextReview: Date.now() + (_d * SRS_DAY), updatedAt: Date.now() };
+                        const _trk = window.pickSRSTrack(newCard.tags, true);
+                        const _d = window.srsFuzz(window.SRS_TRACKS[_trk][0].base, window.SRS_TRACKS[_trk][0].fuzz);
+                        newCard.srs = { track: _trk, step: 0, reps: 0, ease: 2.5, interval: _d, nextReview: Date.now() + (_d * SRS_DAY), updatedAt: Date.now() };
                         newCard.isMastered = false;
                         mistakesDb.push(newCard);
                     } else {
-                        // R1 WRONG → enter SRS on TRACK B (3 → 10±1 → 21±1 → mastered)
+                        // R1 WRONG → enter SRS on subject-aware WRONG track
                         // (Still also queued into r1Wrong for the manual R2/R3 drilling — independent.)
                         let newCard = JSON.parse(JSON.stringify(q));
                         newCard.subject = assignedSubject;
-                        const _d = window.srsFuzz(window.SRS_TRACKS.B[0].base, window.SRS_TRACKS.B[0].fuzz); // 3 days (fuzz 0)
-                        newCard.srs = { track: 'B', step: 0, reps: 0, ease: 2.5, interval: _d, nextReview: Date.now() + (_d * SRS_DAY), updatedAt: Date.now() };
+                        const _trk = window.pickSRSTrack(newCard.tags, false);
+                        const _d = window.srsFuzz(window.SRS_TRACKS[_trk][0].base, window.SRS_TRACKS[_trk][0].fuzz);
+                        newCard.srs = { track: _trk, step: 0, reps: 0, ease: 2.5, interval: _d, nextReview: Date.now() + (_d * SRS_DAY), updatedAt: Date.now() };
                         newCard.isMastered = false;
                         mistakesDb.push(newCard);
                     }
@@ -4626,39 +4654,133 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
         }
     };
 
-    // Forecast bars — 7-day review load
+    // Forecast Planner — 3-day windows, expandable subject → topic + status
+    window._fcPageStart = 0;            // day offset of current window start (0 = today)
+    window._fcOpenDays = window._fcOpenDays || {};   // which day rows are expanded
+    window._fcOpenSubs = window._fcOpenSubs || {};   // which subject rows are expanded
+
+    window.forecastPage = (dir) => {
+        const next = window._fcPageStart + dir * 3;
+        if (next < 0) return;
+        window._fcPageStart = next;
+        renderForecastBars();
+    };
+
+    window.fcToggleDay = (key) => { window._fcOpenDays[key] = !window._fcOpenDays[key]; renderForecastBars(); };
+    window.fcToggleSub = (key) => { window._fcOpenSubs[key] = !window._fcOpenSubs[key]; renderForecastBars(); };
+
     window.renderForecastBars = () => {
-        const container = document.getElementById('srs-forecast-bars');
+        const container = document.getElementById('srs-forecast-planner');
         if (!container) return;
         const DAY = 24 * 60 * 60 * 1000;
-        // FIX4: Anchor to midnight so overdue cards always land in Today bucket, not lost in float
         const todayMidnight = new Date(); todayMidnight.setHours(0,0,0,0);
         const todayStart = todayMidnight.getTime();
-        const days = [];
-        for (let i = 0; i < 7; i++) {
-            const dayStart = todayStart + (i * DAY);
+        const pageStart = window._fcPageStart || 0;
+
+        // active (non-mastered) cards with srs
+        const active = mistakesDb.filter(m => !m.isMastered && m.srs);
+
+        const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+        // range label
+        const rngStart = new Date(todayStart + pageStart * DAY);
+        const rngEnd   = new Date(todayStart + (pageStart + 2) * DAY);
+        document.getElementById('fc-range').textContent =
+            `${monthNames[rngStart.getMonth()]} ${rngStart.getDate()} – ${monthNames[rngEnd.getMonth()]} ${rngEnd.getDate()}`;
+        const prevBtn = document.getElementById('fc-prev'); if (prevBtn) prevBtn.disabled = (pageStart === 0);
+
+        let html = '';
+
+        for (let i = 0; i < 3; i++) {
+            const offset = pageStart + i;
+            const dayStart = todayStart + (offset * DAY);
             const dayEnd   = dayStart + DAY;
-            const count = mistakesDb.filter(m => {
-                if (m.isMastered || !m.srs) return false;
-                // Today: everything due before end of today, including past-overdue cards
-                if (i === 0) return m.srs.nextReview < dayEnd;
+            const isToday  = (offset === 0);
+
+            // cards due this day (today bucket catches all overdue)
+            const dayCards = active.filter(m => {
+                if (isToday) return m.srs.nextReview < dayEnd;
                 return m.srs.nextReview >= dayStart && m.srs.nextReview < dayEnd;
-            }).length;
-            days.push({ label: i === 0 ? 'Today' : i === 1 ? 'Tmrw' : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(dayStart).getDay()], count });
+            });
+
+            const dateObj = new Date(dayStart);
+            const label = isToday ? 'Today' : offset === 1 ? 'Tomorrow'
+                        : `${dayNames[dateObj.getDay()]} ${dateObj.getDate()}`;
+            const dayKey = 'd' + offset;
+            const isOpen = !!window._fcOpenDays[dayKey];
+            const count = dayCards.length;
+
+            const countCls = isToday && count > 0 ? 'text-rose-600 dark:text-rose-400'
+                           : count === 0 ? 'text-emerald-600 dark:text-emerald-400'
+                           : 'text-indigo-600 dark:text-indigo-400';
+
+            html += `<div class="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <button onclick="fcToggleDay('${dayKey}')" class="w-full flex items-center justify-between px-3 py-2.5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] transition-transform ${isOpen ? 'rotate-90' : ''}">▶</span>
+                        <span class="text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-wide">${label}</span>
+                    </div>
+                    <span class="text-xs font-black ${countCls}">${count} card${count === 1 ? '' : 's'}</span>
+                </button>`;
+
+            if (isOpen && count > 0) {
+                // group by subject (tags[0]) → topic (tags[1])
+                const bySubj = {};
+                dayCards.forEach(m => {
+                    const subj = (m.tags && m.tags[0]) || 'Miscellaneous';
+                    const topic = (m.tags && m.tags[1]) || '—';
+                    if (!bySubj[subj]) bySubj[subj] = { count: 0, topics: {} };
+                    bySubj[subj].count++;
+                    if (!bySubj[subj].topics[topic]) bySubj[subj].topics[topic] = [];
+                    bySubj[subj].topics[topic].push(m);
+                });
+
+                html += `<div class="bg-slate-50 dark:bg-slate-900/40 px-2 py-2 space-y-1">`;
+                Object.keys(bySubj).sort((a,b) => bySubj[b].count - bySubj[a].count).forEach(subj => {
+                    const sd = bySubj[subj];
+                    const subKey = dayKey + '_' + subj.replace(/\W/g,'');
+                    const subOpen = !!window._fcOpenSubs[subKey];
+                    html += `<div class="rounded-lg bg-white dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
+                        <button onclick="fcToggleSub('${subKey}')" class="w-full flex items-center justify-between px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                            <div class="flex items-center gap-2">
+                                <span class="text-[9px] transition-transform ${subOpen ? 'rotate-90' : ''}">▶</span>
+                                <span class="text-[11px] font-bold text-slate-700 dark:text-slate-300">${subj}</span>
+                            </div>
+                            <span class="text-[11px] font-black text-slate-500 dark:text-slate-400">${sd.count}</span>
+                        </button>`;
+                    if (subOpen) {
+                        html += `<div class="px-3 pb-2 pt-0.5 space-y-1">`;
+                        Object.keys(sd.topics).sort((a,b) => sd.topics[b].length - sd.topics[a].length).forEach(topic => {
+                            const cards = sd.topics[topic];
+                            // status summary: count cards by their track·step label
+                            const statusCount = {};
+                            cards.forEach(m => {
+                                const st = window.srsCardStatusLabel ? window.srsCardStatusLabel(m) : { label: '?' };
+                                // strip the "DUE · " / "Nd · " prefix to keep just track·step for grouping
+                                const tl = (m.srs && m.srs.track)
+                                    ? `${m.srs.track}·${(m.srs.step||0)+1}/${(window.SRS_TRACKS[m.srs.track]||[]).length}`
+                                    : 'legacy';
+                                statusCount[tl] = (statusCount[tl] || 0) + 1;
+                            });
+                            const statusStr = Object.keys(statusCount).map(k => `${k}${statusCount[k]>1?'×'+statusCount[k]:''}`).join(', ');
+                            html += `<div class="flex items-center justify-between gap-2 pl-3">
+                                <span class="text-[10px] text-slate-500 dark:text-slate-400 truncate">${topic}</span>
+                                <span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 whitespace-nowrap">${cards.length} · ${statusStr}</span>
+                            </div>`;
+                        });
+                        html += `</div>`;
+                    }
+                    html += `</div>`;
+                });
+                html += `</div>`;
+            } else if (isOpen && count === 0) {
+                html += `<div class="bg-slate-50 dark:bg-slate-900/40 px-3 py-3 text-center text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">✓ Nothing due — free day</div>`;
+            }
+            html += `</div>`;
         }
-        const maxCount = Math.max(...days.map(d => d.count), 1);
-        container.innerHTML = days.map((d, i) => {
-            const heightPct = Math.max(8, Math.round((d.count / maxCount) * 100));
-            const barColor  = i === 0 ? (d.count > 0 ? 'bg-rose-400' : 'bg-emerald-400') : 'bg-indigo-400 dark:bg-indigo-500';
-            const textColor = i === 0 ? (d.count > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400') : 'text-slate-500 dark:text-slate-400';
-            return `<div class="flex-1 flex flex-col items-center gap-1">
-                <div class="text-[9px] font-black ${textColor} uppercase tracking-wide">${d.count}</div>
-                <div class="w-full flex items-end justify-center" style="height:40px">
-                    <div class="${barColor} rounded-sm w-4/5 transition-all duration-700" style="height:${heightPct}%"></div>
-                </div>
-                <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wide">${d.label}</div>
-            </div>`;
-        }).join('');
+
+        container.innerHTML = html;
     };
 
     // Particle burst on Send to Masters click
@@ -4706,11 +4828,16 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                     m.isMastered = false;
                 }
             } else {
-                // Wrong/skipped → SHORT PENALTY: retry the same step tomorrow (step unchanged)
+                // Wrong/skipped → LAPSE: step back one rung so a single lucky correct
+                // can't leap to mastery. Card must re-climb the rung it slipped on.
+                // Retry tomorrow (1d). Step floors at 0.
+                const curStep = m.srs.step || 0;
+                m.srs.step = Math.max(0, curStep - 1);
+                m.srs.reps = m.srs.step;
                 m.srs.interval = 1;
                 m.srs.nextReview = Date.now() + (1 * SRS_DAY);
                 m.isMastered = false;
-                // EDGE CASE #1: flag cards you keep missing (5+ in a row) so they don't pile silently
+                // flag cards you keep missing (5+ in a row) so they don't pile silently
                 m.srs.failStreak = (m.srs.failStreak || 0) + 1;
                 m.srs.struggling = (m.srs.failStreak >= 5);
             }
@@ -5753,6 +5880,20 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
     // ── SRS survivor logic + tombstones (unchanged behaviour from v1) ───────
     window.__srsBetterCard = function(a, b) {
         if (!!(a && a.isMastered) !== !!(b && b.isMastered)) return (a && a.isMastered) ? a : b;
+        // For new track-based cards, STEP is the true progress signal (interval can drop to 1
+        // on a lapse, so interval alone would wrongly discard a just-failed card). When both
+        // cards carry a track, prefer the one with the more recent update if steps differ by
+        // a lapse — i.e. trust the freshest edit, since a lapse is a deliberate recent change.
+        const sa = (a.srs && typeof a.srs.step === 'number') ? a.srs.step : null;
+        const sb = (b.srs && typeof b.srs.step === 'number') ? b.srs.step : null;
+        const ta = a.srs && a.srs.track, tb = b.srs && b.srs.track;
+        if (ta && tb && sa !== null && sb !== null) {
+            const ua0 = (a.srs && a.srs.updatedAt) || 0, ub0 = (b.srs && b.srs.updatedAt) || 0;
+            // If one copy was updated clearly later, it reflects the real latest review (incl. lapses) → trust it.
+            if (ua0 !== ub0) return ua0 > ub0 ? a : b;
+            // Same update time → higher step = more progress.
+            if (sa !== sb) return sa > sb ? a : b;
+        }
         const ia = (a.srs && a.srs.interval) || 0, ib = (b.srs && b.srs.interval) || 0;
         if (ia !== ib) return ia > ib ? a : b;
         const na = (a.srs && a.srs.nextReview) || 0, nb = (b.srs && b.srs.nextReview) || 0;
@@ -12545,8 +12686,9 @@ window.scMarkRevDoneAuto = (key, rev) => {
           const qObj = qMap.get(qt); if (!qObj) return;
           const card = JSON.parse(JSON.stringify(qObj));
           card.subject = (qObj.tags && qObj.tags[0]) || t.subject || 'Miscellaneous';
-          const d = window.srsFuzz(window.SRS_TRACKS.B[0].base, window.SRS_TRACKS.B[0].fuzz);
-          card.srs = { track: 'B', step: 0, reps: 0, ease: 2.5, interval: d, nextReview: Date.now() + (d * 86400000), updatedAt: Date.now() };
+          const _trk = window.pickSRSTrack(card.tags, false);
+          const d = window.srsFuzz(window.SRS_TRACKS[_trk][0].base, window.SRS_TRACKS[_trk][0].fuzz);
+          card.srs = { track: _trk, step: 0, reps: 0, ease: 2.5, interval: d, nextReview: Date.now() + (d * 86400000), updatedAt: Date.now() };
           card.isMastered = false;
           mistakesDb.push(card);
         });
