@@ -4526,7 +4526,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                 const isCorrect = ansIdx !== undefined && q.options && q.options[ansIdx] && q.options[ansIdx].correct === true;
                 if(isCorrect) _topicMap[s][t].correct++;
               });
-              window._wrAutoLog({ type:'srs', title:'SRS Sprint', subject:'SRS', cards:activeQuestions.length, correct:correct, subjects:_subjMap, topicMap:_topicMap, duration:_dur, startTime:_startStr, endTime:_endStr, ts:Date.now() });
+              window._wrAutoLog({ type:'srs', title:'SRS Sprint', subject:'SRS', cards:activeQuestions.length, correct:correct, subjects:_subjMap, topicMap:_topicMap, duration:_dur, startTime:_startStr, endTime:_endStr, startTs:window._quizStartTime||0, ts:Date.now() });
             } else {
               // Richer auto-tags: derive subject → topic → subtopic from the actual questions
               let _qSubj='', _qTopic='', _qSub='';
@@ -4542,7 +4542,7 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                 const _top=function(o){const k=Object.keys(o);return k.length?k.sort((a,b)=>o[b]-o[a])[0]:'';};
                 _qSubj=_top(_tagCount.s); _qTopic=_top(_tagCount.t); _qSub=_top(_tagCount.sub);
               } catch(e){}
-              window._wrAutoLog({ type:'quiz', title:displayTitle, subject:(_qSubj||(db[currentQuizId]?db[currentQuizId].subject:'Mixed')), topic:_qTopic, subtopic:_qSub, questions:activeQuestions.length, correct:correct, score:parseFloat(score.toFixed(2)), duration:_dur, startTime:_startStr, endTime:_endStr, ts:Date.now() });
+              window._wrAutoLog({ type:'quiz', title:displayTitle, subject:(_qSubj||(db[currentQuizId]?db[currentQuizId].subject:'Mixed')), topic:_qTopic, subtopic:_qSub, questions:activeQuestions.length, correct:correct, score:parseFloat(score.toFixed(2)), duration:_dur, startTime:_startStr, endTime:_endStr, startTs:window._quizStartTime||0, ts:Date.now() });
             }
           }
         } catch(e) {}
@@ -4725,30 +4725,16 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                 </button>`;
 
             if (isOpen && count > 0) {
-                // group by subject (tags[0]) → topic (tags[1]) → subtopic (tags[2])
+                // group by subject (tags[0]) → topic (tags[1])
                 const bySubj = {};
                 dayCards.forEach(m => {
                     const subj = (m.tags && m.tags[0]) || 'Miscellaneous';
                     const topic = (m.tags && m.tags[1]) || '—';
-                    const sub = (m.tags && m.tags[2]) || '—';
                     if (!bySubj[subj]) bySubj[subj] = { count: 0, topics: {} };
                     bySubj[subj].count++;
-                    if (!bySubj[subj].topics[topic]) bySubj[subj].topics[topic] = { count: 0, subs: {} };
-                    bySubj[subj].topics[topic].count++;
-                    if (!bySubj[subj].topics[topic].subs[sub]) bySubj[subj].topics[topic].subs[sub] = [];
-                    bySubj[subj].topics[topic].subs[sub].push(m);
+                    if (!bySubj[subj].topics[topic]) bySubj[subj].topics[topic] = [];
+                    bySubj[subj].topics[topic].push(m);
                 });
-
-                const statusOf = (cards) => {
-                    const statusCount = {};
-                    cards.forEach(m => {
-                        const tl = (m.srs && m.srs.track)
-                            ? `${m.srs.track}·${(m.srs.step||0)+1}/${(window.SRS_TRACKS[m.srs.track]||[]).length}`
-                            : 'legacy';
-                        statusCount[tl] = (statusCount[tl] || 0) + 1;
-                    });
-                    return Object.keys(statusCount).map(k => `${k}${statusCount[k]>1?'×'+statusCount[k]:''}`).join(', ');
-                };
 
                 html += `<div class="bg-slate-50 dark:bg-slate-900/40 px-2 py-2 space-y-1">`;
                 Object.keys(bySubj).sort((a,b) => bySubj[b].count - bySubj[a].count).forEach(subj => {
@@ -4764,25 +4750,24 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                             <span class="text-[11px] font-black text-slate-500 dark:text-slate-400">${sd.count}</span>
                         </button>`;
                     if (subOpen) {
-                        html += `<div class="px-2 pb-2 pt-0.5 space-y-1.5">`;
-                        Object.keys(sd.topics).sort((a,b) => sd.topics[b].count - sd.topics[a].count).forEach(topic => {
-                            const td = sd.topics[topic];
-                            // topic header row
-                            html += `<div class="pl-2">
-                                <div class="flex items-center justify-between gap-2 mb-0.5">
-                                    <span class="text-[10px] font-bold text-slate-600 dark:text-slate-300 truncate">${topic}</span>
-                                    <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 whitespace-nowrap">${td.count}</span>
-                                </div>`;
-                            // subtopic (tag2) rows under the topic
-                            Object.keys(td.subs).sort((a,b) => td.subs[b].length - td.subs[a].length).forEach(sub => {
-                                const cards = td.subs[sub];
-                                const statusStr = statusOf(cards);
-                                html += `<div class="flex items-center justify-between gap-2 pl-4 border-l-2 border-slate-200 dark:border-slate-700 ml-1">
-                                    <span class="text-[10px] text-slate-500 dark:text-slate-400 truncate">${sub === '—' ? '(no subtopic)' : sub}</span>
-                                    <span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 whitespace-nowrap">${cards.length} · ${statusStr}</span>
-                                </div>`;
+                        html += `<div class="px-3 pb-2 pt-0.5 space-y-1">`;
+                        Object.keys(sd.topics).sort((a,b) => sd.topics[b].length - sd.topics[a].length).forEach(topic => {
+                            const cards = sd.topics[topic];
+                            // status summary: count cards by their track·step label
+                            const statusCount = {};
+                            cards.forEach(m => {
+                                const st = window.srsCardStatusLabel ? window.srsCardStatusLabel(m) : { label: '?' };
+                                // strip the "DUE · " / "Nd · " prefix to keep just track·step for grouping
+                                const tl = (m.srs && m.srs.track)
+                                    ? `${m.srs.track}·${(m.srs.step||0)+1}/${(window.SRS_TRACKS[m.srs.track]||[]).length}`
+                                    : 'legacy';
+                                statusCount[tl] = (statusCount[tl] || 0) + 1;
                             });
-                            html += `</div>`;
+                            const statusStr = Object.keys(statusCount).map(k => `${k}${statusCount[k]>1?'×'+statusCount[k]:''}`).join(', ');
+                            html += `<div class="flex items-center justify-between gap-2 pl-3">
+                                <span class="text-[10px] text-slate-500 dark:text-slate-400 truncate">${topic}</span>
+                                <span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 whitespace-nowrap">${cards.length} · ${statusStr}</span>
+                            </div>`;
                         });
                         html += `</div>`;
                     }
@@ -13252,6 +13237,8 @@ body.light select.inp option { background:white; }
     <div style="display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap">
       <button class="log-type-btn active" data-type="study" onclick="selectLogType(this,'study')">✍️ Study</button>
       <button class="log-type-btn" data-type="lecture" onclick="selectLogType(this,'lecture')">🎬 Lecture</button>
+      <button class="log-type-btn" data-type="quiz" onclick="selectLogType(this,'quiz')">⚡ Quiz</button>
+      <button class="log-type-btn" data-type="notes" onclick="selectLogType(this,'notes')">📝 Notes</button>
     </div>
 
     <div class="card">
@@ -13783,7 +13770,9 @@ function selectLogType(btn, type){
   document.querySelectorAll('.log-type-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   _logType=type;
-  document.getElementById('l-study-fields').style.display=type==='study'?'':'none';
+  // quiz & notes use the same generic fields as study (subject/topic/custom + start/end/hours)
+  const isGeneric = (type==='study' || type==='quiz' || type==='notes');
+  document.getElementById('l-study-fields').style.display=isGeneric?'':'none';
   document.getElementById('l-lecture-fields').style.display=type==='lecture'?'':'none';
   if(type==='lecture') lAutoFillLectureNo();
 }
@@ -13961,14 +13950,16 @@ function saveLog(){
     const custom= document.getElementById('l-custom').value.trim();
     if(!custom&&!subj){ alert('Select a subject or enter a custom task'); return; }
     const label = custom||(topic||ch||subj);
+    // quiz/notes carry their own type marker (study stays untyped/'auto' default); all are manual.
+    const _mType = (_logType==='quiz'||_logType==='notes') ? _logType : 'study';
     if(_logMode==='start'){
-      log={ id:now, date:todayStr(), status:'doing', subject:custom?'Custom':subj, chapter:ch, topic, custom, label, hrs:0, note, priority:selectedPri, startTs:now, segments:[], time:timeLabel };
+      log={ id:now, date:todayStr(), type:_mType, manual:true, status:'doing', subject:custom?'Custom':subj, chapter:ch, topic, custom, label, hrs:0, note, priority:selectedPri, startTs:now, segments:[], time:timeLabel };
     } else {
       const start=document.getElementById('l-start').value;
       const end=document.getElementById('l-end').value;
       const hrs=parseFloat(document.getElementById('l-hours').value);
       if(!hrs||hrs<=0){ alert('Enter valid hours'); return; }
-      log={ id:now, date:todayStr(), status:'done', subject:custom?'Custom':subj, chapter:ch, topic, custom, label, start, end, hrs, note, priority:selectedPri, startTs:now, segments:[], time:timeLabel };
+      log={ id:now, date:todayStr(), type:_mType, manual:true, status:'done', subject:custom?'Custom':subj, chapter:ch, topic, custom, label, start, end, hrs, note, priority:selectedPri, startTs:now, segments:[], time:timeLabel };
     }
   }
 
@@ -14029,10 +14020,10 @@ function logDone(date, id){
   if(l.status==='done'||l.status==='cancelled') return;
   const now=Date.now();
   l.segments=l.segments||[];
-  // Stale-doing safeguard: trailing active segment > 4h => confirm
+  // Stale-doing safeguard: trailing active segment > 1.5h => confirm
   if(l.startTs){
     const liveMs=now-l.startTs;
-    if(liveMs > 4*3600*1000){
+    if(liveMs > 1.5*3600*1000){
       const liveH=Math.round(liveMs/3600000*10)/10;
       const ok=confirm('This session has been DOING for ~'+liveH+'h with no pause.\n\nOK = count it all. Cancel = enter actual minutes.');
       if(!ok){
@@ -14119,7 +14110,7 @@ function renderTodayLogList(){
   el.innerHTML=sorted.map(l=>{
     const isAuto=l.auto;
     const status=l.status||(isAuto?'done':'done');
-    const icon=l.type==='srs'?'🧠':l.type==='mock'?'📝':l.type==='quiz'?'⚡':l.type==='lecture'?(l.isRevision?'🔄':'🎬'):'✍️';
+    const icon=l.type==='srs'?'🧠':l.type==='mock'?'📝':l.type==='quiz'?'⚡':l.type==='notes'?'📝':l.type==='lecture'?(l.isRevision?'🔄':'🎬'):'✍️';
     let statusBadge='';
     if(!isAuto){
       if(status==='doing') statusBadge='<span style="font-size:8px;background:rgba(245,158,11,0.2);color:#fbbf24;padding:1px 6px;border-radius:999px;font-weight:900;margin-left:4px">DOING</span>';
@@ -14141,7 +14132,7 @@ function renderTodayLogList(){
     if(!isAuto){
       if(status==='doing') actionBtns=`<button onclick="logPause('${l.date}',${l.id})" style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#818cf8;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Pause</button><button onclick="logDone('${l.date}',${l.id})" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#4ade80;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Done</button><button onclick="logCancel('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px">x</button>`;
       else if(status==='paused') actionBtns=`<button onclick="logResume('${l.date}',${l.id})" style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);color:#fbbf24;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Resume</button><button onclick="logDone('${l.date}',${l.id})" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#4ade80;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Done</button><button onclick="logCancel('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px">x</button>`;
-      else actionBtns=`<button onclick="deleteLog('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 4px">x</button><button onclick="editLog('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:2px">edit</button>`;
+      else actionBtns=`<button onclick="confirmDeleteLog('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 4px">x</button><button onclick="editLog('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:2px">edit</button>`;
     }
     const hrsDisp=(status==='doing'||status==='paused')?`<span data-liveid="${l.id}" data-livedate="${l.date}" style="font-size:12px;font-weight:900;color:#fbbf24;flex-shrink:0">${liveStr||'0m'}</span>`:`<span style="font-size:12px;font-weight:900;color:${isCan?'var(--muted)':subColor(l.subject||'Other')};flex-shrink:0;${isCan?'text-decoration:line-through':''}">${hDisp(l.hrs)}</span>`;
     return `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;border:1px solid ${borderC};background:${bgC};margin-bottom:7px;${isCan?'opacity:0.5':''}">
@@ -14158,6 +14149,15 @@ function renderTodayLogList(){
 function deleteLog(date,id){
   D.logs[date]=(D.logs[date]||[]).filter(l=>l.id!==id);
   updateDebt(date); save(); renderTodayLogList(); renderHome();
+}
+
+// User-facing delete with confirmation. Internal edit-flow still calls raw deleteLog().
+function confirmDeleteLog(date,id,afterFn){
+  const entry = (D.logs[date]||[]).find(l=>l.id===id);
+  const name = entry ? (entry.title || entry.type || 'this entry') : 'this entry';
+  if(!confirm('Delete "'+name+'"?\n\nThis removes the log permanently.')) return;
+  deleteLog(date,id);
+  if(typeof afterFn==='function') afterFn();
 }
 
 // ════════════════ STREAK ════════════════
@@ -14271,7 +14271,9 @@ function renderHomeTasks(blocks,logs){
   const pct=totalPlanned>0?Math.min(100,Math.round((totalLogged/totalPlanned)*100)):0;
   document.getElementById('h-tasks-pct').textContent=`${pct}% done · ${blocks.length} blocks`;
   document.getElementById('h-tasks-bar').style.width=pct+'%';
-  el.innerHTML=sorted.map(b=>{
+
+  // Renders a single block row (unchanged markup)
+  const blockRow = (b) => {
     const bLogs=logs.filter(l=>l.subject===b.subject&&l.start>=b.start);
     const bLogged=bLogs.reduce((a,l)=>a+l.hrs,0);
     let cls='',icon='○';
@@ -14299,7 +14301,26 @@ function renderHomeTasks(blocks,logs){
       <button onclick="editBlock('${b.date}',${b.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:2px 4px" title="Edit">✏️</button>
       <button onclick="deleteBlock('${b.date}',${b.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 5px">×</button>
     </div>`;
-  }).join('');
+  };
+
+  // Group blocks under their time bucket (by start clock-hour)
+  let html='';
+  WR_BUCKETS.forEach(bk => {
+    const inBucket = sorted.filter(b => {
+      const h = t2m(b.start)/60;
+      return h >= bk.start && h < bk.end;
+    });
+    if(inBucket.length === 0) return;
+    const planned = inBucket.reduce((a,b)=>a+b.plannedHrs,0);
+    html += `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);padding:4px 2px;border-bottom:1px solid var(--border);margin-bottom:6px">
+        <span>${bk.label}</span>
+        <span style="color:var(--muted2)">${inBucket.length} · ${hDisp(planned)}</span>
+      </div>
+      ${inBucket.map(blockRow).join('')}
+    </div>`;
+  });
+  el.innerHTML = html || sorted.map(blockRow).join('');
 }
 
 function deleteBlock(date,id){
@@ -14403,7 +14424,7 @@ function renderHomeTodayLogged(){
   listEl.innerHTML=sorted.map(l=>{
     const isAuto=l.auto;
     const status=l.status||(isAuto?'done':'done');
-    const icon=l.type==='srs'?'🧠':l.type==='mock'?'📝':l.type==='quiz'?'⚡':l.type==='lecture'?(l.isRevision?'🔄':'🎬'):l.type==='revision'?'📚':'✍️';
+    const icon=l.type==='srs'?'🧠':l.type==='mock'?'📝':l.type==='quiz'?'⚡':l.type==='notes'?'📝':l.type==='lecture'?(l.isRevision?'🔄':'🎬'):l.type==='revision'?'📚':'✍️';
     const _logDate=l._carryDate||l.date||viewDate;
     let statusBadge='';
     if(!isAuto){
@@ -14433,7 +14454,7 @@ function renderHomeTodayLogged(){
     if(!isAuto){
       if(status==='doing') actionBtns=`<button onclick="logPause('${_logDate}',${l.id})" style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#818cf8;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Pause</button> <button onclick="logDone('${_logDate}',${l.id})" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#4ade80;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Done</button> <button onclick="logCancel('${_logDate}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px">x</button>`;
       else if(status==='paused') actionBtns=`<button onclick="logResume('${_logDate}',${l.id})" style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);color:#fbbf24;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Resume</button> <button onclick="logDone('${_logDate}',${l.id})" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#4ade80;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Done</button> <button onclick="logCancel('${_logDate}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px">x</button>`;
-      else actionBtns=`<button onclick="deleteLog('${_logDate}',${l.id});renderHomeTodayLogged();renderHome()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 4px">×</button>`;
+      else actionBtns=`<button onclick="confirmDeleteLog('${_logDate}',${l.id},()=>{renderHomeTodayLogged();renderHome()})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 4px">×</button>`;
     }
     const hrsDisp=(status==='doing'||status==='paused')?`<span data-liveid="${l.id}" data-livedate="${l.date}" style="font-size:12px;font-weight:900;color:#fbbf24;flex-shrink:0;white-space:nowrap">${liveStr||'0m'}</span>`:`<span style="font-size:12px;font-weight:900;color:${isCan?'var(--muted)':subColor(l.subject||'Other')};flex-shrink:0;white-space:nowrap;${isCan?'text-decoration:line-through':''}">${hDisp(l.hrs)}</span>`;
     return `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:11px;border:1px solid ${borderC};background:${bgC};margin-bottom:7px;${isCan?'opacity:0.5':''}">
@@ -14591,7 +14612,7 @@ function renderBlocksInDetail(blocks, el){
 
 function logCard(l){
   if(l.auto){
-    const icon=l.type==='srs'?'🧠':l.type==='mock'?'📝':l.type==='quiz'?'⚡':l.type==='revision'?'📚':l.type==='lecture'?(l.isRevision?'🔄':'🎬'):l.type==='flashcard'?'🃏':'✍️';
+    const icon=l.type==='srs'?'🧠':l.type==='mock'?'📝':l.type==='quiz'?'⚡':l.type==='notes'?'📝':l.type==='revision'?'📚':l.type==='lecture'?(l.isRevision?'🔄':'🎬'):l.type==='flashcard'?'🃏':'✍️';
     let detail='';
     if(l.type==='srs'){
       const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;
@@ -14626,7 +14647,7 @@ function logCard(l){
         ${noteHtml(l.note)}
       </div>
       <div style="font-size:13px;font-weight:900;color:${subColor(l.subject)};flex-shrink:0">${hDisp(l.hrs)}</div>
-      <button onclick="deleteLog('${l.date}',${l.id});renderDayDetail('${l.date}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 4px" title="Delete">×</button>
+      <button onclick="confirmDeleteLog('${l.date}',${l.id},()=>renderDayDetail('${l.date}'))" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 4px" title="Delete">×</button>
     </div>
   </div>`;
 }
@@ -14945,10 +14966,10 @@ function renderChecklist(){
 // ════════════════ TIME BUCKETS + SLEEP/WAKE (Phase 1) ════════════════
 // 4 fixed daily buckets. A session counts toward a bucket by its start clock-hour.
 const WR_BUCKETS = [
-  { key:'b9',    label:'Before 9 AM',     start:0,    end:9,    target:2.5 },
-  { key:'b12',   label:'Before 12 PM',    start:9,    end:12,   target:2.5 },
+  { key:'b9',    label:'Before 9 AM',     start:0,    end:9,    target:2 },
+  { key:'b12',   label:'Before 12 PM',    start:9,    end:12,   target:2 },
   { key:'b18',   label:'Before 6 PM',     start:12,   end:18,   target:3.5 },
-  { key:'b2330', label:'Before 11:30 PM', start:18,   end:24,   target:3 },
+  { key:'b2330', label:'Before 11:30 PM', start:18,   end:24,   target:2.5 },
 ];
 
 // Parse a time string to minutes-of-day. Accepts "15:42", "3:42 PM", "9:00am", etc. Returns null if invalid.
@@ -15085,7 +15106,10 @@ function renderBuckets(){
     const col=pct>=100?'#34d399':pct>=60?'#fbbf24':'#f87171';
     const now=new Date(); const curHr=now.getHours();
     const isPast = curHr>=b.end; // window already closed
-    const flag = (isPast && pct<100) ? ' <span style="color:#f87171;font-weight:900">⚠ lost</span>' : (pct>=100?' ✅':'');
+    // EXTRA-HOURS FIRE: hours done beyond the target — celebrated, still counted in total.
+    const extra=Math.round(Math.max(0,done-b.target)*10)/10;
+    const fireFlag = extra>0 ? ` <span style="color:#fb923c;font-weight:900">🔥 +${extra}h</span>` : '';
+    const flag = (isPast && pct<100) ? ' <span style="color:#f87171;font-weight:900">⚠ lost</span>' : (pct>=100?(' ✅'+fireFlag):'');
     return `<div style="margin-bottom:9px">
       <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:900;margin-bottom:3px">
         <span style="color:var(--text)">${b.label}${flag}</span>
@@ -15098,9 +15122,12 @@ function renderBuckets(){
   }).join('');
   const dayPct=totTarget>0?Math.round(totDone/totTarget*100):0;
   const dayCol=dayPct>=100?'#34d399':dayPct>=70?'#fbbf24':'#f87171';
+  // total EXTRA across all buckets (sum of per-bucket overflow), shown with 🔥
+  const totExtra=Math.round(WR_BUCKETS.reduce((a,b)=>a+Math.max(0,(Math.round(bh[b.key]*10)/10)-b.target),0)*10)/10;
+  const extraStr=totExtra>0?` <span style="color:#fb923c;font-weight:900">🔥 +${totExtra}h extra</span>`:'';
   el.innerHTML=`${rows}
     <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-size:13px;font-weight:900">
-      <span style="color:var(--muted)">TODAY TOTAL</span>
+      <span style="color:var(--muted)">TODAY TOTAL${extraStr}</span>
       <span style="color:${dayCol}">${Math.round(totDone*10)/10} / ${totTarget}h · ${dayPct}%</span>
     </div>`;
 }
@@ -15837,6 +15864,44 @@ function editLog(date,id){
 window._wrAutoLog = function(entry) {
   try {
     if(typeof D === 'undefined' || typeof save !== 'function') return;
+
+    // ── MIDNIGHT SPLIT ──────────────────────────────────────────────
+    // If a session started on one IST day and ended on the next (crossed 12:00 AM),
+    // split it into two log entries — one per day — with duration divided at midnight.
+    // Only applies to timed sessions that carry both startTs and a positive duration.
+    if(entry && !entry._noSplit && entry.startTs && entry.ts && typeof entry.duration === 'number' && entry.duration > 0) {
+      const istDay = ts => new Date(ts).toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
+      const dStart = istDay(entry.startTs), dEnd = istDay(entry.ts);
+      if(dStart !== dEnd) {
+        // midnight (start of end-day) in ms — boundary between the two days
+        const midnight = new Date(dEnd + 'T00:00:00+05:30').getTime();
+        const totalMs = entry.ts - entry.startTs;
+        const beforeMs = Math.max(0, midnight - entry.startTs);
+        const afterMs  = Math.max(0, entry.ts - midnight);
+        const minBefore = Math.round(beforeMs/60000);
+        const minAfter  = Math.round(afterMs/60000);
+        // Split cards/questions proportionally by time
+        const frac = totalMs > 0 ? beforeMs/totalMs : 0.5;
+        const splitCount = (v) => { const a = Math.round((v||0)*frac); return [a, (v||0)-a]; };
+        const [cardsA, cardsB] = splitCount(entry.cards);
+        const [qA, qB] = splitCount(entry.questions);
+        const [corrA, corrB] = splitCount(entry.correct);
+        // Part 1 — previous day (start → midnight)
+        window._wrAutoLog(Object.assign({}, entry, {
+          _noSplit:true, date:dStart, duration:minBefore,
+          cards:cardsA, questions:qA, correct:corrA,
+          title:(entry.title||'')+' (pt 1)', ts:midnight-1
+        }));
+        // Part 2 — new day (midnight → end)
+        window._wrAutoLog(Object.assign({}, entry, {
+          _noSplit:true, date:dEnd, duration:minAfter,
+          cards:cardsB, questions:qB, correct:corrB,
+          title:(entry.title||'')+' (pt 2)', startTs:midnight
+        }));
+        return;
+      }
+    }
+
     // NIGHT-GRIND FLAG: any session logged after bedtime target is marked nightGrind.
     // Shown RED in War Room and never counted as a "win" — kills the compensate-by-
     // nighter habit by removing its false reward.
