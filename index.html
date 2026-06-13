@@ -4725,16 +4725,30 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                 </button>`;
 
             if (isOpen && count > 0) {
-                // group by subject (tags[0]) → topic (tags[1])
+                // group by subject (tags[0]) → topic (tags[1]) → subtopic (tags[2])
                 const bySubj = {};
                 dayCards.forEach(m => {
                     const subj = (m.tags && m.tags[0]) || 'Miscellaneous';
                     const topic = (m.tags && m.tags[1]) || '—';
+                    const sub = (m.tags && m.tags[2]) || '—';
                     if (!bySubj[subj]) bySubj[subj] = { count: 0, topics: {} };
                     bySubj[subj].count++;
-                    if (!bySubj[subj].topics[topic]) bySubj[subj].topics[topic] = [];
-                    bySubj[subj].topics[topic].push(m);
+                    if (!bySubj[subj].topics[topic]) bySubj[subj].topics[topic] = { count: 0, subs: {} };
+                    bySubj[subj].topics[topic].count++;
+                    if (!bySubj[subj].topics[topic].subs[sub]) bySubj[subj].topics[topic].subs[sub] = [];
+                    bySubj[subj].topics[topic].subs[sub].push(m);
                 });
+
+                const statusOf = (cards) => {
+                    const statusCount = {};
+                    cards.forEach(m => {
+                        const tl = (m.srs && m.srs.track)
+                            ? `${m.srs.track}·${(m.srs.step||0)+1}/${(window.SRS_TRACKS[m.srs.track]||[]).length}`
+                            : 'legacy';
+                        statusCount[tl] = (statusCount[tl] || 0) + 1;
+                    });
+                    return Object.keys(statusCount).map(k => `${k}${statusCount[k]>1?'×'+statusCount[k]:''}`).join(', ');
+                };
 
                 html += `<div class="bg-slate-50 dark:bg-slate-900/40 px-2 py-2 space-y-1">`;
                 Object.keys(bySubj).sort((a,b) => bySubj[b].count - bySubj[a].count).forEach(subj => {
@@ -4750,24 +4764,25 @@ window.renderNoteCanvas = (subject, topic, targetBlockId = null) => {
                             <span class="text-[11px] font-black text-slate-500 dark:text-slate-400">${sd.count}</span>
                         </button>`;
                     if (subOpen) {
-                        html += `<div class="px-3 pb-2 pt-0.5 space-y-1">`;
-                        Object.keys(sd.topics).sort((a,b) => sd.topics[b].length - sd.topics[a].length).forEach(topic => {
-                            const cards = sd.topics[topic];
-                            // status summary: count cards by their track·step label
-                            const statusCount = {};
-                            cards.forEach(m => {
-                                const st = window.srsCardStatusLabel ? window.srsCardStatusLabel(m) : { label: '?' };
-                                // strip the "DUE · " / "Nd · " prefix to keep just track·step for grouping
-                                const tl = (m.srs && m.srs.track)
-                                    ? `${m.srs.track}·${(m.srs.step||0)+1}/${(window.SRS_TRACKS[m.srs.track]||[]).length}`
-                                    : 'legacy';
-                                statusCount[tl] = (statusCount[tl] || 0) + 1;
+                        html += `<div class="px-2 pb-2 pt-0.5 space-y-1.5">`;
+                        Object.keys(sd.topics).sort((a,b) => sd.topics[b].count - sd.topics[a].count).forEach(topic => {
+                            const td = sd.topics[topic];
+                            // topic header row
+                            html += `<div class="pl-2">
+                                <div class="flex items-center justify-between gap-2 mb-0.5">
+                                    <span class="text-[10px] font-bold text-slate-600 dark:text-slate-300 truncate">${topic}</span>
+                                    <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 whitespace-nowrap">${td.count}</span>
+                                </div>`;
+                            // subtopic (tag2) rows under the topic
+                            Object.keys(td.subs).sort((a,b) => td.subs[b].length - td.subs[a].length).forEach(sub => {
+                                const cards = td.subs[sub];
+                                const statusStr = statusOf(cards);
+                                html += `<div class="flex items-center justify-between gap-2 pl-4 border-l-2 border-slate-200 dark:border-slate-700 ml-1">
+                                    <span class="text-[10px] text-slate-500 dark:text-slate-400 truncate">${sub === '—' ? '(no subtopic)' : sub}</span>
+                                    <span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 whitespace-nowrap">${cards.length} · ${statusStr}</span>
+                                </div>`;
                             });
-                            const statusStr = Object.keys(statusCount).map(k => `${k}${statusCount[k]>1?'×'+statusCount[k]:''}`).join(', ');
-                            html += `<div class="flex items-center justify-between gap-2 pl-3">
-                                <span class="text-[10px] text-slate-500 dark:text-slate-400 truncate">${topic}</span>
-                                <span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 whitespace-nowrap">${cards.length} · ${statusStr}</span>
-                            </div>`;
+                            html += `</div>`;
                         });
                         html += `</div>`;
                     }
