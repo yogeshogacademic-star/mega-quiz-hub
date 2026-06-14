@@ -13801,6 +13801,9 @@ function selectLogType(btn, type){
     const dEl=document.getElementById('l-manual-date');
     if(dEl && !dEl.value) dEl.value=todayStr();   // default today; user changes to past date
     if(typeof selectLogMode==='function') selectLogMode('done');  // manual is always completed
+  } else {
+    // Study & Lecture are LIVE logs → always reset to start mode so 'done' never leaks from Manual
+    if(typeof selectLogMode==='function') selectLogMode('start');
   }
   if(type==='lecture') lAutoFillLectureNo();
 }
