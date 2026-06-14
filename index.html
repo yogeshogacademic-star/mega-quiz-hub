@@ -13618,6 +13618,21 @@ function getWeekDates(ws){ return Array.from({length:7},(_,i)=>{ const d=new Dat
 
 // ════════════════ STORAGE ════════════════
 function save(){
+  // SAFETY GUARD: never let an empty in-memory D overwrite a non-empty stored copy.
+  // (This is what caused a data wipe: a script mutated/replaced D to empty, then save()
+  //  flushed that emptiness over good localStorage AND pushed it to cloud.) If D looks
+  // empty but storage has real data, abort the write and warn instead of destroying it.
+  try {
+    const dHasData = (Object.keys(D.logs||{}).length>0) || (Object.keys(D.blocks||{}).length>0) || (Object.keys(D.checklist||{}).length>0) || ((D.streak&&D.streak.count>0)) || ((D.weeklyTasks||[]).length>0);
+    if(!dHasData){
+      const prev = JSON.parse(localStorage.getItem(STORE)||'{}');
+      const prevHasData = (Object.keys(prev.logs||{}).length>0) || (Object.keys(prev.blocks||{}).length>0) || (Object.keys(prev.checklist||{}).length>0) || ((prev.streak&&prev.streak.count>0)) || ((prev.weeklyTasks||[]).length>0);
+      if(prevHasData){
+        console.warn('[War Room] save() BLOCKED — in-memory D is empty but stored data exists. Refusing to overwrite. Reload the page to restore.');
+        return; // abort: do NOT overwrite good data, do NOT push empty to cloud
+      }
+    }
+  } catch(e){ /* if guard itself errors, fall through to normal save */ }
   localStorage.setItem(STORE, JSON.stringify(D));
   // Debounced cloud push — every War Room change reaches cloud within 2s
   // Uses _hubSave directly (not _saveDataGlobal) to avoid infinite loop:
@@ -13909,7 +13924,12 @@ function prefillLogTime(){
 function lCalcHours(){
   const s=document.getElementById('l-start').value;
   const e=document.getElementById('l-end').value;
-  if(s&&e){ const h=(t2m(e)-t2m(s))/60; if(h>0){ document.getElementById('l-hours').value=Math.round(h*4)/4; document.getElementById('l-hrs-auto').textContent='(auto-calculated)'; } }
+  if(s&&e){
+    let diff=t2m(e)-t2m(s);
+    if(diff<0) diff+=1440;  // end is past midnight (next day) → add 24h
+    const h=diff/60;
+    if(h>0){ document.getElementById('l-hours').value=Math.round(h*4)/4; document.getElementById('l-hrs-auto').textContent='(auto-calculated)'; }
+  }
 }
 // Show a 12hr AM/PM preview next to the time inputs (picker itself follows device locale)
 function lShowTime12(){
@@ -15112,7 +15132,11 @@ function _wrLogIntervals(l, date){
   const hrs=l.hrs||0;
   const sMin=_wrParseToMin(l.start) ?? _wrParseToMin(l.startTime) ?? _wrParseToMin(l.startTime12);
   const eMin=_wrParseToMin(l.end)   ?? _wrParseToMin(l.endTime)   ?? _wrParseToMin(l.endTime12);
-  if(sMin!==null && eMin!==null && eMin>sMin){ clip(sMin,eMin); return out; }
+  if(sMin!==null && eMin!==null){
+    if(eMin>sMin){ clip(sMin,eMin); return out; }
+    if(eMin<sMin){ clip(sMin,1440); return out; } // crosses midnight → count start→midnight on this day
+    // eMin===sMin: zero-length, fall through to hrs-based
+  }
   if(sMin!==null && hrs>0){ clip(sMin, sMin + hrs*60); return out; }
   // Last resort: use ts hour + hrs (assumes session is on `date`)
   const tm=_wrTsToISTMin(l.startTs||l.ts||l.id);
