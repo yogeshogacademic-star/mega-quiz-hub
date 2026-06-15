@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V22 (Notes Removed)</title>
+    <title>Yogesh's Mega Quiz Hub - V22 (Notes)</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
@@ -291,6 +291,91 @@
         };
     </script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+<style id="notes-engine-css">
+.nblocks{max-width:48rem;margin:0 auto;}
+.nb{border-radius:16px;padding:16px 20px;margin-bottom:16px;border:1px solid #e2e8f0;background:#fff;}
+.dark .nb{background:#0f172a;border-color:#1e293b;color:#e2e8f0;}
+.nb-title{font-weight:800;font-size:15px;margin-bottom:8px;color:#0f172a;}
+.dark .nb-title{color:#f1f5f9;}
+.nb-body{font-size:14px;line-height:1.65;color:#334155;}.dark .nb-body{color:#cbd5e1;}
+.nb-body[contenteditable]{outline:2px dashed #c7d2fe;border-radius:8px;padding:6px;min-height:22px;}
+.nb-body table{width:100%;border-collapse:collapse;margin:6px 0;}
+.nb-body td,.nb-body th{border:1px solid #cbd5e1;padding:5px 8px;font-size:13px;}.dark .nb-body td,.dark .nb-body th{border-color:#334155;}
+.nb-body svg{max-width:100%;height:auto;}
+.nb-trap{background:#FEE9E9;border-left:5px solid #DC2626;}.dark .nb-trap{background:rgba(220,38,38,.14);border-color:#ef4444;}
+.nb-trap .nb-title,.nb-trap .nb-body{color:#7f1d1d;}.dark .nb-trap .nb-title,.dark .nb-trap .nb-body{color:#fecaca;}
+.nb-shortcut{background:#E1F5EE;border-left:5px solid #0E8C5A;}.dark .nb-shortcut{background:rgba(14,140,90,.16);}
+.nb-callout{background:#EEF2FF;border-left:5px solid #6366F1;}.dark .nb-callout{background:rgba(99,102,241,.16);}
+.nb-mnemonic{background:#FEF7E0;border-left:5px solid #D97706;}.dark .nb-mnemonic{background:rgba(217,119,6,.16);}
+.nb-selftest{background:#fff;border:2px solid #312E81;}.dark .nb-selftest{background:#0f172a;border-color:#6366f1;}
+.nb-oneliner{background:#312E81;color:#fff;font-size:16px;font-weight:700;}.nb-oneliner .nb-body{color:#fff;}
+.nb-heading{border:0;padding:6px 0;background:transparent;}.dark .nb-heading{background:transparent;}
+.nb-heading .nb-title{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;}
+.nb-pyq{box-shadow:inset 5px 0 0 #DC2626;}
+.hl{background:linear-gradient(transparent 55%,#FFE45C 55%);padding:0 1px;font-weight:800;}
+.pyq{color:#DC2626;font-weight:800;}
+.nhead{margin-bottom:18px;border-bottom:1px solid #e2e8f0;padding-bottom:14px;}.dark .nhead{border-color:#1e293b;}
+.nh1{font-size:30px;line-height:1.05;font-weight:900;letter-spacing:-.02em;color:#0f172a;}.dark .nh1{color:#f1f5f9;}
+.nbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px;}
+.nlayer{display:inline-flex;border:1px solid #cbd5e1;border-radius:10px;overflow:hidden;}.dark .nlayer{border-color:#334155;}
+.nlayer button{padding:6px 14px;font-size:12px;font-weight:800;color:#64748b;background:transparent;}
+.nlayer button.active{background:#312E81;color:#fff;}
+.nactions{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;}
+.nbtn{padding:6px 12px;border:1px solid #cbd5e1;border-radius:9px;font-size:12px;font-weight:800;color:#334155;background:#fff;}
+.dark .nbtn{background:#1e293b;border-color:#334155;color:#cbd5e1;}
+.nbtn-save{background:#0E8C5A;color:#fff;border-color:#0E8C5A;}
+.nchip{font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;}
+.nchip-ok{background:#D6F5E6;color:#065F37;}.nchip-warn{background:#FDEFCB;color:#92500A;}
+.netoolbar{position:sticky;top:8px;z-index:30;display:flex;flex-wrap:wrap;gap:6px;background:#111827;padding:8px;border-radius:12px;margin-bottom:14px;box-shadow:0 6px 20px rgba(0,0,0,.25);}
+.netoolbar button{background:#fff;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700;color:#111827;}
+.nsep{width:1px;background:#374151;margin:0 4px;}
+.nb-tools{display:flex;gap:4px;margin-top:8px;}
+.nb-tools button{font-size:12px;padding:2px 9px;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;}.dark .nb-tools button{background:#1e293b;border-color:#334155;color:#cbd5e1;}
+.ntree-draft{color:#f59e0b;font-size:8px;}
+.npractice{margin-top:28px;background:linear-gradient(90deg,#9333ea,#7e22ce);border-radius:24px;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;box-shadow:0 10px 30px rgba(147,51,234,.3);}
+.npractice-btn{background:#fff;color:#7e22ce;font-weight:900;padding:10px 22px;border-radius:12px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;}
+/* practice player */
+.np-overlay{position:fixed;inset:0;z-index:9999;background:rgba(2,6,23,.75);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px;-webkit-print-color-adjust:exact;}
+.np-card{background:#fff;color:#0f172a;width:100%;max-width:640px;border-radius:24px;padding:24px;max-height:90vh;overflow:auto;box-shadow:0 30px 60px rgba(0,0,0,.4);}
+.dark .np-card{background:#0f172a;color:#e2e8f0;}
+.np-top{display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:#9333ea;}
+.np-top button{font-size:18px;color:#94a3b8;}
+.np-prog{font-size:11px;font-weight:800;color:#64748b;margin:6px 0 14px;}
+.np-q{font-size:17px;font-weight:800;line-height:1.45;margin-bottom:16px;}
+.np-opts{display:flex;flex-direction:column;gap:10px;}
+.np-opt{text-align:left;padding:13px 16px;border-radius:14px;border:2px solid #e2e8f0;font-weight:700;font-size:14px;background:#f8fafc;color:#0f172a;}
+.dark .np-opt{background:#1e293b;border-color:#334155;color:#e2e8f0;}
+.np-opt.np-correct{background:#dcfce7;border-color:#16a34a;color:#065f37;}
+.np-opt.np-wrong{background:#fee2e2;border-color:#dc2626;color:#7f1d1d;}
+.np-expl{margin-top:14px;background:#eef2ff;border-left:4px solid #6366f1;padding:12px 14px;border-radius:10px;font-size:13px;line-height:1.55;}
+.dark .np-expl{background:rgba(99,102,241,.16);}
+.np-actions{margin-top:18px;display:flex;gap:10px;justify-content:flex-end;}
+.np-next{background:#7e22ce;color:#fff;font-weight:800;padding:10px 22px;border-radius:12px;font-size:13px;}
+.np-done{background:#475569;}
+.np-result{text-align:center;}
+.np-score{font-size:46px;font-weight:900;margin-top:16px;}
+.np-pct{font-size:18px;font-weight:800;color:#7e22ce;}
+.np-isonote{font-size:12px;font-weight:700;color:#64748b;margin:14px 0;}
+/* modals */
+.nmodal{position:fixed;inset:0;z-index:9998;background:rgba(2,6,23,.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px;}
+.nmodal-card{background:#fff;color:#0f172a;width:100%;max-width:520px;border-radius:22px;padding:22px;max-height:90vh;overflow:auto;box-shadow:0 30px 60px rgba(0,0,0,.4);}
+.dark .nmodal-card{background:#0f172a;color:#e2e8f0;}
+.nmodal-wide{max-width:760px;}
+.nmodal-top{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#9333ea;margin-bottom:14px;}
+.nmodal-top button{font-size:18px;color:#94a3b8;}
+.nmodal-l{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin:10px 0 4px;}
+.nmodal-in{width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;font-weight:700;background:#fff;color:#0f172a;}
+.dark .nmodal-in{background:#1e293b;border-color:#334155;color:#e2e8f0;}
+.nmodal-ta{width:100%;height:46vh;padding:12px;border:1px solid #cbd5e1;border-radius:12px;font-family:ui-monospace,monospace;font-size:12px;line-height:1.5;background:#f8fafc;color:#0f172a;white-space:pre;}
+.dark .nmodal-ta{background:#0b1220;border-color:#334155;color:#cbd5e1;}
+.nmodal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap;}
+@media (max-width:768px){
+ .nh1{font-size:24px;} .nb{padding:13px 15px;} .nblocks{max-width:100%;}
+ .nactions{margin-left:0;width:100%;} .npractice{padding:14px 16px;}
+ .np-card,.nmodal-card{border-radius:18px;padding:18px;} .np-q{font-size:16px;}
+}
+@media print{body *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
+</style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-[#0a0f1c] dark:text-slate-200 min-h-screen flex flex-col pb-20">
 
@@ -863,13 +948,17 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                 <div class="w-full xl:w-auto overflow-hidden">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
-                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-fuchsia-400 to-purple-500 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(217,70,239,0.4)] tracking-widest border border-fuchsia-200">V22 • NO NOTES</span>
+                        <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-fuchsia-400 to-purple-500 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(217,70,239,0.4)] tracking-widest border border-fuchsia-200">V22</span>
                     </h1>
-                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Quizzes · SRS · Syllabus Command</p>
+                    <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Notes · Quizzes · SRS · Syllabus Command</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
                     <button onclick="toggleDarkMode()" class="bg-white/10 hover:bg-white/20 p-4 rounded-2xl backdrop-blur-md transition-all border border-white/10 shadow-inner hover:scale-105" title="Toggle Dark Mode">🌙</button>
+                    <button onclick="openNotes()" class="bg-gradient-to-br from-fuchsia-600 to-purple-700 hover:from-fuchsia-500 hover:to-purple-600 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(217,70,239,0.5)] transition-transform hover:-translate-y-1 border border-fuchsia-400 flex items-center gap-2 relative overflow-hidden group">
+                        <div class="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity"></div>
+                        📓 Notes
+                    </button>
                     <button onclick="openDBManager()" class="bg-gradient-to-br from-blue-500 to-cyan-600 hover:from-blue-400 hover:to-cyan-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-transform hover:-translate-y-1 border border-cyan-400 flex items-center gap-2">🗄️ Master DB</button>
                     <button onclick="showAnalytics()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-transform hover:-translate-y-1 border border-indigo-400 flex items-center gap-2">📊 Analytics</button>
                     <button onclick="showScreen('flashcards')" class="bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(251,146,60,0.5)] transition-transform hover:-translate-y-1 border border-amber-400 flex items-center gap-2 relative overflow-hidden group">
@@ -977,6 +1066,27 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                     <button id="debug-mode-btn" onclick="toggleDebugMode()" class="font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border">🔬 Debug Mode</button>
                     <button onclick="factoryReset()" class="bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-red-100 dark:border-red-900/30">⚠️ Reset System 🔒</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-notes" class="hidden max-w-[1500px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1 flex flex-col h-auto min-h-[90vh]">
+        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-5 shadow-xl border border-slate-200 dark:border-slate-800 mb-6 flex flex-wrap gap-3 justify-between items-center">
+            <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] transition-colors">&larr; Back to Hub</button>
+            <div class="text-sm font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">📓 Notes</div>
+            <div class="flex gap-2">
+                <button onclick="newNoteFlow()" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm">＋ New / Prompt</button>
+                <button onclick="importNotesFile()" class="bg-fuchsia-50 hover:bg-fuchsia-100 text-fuchsia-600 dark:bg-fuchsia-900/30 dark:text-fuchsia-400 border border-fuchsia-200 dark:border-fuchsia-800/50 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm">📥 Import JSON</button>
+            </div>
+        </div>
+        <div class="flex flex-col md:flex-row flex-1 gap-6 relative items-start">
+            <div id="notes-sidebar" class="w-full md:w-80 shrink-0 bg-white dark:bg-slate-900 rounded-[2rem] p-6 border border-slate-200 dark:border-slate-800 flex flex-col transition-all duration-300 shadow-xl self-stretch md:self-start md:sticky md:top-6 max-h-[85vh] overflow-y-auto">
+                <h2 class="text-2xl font-black uppercase text-slate-800 dark:text-slate-100 mb-6 tracking-tight border-b border-slate-100 dark:border-slate-800 pb-4">Notes</h2>
+                <div id="notes-tree" class="space-y-4 flex-1"></div>
+            </div>
+            <div id="notes-canvas-container" class="flex-1 w-full bg-white dark:bg-slate-900 rounded-[2rem] p-5 md:p-10 border border-slate-200 dark:border-slate-800 transition-all duration-300 shadow-xl relative min-h-[60vh]">
+                <button onclick="toggleNotesFocus()" id="notes-focus-btn" class="hidden md:block absolute top-6 right-6 z-40 bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white p-3 rounded-xl shadow-sm hover:scale-105 transition-all border border-slate-200 dark:border-slate-700" title="Focus Mode">🔭</button>
+                <div id="notes-canvas" class="max-w-3xl mx-auto"></div>
             </div>
         </div>
     </div>
@@ -1538,8 +1648,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
     window.editRegistry = {};
     window.editCounter = 0;
     
-    let activeNoteSubject = null;
-    let activeNoteTopic = null;
+    /* note state in NOTES ENGINE */
 
     // --- V21.3 TAG ARCHITECT CORE ENGINE ---
     let CUSTOM_TAGS = JSON.parse(localStorage.getItem('megaQuizCustomTags_v1')) || { tag2: {}, tag3: {} };
@@ -1650,7 +1759,18 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
             });
         });
         
-
+        // 2. Index Notes (both layers)
+        Object.keys(notesDb).forEach(subject => {
+            Object.keys(notesDb[subject]).forEach(chapter => {
+                const note = notesDb[subject][chapter]; if (!note || !note.layers) return;
+                ['short', 'detailed'].forEach(L => {
+                    (note.layers[L] || []).forEach((block, idx) => {
+                        const txt = (block.title || '') + ' ' + String(block.html || '').replace(/<[^>]+>/g, ' ');
+                        globalSearchCache.push({ type: 'note', subject, topic: chapter, blockId: L + '_' + idx, title: block.title || chapter, content: txt.slice(0, 300), searchStr: txt.toLowerCase() });
+                    });
+                });
+            });
+        });
     };
 
     window.toggleDirtyFilter = () => {
@@ -2233,7 +2353,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
         // Load SRS audit log (debugging record)
         try { window.srsAuditLog = JSON.parse(localStorage.getItem('srsAuditLog')||'[]'); } catch(e){ window.srsAuditLog = []; }
         if (localMistakes) mistakesDb = localMistakes;
-        notesDb = {}; try { await idbKeyval.del('megaQuizNotes_v1'); } catch(e){} /* notes feature removed: purge old notes data */
+        if (localNotes) notesDb = localNotes;
         
         if(!Array.isArray(historyDb)) historyDb = [];
         if(!Array.isArray(mistakesDb)) mistakesDb = [];
@@ -2558,8 +2678,17 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
             try { idbKeyval.set('megaQuizMistakes_v5', mistakesDb); } catch(e) {}
         }
 
-        // ── NOTES: feature removed — keep notes empty (ignore cloud notes) ──
-        notesDb = {};
+        // ── NOTES: merge cloud + local so neither set loses notes ──
+        const cloudNotes = data.notes || {};
+        Object.keys(cloudNotes).forEach(subject => {
+            if (!notesDb[subject]) { notesDb[subject] = cloudNotes[subject]; }
+            else {
+                Object.keys(cloudNotes[subject]).forEach(topic => {
+                    if (!notesDb[subject][topic]) notesDb[subject][topic] = cloudNotes[subject][topic];
+                    // local note wins on conflict — don't overwrite
+                });
+            }
+        });
         // ── FLASHCARDS: merge cloud + local (never replace) ──
         try { if (data.fcCards && Array.isArray(data.fcCards)) {
             let localFC = [];
@@ -3185,6 +3314,17 @@ window.addEventListener('online', () => {
                             <div class="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 mb-6 leading-relaxed question-img-wrap">${highlightText(q.question, term)}</div>
                             <div class="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800/50 mb-6 inline-block shadow-inner"><span class="block text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Correct Answer</span><span class="text-sm font-bold text-slate-800 dark:text-slate-200">${highlightText(cText, term)}</span></div>
                         </div>`;
+                } else if(item.type === 'note') {
+                    resultsHTML += `
+                        <div onclick="openNoteFromSearch('${item.subject.replace(/'/g, "\\'")}', '${item.topic.replace(/'/g, "\\'")}', '${item.blockId}')" class="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-lg hover:border-fuchsia-400 transition-all cursor-pointer relative overflow-hidden mt-4 group">
+                            <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-fuchsia-500"></div>
+                            <div class="flex justify-between items-start mb-3">
+                                <span class="text-[10px] font-black uppercase tracking-widest bg-fuchsia-50 text-fuchsia-600 dark:bg-fuchsia-900/30 dark:text-fuchsia-400 px-3 py-1 rounded border border-fuchsia-100 dark:border-fuchsia-800/50">📓 Note • ${item.subject} > ${item.topic}</span>
+                                <span class="text-xl group-hover:translate-x-1 transition-transform opacity-50">→</span>
+                            </div>
+                            <div class="text-sm font-black text-slate-800 dark:text-slate-200 mb-2 uppercase">${highlightText(item.title, term)}</div>
+                            <div class="text-sm text-slate-600 dark:text-slate-400 line-clamp-3">${highlightText(item.content, term)}</div>
+                        </div>`;
                 }
             });
             
@@ -3192,6 +3332,297 @@ window.addEventListener('online', () => {
             resContainer.innerHTML = resultsHTML;
         }, 300);
     };
+
+    const NOTES_PRINT_CSS = `*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+body.nprint{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#15151e;margin:0;padding:26px 30px;line-height:1.5;}
+.np-sub{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#b91c6b;}
+.np-h1{font-size:26px;font-weight:900;letter-spacing:-.02em;margin:4px 0 14px;}
+.np-layer{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin:18px 0 8px;border-bottom:1.5px solid #15151e;padding-bottom:4px;}
+.nb{border-radius:12px;padding:11px 14px;margin-bottom:12px;border:1px solid #cbd5e1;break-inside:avoid;}
+.nb-title{font-weight:800;font-size:14px;margin-bottom:6px;}
+.nb-body{font-size:12.5px;line-height:1.6;color:#1f2937;}
+.nb-trap{background:#FEE9E9;border-left:5px solid #DC2626;}.nb-trap .nb-title,.nb-trap .nb-body{color:#7f1d1d;}
+.nb-shortcut{background:#E1F5EE;border-left:5px solid #0E8C5A;}
+.nb-callout{background:#EEF2FF;border-left:5px solid #6366F1;}
+.nb-mnemonic{background:#FEF7E0;border-left:5px solid #D97706;}
+.nb-selftest{border:2px solid #312E81;}
+.nb-oneliner{background:#312E81;color:#fff;font-weight:700;}.nb-oneliner .nb-body{color:#fff;}
+.nb-heading{border:0;padding:2px 0;}.nb-heading .nb-title{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#64748b;}
+.nb-pyq{box-shadow:inset 5px 0 0 #DC2626;}
+.hl{background:#FFE45C;font-weight:800;padding:0 2px;}
+.pyq{color:#DC2626;font-weight:800;}
+table{width:100%;border-collapse:collapse;font-size:12px;}td,th{border:1px solid #cbd5e1;padding:5px 7px;text-align:left;}
+`;
+
+/* ===================== NOTES ENGINE (built from scratch) ===================== */
+let NOTE_S = null, NOTE_C = null, NOTE_LAYER = 'short', NOTE_EDIT = false, NOTE_FOCUS = false;
+const escN = (s) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+const stripT = (s) => String(s || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+/* ---- generation spec embedded into the bounce prompt ---- */
+const NOTE_SPEC = [
+'You are building exam-revision notes for SSC CGL. Subject: {SUBJECT}. Chapter: {CHAPTER}.',
+'Return ONE JSON object only (no prose, no markdown fences) in EXACTLY this schema:',
+'{ "type":"note", "subject":"{SUBJECT}", "chapter":"{CHAPTER}", "source":"ai", "verified":false,',
+'  "short":[ {"type":"...","title":"...","html":"...","pyq":false} ],',
+'  "detailed":[ {"type":"...","title":"...","html":"...","pyq":false} ] }',
+'',
+'TWO LAYERS from ONE source of truth:',
+'- detailed = to LEARN: complete teaching depth, miss nothing examinable.',
+'- short = to REVISE: compression of the detailed (same facts/marks), triggers + devices + self-test, not paragraphs.',
+'',
+'COMPLETENESS (detailed): for a body cover Article(s)+Part, nature, composition, appointment, tenure/retirement-age,',
+'removal, salary, functions, article-by-article, nickname, 1st & current holder, evolution/amendments, governing Act+year.',
+'For a process: every step. For a comparison: every axis. Copy all NUMBERS verbatim, never paraphrase a figure.',
+'',
+'VISUAL PRIORITY LANGUAGE inside html (use spans/classes):',
+'- <b>..</b> = important ; <span class="hl">..</span> = highest-yield highlight ;',
+'- <span class="pyq">..</span> = appeared in a PYQ ; prefix must-know lines with the star symbol.',
+'',
+'DEVICE BLOCKS (block "type" drives the style box; put rich markup incl. inline <svg> in "html"):',
+'text, heading, trap, shortcut, callout, mnemonic, stat, oneliner, selftest, table.',
+'Use a device only when the content fits; never clutter. Always: trap box where traps exist, self-test (Q->A + cloze)',
+'on the short note, highlighter on top-yield, expand every acronym on first use.',
+'',
+'PYQ CROSS-CHECK (2 phases, in order): Phase 1 write the best notes first. Phase 2 read the CHAPTER PYQs listed below;',
+'any fact already in your notes that appears in a PYQ -> wrap it in <span class="pyq"> AND set the block pyq:true;',
+'any PYQ fact MISSING -> add it and mark it pyq. Red lives in BOTH layers, prioritized in short.',
+'If no PYQs are listed, skip Phase 2.',
+'',
+'Trap box = type "trap". Self-test = type "selftest". Keep html clean and self-contained.'
+].join('\n');
+
+/* ---- helpers ---- */
+function sanitizeNoteHTML(s) {
+    if (!s) return '';
+    return String(s).replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\son\w+\s*=\s*"[^"]*"/gi, '').replace(/\son\w+\s*=\s*'[^']*'/gi, '').replace(/javascript:/gi, '');
+}
+function getNote() { return (NOTE_S && NOTE_C && notesDb[NOTE_S]) ? notesDb[NOTE_S][NOTE_C] : null; }
+function noteLayers(n) {
+    if (!n.layers) n.layers = { short: [], detailed: [] };
+    if (!Array.isArray(n.layers.short)) n.layers.short = [];
+    if (!Array.isArray(n.layers.detailed)) n.layers.detailed = [];
+    return n.layers;
+}
+function blockClass(t) {
+    const m = { trap: 'nb nb-trap', shortcut: 'nb nb-shortcut', callout: 'nb nb-callout', mnemonic: 'nb nb-mnemonic', selftest: 'nb nb-selftest', stat: 'nb nb-stat', oneliner: 'nb nb-oneliner', heading: 'nb nb-heading' };
+    return m[t] || 'nb';
+}
+function collectChapterQuestions(subject, chapter) {
+    const out = [];
+    Object.keys(db).forEach(qid => {
+        const quiz = db[qid];
+        if (quiz && Array.isArray(quiz.questions) && quiz.title && !quiz.title.includes('\uD83C\uDFAF') && !quiz.title.includes('Master Mock') && !quiz.title.includes('SRS')) {
+            quiz.questions.forEach(q => {
+                const t = Array.isArray(q.tags) ? q.tags : [];
+                const t0 = t.length > 0 ? t[0] : (q.subject || '');
+                const t1 = t.length > 1 ? t[1] : t0;
+                if (t0 === subject && t1 === chapter) out.push(q);
+            });
+        }
+    });
+    return out;
+}
+function chaptersForSubject(subject) {
+    const set = {};
+    Object.keys(db).forEach(qid => {
+        const quiz = db[qid];
+        if (quiz && Array.isArray(quiz.questions)) {
+            quiz.questions.forEach(q => {
+                const t = Array.isArray(q.tags) ? q.tags : [];
+                const t0 = t.length > 0 ? t[0] : (q.subject || '');
+                const t1 = t.length > 1 ? t[1] : '';
+                if (t0 === subject && t1) set[t1] = true;
+            });
+        }
+    });
+    return Object.keys(set).sort();
+}
+
+/* ---- block render ---- */
+function renderBlocksHTML(note, layer, opts) {
+    opts = opts || {};
+    const blocks = (note.layers && note.layers[layer]) || [];
+    if (!blocks.length) return '<div class="text-center text-slate-400 font-bold py-16 border-2 border-dashed rounded-2xl border-slate-200 dark:border-slate-700">No ' + layer + ' note yet.' + (opts.print ? '' : ' Tap Edit to add blocks.') + '</div>';
+    let html = '';
+    blocks.forEach((b, idx) => {
+        const ring = b.pyq ? ' nb-pyq' : '';
+        const ed = opts.edit ? ' contenteditable="true"' : '';
+        html += '<div id="nb-' + idx + '" class="' + blockClass(b.type) + ring + '">';
+        if (b.title) html += '<div class="nb-title">' + b.title + '</div>';
+        html += '<div class="nb-body"' + ed + ' data-idx="' + idx + '">' + (b.html || '') + '</div>';
+        if (opts.edit) html += '<div class="nb-tools"><button onclick="moveBlock(' + idx + ',-1)">\u2191</button><button onclick="moveBlock(' + idx + ',1)">\u2193</button><button onclick="toggleBlockPyq(' + idx + ')">\uD83D\uDD34</button><button onclick="deleteBlock(' + idx + ')">\uD83D\uDDD1\uFE0F</button></div>';
+        html += '</div>';
+    });
+    return html;
+}
+
+/* ---- screen + tree ---- */
+window.openNotes = () => {
+    showScreen('notes');
+    renderNoteTree();
+    if (NOTE_S && NOTE_C && notesDb[NOTE_S] && notesDb[NOTE_S][NOTE_C]) renderNote();
+    else { const c = document.getElementById('notes-canvas'); if (c) c.innerHTML = notePlaceholder(); }
+};
+function notePlaceholder() { return '<div class="text-center text-slate-400 font-bold py-32 uppercase tracking-widest text-xs border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl">Select a chapter \u2014 or tap \u201C+ New / Prompt\u201D to start one.</div>'; }
+window.importNotesFile = () => { requireAuth(() => { document.getElementById('global-file-input').click(); }); };
+
+window.renderNoteTree = () => {
+    const tree = document.getElementById('notes-tree'); if (!tree) return;
+    let html = '';
+    Object.keys(notesDb).sort().forEach(subject => {
+        let chaps = '';
+        Object.keys(notesDb[subject]).sort().forEach(ch => {
+            const active = (NOTE_S === subject && NOTE_C === ch);
+            const note = notesDb[subject][ch];
+            const draft = note && note.verified ? '' : '<span class="ntree-draft" title="AI-draft / unverified">\u25CF</span>';
+            const cls = active ? 'bg-fuchsia-50 border-fuchsia-200 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:border-fuchsia-800/50 dark:text-fuchsia-300' : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800';
+            chaps += '<div class="flex items-center group/top px-3 py-2 mt-1 rounded-lg border cursor-pointer transition-all ' + cls + '">' +
+                '<div class="flex-1 font-bold text-xs truncate flex items-center gap-1.5" onclick="openNote(\'' + escN(subject) + '\',\'' + escN(ch) + '\')">' + draft + ch + '</div>' +
+                '<button onclick="deleteNoteChapter(\'' + escN(subject) + '\',\'' + escN(ch) + '\')" class="opacity-0 group-hover/top:opacity-100 text-slate-400 hover:text-red-500 ml-2" title="Delete chapter">\uD83D\uDDD1\uFE0F</button></div>';
+        });
+        html += '<div class="mb-4"><div class="flex justify-between items-center bg-slate-100 dark:bg-slate-800/50 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 group/sub">' +
+            '<span class="font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest text-[10px]">' + subject + '</span>' +
+            '<button onclick="deleteNoteSubject(\'' + escN(subject) + '\')" class="opacity-0 group-hover/sub:opacity-100 text-slate-400 hover:text-red-500" title="Delete subject">\uD83D\uDDD1\uFE0F</button></div>' +
+            '<div class="mt-1">' + chaps + '</div></div>';
+    });
+    if (!html) html = '<div class="text-xs font-bold text-slate-400 text-center py-10 border-2 border-dashed rounded-xl border-slate-200 dark:border-slate-700">No notes yet.<br>Tap \u201C+ New / Prompt\u201D or \u201CImport\u201D.</div>';
+    tree.innerHTML = html;
+};
+
+window.openNote = (s, c) => { NOTE_S = s; NOTE_C = c; NOTE_EDIT = false; renderNote(); };
+window.setNoteLayer = (l) => { NOTE_LAYER = l; NOTE_EDIT = false; renderNote(); };
+window.openChapterNote = (subject, chapter) => { if (notesDb[subject] && notesDb[subject][chapter]) { showScreen('notes'); openNote(subject, chapter); } else { alert('No note yet for ' + subject + ' \u203A ' + chapter + '.'); } };
+
+window.renderNote = (targetBlockId) => {
+    const note = getNote(); if (!note) return;
+    noteLayers(note);
+    renderNoteTree();
+    const canvas = document.getElementById('notes-canvas'); if (!canvas) return;
+    const verChip = note.verified ? '<span class="nchip nchip-ok">\u2713 verified</span>' : '<span class="nchip nchip-warn">' + (note.source === 'ai' ? 'AI-draft \u00B7 verify' : 'unverified') + '</span>';
+    const tS = NOTE_LAYER === 'short' ? 'active' : '', tD = NOTE_LAYER === 'detailed' ? 'active' : '';
+    const actions = NOTE_EDIT
+        ? '<button class="nbtn nbtn-save" onclick="saveNote()">\uD83D\uDCBE Save</button><button class="nbtn" onclick="cancelNoteEdit()">\u2715</button>'
+        : '<button class="nbtn" onclick="enterNoteEdit()">\u270F\uFE0F Edit</button><button class="nbtn" onclick="generateNotePrompt(\'' + escN(NOTE_S) + '\',\'' + escN(NOTE_C) + '\')">\uD83E\uDDE0 Prompt</button><button class="nbtn" onclick="printNotes(\'' + NOTE_LAYER + '\')">\uD83D\uDDA8\uFE0F</button><button class="nbtn" onclick="printNotes(\'both\')">\uD83D\uDDA8\uFE0F Both</button>';
+    let head = '<div class="nhead"><div class="text-[10px] font-black uppercase tracking-widest text-fuchsia-500 mb-1">' + NOTE_S + '</div>' +
+        '<h1 class="nh1"' + (NOTE_EDIT ? ' contenteditable="true" data-title="1"' : '') + '>' + NOTE_C + '</h1>' +
+        '<div class="nbar"><div class="nlayer"><button class="' + tS + '" onclick="setNoteLayer(\'short\')">\u26A1 Short</button><button class="' + tD + '" onclick="setNoteLayer(\'detailed\')">\uD83D\uDCD6 Detailed</button></div>' + verChip + '<div class="nactions">' + actions + '</div></div></div>';
+    let toolbar = NOTE_EDIT
+        ? '<div class="netoolbar"><button onclick="fmtNote(\'bold\')"><b>B</b></button><button onclick="fmtNote(\'insertUnorderedList\')">\u2022 List</button><button onclick="noteMark(\'hl\')">\uD83D\uDD8D\uFE0F Highlight</button><button onclick="noteMark(\'pyq\')" style="color:#DC2626">\uD83D\uDD34 PYQ</button><span class="nsep"></span><button onclick="addBlock(\'text\')">\uFF0B Text</button><button onclick="addBlock(\'trap\')">\uFF0B Trap</button><button onclick="addBlock(\'selftest\')">\uFF0B Self-test</button></div>'
+        : '';
+    let practice = '';
+    if (!NOTE_EDIT) {
+        const n = collectChapterQuestions(NOTE_S, note.tag2 || NOTE_C).length;
+        if (n > 0) practice = '<div class="npractice"><div><div class="text-[10px] font-black uppercase tracking-widest text-white/70 mb-0.5">PYQ Pool \u00B7 isolated practice</div><div class="text-lg font-black text-white">' + n + ' questions on this chapter</div></div><button onclick="startNotePractice(\'' + escN(NOTE_S) + '\',\'' + escN(note.tag2 || NOTE_C) + '\')" class="npractice-btn">\u25B6 Practice</button></div>';
+    }
+    canvas.innerHTML = head + toolbar + '<div class="nblocks">' + renderBlocksHTML(note, NOTE_LAYER, { edit: NOTE_EDIT }) + '</div>' + practice;
+    if (targetBlockId !== null && targetBlockId !== undefined) {
+        setTimeout(() => { let bid = String(targetBlockId); if (bid.indexOf('_') !== -1) bid = bid.split('_')[1]; const el = document.getElementById('nb-' + bid); if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('target-flash'); setTimeout(() => el.classList.remove('target-flash'), 1500); } }, 120);
+    }
+};
+
+/* ---- editing ---- */
+window.enterNoteEdit = () => { NOTE_EDIT = true; renderNote(); };
+window.cancelNoteEdit = () => { NOTE_EDIT = false; renderNote(); };
+window.fmtNote = (cmd) => { document.execCommand(cmd, false, null); };
+window.noteMark = (cls) => { const sel = window.getSelection(); if (!sel.rangeCount || sel.isCollapsed) return; const span = document.createElement('span'); span.className = cls; try { const r = sel.getRangeAt(0); span.appendChild(r.extractContents()); r.insertNode(span); sel.removeAllRanges(); } catch (e) {} };
+window.addBlock = (type) => { const note = getNote(); if (!note) return; const tm = { text: '', trap: '\u26A0 Trap', shortcut: 'Shortcut', selftest: 'Self-test', mnemonic: 'Mnemonic', callout: 'Note' }; noteLayers(note)[NOTE_LAYER].push({ type: type, title: (tm[type] !== undefined ? tm[type] : type), html: 'New content\u2026', pyq: false }); renderNote(); };
+window.deleteBlock = (idx) => { const note = getNote(); if (!note) return; noteLayers(note)[NOTE_LAYER].splice(idx, 1); renderNote(); };
+window.moveBlock = (idx, dir) => { const note = getNote(); if (!note) return; const a = noteLayers(note)[NOTE_LAYER]; const j = idx + dir; if (j < 0 || j >= a.length) return; const t = a[idx]; a[idx] = a[j]; a[j] = t; renderNote(); };
+window.toggleBlockPyq = (idx) => { const note = getNote(); if (!note) return; const a = noteLayers(note)[NOTE_LAYER]; if (a[idx]) a[idx].pyq = !a[idx].pyq; renderNote(); };
+window.saveNote = () => {
+    const note = getNote(); if (!note) return; const a = noteLayers(note)[NOTE_LAYER];
+    document.querySelectorAll('#notes-canvas .nb-body[contenteditable]').forEach(el => { const i = parseInt(el.getAttribute('data-idx'), 10); if (a[i]) a[i].html = sanitizeNoteHTML(el.innerHTML); });
+    const tEl = document.querySelector('#notes-canvas [data-title="1"]');
+    if (tEl) { const nt = tEl.textContent.trim(); if (nt && nt !== NOTE_C) { notesDb[NOTE_S][nt] = note; delete notesDb[NOTE_S][NOTE_C]; NOTE_C = nt; note.tag2 = nt; } }
+    note.updatedAt = Date.now(); note.source = 'user'; note.verified = true;
+    NOTE_EDIT = false; saveData(); rebuildSearchCache(); renderNote();
+};
+
+/* ---- delete / search-open ---- */
+window.deleteNoteChapter = (subject, chapter) => { requireAuth(() => { if (confirm('Permanently delete the note \u201C' + chapter + '\u201D?')) { delete notesDb[subject][chapter]; if (Object.keys(notesDb[subject]).length === 0) delete notesDb[subject]; if (NOTE_C === chapter) { NOTE_C = null; NOTE_S = null; } saveData(); rebuildSearchCache(); openNotes(); } }); };
+window.deleteNoteSubject = (subject) => { requireAuth(() => { if (confirm('Delete the ENTIRE \u201C' + subject + '\u201D folder?')) { delete notesDb[subject]; if (NOTE_S === subject) { NOTE_C = null; NOTE_S = null; } saveData(); rebuildSearchCache(); openNotes(); } }); };
+window.openNoteFromSearch = (subject, chapter, blockId) => { if (blockId && String(blockId).indexOf('short_') === 0) NOTE_LAYER = 'short'; else if (blockId && String(blockId).indexOf('detailed_') === 0) NOTE_LAYER = 'detailed'; NOTE_S = subject; NOTE_C = chapter; NOTE_EDIT = false; showScreen('notes'); renderNoteTree(); renderNote(blockId); };
+
+/* ---- focus + print ---- */
+window.toggleNotesFocus = () => { NOTE_FOCUS = !NOTE_FOCUS; const sb = document.getElementById('notes-sidebar'); const btn = document.getElementById('notes-focus-btn'); if (NOTE_FOCUS) { sb.style.display = 'none'; btn.classList.add('bg-fuchsia-500', 'text-white'); } else { sb.style.display = 'flex'; btn.classList.remove('bg-fuchsia-500', 'text-white'); } };
+window.printNotes = (mode) => {
+    const note = getNote(); if (!note) return alert('Open a note first.'); noteLayers(note);
+    const layers = mode === 'both' ? ['short', 'detailed'] : [mode];
+    let body = '<div class="np-sub">' + NOTE_S + '</div><h1 class="np-h1">' + NOTE_C + '</h1>';
+    layers.forEach(L => { body += '<div class="np-layer">' + (L === 'short' ? '\u26A1 Short note' : '\uD83D\uDCD6 Detailed note') + '</div>' + renderBlocksHTML(note, L, { print: true }); });
+    const w = window.open('', '_blank');
+    w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + NOTE_C + '</title><style>' + NOTES_PRINT_CSS + '</style></head><body class="nprint">' + body + '</body></html>');
+    w.document.close(); setTimeout(() => { try { w.focus(); w.print(); } catch (e) {} }, 350);
+};
+
+/* ---- + New / Generate Prompt flow ---- */
+window.newNoteFlow = () => {
+    let subs = (typeof SUBJECTS !== 'undefined' && Array.isArray(SUBJECTS)) ? SUBJECTS.slice() : Object.keys(notesDb);
+    let subOpts = subs.map(s => '<option value="' + s.replace(/"/g, '&quot;') + '">' + s + '</option>').join('');
+    let ov = document.createElement('div'); ov.id = 'nmodal'; ov.className = 'nmodal';
+    ov.innerHTML = '<div class="nmodal-card"><div class="nmodal-top"><span>\uD83D\uDCD3 New note / Generate prompt</span><button onclick="closeNoteModal()">\u2715</button></div>' +
+        '<label class="nmodal-l">Subject</label><select id="nm-sub" onchange="nmFillChapters()" class="nmodal-in">' + subOpts + '</select>' +
+        '<label class="nmodal-l">Chapter (tag 1)</label><input id="nm-chap" list="nm-chaplist" class="nmodal-in" placeholder="e.g. Parliament"><datalist id="nm-chaplist"></datalist>' +
+        '<div class="nmodal-actions"><button class="nbtn nbtn-save" onclick="nmGenerate()">\uD83E\uDDE0 Generate prompt</button><button class="nbtn" onclick="nmCreateBlank()">\uFF0B Blank note</button></div></div>';
+    document.body.appendChild(ov); nmFillChapters();
+};
+window.nmFillChapters = () => { const sub = document.getElementById('nm-sub').value; const dl = document.getElementById('nm-chaplist'); dl.innerHTML = chaptersForSubject(sub).map(c => '<option value="' + c.replace(/"/g, '&quot;') + '">').join(''); };
+window.nmGenerate = () => { const s = document.getElementById('nm-sub').value; const c = document.getElementById('nm-chap').value.trim(); if (!c) return alert('Enter a chapter.'); closeNoteModal(); generateNotePrompt(s, c); };
+window.nmCreateBlank = () => { const s = document.getElementById('nm-sub').value; const c = document.getElementById('nm-chap').value.trim(); if (!c) return alert('Enter a chapter.'); if (!notesDb[s]) notesDb[s] = {}; if (!notesDb[s][c]) notesDb[s][c] = { tag2: c, source: 'user', verified: false, layers: { short: [], detailed: [] }, updatedAt: Date.now() }; closeNoteModal(); saveData(); rebuildSearchCache(); openNote(s, c); };
+window.closeNoteModal = () => { const m = document.getElementById('nmodal'); if (m) m.remove(); };
+
+window.generateNotePrompt = (subject, chapter) => {
+    const qs = collectChapterQuestions(subject, chapter);
+    let pyq = qs.length ? qs.map((q, i) => { const o = (q.options || []).map(x => (x.correct ? '[correct] ' : '') + stripT(x.text)).join(' | '); return 'Q' + (i + 1) + '. ' + stripT(q.question) + '\n   Options: ' + o + (q.explanation ? '\n   Sol: ' + stripT(q.explanation) : ''); }).join('\n\n') : '(no PYQs tagged to this chapter yet \u2014 skip Phase 2)';
+    const text = NOTE_SPEC.replace(/\{SUBJECT\}/g, subject).replace(/\{CHAPTER\}/g, chapter) + '\n\n===== CHAPTER PYQs (' + qs.length + ') for Phase-2 cross-check =====\n' + pyq;
+    let ov = document.createElement('div'); ov.id = 'nmodal'; ov.className = 'nmodal';
+    ov.innerHTML = '<div class="nmodal-card nmodal-wide"><div class="nmodal-top"><span>\uD83E\uDDE0 Prompt \u2014 ' + subject + ' \u203A ' + chapter + ' (' + qs.length + ' PYQs)</span><button onclick="closeNoteModal()">\u2715</button></div>' +
+        '<textarea id="nm-prompt" class="nmodal-ta" readonly></textarea>' +
+        '<div class="nmodal-actions"><button class="nbtn nbtn-save" onclick="copyNotePrompt()">\uD83D\uDCCB Copy</button><button class="nbtn" onclick="closeNoteModal()">Close</button></div>' +
+        '<div class="text-[11px] text-slate-500 font-bold mt-2">Paste into Claude \u2192 paste the returned JSON back via \u201CImport Notes JSON\u201D.</div></div>';
+    document.body.appendChild(ov); document.getElementById('nm-prompt').value = text;
+};
+window.copyNotePrompt = () => { const ta = document.getElementById('nm-prompt'); ta.select(); try { document.execCommand('copy'); } catch (e) {} if (navigator.clipboard) { try { navigator.clipboard.writeText(ta.value); } catch (e) {} } const b = event && event.target; if (b) { const o = b.textContent; b.textContent = '\u2713 Copied'; setTimeout(() => { b.textContent = o; }, 1200); } };
+
+/* ---- ISOLATED practice player (writes NOTHING: no SRS, syllabus, history, db) ---- */
+let NP = null;
+window.startNotePractice = (subject, chapter) => {
+    closeNotePractice();
+    const qs = collectChapterQuestions(subject, chapter);
+    if (!qs.length) return alert('No questions tagged to this chapter yet.');
+    NP = { subject: subject, chapter: chapter, qs: qs, i: 0, sel: [], correct: 0 };
+    renderPractice();
+};
+function renderPractice() {
+    let ov = document.getElementById('np-overlay');
+    if (!ov) { ov = document.createElement('div'); ov.id = 'np-overlay'; ov.className = 'np-overlay'; document.body.appendChild(ov); }
+    const q = NP.qs[NP.i];
+    if (!q) return renderPracticeResult();
+    const picked = NP.sel[NP.i];
+    let opts = '';
+    (q.options || []).forEach((o, oi) => {
+        let cls = 'np-opt';
+        if (picked !== undefined) { if (o.correct) cls += ' np-correct'; else if (oi === picked) cls += ' np-wrong'; }
+        opts += '<button class="' + cls + '" ' + (picked !== undefined ? 'disabled' : '') + ' onclick="notePracticeAnswer(' + oi + ')">' + (o.text || '') + '</button>';
+    });
+    const expl = (picked !== undefined && q.explanation) ? '<div class="np-expl"><b>Solution:</b> ' + q.explanation + '</div>' : '';
+    const next = (picked !== undefined) ? '<button class="np-next" onclick="notePracticeNext()">' + (NP.i + 1 < NP.qs.length ? 'Next \u2192' : 'See score') + '</button>' : '';
+    ov.innerHTML = '<div class="np-card"><div class="np-top"><span>' + NP.subject + ' \u00B7 ' + NP.chapter + '</span><button onclick="closeNotePractice()">\u2715</button></div>' +
+        '<div class="np-prog">Q ' + (NP.i + 1) + ' / ' + NP.qs.length + ' \u00B7 Score ' + NP.correct + '</div>' +
+        '<div class="np-q">' + (q.question || '') + '</div><div class="np-opts">' + opts + '</div>' + expl +
+        '<div class="np-actions">' + next + '</div></div>';
+}
+window.notePracticeAnswer = (oi) => { if (NP.sel[NP.i] !== undefined) return; NP.sel[NP.i] = oi; const o = NP.qs[NP.i].options; if (o && o[oi] && o[oi].correct) NP.correct++; renderPractice(); };
+window.notePracticeNext = () => { NP.i++; renderPractice(); };
+function renderPracticeResult() {
+    const ov = document.getElementById('np-overlay'); const pct = Math.round(NP.correct / NP.qs.length * 100);
+    ov.innerHTML = '<div class="np-card np-result"><div class="np-top"><span>' + NP.subject + ' \u00B7 ' + NP.chapter + '</span><button onclick="closeNotePractice()">\u2715</button></div>' +
+        '<div class="np-score">' + NP.correct + ' / ' + NP.qs.length + '</div><div class="np-pct">' + pct + '%</div>' +
+        '<div class="np-isonote">Practice only \u2014 nothing saved to SRS, Syllabus, history, or your dashboard.</div>' +
+        '<div class="np-actions"><button class="np-next" onclick="startNotePractice(\'' + escN(NP.subject) + '\',\'' + escN(NP.chapter) + '\')">\u21BB Retry</button><button class="np-next np-done" onclick="closeNotePractice()">Done</button></div></div>';
+}
+window.closeNotePractice = () => { const ov = document.getElementById('np-overlay'); if (ov) ov.remove(); NP = null; };
 
     const getCategoryClass = (s) => {
         s = s.toLowerCase(); let cat = SUBJECT_CATEGORIES[s] ? SUBJECT_CATEGORIES[s].toLowerCase() : s;
@@ -6297,8 +6728,26 @@ window.addEventListener('online', () => {
                 try {
                     const importedData = JSON.parse(event.target.result);
                     
-                    // Standard Quiz JSON import
-                    {
+                    // NOTES — two-layer note import (type:"note" only)
+                    if (importedData.type === 'note') {
+                        const subj = importedData.subject;
+                        const ch = importedData.chapter;
+                        if (!subj || !ch) { alert("\u274C Invalid Notes JSON (need subject + chapter)."); return; }
+                        if (!notesDb[subj]) notesDb[subj] = {};
+                        const norm = (a) => (Array.isArray(a) ? a : []).map(b => ({ type: (b && b.type) || 'text', title: (b && b.title) || '', html: (b && (b.html || b.content)) || '', pyq: !!(b && b.pyq) }));
+                        notesDb[subj][ch] = {
+                            tag2: importedData.tag2 || ch,
+                            source: importedData.source || 'ai',
+                            verified: !!importedData.verified,
+                            layers: { short: norm(importedData.short), detailed: norm(importedData.detailed) },
+                            updatedAt: Date.now()
+                        };
+                        saveData(); rebuildSearchCache();
+                        alert("\u2705 Notes imported: " + subj + " > " + ch);
+                        if (!document.getElementById('screen-notes').classList.contains('hidden')) { renderNoteTree(); }
+                    } 
+                    // Otherwise it's a Standard Quiz JSON
+                    else {
                         importedData.subject = targetImportSubject;
 
                         // Check for duplicate: same title already exists in same subject
@@ -6399,7 +6848,7 @@ window.addEventListener('online', () => {
                     const data = JSON.parse(event.target.result);
                     if(data.db && data.subjects) {
                         db = data.db; SUBJECTS = data.subjects; historyDb = data.history || []; mistakesDb = data.mistakes || [];
-                        notesDb = {}; /* notes feature removed */
+                        if (data.notes) notesDb = data.notes;
         if (data.syllabusData) { 
             try { 
                 localStorage.setItem('sc_syllabus_v1', JSON.stringify(data.syllabusData));
