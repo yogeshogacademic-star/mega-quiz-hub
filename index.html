@@ -36,15 +36,6 @@
         mark { background-color: rgba(251, 191, 36, 0.4); color: inherit; padding: 0 2px; border-radius: 4px; font-weight: 900; box-shadow: 0 0 8px rgba(251, 191, 36, 0.3); }
         .dark mark { background-color: rgba(245, 158, 11, 0.5); }
 
-        /* V21.1 Neural Blur & Mastery Toggles */
-        .neural-blur { filter: blur(6px); color: transparent; user-select: none; transition: all 0.3s ease; cursor: pointer; border-radius: 4px; background: rgba(148, 163, 184, 0.2); padding: 0 4px; }
-        .dark .neural-blur { background: rgba(30, 41, 59, 0.6); }
-        .neural-blur.revealed { filter: blur(0); color: inherit; background: rgba(16, 185, 129, 0.15); box-shadow: 0 0 8px rgba(16, 185, 129, 0.3); }
-        .theory-block { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; }
-        .mastered-block { opacity: 0.4; max-height: 40px !important; border-color: #10b981 !important; cursor: pointer; }
-        .mastered-block:hover { opacity: 0.8; }
-        .mastered-block > div:not(.mastery-header) { display: none; }
-        
         .target-flash { animation: flash-highlight 1.5s ease-out; }
         @keyframes flash-highlight { 0% { box-shadow: 0 0 0 0px rgba(251, 191, 36, 0.8); background-color: rgba(251, 191, 36, 0.2); } 100% { box-shadow: 0 0 0 20px rgba(251, 191, 36, 0); background-color: transparent; } }
 
@@ -923,7 +914,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                 
                 <div class="flex items-center gap-3 w-full xl:w-auto justify-start xl:justify-end flex-wrap">
                     <button onclick="toggleDarkMode()" class="bg-white/10 hover:bg-white/20 p-4 rounded-2xl backdrop-blur-md transition-all border border-white/10 shadow-inner hover:scale-105" title="Toggle Dark Mode">🌙</button>
-                    <button onclick="openNotesVault()" class="bg-gradient-to-br from-fuchsia-600 to-purple-700 hover:from-fuchsia-500 hover:to-purple-600 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(217,70,239,0.5)] transition-transform hover:-translate-y-1 border border-fuchsia-400 flex items-center gap-2 relative overflow-hidden group">
+                    <button onclick="openNotes()" class="bg-gradient-to-br from-fuchsia-600 to-purple-700 hover:from-fuchsia-500 hover:to-purple-600 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(217,70,239,0.5)] transition-transform hover:-translate-y-1 border border-fuchsia-400 flex items-center gap-2 relative overflow-hidden group">
                         <div class="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity"></div>
                         📓 Notes
                     </button>
@@ -1039,13 +1030,10 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
     </div>
 
     <div id="screen-notes" class="hidden max-w-[1500px] mx-auto p-4 sm:p-6 pt-10 relative w-full flex-1 flex flex-col h-auto min-h-[90vh]">
-        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-6 shadow-xl border border-slate-200 dark:border-slate-800 mb-6">
-            <div class="flex justify-between items-center mb-4">
-                <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] transition-colors">&larr; Back to Hub</button>
-                <div class="text-[10px] font-black uppercase tracking-widest text-slate-500">Notes Progress</div>
-                <button onclick="triggerNoteImport()" class="bg-fuchsia-50 hover:bg-fuchsia-100 text-fuchsia-600 dark:bg-fuchsia-900/30 dark:text-fuchsia-400 border border-fuchsia-200 dark:border-fuchsia-800/50 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm">📥 Import Notes JSON</button>
-            </div>
-            <div id="notes-heatmap" class="flex flex-wrap gap-2 justify-center"></div>
+        <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-5 shadow-xl border border-slate-200 dark:border-slate-800 mb-6 flex justify-between items-center">
+            <button onclick="showScreen('dashboard')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-black tracking-widest uppercase text-[10px] transition-colors">&larr; Back to Hub</button>
+            <div class="text-sm font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">📓 Notes</div>
+            <button onclick="importNotesFile()" class="bg-fuchsia-50 hover:bg-fuchsia-100 text-fuchsia-600 dark:bg-fuchsia-900/30 dark:text-fuchsia-400 border border-fuchsia-200 dark:border-fuchsia-800/50 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm">📥 Import Notes JSON</button>
         </div>
         <div class="flex flex-1 gap-6 relative items-start">
             <div id="notes-sidebar" class="w-full md:w-80 shrink-0 bg-white dark:bg-slate-900 rounded-[2rem] p-6 border border-slate-200 dark:border-slate-800 flex flex-col transition-all duration-300 shadow-xl self-start sticky top-6 max-h-[85vh] overflow-y-auto">
@@ -1053,7 +1041,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                 <div id="notes-tree" class="space-y-4 flex-1"></div>
             </div>
             <div id="notes-canvas-container" class="flex-1 bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-10 border border-slate-200 dark:border-slate-800 transition-all duration-300 shadow-xl relative min-h-[60vh]">
-                <button onclick="toggleMambaFocus()" id="mamba-focus-btn" class="absolute top-6 right-6 z-50 bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white p-3 rounded-xl shadow-sm hover:scale-105 transition-all border border-slate-200 dark:border-slate-700" title="Focus Mode (Toggle Sidebar)">🔭</button>
+                <button onclick="toggleNotesFocus()" id="notes-focus-btn" class="absolute top-6 right-6 z-50 bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white p-3 rounded-xl shadow-sm hover:scale-105 transition-all border border-slate-200 dark:border-slate-700" title="Focus Mode (Toggle Sidebar)">🔭</button>
                 <div id="notes-canvas" class="max-w-3xl mx-auto space-y-8">
                     <div class="text-center text-slate-400 font-bold py-32 uppercase tracking-widest text-xs border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl">Select a chapter, or import a Notes JSON.</div>
                 </div>
@@ -1618,7 +1606,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
     window.editRegistry = {};
     window.editCounter = 0;
     
-    /* note state vars are declared in the NOTES ENGINE block below */
+    /* note state in NOTES ENGINE */
 
     // --- V21.3 TAG ARCHITECT CORE ENGINE ---
     let CUSTOM_TAGS = JSON.parse(localStorage.getItem('megaQuizCustomTags_v1')) || { tag2: {}, tag3: {} };
@@ -1732,11 +1720,10 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
         // 2. Index Notes (both layers)
         Object.keys(notesDb).forEach(subject => {
             Object.keys(notesDb[subject]).forEach(chapter => {
-                const note = notesDb[subject][chapter]; if (!note) return;
-                const layers = note.layers || { detailed: (note.blocks || []) };
+                const note = notesDb[subject][chapter]; if (!note || !note.layers) return;
                 ['short', 'detailed'].forEach(L => {
-                    (layers[L] || []).forEach((block, idx) => {
-                        const txt = (block.title || '') + ' ' + String(block.html || block.content || '').replace(/<[^>]+>/g, ' ');
+                    (note.layers[L] || []).forEach((block, idx) => {
+                        const txt = (block.title || '') + ' ' + String(block.html || '').replace(/<[^>]+>/g, ' ');
                         globalSearchCache.push({ type: 'note', subject, topic: chapter, blockId: L + '_' + idx, title: block.title || chapter, content: txt.slice(0, 300), searchStr: txt.toLowerCase() });
                     });
                 });
@@ -3287,10 +3274,10 @@ window.addEventListener('online', () => {
                         </div>`;
                 } else if(item.type === 'note') {
                     resultsHTML += `
-                        <div onclick="deepLinkToNote('${item.subject.replace(/'/g, "\\'")}', '${item.topic.replace(/'/g, "\\'")}', '${item.blockId}')" class="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-lg hover:border-fuchsia-400 transition-all cursor-pointer relative overflow-hidden mt-4 group">
+                        <div onclick="openNoteFromSearch('${item.subject.replace(/'/g, "\\'")}', '${item.topic.replace(/'/g, "\\'")}', '${item.blockId}')" class="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-lg hover:border-fuchsia-400 transition-all cursor-pointer relative overflow-hidden mt-4 group">
                             <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-fuchsia-500"></div>
                             <div class="flex justify-between items-start mb-3">
-                                <span class="text-[10px] font-black uppercase tracking-widest bg-fuchsia-50 text-fuchsia-600 dark:bg-fuchsia-900/30 dark:text-fuchsia-400 px-3 py-1 rounded border border-fuchsia-100 dark:border-fuchsia-800/50">🧠 Vault Note • ${item.subject} > ${item.topic}</span>
+                                <span class="text-[10px] font-black uppercase tracking-widest bg-fuchsia-50 text-fuchsia-600 dark:bg-fuchsia-900/30 dark:text-fuchsia-400 px-3 py-1 rounded border border-fuchsia-100 dark:border-fuchsia-800/50">📓 Note • ${item.subject} > ${item.topic}</span>
                                 <span class="text-xl group-hover:translate-x-1 transition-transform opacity-50">→</span>
                             </div>
                             <div class="text-sm font-black text-slate-800 dark:text-slate-200 mb-2 uppercase">${highlightText(item.title, term)}</div>
@@ -3325,10 +3312,9 @@ body.nprint{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#15
 table{width:100%;border-collapse:collapse;font-size:12px;}td,th{border:1px solid #cbd5e1;padding:5px 7px;text-align:left;}
 `;
 
-/* ===================== NOTES ENGINE (replaces Mastery Vault) ===================== */
-let activeNoteSubject = null, activeNoteChapter = null, activeLayer = 'short', noteEditMode = false;
+/* ===================== NOTES ENGINE ===================== */
+let NOTE_S = null, NOTE_C = null, NOTE_LAYER = 'short', NOTE_EDIT = false;
 const escN = (s) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-const stripTags = (s) => String(s || '').replace(/<[^>]+>/g, ' ');
 
 function sanitizeNoteHTML(s) {
     if (!s) return '';
@@ -3338,82 +3324,60 @@ function sanitizeNoteHTML(s) {
         .replace(/\son\w+\s*=\s*'[^']*'/gi, '')
         .replace(/javascript:/gi, '');
 }
-
 function normBlock(b) {
     return { type: (b && b.type) || 'text', title: (b && b.title) || '', html: (b && (b.html || b.content)) || '', pyq: !!(b && b.pyq) };
 }
-
-window.migrateNote = (n) => {
-    if (!n) return { tag2: '', layers: { short: [], detailed: [] }, masteredBlocks: [], source: 'user', verified: false, updatedAt: Date.now() };
-    if (!n.layers) {
-        const old = Array.isArray(n.blocks) ? n.blocks.map(normBlock) : [];
-        n.layers = { short: [], detailed: old };
-    }
-    if (!Array.isArray(n.layers.short)) n.layers.short = [];
-    if (!Array.isArray(n.layers.detailed)) n.layers.detailed = [];
-    if (!Array.isArray(n.masteredBlocks)) n.masteredBlocks = [];
-    if (!n.tag2) n.tag2 = n.tag2_target || activeNoteChapter || '';
-    if (typeof n.verified === 'undefined') n.verified = false;
-    if (!n.source) n.source = 'user';
-    return n;
-};
+function getNote() { return (NOTE_S && NOTE_C && notesDb[NOTE_S]) ? notesDb[NOTE_S][NOTE_C] : null; }
+function noteLayers(note) {
+    if (!note.layers) note.layers = { short: [], detailed: [] };
+    if (!Array.isArray(note.layers.short)) note.layers.short = [];
+    if (!Array.isArray(note.layers.detailed)) note.layers.detailed = [];
+    return note.layers;
+}
 
 function blockClass(t) {
     const m = { trap: 'nb nb-trap', shortcut: 'nb nb-shortcut', callout: 'nb nb-callout', mnemonic: 'nb nb-mnemonic', selftest: 'nb nb-selftest', stat: 'nb nb-stat', oneliner: 'nb nb-oneliner', heading: 'nb nb-heading' };
     return m[t] || 'nb';
 }
-
 function renderBlocksHTML(note, layer, opts) {
     opts = opts || {};
     const blocks = (note.layers && note.layers[layer]) || [];
-    if (!blocks.length) return '<div class="text-center text-slate-400 font-bold py-16 border-2 border-dashed rounded-2xl border-slate-200 dark:border-slate-700">No ' + layer + ' note yet. Click Edit to add blocks.</div>';
+    if (!blocks.length) return '<div class="text-center text-slate-400 font-bold py-16 border-2 border-dashed rounded-2xl border-slate-200 dark:border-slate-700">No ' + layer + ' note yet.' + (opts.print ? '' : ' Click Edit to add blocks.') + '</div>';
     let html = '';
     blocks.forEach((b, idx) => {
-        const mastered = (layer === 'detailed' && note.masteredBlocks.indexOf(idx) !== -1);
         const pyqRing = b.pyq ? ' nb-pyq' : '';
-        const masterCls = mastered ? ' nb-mastered' : '';
-        const editAttr = (opts.edit ? ' contenteditable="true"' : '');
-        html += '<div id="nb-' + idx + '" class="' + blockClass(b.type) + pyqRing + masterCls + '">';
-        if (b.title) {
-            html += '<div class="nb-title">' + b.title;
-            if (layer === 'detailed' && !opts.edit && !opts.print) {
-                html += '<button onclick="toggleBlockMastery(' + idx + ')" class="nb-master ' + (mastered ? 'on' : '') + '" title="Toggle mastered">\u2714</button>';
-            }
-            html += '</div>';
-        }
-        html += '<div class="nb-body"' + editAttr + ' data-idx="' + idx + '">' + parseNeuralBlur(b.html || '') + '</div>';
-        if (opts.edit) {
-            html += '<div class="nb-tools"><button onclick="moveBlock(' + idx + ',-1)">\u2191</button><button onclick="moveBlock(' + idx + ',1)">\u2193</button><button onclick="toggleBlockPyq(' + idx + ')">\uD83D\uDD34</button><button onclick="deleteBlock(' + idx + ')">\uD83D\uDDD1\uFE0F</button></div>';
-        }
+        const editAttr = opts.edit ? ' contenteditable="true"' : '';
+        html += '<div id="nb-' + idx + '" class="' + blockClass(b.type) + pyqRing + '">';
+        if (b.title) html += '<div class="nb-title">' + b.title + '</div>';
+        html += '<div class="nb-body"' + editAttr + ' data-idx="' + idx + '">' + (b.html || '') + '</div>';
+        if (opts.edit) html += '<div class="nb-tools"><button onclick="moveBlock(' + idx + ',-1)">\u2191</button><button onclick="moveBlock(' + idx + ',1)">\u2193</button><button onclick="toggleBlockPyq(' + idx + ')">\uD83D\uDD34</button><button onclick="deleteBlock(' + idx + ')">\uD83D\uDDD1\uFE0F</button></div>';
         html += '</div>';
     });
     return html;
 }
 
-window.openNotesVault = () => {
+window.openNotes = () => {
     showScreen('notes');
-    renderNotesSidebar();
-    renderNeuralHeatmap();
-    if (activeNoteSubject && activeNoteChapter && notesDb[activeNoteSubject] && notesDb[activeNoteSubject][activeNoteChapter]) {
-        renderNoteCanvas(activeNoteSubject, activeNoteChapter);
-    } else {
+    renderNoteTree();
+    if (NOTE_S && NOTE_C && notesDb[NOTE_S] && notesDb[NOTE_S][NOTE_C]) renderNote();
+    else {
         const c = document.getElementById('notes-canvas');
-        if (c) c.innerHTML = '<div class="text-center text-slate-400 font-bold py-32 uppercase tracking-widest text-xs border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl">Select a chapter from the tree, or import a Notes JSON.</div>';
+        if (c) c.innerHTML = '<div class="text-center text-slate-400 font-bold py-32 uppercase tracking-widest text-xs border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl">Select a chapter, or import a Notes JSON.</div>';
     }
 };
 
-window.triggerNoteImport = () => { requireAuth(() => { document.getElementById('global-file-input').click(); }); };
+window.importNotesFile = () => { requireAuth(() => { document.getElementById('global-file-input').click(); }); };
 
-window.renderNotesSidebar = () => {
+window.renderNoteTree = () => {
     const tree = document.getElementById('notes-tree'); if (!tree) return;
     let html = '';
     Object.keys(notesDb).sort().forEach(subject => {
         let chaps = '';
         Object.keys(notesDb[subject]).sort().forEach(ch => {
-            const active = (activeNoteSubject === subject && activeNoteChapter === ch);
+            const active = (NOTE_S === subject && NOTE_C === ch);
             const cls = active ? 'bg-fuchsia-50 border-fuchsia-200 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:border-fuchsia-800/50 dark:text-fuchsia-300' : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800';
             chaps += '<div class="flex items-center group/top px-3 py-2 mt-1 rounded-lg border cursor-pointer transition-all ' + cls + '">' +
-                '<div class="flex-1 font-bold text-xs truncate" onclick="renderNoteCanvas(\'' + escN(subject) + '\',\'' + escN(ch) + '\')">' + ch + '</div>' +
+                '<div class="flex-1 font-bold text-xs truncate" onclick="openNote(\'' + escN(subject) + '\',\'' + escN(ch) + '\')">' + ch + '</div>' +
                 '<button onclick="deleteNoteChapter(\'' + escN(subject) + '\',\'' + escN(ch) + '\')" class="opacity-0 group-hover/top:opacity-100 text-slate-400 hover:text-red-500 ml-2" title="Delete chapter">\uD83D\uDDD1\uFE0F</button></div>';
         });
         html += '<div class="mb-4"><div class="flex justify-between items-center bg-slate-100 dark:bg-slate-800/50 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 group/sub">' +
@@ -3425,117 +3389,55 @@ window.renderNotesSidebar = () => {
     tree.innerHTML = html;
 };
 
-window.toggleBlur = (el) => { el.classList.toggle('revealed'); };
-function parseNeuralBlur(text) { if (!text) return ''; return String(text).replace(/\[hide\]([\s\S]*?)\[\/hide\]/g, '<span class="neural-blur" onclick="toggleBlur(this)">$1</span>'); }
-window.parseNeuralBlur = parseNeuralBlur;
+window.openNote = (s, c) => { NOTE_S = s; NOTE_C = c; NOTE_EDIT = false; renderNote(); };
+window.setNoteLayer = (l) => { NOTE_LAYER = l; NOTE_EDIT = false; renderNote(); };
 
-window.setNoteLayer = (l) => { activeLayer = l; noteEditMode = false; renderNoteCanvas(activeNoteSubject, activeNoteChapter); };
-
-window.toggleBlockMastery = (idx) => {
-    const note = notesDb[activeNoteSubject][activeNoteChapter];
-    const i = note.masteredBlocks.indexOf(idx);
-    if (i === -1) note.masteredBlocks.push(idx); else note.masteredBlocks.splice(i, 1);
-    saveData(); renderNoteCanvas(activeNoteSubject, activeNoteChapter); renderNeuralHeatmap();
-};
-
-window.enterEditMode = () => { noteEditMode = true; renderNoteCanvas(activeNoteSubject, activeNoteChapter, null, true); };
-window.cancelEdit = () => { noteEditMode = false; renderNoteCanvas(activeNoteSubject, activeNoteChapter); };
-window.fmtNote = (cmd) => { document.execCommand(cmd, false, null); };
-window.noteMark = (cls) => {
-    const sel = window.getSelection(); if (!sel.rangeCount || sel.isCollapsed) return;
-    const span = document.createElement('span'); span.className = cls;
-    try { const r = sel.getRangeAt(0); span.appendChild(r.extractContents()); r.insertNode(span); sel.removeAllRanges(); } catch (e) {}
-};
-window.addBlock = (type) => {
-    const note = notesDb[activeNoteSubject][activeNoteChapter];
-    const titleMap = { text: '', trap: '\u26A0 Trap', shortcut: 'Shortcut', selftest: 'Self-test', mnemonic: 'Mnemonic', callout: 'Note' };
-    note.layers[activeLayer].push({ type: type, title: (titleMap[type] !== undefined ? titleMap[type] : type), html: 'New content\u2026', pyq: false });
-    renderNoteCanvas(activeNoteSubject, activeNoteChapter, null, true);
-};
-window.deleteBlock = (idx) => {
-    const note = notesDb[activeNoteSubject][activeNoteChapter];
-    note.layers[activeLayer].splice(idx, 1);
-    note.masteredBlocks = note.masteredBlocks.filter(x => x !== idx).map(x => x > idx ? x - 1 : x);
-    renderNoteCanvas(activeNoteSubject, activeNoteChapter, null, true);
-};
-window.moveBlock = (idx, dir) => {
-    const arr = notesDb[activeNoteSubject][activeNoteChapter].layers[activeLayer];
-    const j = idx + dir; if (j < 0 || j >= arr.length) return;
-    const t = arr[idx]; arr[idx] = arr[j]; arr[j] = t;
-    renderNoteCanvas(activeNoteSubject, activeNoteChapter, null, true);
-};
-window.toggleBlockPyq = (idx) => {
-    const arr = notesDb[activeNoteSubject][activeNoteChapter].layers[activeLayer];
-    if (arr[idx]) arr[idx].pyq = !arr[idx].pyq;
-    renderNoteCanvas(activeNoteSubject, activeNoteChapter, null, true);
-};
-window.saveNoteEdits = () => {
-    const note = notesDb[activeNoteSubject][activeNoteChapter];
-    document.querySelectorAll('#notes-canvas .nb-body[contenteditable]').forEach(el => {
-        const i = parseInt(el.getAttribute('data-idx'), 10);
-        if (note.layers[activeLayer][i]) note.layers[activeLayer][i].html = sanitizeNoteHTML(el.innerHTML);
-    });
-    const tEl = document.querySelector('#notes-canvas [data-title="1"]');
-    if (tEl) {
-        const newTitle = tEl.textContent.trim();
-        if (newTitle && newTitle !== activeNoteChapter) {
-            notesDb[activeNoteSubject][newTitle] = note; delete notesDb[activeNoteSubject][activeNoteChapter]; activeNoteChapter = newTitle; note.tag2 = newTitle;
-        }
-    }
-    note.updatedAt = Date.now(); note.source = 'user'; note.verified = true;
-    noteEditMode = false; saveData(); rebuildSearchCache(); renderNoteCanvas(activeNoteSubject, activeNoteChapter); renderNeuralHeatmap();
-};
-
-window.renderNoteCanvas = (subject, chapter, targetBlockId, keepEdit) => {
-    if (subject) activeNoteSubject = subject;
-    if (chapter) activeNoteChapter = chapter;
-    if (!keepEdit) noteEditMode = false;
-    if (!notesDb[activeNoteSubject] || !notesDb[activeNoteSubject][activeNoteChapter]) return;
-    const note = migrateNote(notesDb[activeNoteSubject][activeNoteChapter]);
-    notesDb[activeNoteSubject][activeNoteChapter] = note;
-    renderNotesSidebar();
+window.renderNote = (targetBlockId) => {
+    const note = getNote(); if (!note) return;
+    noteLayers(note);
+    renderNoteTree();
     const canvas = document.getElementById('notes-canvas'); if (!canvas) return;
 
-    const verChip = note.verified
-        ? '<span class="nchip nchip-ok">\u2713 verified</span>'
-        : '<span class="nchip nchip-warn">' + (note.source === 'ai' ? 'AI-draft \u00B7 verify' : 'unverified') + '</span>';
-    const tS = activeLayer === 'short' ? 'active' : '';
-    const tD = activeLayer === 'detailed' ? 'active' : '';
-    const actions = noteEditMode
-        ? '<button class="nbtn nbtn-save" onclick="saveNoteEdits()">\uD83D\uDCBE Save</button><button class="nbtn" onclick="cancelEdit()">\u2715 Cancel</button>'
-        : '<button class="nbtn" onclick="enterEditMode()">\u270F\uFE0F Edit</button><button class="nbtn" onclick="printNotes(\'' + activeLayer + '\')">\uD83D\uDDA8\uFE0F Print</button><button class="nbtn" onclick="printNotes(\'both\')">\uD83D\uDDA8\uFE0F Both</button>';
+    const verChip = note.verified ? '<span class="nchip nchip-ok">\u2713 verified</span>' : '<span class="nchip nchip-warn">' + (note.source === 'ai' ? 'AI-draft \u00B7 verify' : 'unverified') + '</span>';
+    const tS = NOTE_LAYER === 'short' ? 'active' : '';
+    const tD = NOTE_LAYER === 'detailed' ? 'active' : '';
+    const actions = NOTE_EDIT
+        ? '<button class="nbtn nbtn-save" onclick="saveNote()">\uD83D\uDCBE Save</button><button class="nbtn" onclick="cancelNoteEdit()">\u2715 Cancel</button>'
+        : '<button class="nbtn" onclick="enterNoteEdit()">\u270F\uFE0F Edit</button><button class="nbtn" onclick="printNotes(\'' + NOTE_LAYER + '\')">\uD83D\uDDA8\uFE0F Print</button><button class="nbtn" onclick="printNotes(\'both\')">\uD83D\uDDA8\uFE0F Both</button>';
 
     let head = '<div class="nhead">' +
-        '<div class="text-[10px] font-black uppercase tracking-widest text-fuchsia-500 mb-1">' + activeNoteSubject + '</div>' +
-        '<h1 class="nh1"' + (noteEditMode ? ' contenteditable="true" data-title="1"' : '') + '>' + activeNoteChapter + '</h1>' +
+        '<div class="text-[10px] font-black uppercase tracking-widest text-fuchsia-500 mb-1">' + NOTE_S + '</div>' +
+        '<h1 class="nh1"' + (NOTE_EDIT ? ' contenteditable="true" data-title="1"' : '') + '>' + NOTE_C + '</h1>' +
         '<div class="nbar"><div class="nlayer"><button class="' + tS + '" onclick="setNoteLayer(\'short\')">\u26A1 Short</button><button class="' + tD + '" onclick="setNoteLayer(\'detailed\')">\uD83D\uDCD6 Detailed</button></div>' +
         verChip + '<div class="nactions">' + actions + '</div></div></div>';
 
-    let toolbar = noteEditMode
+    let toolbar = NOTE_EDIT
         ? '<div class="netoolbar"><button onclick="fmtNote(\'bold\')"><b>B</b></button><button onclick="fmtNote(\'insertUnorderedList\')">\u2022 List</button><button onclick="noteMark(\'hl\')">\uD83D\uDD8D\uFE0F Highlight</button><button onclick="noteMark(\'pyq\')" style="color:#DC2626">\uD83D\uDD34 PYQ red</button><span class="nsep"></span><button onclick="addBlock(\'text\')">\uFF0B Text</button><button onclick="addBlock(\'trap\')">\uFF0B Trap</button><button onclick="addBlock(\'selftest\')">\uFF0B Self-test</button></div>'
         : '';
 
     let mock = '';
-    let matchCount = 0;
-    const tg = note.tag2 || activeNoteChapter;
-    Object.keys(db).forEach(qid => {
-        if (db[qid] && db[qid].title && !db[qid].title.includes('\uD83C\uDFAF') && !db[qid].title.includes('Master Mock') && !db[qid].title.includes('SRS') && Array.isArray(db[qid].questions)) {
-            db[qid].questions.forEach(q => {
-                const qTags = Array.isArray(q.tags) ? q.tags : (q.tags ? [String(q.tags)] : []);
-                const t1 = qTags.length > 0 ? qTags[0] : (q.subject || 'Miscellaneous');
-                const t2 = qTags.length > 1 ? qTags[1] : t1;
-                if (t1 === activeNoteSubject && t2 === tg) matchCount++;
-            });
+    if (!NOTE_EDIT) {
+        let matchCount = 0;
+        const tg = note.tag2 || NOTE_C;
+        Object.keys(db).forEach(qid => {
+            if (db[qid] && db[qid].title && !db[qid].title.includes('\uD83C\uDFAF') && !db[qid].title.includes('Master Mock') && !db[qid].title.includes('SRS') && Array.isArray(db[qid].questions)) {
+                db[qid].questions.forEach(q => {
+                    const qTags = Array.isArray(q.tags) ? q.tags : (q.tags ? [String(q.tags)] : []);
+                    const t1 = qTags.length > 0 ? qTags[0] : (q.subject || 'Miscellaneous');
+                    const t2 = qTags.length > 1 ? qTags[1] : t1;
+                    if (t1 === NOTE_S && t2 === tg) matchCount++;
+                });
+            }
+        });
+        if (matchCount > 0) {
+            mock = '<div class="mt-12 bg-gradient-to-r from-fuchsia-600 to-purple-700 rounded-3xl p-7 text-center shadow-lg border border-fuchsia-500/50">' +
+                '<div class="text-[10px] font-black text-white/70 uppercase tracking-widest mb-1">PYQ Pool</div>' +
+                '<h3 class="text-xl font-black text-white mb-5 tracking-tight">' + matchCount + ' questions tagged \u201C' + tg + '\u201D in your hub.</h3>' +
+                '<button onclick="generateTopicMock(\'' + escN(NOTE_S) + '\',\'' + escN(tg) + '\')" class="bg-white text-fuchsia-700 font-black px-7 py-3 rounded-xl shadow-lg hover:scale-105 transition-transform uppercase tracking-widest text-xs">Launch Targeted Mock</button></div>';
         }
-    });
-    if (matchCount > 0 && !noteEditMode) {
-        mock = '<div class="mt-12 bg-gradient-to-r from-fuchsia-600 to-purple-700 rounded-3xl p-7 text-center shadow-lg border border-fuchsia-500/50">' +
-            '<div class="text-[10px] font-black text-white/70 uppercase tracking-widest mb-1">PYQ Pool</div>' +
-            '<h3 class="text-xl font-black text-white mb-5 tracking-tight">' + matchCount + ' questions tagged \u201C' + tg + '\u201D in your hub.</h3>' +
-            '<button onclick="generateTopicMock(\'' + escN(activeNoteSubject) + '\',\'' + escN(tg) + '\')" class="bg-white text-fuchsia-700 font-black px-7 py-3 rounded-xl shadow-lg hover:scale-105 transition-transform uppercase tracking-widest text-xs">Launch Targeted Mock</button></div>';
     }
 
-    canvas.innerHTML = head + toolbar + '<div class="nblocks">' + renderBlocksHTML(note, activeLayer, { edit: noteEditMode }) + '</div>' + mock;
+    canvas.innerHTML = head + toolbar + '<div class="nblocks">' + renderBlocksHTML(note, NOTE_LAYER, { edit: NOTE_EDIT }) + '</div>' + mock;
 
     if (targetBlockId !== null && targetBlockId !== undefined) {
         setTimeout(() => {
@@ -3546,13 +3448,50 @@ window.renderNoteCanvas = (subject, chapter, targetBlockId, keepEdit) => {
     }
 };
 
+window.enterNoteEdit = () => { NOTE_EDIT = true; renderNote(); };
+window.cancelNoteEdit = () => { NOTE_EDIT = false; renderNote(); };
+window.fmtNote = (cmd) => { document.execCommand(cmd, false, null); };
+window.noteMark = (cls) => {
+    const sel = window.getSelection(); if (!sel.rangeCount || sel.isCollapsed) return;
+    const span = document.createElement('span'); span.className = cls;
+    try { const r = sel.getRangeAt(0); span.appendChild(r.extractContents()); r.insertNode(span); sel.removeAllRanges(); } catch (e) {}
+};
+window.addBlock = (type) => {
+    const note = getNote(); if (!note) return;
+    const titleMap = { text: '', trap: '\u26A0 Trap', shortcut: 'Shortcut', selftest: 'Self-test', mnemonic: 'Mnemonic', callout: 'Note' };
+    noteLayers(note)[NOTE_LAYER].push({ type: type, title: (titleMap[type] !== undefined ? titleMap[type] : type), html: 'New content\u2026', pyq: false });
+    renderNote();
+};
+window.deleteBlock = (idx) => { const note = getNote(); if (!note) return; noteLayers(note)[NOTE_LAYER].splice(idx, 1); renderNote(); };
+window.moveBlock = (idx, dir) => {
+    const note = getNote(); if (!note) return;
+    const arr = noteLayers(note)[NOTE_LAYER]; const j = idx + dir; if (j < 0 || j >= arr.length) return;
+    const t = arr[idx]; arr[idx] = arr[j]; arr[j] = t; renderNote();
+};
+window.toggleBlockPyq = (idx) => { const note = getNote(); if (!note) return; const arr = noteLayers(note)[NOTE_LAYER]; if (arr[idx]) arr[idx].pyq = !arr[idx].pyq; renderNote(); };
+window.saveNote = () => {
+    const note = getNote(); if (!note) return;
+    const arr = noteLayers(note)[NOTE_LAYER];
+    document.querySelectorAll('#notes-canvas .nb-body[contenteditable]').forEach(el => {
+        const i = parseInt(el.getAttribute('data-idx'), 10);
+        if (arr[i]) arr[i].html = sanitizeNoteHTML(el.innerHTML);
+    });
+    const tEl = document.querySelector('#notes-canvas [data-title="1"]');
+    if (tEl) {
+        const nt = tEl.textContent.trim();
+        if (nt && nt !== NOTE_C) { notesDb[NOTE_S][nt] = note; delete notesDb[NOTE_S][NOTE_C]; NOTE_C = nt; note.tag2 = nt; }
+    }
+    note.updatedAt = Date.now(); note.source = 'user'; note.verified = true;
+    NOTE_EDIT = false; saveData(); rebuildSearchCache(); renderNote();
+};
+
 window.deleteNoteChapter = (subject, chapter) => {
     requireAuth(() => {
         if (confirm('Permanently delete the note \u201C' + chapter + '\u201D?')) {
             delete notesDb[subject][chapter];
             if (Object.keys(notesDb[subject]).length === 0) delete notesDb[subject];
-            if (activeNoteChapter === chapter) { activeNoteChapter = null; activeNoteSubject = null; }
-            saveData(); rebuildSearchCache(); openNotesVault();
+            if (NOTE_C === chapter) { NOTE_C = null; NOTE_S = null; }
+            saveData(); rebuildSearchCache(); openNotes();
         }
     });
 };
@@ -3560,54 +3499,35 @@ window.deleteNoteSubject = (subject) => {
     requireAuth(() => {
         if (confirm('Delete the ENTIRE \u201C' + subject + '\u201D folder and all notes inside?')) {
             delete notesDb[subject];
-            if (activeNoteSubject === subject) { activeNoteChapter = null; activeNoteSubject = null; }
-            saveData(); rebuildSearchCache(); openNotesVault();
+            if (NOTE_S === subject) { NOTE_C = null; NOTE_S = null; }
+            saveData(); rebuildSearchCache(); openNotes();
         }
     });
 };
-window.deepLinkToNote = (subject, topic, blockId) => {
-    if (blockId && String(blockId).indexOf('short_') === 0) activeLayer = 'short'; else if (blockId && String(blockId).indexOf('detailed_') === 0) activeLayer = 'detailed';
-    showScreen('notes'); renderNoteCanvas(subject, topic, blockId);
+window.openNoteFromSearch = (subject, chapter, blockId) => {
+    if (blockId && String(blockId).indexOf('short_') === 0) NOTE_LAYER = 'short';
+    else if (blockId && String(blockId).indexOf('detailed_') === 0) NOTE_LAYER = 'detailed';
+    NOTE_S = subject; NOTE_C = chapter; NOTE_EDIT = false;
+    showScreen('notes'); renderNoteTree(); renderNote(blockId);
 };
 
-let isMambaFocus = false;
-window.toggleMambaFocus = () => {
-    isMambaFocus = !isMambaFocus;
+let NOTE_FOCUS = false;
+window.toggleNotesFocus = () => {
+    NOTE_FOCUS = !NOTE_FOCUS;
     const sidebar = document.getElementById('notes-sidebar');
-    const btn = document.getElementById('mamba-focus-btn');
-    if (isMambaFocus) { sidebar.style.display = 'none'; btn.classList.add('bg-fuchsia-500', 'text-white', 'border-fuchsia-600'); btn.classList.remove('bg-slate-100', 'dark:bg-slate-800', 'text-slate-500'); }
+    const btn = document.getElementById('notes-focus-btn');
+    if (NOTE_FOCUS) { sidebar.style.display = 'none'; btn.classList.add('bg-fuchsia-500', 'text-white', 'border-fuchsia-600'); btn.classList.remove('bg-slate-100', 'dark:bg-slate-800', 'text-slate-500'); }
     else { sidebar.style.display = 'flex'; btn.classList.remove('bg-fuchsia-500', 'text-white', 'border-fuchsia-600'); btn.classList.add('bg-slate-100', 'dark:bg-slate-800', 'text-slate-500'); }
 };
 
-window.renderNeuralHeatmap = () => {
-    const mapDiv = document.getElementById('notes-heatmap'); if (!mapDiv) return;
-    let html = '';
-    Object.keys(notesDb).sort().forEach(sub => {
-        Object.keys(notesDb[sub]).sort().forEach(ch => {
-            const note = migrateNote(notesDb[sub][ch]);
-            const total = note.layers.detailed.length;
-            const mastered = note.masteredBlocks.length;
-            let cc = 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700';
-            if (total > 0 && mastered > 0 && mastered < total) cc = 'bg-amber-400 border-amber-500 shadow-[0_0_8px_rgba(251,191,36,0.5)]';
-            if (total > 0 && mastered === total) cc = 'bg-emerald-500 border-emerald-600 shadow-[0_0_10px_rgba(16,185,129,0.8)]';
-            html += '<div onclick="renderNoteCanvas(\'' + escN(sub) + '\',\'' + escN(ch) + '\')" class="w-4 h-4 rounded-[3px] border cursor-pointer hover:scale-150 transition-transform ' + cc + '" title="' + sub + ' > ' + ch + ' (' + mastered + '/' + total + ' mastered)"></div>';
-        });
-    });
-    if (!html) html = '<div class="text-[10px] text-slate-500 font-bold uppercase">No notes yet</div>';
-    mapDiv.innerHTML = html;
-};
-
 window.printNotes = (mode) => {
-    if (!activeNoteSubject || !activeNoteChapter) return alert('Open a note first.');
-    const note = migrateNote(notesDb[activeNoteSubject][activeNoteChapter]);
+    const note = getNote(); if (!note) return alert('Open a note first.');
+    noteLayers(note);
     const layers = mode === 'both' ? ['short', 'detailed'] : [mode];
-    let body = '<div class="np-sub">' + activeNoteSubject + '</div><h1 class="np-h1">' + activeNoteChapter + '</h1>';
-    layers.forEach(L => {
-        body += '<div class="np-layer">' + (L === 'short' ? '\u26A1 Short note' : '\uD83D\uDCD6 Detailed note') + '</div>';
-        body += renderBlocksHTML(note, L, { print: true });
-    });
+    let body = '<div class="np-sub">' + NOTE_S + '</div><h1 class="np-h1">' + NOTE_C + '</h1>';
+    layers.forEach(L => { body += '<div class="np-layer">' + (L === 'short' ? '\u26A1 Short note' : '\uD83D\uDCD6 Detailed note') + '</div>' + renderBlocksHTML(note, L, { print: true }); });
     const w = window.open('', '_blank');
-    w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + activeNoteChapter + '</title><style>' + NOTES_PRINT_CSS + '</style></head><body class="nprint">' + body + '</body></html>');
+    w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + NOTE_C + '</title><style>' + NOTES_PRINT_CSS + '</style></head><body class="nprint">' + body + '</body></html>');
     w.document.close();
     setTimeout(() => { try { w.focus(); w.print(); } catch (e) {} }, 350);
 };
@@ -6716,26 +6636,23 @@ window.printNotes = (mode) => {
                 try {
                     const importedData = JSON.parse(event.target.result);
                     
-                    // NOTES ENGINE — two-layer notes import (new + legacy)
-                    if (importedData.type === 'note' || importedData.type === 'vault_note' || importedData.layers || importedData.short || importedData.detailed || importedData.blocks) {
+                    // NOTES — two-layer note import (type:"note" only)
+                    if (importedData.type === 'note') {
                         const subj = importedData.subject;
-                        const ch = importedData.chapter || importedData.topic;
+                        const ch = importedData.chapter;
                         if (!subj || !ch) { alert("\u274C Invalid Notes JSON (need subject + chapter)."); return; }
                         if (!notesDb[subj]) notesDb[subj] = {};
-                        const ex = notesDb[subj][ch] || {};
-                        const lay = importedData.layers || {};
                         const norm = (a) => (Array.isArray(a) ? a : []).map(b => ({ type: (b && b.type) || 'text', title: (b && b.title) || '', html: (b && (b.html || b.content)) || '', pyq: !!(b && b.pyq) }));
                         notesDb[subj][ch] = {
                             tag2: importedData.tag2 || ch,
                             source: importedData.source || 'ai',
                             verified: !!importedData.verified,
-                            masteredBlocks: ex.masteredBlocks || [],
-                            layers: { short: norm(importedData.short || lay.short), detailed: norm(importedData.detailed || lay.detailed || importedData.blocks) },
+                            layers: { short: norm(importedData.short), detailed: norm(importedData.detailed) },
                             updatedAt: Date.now()
                         };
                         saveData(); rebuildSearchCache();
                         alert("\u2705 Notes imported: " + subj + " > " + ch);
-                        if (!document.getElementById('screen-notes').classList.contains('hidden')) { renderNotesSidebar(); renderNeuralHeatmap(); }
+                        if (!document.getElementById('screen-notes').classList.contains('hidden')) { renderNoteTree(); }
                     } 
                     // Otherwise it's a Standard Quiz JSON
                     else {
