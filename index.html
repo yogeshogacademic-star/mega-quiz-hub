@@ -2233,7 +2233,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
         // Load SRS audit log (debugging record)
         try { window.srsAuditLog = JSON.parse(localStorage.getItem('srsAuditLog')||'[]'); } catch(e){ window.srsAuditLog = []; }
         if (localMistakes) mistakesDb = localMistakes;
-        if (localNotes) notesDb = localNotes;
+        notesDb = {}; try { await idbKeyval.del('megaQuizNotes_v1'); } catch(e){} /* notes feature removed: purge old notes data */
         
         if(!Array.isArray(historyDb)) historyDb = [];
         if(!Array.isArray(mistakesDb)) mistakesDb = [];
@@ -2558,17 +2558,8 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
             try { idbKeyval.set('megaQuizMistakes_v5', mistakesDb); } catch(e) {}
         }
 
-        // ── NOTES: merge cloud + local so neither set loses notes ──
-        const cloudNotes = data.notes || {};
-        Object.keys(cloudNotes).forEach(subject => {
-            if (!notesDb[subject]) { notesDb[subject] = cloudNotes[subject]; }
-            else {
-                Object.keys(cloudNotes[subject]).forEach(topic => {
-                    if (!notesDb[subject][topic]) notesDb[subject][topic] = cloudNotes[subject][topic];
-                    // local note wins on conflict — don't overwrite
-                });
-            }
-        });
+        // ── NOTES: feature removed — keep notes empty (ignore cloud notes) ──
+        notesDb = {};
         // ── FLASHCARDS: merge cloud + local (never replace) ──
         try { if (data.fcCards && Array.isArray(data.fcCards)) {
             let localFC = [];
@@ -6408,7 +6399,7 @@ window.addEventListener('online', () => {
                     const data = JSON.parse(event.target.result);
                     if(data.db && data.subjects) {
                         db = data.db; SUBJECTS = data.subjects; historyDb = data.history || []; mistakesDb = data.mistakes || [];
-                        if (data.notes) notesDb = data.notes;
+                        notesDb = {}; /* notes feature removed */
         if (data.syllabusData) { 
             try { 
                 localStorage.setItem('sc_syllabus_v1', JSON.stringify(data.syllabusData));
