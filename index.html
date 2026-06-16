@@ -3343,6 +3343,8 @@ body.nprint{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#15
 .nb-pyq{box-shadow:inset 5px 0 0 #DC2626;}
 .hl{background:#FFE45C;font-weight:800;padding:0 2px;}
 .pyq{color:#DC2626;font-weight:800;}
+.nb-body{overflow-x:auto;}
+.flow{display:block;font-weight:600;line-height:1.7;}
 table{width:100%;border-collapse:collapse;font-size:12px;}td,th{border:1px solid #cbd5e1;padding:5px 7px;text-align:left;}
 `;
 
@@ -3356,32 +3358,29 @@ const NOTE_SPEC = [
 'You are building exam-revision notes for SSC CGL. Subject: {SUBJECT}. Chapter: {CHAPTER}.',
 'Return ONE JSON object only (no prose, no markdown fences) in EXACTLY this schema:',
 '{ "type":"note", "subject":"{SUBJECT}", "chapter":"{CHAPTER}", "source":"ai", "verified":false,',
-'  "short":[ {"type":"...","title":"...","html":"...","pyq":false} ],',
-'  "detailed":[ {"type":"...","title":"...","html":"...","pyq":false} ] }',
+'  "themes":[ {"theme":"...","subthemes":["...","..."]} ],',
+'  "short":[ {"type":"...","title":"...","html":"...","pyq":false,"theme":"...","subtheme":"..."} ],',
+'  "detailed":[ {"type":"...","title":"...","html":"...","pyq":false,"theme":"...","subtheme":"..."} ] }',
 '',
-'TWO LAYERS from ONE source of truth:',
-'- detailed = to LEARN: complete teaching depth, miss nothing examinable.',
-'- short = to REVISE: compression of the detailed (same facts/marks), triggers + devices + self-test, not paragraphs.',
+'PROCESS (follow in this order, plan before writing):',
+'1) THEME TREE FIRST. Split the chapter using Laxmikant section order into theme -> sub-theme, as deep as possible (each sub-theme = one testable unit). Put the tree in "themes".',
+'2) DETAILED layer = to LEARN. Fill every sub-theme. Start each theme with a heading block (its name) so themes are visible sections. Use the BEST structure per fact, and MULTIPLE structures per topic:',
+'   one entity -> slots table (Slot|Value) ; compare 2-3 things -> matrix table ; a process -> flow (callout block, A -> B -> C) ; a classification -> tree (table) ; counts / does NOT count -> is-isnt 2-column table ; dates -> timeline table ; pure numbers -> stat ; confusions -> trap ; active recall -> selftest ; scattered facts -> oneliner.',
+'   NO paragraph blocks in detailed (a one-line caption is the only allowed prose).',
+'3) SHORT layer = to REVISE: the same facts compressed into stat, mnemonic, trap, selftest (Q->A + cloze). Tag every short block theme:"Rapid Revision".',
+'4) PYQ CROSS-CHECK (2 phases, in order): Phase 1 write the best notes. Phase 2 read the CHAPTER PYQs below; any fact a PYQ tests -> wrap it in <span class="pyq">..</span> AND set the block pyq:true; any PYQ fact missing -> add it in the right sub-theme. Reds live in BOTH layers. For data tables put tested values in a star PYQ: line BELOW the table.',
 '',
-'COMPLETENESS (detailed): for a body cover Article(s)+Part, nature, composition, appointment, tenure/retirement-age,',
-'removal, salary, functions, article-by-article, nickname, 1st & current holder, evolution/amendments, governing Act+year.',
-'For a process: every step. For a comparison: every axis. Copy all NUMBERS verbatim, never paraphrase a figure.',
+'BLOCK TYPES (drive the style box): heading, callout, stat, oneliner, mnemonic, shortcut, trap, selftest, table. (Use text only for a one-line caption.)',
 '',
-'VISUAL PRIORITY LANGUAGE inside html (use spans/classes):',
-'- <b>..</b> = important ; <span class="hl">..</span> = highest-yield highlight ;',
-'- <span class="pyq">..</span> = appeared in a PYQ ; prefix must-know lines with the star symbol.',
+'HTML RULES (locked):',
+'- ONE <table> per block. If two tables are needed, make two blocks.',
+'- Expand every acronym on first use. Copy all NUMBERS verbatim, never paraphrase a figure. Never auto-correct ambiguous data.',
+'- Prefix must-know lines with the star symbol in stat/trap/callout/oneliner. <b>..</b> = important. <span class="pyq">..</span> = appeared in a PYQ.',
+'- Do NOT use the yellow highlight class "hl" in structured notes.',
+'- Tag every block with theme + subtheme.',
 '',
-'DEVICE BLOCKS (block "type" drives the style box; put rich markup incl. inline <svg> in "html"):',
-'text, heading, trap, shortcut, callout, mnemonic, stat, oneliner, selftest, table.',
-'Use a device only when the content fits; never clutter. Always: trap box where traps exist, self-test (Q->A + cloze)',
-'on the short note, highlighter on top-yield, expand every acronym on first use.',
-'',
-'PYQ CROSS-CHECK (2 phases, in order): Phase 1 write the best notes first. Phase 2 read the CHAPTER PYQs listed below;',
-'any fact already in your notes that appears in a PYQ -> wrap it in <span class="pyq"> AND set the block pyq:true;',
-'any PYQ fact MISSING -> add it and mark it pyq. Red lives in BOTH layers, prioritized in short.',
-'If no PYQs are listed, skip Phase 2.',
-'',
-'Trap box = type "trap". Self-test = type "selftest". Keep html clean and self-contained.'
+'QUALITY GATE (must hold): every (theme, subtheme) in "themes" has at least one detailed block (0 gaps); schema valid; balanced spans; one table per block; PYQ marks in both layers.',
+'If no PYQs are listed, skip Phase 2.'
 ].join('\n');
 
 /* ---- helpers ---- */
@@ -6726,11 +6725,12 @@ window.closeNotePractice = () => { const ov = document.getElementById('np-overla
                         const ch = importedData.chapter;
                         if (!subj || !ch) { alert("\u274C Invalid Notes JSON (need subject + chapter)."); return; }
                         if (!notesDb[subj]) notesDb[subj] = {};
-                        const norm = (a) => (Array.isArray(a) ? a : []).map(b => ({ type: (b && b.type) || 'text', title: (b && b.title) || '', html: (b && (b.html || b.content)) || '', pyq: !!(b && b.pyq) }));
+                        const norm = (a) => (Array.isArray(a) ? a : []).map(b => ({ type: (b && b.type) || 'text', title: (b && b.title) || '', html: (b && (b.html || b.content)) || '', pyq: !!(b && b.pyq), theme: (b && b.theme) || '', subtheme: (b && b.subtheme) || '' }));
                         notesDb[subj][ch] = {
                             tag2: importedData.tag2 || ch,
                             source: importedData.source || 'ai',
                             verified: !!importedData.verified,
+                            themes: Array.isArray(importedData.themes) ? importedData.themes : [],
                             layers: { short: norm(importedData.short), detailed: norm(importedData.detailed) },
                             updatedAt: Date.now()
                         };
