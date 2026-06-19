@@ -17337,10 +17337,10 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
   'use strict';
 
   const CS_SUBJECTS = {
-    'Quant':     { icon:'📐', slug:'quant',     kind:'formula', parents:['Arithmetic','Advanced Maths','Calculation'] },
-    'GS':        { icon:'🌍', slug:'gs',        kind:'theory',  parents:['Polity','Economics','Geography','Ancient History','Medieval History','Modern History','Static GK','Current Affairs','Art & Culture','Biology','Physics','Chemistry','Science & Technology','Environment & Ecology'] },
-    'English':   { icon:'📖', slug:'english',   kind:'rule',    parents:['English'] },
-    'Reasoning': { icon:'🧠', slug:'reasoning', kind:'concept', parents:['Reasoning'] }
+    'Quant':     { icon:'📐', slug:'quant',     kind:'formula', container:'QUANT MOCK QUESTIONS',     parents:['Arithmetic','Advanced Maths','Calculation'] },
+    'GS':        { icon:'🌍', slug:'gs',        kind:'theory',  container:'GS MOCK QUESTIONS',        parents:['Polity','Economics','Geography','Ancient History','Medieval History','Modern History','Static GK','Current Affairs','Art & Culture','Biology','Physics','Chemistry','Science & Technology','Environment & Ecology'] },
+    'English':   { icon:'📖', slug:'english',   kind:'rule',    container:'ENGLISH MOCK QUESTIONS',   parents:['English'] },
+    'Reasoning': { icon:'🧠', slug:'reasoning', kind:'concept', container:'REASONING MOCK QUESTIONS', parents:['Reasoning'] }
   };
   const KIND_LABEL = { formula:'Formula / Concept', theory:'Theory / Key Points', rule:'Rule / Explanation', concept:'Concept / Trick' };
   const STORE_KEY = '__conceptSheets';
@@ -17350,7 +17350,14 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
   function getDb(){ try { return (typeof db !== 'undefined') ? db : null; } catch(e){ return null; } }
   function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function strip(t){ try { return (typeof window.__mwStripMarker==='function') ? window.__mwStripMarker(t) : String(t||'').replace(/\s*#mock wrong question\s*$/i,''); } catch(e){ return String(t||''); } }
-  function toast(m){ try{ if(typeof mtToast==='function'){ mtToast(m); return; } }catch(e){} console.log('[CS]',m); }
+  function toast(m){
+    try{ if(typeof mtToast==='function'){ mtToast(m); return; } }catch(e){}
+    try{
+      const t=document.createElement('div'); t.textContent=m;
+      t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e293b;color:#f8fafc;padding:10px 20px;border-radius:12px;font-size:13px;font-weight:800;z-index:100001;box-shadow:0 6px 20px rgba(0,0,0,0.4)';
+      document.body.appendChild(t); setTimeout(()=>t.remove(),3000);
+    }catch(e){ console.log('[CS]',m); }
+  }
 
   function store(){
     const d = getDb(); if(!d) return null;
@@ -17381,28 +17388,49 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
   }
   try { window.csEnsureMockSubjects = ensureMockSubjects; } catch(e){}
 
-  // Collect every question from all weekly buckets in this subject's pool, grouped tag0 → tag1.
+  // Collect every question from ALL mock-wrong JSON files in this subject's pool
+  // (matched by the dedicated MOCK-QUESTIONS container OR by the quiz_mock_wrong_<slug>
+  // key — so both your imported weekly JSONs and the in-app capture buckets are included),
+  // grouped tag[0] → tag[1]. Cumulative across every week. Verbatim-duplicate questions
+  // (same text across different weekly files) are collapsed once.
   function collectPool(subject){
     const cfg = CS_SUBJECTS[subject]; const d = getDb() || {};
-    const re = new RegExp('^quiz_mock_wrong_' + cfg.slug + '_wk_');
-    const groups = {}; let total = 0, weeks = 0;
+    const container = cfg.container;
+    const keyRe = new RegExp('^quiz_mock_wrong_' + cfg.slug);
+    const groups = {}; let total = 0, buckets = 0; const matchedKeys = [];
+    const seen = new Set();
     Object.keys(d).forEach(k => {
-      if(!re.test(k)) return;
+      if(k === STORE_KEY) return;
       const quiz = d[k]; if(!quiz || !Array.isArray(quiz.questions)) return;
-      weeks++;
+      const isMatch = (quiz.subject === container) || keyRe.test(k) || (quiz.isMockWrongQuiz === true && quiz.subject === container);
+      if(!isMatch) return;
+      buckets++; matchedKeys.push(k);
       quiz.questions.forEach(q => {
         if(!q || !q.question) return;
+        const cleanQ = strip(q.question);
+        const dk = cleanQ.toLowerCase().replace(/\s+/g,' ').trim();
+        if(seen.has(dk)) return;   // same question repeated across weeks → count once
+        seen.add(dk);
         const t = Array.isArray(q.tags) ? q.tags : [];
         const t0 = (t[0]||'').trim() || 'Untagged';
         const t1 = (t[1]||'').trim() || '(no topic)';
         groups[t0] = groups[t0] || {};
         groups[t0][t1] = groups[t0][t1] || [];
-        groups[t0][t1].push(strip(q.question));
+        groups[t0][t1].push(cleanQ);
         total++;
       });
     });
-    return { groups, total, weeks };
+    return { groups, total, weeks: buckets, keys: matchedKeys };
   }
+
+  // Console diagnostic: csDebugPool('Quant') → see exactly which buckets matched.
+  window.csDebugPool = function(subject){
+    subject = subject || CS.subject || 'Quant';
+    const p = collectPool(subject);
+    console.log('[CS] pool for', subject, '→', p.total, 'unique questions across', p.weeks, 'bucket(s):');
+    p.keys.forEach(k => { const q = getDb()[k]; console.log('   •', k, '|', (q&&q.subject), '|', (q&&q.questions?q.questions.length:0), 'q'); });
+    return p;
+  };
 
   function poolCount(subject){ try { return collectPool(subject).total; } catch(e){ return 0; } }
 
@@ -17510,13 +17538,15 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
   }
 
   window.csCopyPrompt = function(){
-    if(!CS.subject){ toast('Pick a subject first'); return; }
-    const pool = collectPool(CS.subject);
-    if(!pool.total){ toast('No questions in this pool yet'); return; }
-    const p = buildPrompt(CS.subject);
-    if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(p).then(()=>toast('✅ Prompt copied — paste into Claude.ai'), ()=>csFallbackCopy(p));
-    } else csFallbackCopy(p);
+    try{
+      if(!CS.subject){ toast('Pick a subject first'); return; }
+      const pool = collectPool(CS.subject);
+      if(!pool.total){ toast('No questions found in '+CS.subject+' Mock-Wrong pool — run csDebugPool() in console'); return; }
+      const p = buildPrompt(CS.subject);
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(p).then(()=>toast('✅ Prompt copied — paste into Claude.ai'), ()=>csFallbackCopy(p));
+      } else csFallbackCopy(p);
+    }catch(e){ console.error('[CS] copyPrompt failed', e); toast('Error building prompt — check console'); }
   };
   function csFallbackCopy(p){
     try{ const ta=document.createElement('textarea'); ta.value=p; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('✅ Prompt copied'); }
@@ -17541,10 +17571,17 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
       Object.keys(inner).forEach(t1 => {
         let arr = inner[t1];
         if(!Array.isArray(arr)) arr = [arr];
+        const seen = new Set();
         sheet[t0][t1] = arr.map(it => {
           if(typeof it === 'string') return { title:'', body:it };
           return { title:String((it&&it.title)||''), body:String((it&&it.body)|| (it&&it.detail) || '') };
-        }).filter(x => x.title || x.body);
+        }).filter(x => {
+          if(!(x.title || x.body)) return false;
+          // collapse duplicate concepts (same title+body, ignoring case/spacing)
+          const dk = (x.title + '|' + x.body).toLowerCase().replace(/\s+/g,' ').trim();
+          if(seen.has(dk)) return false;
+          seen.add(dk); return true;
+        });
       });
     });
     const s = store(); if(!s){ toast('DB not loaded'); return; }
