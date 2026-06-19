@@ -967,7 +967,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                     </button>
                     <button onclick="openFactSheet()" class="bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-transform hover:-translate-y-1 border border-emerald-400 flex items-center gap-2">📋 Fact Sheet</button>
                     <button onclick="showScreen('mock-tracker')" class="bg-gradient-to-br from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(14,165,233,0.5)] transition-transform hover:-translate-y-1 border border-sky-400 flex items-center gap-2">📝 Mock Tracker</button>
-                    <button onclick="spqOpen()" class="bg-gradient-to-br from-fuchsia-500 to-purple-600 hover:from-fuchsia-400 hover:to-purple-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(217,70,239,0.5)] transition-transform hover:-translate-y-1 border border-fuchsia-400 flex items-center gap-2">📸 Spotted Questions</button>
+                    <button onclick="csOpen()" class="bg-gradient-to-br from-fuchsia-500 to-purple-600 hover:from-fuchsia-400 hover:to-purple-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(217,70,239,0.5)] transition-transform hover:-translate-y-1 border border-fuchsia-400 flex items-center gap-2">📄 Concept Sheet</button>
                     <button onclick="openSyllabusCommand()" class="bg-gradient-to-br from-violet-500 to-purple-600 hover:from-violet-400 hover:to-purple-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(139,92,246,0.5)] transition-transform hover:-translate-y-1 border border-violet-400 flex items-center gap-2">📚 Syllabus</button>
                     <button onclick="showScreen('planner')" class="bg-gradient-to-br from-teal-500 to-cyan-600 hover:from-teal-400 hover:to-cyan-500 text-white font-black px-5 py-4 rounded-2xl shadow-[0_0_20px_rgba(20,184,166,0.5)] transition-transform hover:-translate-y-1 border border-teal-400 flex items-center gap-2">⚔️ War Room</button>
                 </div>
@@ -16323,6 +16323,16 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
   };
   
   const MWQ = { activeSubject: null, parsedQuestions: [], taxonomyTree: null };
+
+  // ── Mock-Wrong source marker ───────────────────────────────────────────────
+  // Every question saved through this pipeline (mock-wrong OR spotted) gets a
+  // visible tag appended to its text so it's instantly recognisable in Syllabus,
+  // SRS, blitzes — anywhere the question renders. The hash is ALWAYS computed on
+  // the marker-stripped text so de-dup fingerprints stay identical to the source.
+  const MW_MARKER = '#mock wrong question';
+  function stripMW(t){ return String(t == null ? '' : t).replace(/\s*#mock wrong question\s*$/i, '').replace(/\s+$/,''); }
+  function stampMW(t){ const base = stripMW(t); return base + '  ' + MW_MARKER; }
+  try { window.__mwStripMarker = stripMW; window.__mwStampMarker = stampMW; window.__MW_MARKER = MW_MARKER; } catch(e){}
   
   // ── Safe hub API accessors (bare-name lookup, defensive try/catch) ──
   function getDb()           { try { return (typeof db !== 'undefined') ? db : null; } catch(e) { return null; } }
@@ -17173,10 +17183,10 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     const existingHashes = new Set(bucket.questions.map(q => q.qHash).filter(Boolean));
     let added = 0, skipped = 0;
     qs.forEach(q => {
-      const h = qHash(q.question);
+      const h = qHash(stripMW(q.question));
       if (existingHashes.has(h)) { skipped++; return; }
       bucket.questions.push({
-        question: q.question,
+        question: stampMW(q.question),
         options: q.options,
         tags: [q.tags[0], q.tags[1], q.tags[2] || '', q.tags[3] || ''],
         solution: q.solution,
@@ -17189,6 +17199,7 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     });
     bucket.timeInMinutes = Math.max(1, Math.ceil(bucket.questions.length * 1.5));
     dbRef[key] = bucket;
+    try { if (typeof window.csEnsureMockSubjects === 'function') window.csEnsureMockSubjects(); } catch(e){}
     
     try {
       await callSaveData();
@@ -17211,6 +17222,51 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     if (callOpenLobby(quizId)) return;
     toast('Could not auto-launch — open from main dashboard: ' + quizId, 'warn');
   };
+
+  // ── Reusable: append an array of questions into THIS WEEK's mock-wrong bucket ──
+  //    Reused by the one-time Spotted→Mock-Wrong migration. Applies the #mock wrong
+  //    question marker, hashes on clean text, de-dups against the existing bucket.
+  //    Returns { added, skipped, key }. Does NOT call saveData (caller batches the save).
+  window.mwqAppendToWeek = function(subject, questions, weekStartOverride) {
+    const cfg = SUBJECT_CONFIG[subject];
+    if (!cfg) return { added: 0, skipped: 0, key: null };
+    const dbRef = getDb(); if (!dbRef) return { added: 0, skipped: 0, key: null };
+    const wk = weekRange();
+    const weekStart = weekStartOverride || wk.start;
+    const key = `quiz_mock_wrong_${cfg.slug}_wk_${weekStart}`;
+    let bucket = dbRef[key];
+    if (!bucket) {
+      bucket = {
+        title: `Mock Wrongs — ${subject} — ${wk.display}`,
+        subject: cfg.container, timeInMinutes: 0, isMockWrongQuiz: true,
+        weekStart: weekStart, weekEnd: wk.end, questions: []
+      };
+    }
+    bucket.questions = Array.isArray(bucket.questions) ? bucket.questions : [];
+    const existing = new Set(bucket.questions.map(q => q.qHash).filter(Boolean));
+    let added = 0, skipped = 0;
+    (questions || []).forEach(q => {
+      if (!q || !q.question || !Array.isArray(q.options)) { return; }
+      const h = qHash(stripMW(q.question));
+      if (existing.has(h)) { skipped++; return; }
+      const t = Array.isArray(q.tags) ? q.tags : [];
+      bucket.questions.push({
+        question: stampMW(q.question),
+        options: q.options,
+        tags: [t[0] || '', t[1] || '', t[2] || '', t[3] || ''],
+        solution: q.solution || '',
+        mockSource: q.mockSource || q.spottedSource || `Week ${wk.display} · ${subject} Pool`,
+        needsRetag: !!q.needsRetag,
+        qHash: h
+      });
+      existing.add(h); added++;
+    });
+    bucket.timeInMinutes = Math.max(1, Math.ceil(bucket.questions.length * 1.5));
+    dbRef[key] = bucket;
+    return { added, skipped, key };
+  };
+  // Expose the subject map so the migration can resolve a slug → subject.
+  try { window.__MWQ_SUBJECT_CONFIG = SUBJECT_CONFIG; } catch(e){}
   
   // ── Boot ──
   function boot() {
@@ -17240,334 +17296,8 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
 <!-- ═══════════ END OF PUSH 1 v2 ═══════════ -->
 
 <script>
-/* ═══════════════════ SPOTTED QUESTIONS MODULE ═══════════════════
-   Screenshot → Claude.ai → JSON → ONE NEW NUMBERED QUIZ PER BATCH.
-   Keys: db['spotted_<slug>_<N>'], titled "📸 Spotted <Subject> #N".
-   Legacy single bucket db['spotted_<slug>'] is untouched & still playable.
-   Dedup is global across ALL spotted quizzes of a subject.
-   Questions tagged → flow to syllabus/SRS like any other quiz. */
+/* ═══ SRS AUDIT VIEWER — call srsAudit() or srsAudit('Judiciary') in console ═══ */
 (function(){
-  const SPQ = { subject:null, parsed:[] };
-  const SPQ_SUBJECTS = {
-    'Quant':    { icon:'📐', parents:['Arithmetic','Advanced Maths','Calculation'], slug:'quant', container:'QUANT MOCK QUESTIONS' },
-    'Reasoning':{ icon:'🧠', parents:['Reasoning'], slug:'reasoning', container:'Reasoning' },
-    'GS':       { icon:'🌍', parents:['Polity','Economics','Geography','Ancient History','Medieval History','Modern History','Static GK','Current Affairs','Art & Culture','Biology','Physics','Chemistry','Science & Technology','Environment & Ecology'], slug:'gs', container:'GS MOCK QUESTIONS' },
-    'English':  { icon:'📖', parents:['English'], slug:'english', container:'English' }
-  };
-  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function qHash(q){var s=String(q||'').toLowerCase().replace(/\s+/g,' ').trim();var h=0;for(var i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0;}return 'h'+Math.abs(h);}
-  function toast(m){ try{ if(typeof mtToast==='function'){mtToast(m);return;} }catch(e){} console.log('[SPQ]',m); }
-
-  function spqPrompt(subject){
-    const cfg=SPQ_SUBJECTS[subject];
-    // Full live tag menu (tag1→tag2→tag3) straight from the hub — SAME source the Mock pipeline uses.
-    let menu='';
-    try { if(typeof window.__hubBuildTagMenu==='function') menu = window.__hubBuildTagMenu(cfg.parents) || ''; } catch(e){ menu=''; }
-
-    let p=`# Spotted Questions Tagger — ${subject}\n\n`;
-    p+=`I'm sharing screenshot(s) of question(s) I spotted (from books, tests, anywhere). Each screenshot may have ONE or MORE questions — read every visible question.\n\n`;
-    p+=`For each question, output a JSON object with this EXACT schema:\n\n`;
-    p+='```json\n';
-    p+=`{\n  "question": "<full question text>",\n  "options": [\n    {"text":"<A>","correct":false},\n    {"text":"<B>","correct":false},\n    {"text":"<C>","correct":true},\n    {"text":"<D>","correct":false}\n  ],\n  "tags": ["<tag0>","<tag1>","<tag2>","<tag3>"],\n  "solution": "<b>Shortcut:</b> <2-3 line solution>",\n  "needsRetag": false\n}\n`;
-    p+='```\n\n';
-    p+=`## TAG RULES — FOLLOW EXACTLY, DO NOT INVENT ANY TAG\n\n`;
-    p+=`**tag[0]** = subject. MUST be exactly one of: ${cfg.parents.map(x=>`"${x}"`).join(', ')}\n\n`;
-    p+=`**tag[1] / tag[2] / tag[3]** — copy EXACTLY (same spelling, spacing, punctuation, &) from the menu below. This menu IS my hub's real tag list. Order ONLY from it — never make up a new name.\n`;
-    p+='```\n'+menu+'```\n\n';
-    p+=`⚠️ Shapes are NEVER tag[1]. Triangle/Circle/Quadrilateral/Rectangle/Square/Trapezium/Rhombus/Polygon/Hexagon → tag[2]; tag[1]="2D-Mensuration" (use "Geometry" ONLY for angle/property questions). Cube/Cuboid/Cylinder/Cone/Sphere/Hemisphere/Prism/Pyramid/Frustum → tag[2]; tag[1]="3D-Mensuration".\n\n`;
-    p+=`## FALLBACK — WHEN A QUESTION DOES NOT FIT THE MENU (do NOT invent)\n\n`;
-    p+=`1. tag[1] not in the menu for that tag[0] → tag[1]="" , tag[2]="" , tag[3]="" , "needsRetag": true.\n`;
-    p+=`2. tag[1] fits but NO listed tag[2] matches → keep tag[1], set tag[2]="" , tag[3]="" , "needsRetag": true.\n`;
-    p+=`3. tag[2] matches but no listed tag[3] fits → keep tag[0..2], set tag[3]="" , "needsRetag": true.\n`;
-    p+=`4. Never create new tag names. When in doubt, leave that slot "" and flag needsRetag — I'll tag it myself later.\n\n`;
-    p+=`- Mark the CORRECT option with "correct": true (exactly one).\n`;
-    p+=`- Solution MUST start with "<b>Shortcut:</b>" then 2-3 concise lines.\n`;
-    p+=`- Output ONLY a JSON array of all questions. No prose, no markdown fences around the final array.\n\n`;
-    p+=`Return: [ {...}, {...} ]`;
-    return p;
-  }
-
-  window.spqOpen = function(){
-    let m=document.getElementById('spq-modal');
-    if(!m){ m=document.createElement('div'); m.id='spq-modal'; document.body.appendChild(m); }
-    m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
-    m.innerHTML=`<div style="background:#0f172a;border:1px solid #334155;border-radius:18px;max-width:520px;width:100%;max-height:88vh;overflow-y:auto;padding:20px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <div style="font-size:18px;font-weight:900;color:#f1f5f9">📸 Spotted Questions</div>
-        <button onclick="document.getElementById('spq-modal').remove()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer">×</button>
-      </div>
-      <div style="font-size:12px;color:#94a3b8;font-weight:700;margin-bottom:16px">Pick subject → screenshot → Claude.ai → paste JSON. Each batch saves as a NEW numbered quiz on the dashboard (📸 Spotted Quant #1, #2, …).</div>
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px">
-        ${Object.keys(SPQ_SUBJECTS).map(s=>`<button onclick="spqPick('${s}')" style="padding:14px;background:${SPQ.subject===s?'#7c3aed':'#1e293b'};border:1.5px solid ${SPQ.subject===s?'#a78bfa':'#334155'};border-radius:12px;color:#f1f5f9;font-weight:900;font-size:14px;cursor:pointer">${SPQ_SUBJECTS[s].icon} ${s}<br><span style="font-size:9px;color:#94a3b8;font-weight:700">${spqCount(s)} saved</span></button>`).join('')}
-      </div>
-      <div id="spq-flow" style="display:${SPQ.subject?'block':'none'}">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-          <button onclick="spqCopyPrompt()" style="flex:1;min-width:120px;padding:11px;background:#6366f1;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">📋 Copy Prompt</button>
-          <button onclick="window.open('https://claude.ai','_blank')" style="flex:1;min-width:120px;padding:11px;background:#6366f1;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">🚀 Open Claude.ai</button>
-        </div>
-        <button onclick="spqBrowse()" style="width:100%;padding:11px;background:#0e7490;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer;margin-bottom:12px">🌳 Browse Saved Questions (tree)</button>
-        <textarea id="spq-json" placeholder="Paste the JSON array from Claude.ai here..." style="width:100%;height:120px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#f1f5f9;padding:10px;font-size:12px;font-family:monospace;margin-bottom:10px"></textarea>
-        <button onclick="spqParse()" style="width:100%;padding:12px;background:#16a34a;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:13px;cursor:pointer;margin-bottom:12px">Parse & Review →</button>
-        <div id="spq-review"></div>
-      </div>
-    </div>`;
-  };
-
-  window.spqPick = function(s){ SPQ.subject=s; SPQ.parsed=[]; spqOpen(); };
-
-  function spqCount(s){
-    try{
-      const slug=SPQ_SUBJECTS[s].slug;
-      const re=new RegExp('^spotted_'+slug+'(_\\d+)?$');
-      let c=0;
-      Object.keys(db).forEach(k=>{ if(re.test(k)&&db[k]&&Array.isArray(db[k].questions)) c+=db[k].questions.length; });
-      return c;
-    }catch(e){ return 0; }
-  }
-
-  window.spqCopyPrompt = function(){
-    if(!SPQ.subject){ toast('Pick a subject first'); return; }
-    const p=spqPrompt(SPQ.subject);
-    navigator.clipboard.writeText(p).then(()=>toast('✅ Prompt copied — paste into Claude.ai with your screenshot')).catch(()=>{
-      const ta=document.createElement('textarea');ta.value=p;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();toast('✅ Prompt copied');
-    });
-  };
-
-  window.spqParse = function(){
-    const raw=document.getElementById('spq-json').value.trim();
-    if(!raw){ toast('Paste JSON first'); return; }
-    let data;
-    try{
-      let clean=raw.replace(/```json/g,'').replace(/```/g,'').trim();
-      data=JSON.parse(clean);
-      if(!Array.isArray(data)) data=[data];
-    }catch(e){ toast('Invalid JSON — check the paste'); return; }
-    SPQ.parsed=data.filter(q=>q&&q.question&&Array.isArray(q.options));
-    if(!SPQ.parsed.length){ toast('No valid questions found'); return; }
-    const rev=document.getElementById('spq-review');
-    rev.innerHTML=`<div style="border-top:1px solid #334155;padding-top:12px;margin-bottom:10px;font-size:13px;font-weight:900;color:#f1f5f9">${SPQ.parsed.length} question(s) parsed</div>`+
-      SPQ.parsed.map((q,i)=>{
-        const correct=(q.options.find(o=>o.correct)||{}).text||'?';
-        return `<div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:10px;margin-bottom:8px">
-          <div style="font-size:12px;color:#f1f5f9;font-weight:700;margin-bottom:4px">${i+1}. ${esc(q.question.substring(0,90))}${q.question.length>90?'…':''}</div>
-          <div style="font-size:10px;color:#34d399;font-weight:700">✓ ${esc(String(correct).substring(0,50))}</div>
-          <div style="font-size:9px;color:#94a3b8;margin-top:3px">${esc((q.tags||[]).filter(Boolean).join(' › '))}</div>
-        </div>`;
-      }).join('')+
-      `<button onclick="spqCommit()" style="width:100%;padding:13px;background:#16a34a;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:14px;cursor:pointer;margin-top:6px">✅ Save as New ${SPQ.subject} Quiz</button>`;
-  };
-
-  /* ── Helpers for the per-batch quiz model ──
-     Keys: spotted_<slug>_<N> (one per paste-commit). The OLD single bucket
-     spotted_<slug> (no number) is kept untouched as a legacy quiz — still
-     playable, still counted, still in the tree. */
-  function spqAllKeys(subject){
-    const slug=SPQ_SUBJECTS[subject].slug;
-    const re=new RegExp('^spotted_'+slug+'(_\\d+)?$');
-    if(typeof db==='undefined'||!db) return [];
-    return Object.keys(db).filter(k=>re.test(k));
-  }
-  function spqNextNum(subject){
-    const slug=SPQ_SUBJECTS[subject].slug;
-    const re=new RegExp('^spotted_'+slug+'_(\\d+)$');
-    let max=0;
-    if(typeof db!=='undefined'&&db) Object.keys(db).forEach(k=>{
-      const m=k.match(re); if(m){ const n=parseInt(m[1],10); if(n>max) max=n; }
-    });
-    return max+1;
-  }
-
-  window.spqCommit = async function(){
-    if(!SPQ.parsed.length){ toast('Nothing to save'); return; }
-    const cfg=SPQ_SUBJECTS[SPQ.subject];
-    if(typeof db==='undefined'||!db){ toast('DB not loaded'); return; }
-    // Dedup against EVERY spotted quiz of this subject (legacy bucket + all numbered batches)
-    const existing=new Set();
-    spqAllKeys(SPQ.subject).forEach(function(k){
-      const qs=(db[k]&&Array.isArray(db[k].questions))?db[k].questions:[];
-      qs.forEach(function(q){ if(q.qHash) existing.add(q.qHash); existing.add(qHash(q.question)); });
-    });
-    const newQs=[]; let skipped=0;
-    SPQ.parsed.forEach(q=>{
-      const h=qHash(q.question);
-      if(existing.has(h)){ skipped++; return; }
-      var rawTags=[(q.tags&&q.tags[0])||'',(q.tags&&q.tags[1])||'',(q.tags&&q.tags[2])||'',(q.tags&&q.tags[3])||''];
-      var norm = (typeof window.normalizeHubTags==='function') ? window.normalizeHubTags(rawTags) : { tags:rawTags, needsRetag:false };
-      newQs.push({
-        question:q.question,
-        options:q.options,
-        tags:norm.tags,
-        needsRetag:norm.needsRetag,
-        solution:q.solution||'',
-        spottedSource:'Spotted · '+new Date().toLocaleDateString('en-IN'),
-        addedAt:Date.now(),
-        qHash:h
-      });
-      existing.add(h);
-    });
-    if(!newQs.length){
-      toast('⚠️ All '+skipped+' question(s) already exist in your Spotted quizzes — nothing new to save');
-      SPQ.parsed=[];
-      return;
-    }
-    // Create a brand-new numbered quiz for THIS batch
-    const num=spqNextNum(SPQ.subject);
-    const key='spotted_'+cfg.slug+'_'+num;
-    db[key]={
-      title:'📸 Spotted '+SPQ.subject+' #'+num,
-      subject:cfg.container,
-      timeInMinutes:Math.max(1,Math.ceil(newQs.length*1.5)),
-      isSpottedQuiz:true,
-      createdAt:Date.now(),
-      questions:newQs
-    };
-    console.log('[SPQ] Created db['+key+'] — '+newQs.length+' questions ('+skipped+' dup skipped)');
-    try{
-      if(typeof saveData==='function'){ await saveData(); console.log('[SPQ] saveData() completed'); }
-      else { console.warn('[SPQ] saveData not found!'); }
-      if(typeof window.rebuildSearchCache==='function') window.rebuildSearchCache();
-      if(typeof renderDashboard==='function') renderDashboard();
-      console.log('[SPQ] Verify: db['+key+'] exists after save?', !!db[key], '| questions:', db[key]?db[key].questions.length:0);
-    }catch(e){ console.error('[SPQ] save failed',e); toast('Save failed — check console'); return; }
-    toast('✅ Spotted '+SPQ.subject+' #'+num+' created — '+newQs.length+' Qs'+(skipped?(' ('+skipped+' dup skipped)'):''));
-    SPQ.parsed=[];
-    const mm=document.getElementById('spq-modal'); if(mm) mm.remove();
-  };
-
-  /* ───────── SPOTTED TREE BROWSER ─────────
-     Collapsible tag[0]→tag[1]→tag[2] tree for the picked subject's bucket.
-     Newest question first (sorted by addedAt desc; un-stamped old ones fall to the bottom).
-     Search box + "needs-retag only" filter. Re-renders only the tree body so the search keeps focus. */
-  function spqTid(s){ try{ return 'T'+btoa(unescape(encodeURIComponent(String(s)))); }catch(e){ return 'T'+encodeURIComponent(String(s)); } }
-
-  window.spqBrowse = function(subject){
-    if(subject) SPQ.subject = subject;
-    if(!SPQ.subject){ toast('Pick a subject first'); return; }
-    SPQ._expanded   = SPQ._expanded   || {};
-    SPQ._brSearch   = SPQ._brSearch   || '';
-    SPQ._brRetag    = SPQ._brRetag    || false;
-    let m=document.getElementById('spq-browse-modal');
-    if(!m){ m=document.createElement('div'); m.id='spq-browse-modal'; document.body.appendChild(m); }
-    m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100001;display:flex;align-items:flex-start;justify-content:center;padding:12px;overflow-y:auto';
-    m.innerHTML=`<div style="background:#0f172a;border:1px solid #334155;border-radius:16px;max-width:560px;width:100%;margin:18px 0;padding:16px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div style="font-size:16px;font-weight:900;color:#f1f5f9">🌳 ${esc(SPQ.subject)} — Spotted Tree</div>
-        <button onclick="document.getElementById('spq-browse-modal').remove()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer">×</button>
-      </div>
-      <input id="spq-tree-search" oninput="spqTreeSearch(this.value)" placeholder="🔍 Search questions…" value="${esc(SPQ._brSearch)}" style="width:100%;background:#1e293b;border:1px solid #334155;border-radius:9px;color:#f1f5f9;padding:9px;font-size:12px;margin-bottom:8px;box-sizing:border-box">
-      <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#fbbf24;font-weight:800;margin-bottom:10px;cursor:pointer">
-        <input type="checkbox" ${SPQ._brRetag?'checked':''} onchange="spqTreeRetag(this.checked)"> Show only ⚠️ needs-retag
-      </label>
-      <div id="spq-tree-body"></div>
-    </div>`;
-    spqRenderTree();
-  };
-
-  function spqRenderTree(){
-    const body=document.getElementById('spq-tree-body'); if(!body) return;
-    // Aggregate questions from EVERY spotted quiz of this subject (legacy + numbered batches)
-    let qs=[];
-    spqAllKeys(SPQ.subject).forEach(function(k){
-      if(db[k]&&Array.isArray(db[k].questions)){
-        const label=(db[k].title||k).replace('📸 ','');
-        db[k].questions.forEach(function(q){ qs.push(Object.assign({_spqBatch:label},q)); });
-      }
-    });
-    const search=(SPQ._brSearch||'').trim().toLowerCase();
-    if(search) qs=qs.filter(q=>(q.question||'').toLowerCase().includes(search));
-    if(SPQ._brRetag) qs=qs.filter(q=>q.needsRetag);
-    if(!qs.length){ body.innerHTML='<div style="color:#94a3b8;font-size:12px;padding:24px;text-align:center">No questions'+((search||SPQ._brRetag)?' match the filter.':' saved yet.')+'</div>'; return; }
-    // Build tag0 → tag1 → tag2 tree
-    const tree={};
-    qs.forEach(q=>{
-      const t0=(q.tags&&q.tags[0])||'(untagged)';
-      const t1=(q.tags&&q.tags[1])||'(no topic)';
-      const t2=(q.tags&&q.tags[2])||'(no sub-topic)';
-      tree[t0]=tree[t0]||{}; tree[t0][t1]=tree[t0][t1]||{}; tree[t0][t1][t2]=tree[t0][t1][t2]||[];
-      tree[t0][t1][t2].push(q);
-    });
-    const count=(obj)=>{let c=0;Object.keys(obj).forEach(k=>{const v=obj[k];c+=Array.isArray(v)?v.length:count(v);});return c;};
-    const byNew=(a,b)=>((b.addedAt||0)-(a.addedAt||0)); // newest first; old (no addedAt) sink to bottom
-    const autoOpen=!!(search||SPQ._brRetag);
-    let html='';
-    Object.keys(tree).sort().forEach(t0=>{
-      const id0=spqTid(t0); const open0=autoOpen||SPQ._expanded[id0];
-      html+=`<div style="margin-bottom:5px"><div onclick="spqTreeToggle('${id0}')" style="cursor:pointer;background:#1e293b;border-radius:8px;padding:9px 11px;font-weight:900;font-size:13px;color:#f1f5f9;display:flex;justify-content:space-between"><span>${open0?'▾':'▸'} ${esc(t0)}</span><span style="color:#64748b">${count(tree[t0])}</span></div>`;
-      if(open0) Object.keys(tree[t0]).sort().forEach(t1=>{
-        const id1=spqTid(t0+'¦'+t1); const open1=autoOpen||SPQ._expanded[id1];
-        html+=`<div style="margin-left:10px;margin-top:3px"><div onclick="spqTreeToggle('${id1}')" style="cursor:pointer;padding:7px 10px;font-weight:800;font-size:12px;color:#c4b5fd;display:flex;justify-content:space-between"><span>${open1?'▾':'▸'} ${esc(t1)}</span><span style="color:#64748b">${count(tree[t0][t1])}</span></div>`;
-        if(open1) Object.keys(tree[t0][t1]).sort().forEach(t2=>{
-          const id2=spqTid(t0+'¦'+t1+'¦'+t2); const open2=autoOpen||SPQ._expanded[id2];
-          const leaf=tree[t0][t1][t2].slice().sort(byNew);
-          html+=`<div style="margin-left:12px;margin-top:2px"><div onclick="spqTreeToggle('${id2}')" style="cursor:pointer;padding:6px 10px;font-size:11px;color:#86efac;display:flex;justify-content:space-between"><span>${open2?'▾':'▸'} ${esc(t2)}</span><span style="color:#64748b">${leaf.length}</span></div>`;
-          if(open2) leaf.forEach(q=>{
-            const correct=((q.options&&q.options.find(x=>x.correct))||{}).text||'?';
-            const flag=q.needsRetag?' <span style="color:#fbbf24">⚠️</span>':'';
-            html+=`<div style="margin-left:10px;background:#0b1220;border:1px solid #1e293b;border-radius:8px;padding:8px 10px;margin-bottom:5px">
-              <div style="font-size:11px;color:#e2e8f0;font-weight:600;line-height:1.4">${esc((q.question||'').substring(0,150))}${(q.question||'').length>150?'…':''}${flag}</div>
-              <div style="font-size:10px;color:#34d399;margin-top:3px">✓ ${esc(String(correct).substring(0,70))}</div>
-              <div style="font-size:9px;color:#64748b;margin-top:2px">${esc(q._spqBatch||'')}</div>
-            </div>`;
-          });
-          html+='</div>';
-        });
-        html+='</div>';
-      });
-      html+='</div>';
-    });
-    body.innerHTML=html;
-  }
-  window.spqTreeToggle=function(id){ SPQ._expanded[id]=!SPQ._expanded[id]; spqRenderTree(); };
-  window.spqTreeSearch=function(v){ SPQ._brSearch=v; spqRenderTree(); };
-  window.spqTreeRetag=function(v){ SPQ._brRetag=v; spqRenderTree(); };
-
-  console.log('[SPQ] Spotted Questions module loaded');
-
-  // ═══ ONE-TIME MIGRATION: kill the OLD bulk single-bucket format ═══
-  // Each legacy db['spotted_<slug>'] is converted into a numbered quiz
-  // (📸 Spotted <Subject> #N) and the legacy key is DELETED.
-  // All questions are preserved — only the container changes.
-  // Idempotent: once the legacy key is gone, this does nothing.
-  (function spqMigrateLegacyBuckets(){
-    try{
-      if(typeof db==='undefined'||!db) return;
-      var changed=false;
-      Object.keys(SPQ_SUBJECTS).forEach(function(sub){
-        var cfg=SPQ_SUBJECTS[sub];
-        var oldKey='spotted_'+cfg.slug;
-        var legacy=db[oldKey];
-        if(!legacy) return;
-        var qs=Array.isArray(legacy.questions)?legacy.questions:[];
-        if(qs.length){
-          var num=spqNextNum(sub);
-          var newKey='spotted_'+cfg.slug+'_'+num;
-          // createdAt = earliest addedAt so the old bulk sorts BELOW newer batches
-          var earliest=Infinity;
-          qs.forEach(function(q){ if(q.addedAt&&q.addedAt<earliest) earliest=q.addedAt; });
-          db[newKey]={
-            title:'📸 Spotted '+sub+' #'+num,
-            subject:cfg.container,
-            timeInMinutes:Math.max(1,Math.ceil(qs.length*1.5)),
-            isSpottedQuiz:true,
-            createdAt:(earliest===Infinity?Date.now():earliest),
-            questions:qs
-          };
-          console.log('[SPQ] Migrated legacy '+oldKey+' ('+qs.length+'q) → '+newKey);
-        } else {
-          console.log('[SPQ] Legacy '+oldKey+' was empty — removed');
-        }
-        delete db[oldKey];
-        changed=true;
-      });
-      if(changed){
-        if(typeof saveData==='function') saveData();
-        if(typeof renderDashboard==='function') setTimeout(function(){ try{ renderDashboard(); }catch(e){} },300);
-        console.log('[SPQ] Legacy bucket migration complete — old bulk format removed');
-      }
-    }catch(e){ console.error('[SPQ] legacy migration failed',e); }
-  })();
-
-  // ═══ SRS AUDIT VIEWER — call srsAudit() or srsAudit('Judiciary') in console ═══
   window.srsAudit = function(topicFilter){
     var log = window.srsAuditLog || [];
     if(!log.length){ console.log('No audit entries yet. Attempt a revision/SRS sprint first.'); return; }
@@ -17583,6 +17313,345 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     return filtered.length+' batches shown';
   };
   console.log('[SRS Audit] Viewer ready — type srsAudit() or srsAudit("Judiciary")');
+})();
+</script>
+
+
+<script>
+/* ═══════════════════ MISSING CONCEPT SHEET MODULE ═══════════════════
+   Reads EVERY weekly JSON inside a subject's Mock-Wrong pool
+   (db['quiz_mock_wrong_<slug>_wk_*']), groups every question by
+   tag[0] → tag[1], and turns the whole pool into a study sheet of the
+   formulas / concepts / theory / rules needed to crack those questions.
+
+   Flow (mirrors the Mock-Wrong capture flow): pick subject → Copy Prompt →
+   paste into Claude.ai → paste the JSON back → Save. The sheet is stored in
+   db['__conceptSheets'] (syncs via cloud) and can be printed subject-wise to PDF.
+
+   Storage key db['__conceptSheets'] = { isConceptStore:true, subject:'__SYS',
+     sheets: { quant:{tag0:{tag1:[{title,body}]}}, gs:{...}, ... },
+     meta: { quant:{generatedAt, qCount}, ... } }
+   It has no `questions` array and subject '__SYS' (not a real SUBJECT), so the
+   dashboard / search cache / save count-guard all skip it cleanly. */
+(function(){
+  'use strict';
+
+  const CS_SUBJECTS = {
+    'Quant':     { icon:'📐', slug:'quant',     kind:'formula', parents:['Arithmetic','Advanced Maths','Calculation'] },
+    'GS':        { icon:'🌍', slug:'gs',        kind:'theory',  parents:['Polity','Economics','Geography','Ancient History','Medieval History','Modern History','Static GK','Current Affairs','Art & Culture','Biology','Physics','Chemistry','Science & Technology','Environment & Ecology'] },
+    'English':   { icon:'📖', slug:'english',   kind:'rule',    parents:['English'] },
+    'Reasoning': { icon:'🧠', slug:'reasoning', kind:'concept', parents:['Reasoning'] }
+  };
+  const KIND_LABEL = { formula:'Formula / Concept', theory:'Theory / Key Points', rule:'Rule / Explanation', concept:'Concept / Trick' };
+  const STORE_KEY = '__conceptSheets';
+
+  const CS = { subject:null };
+
+  function getDb(){ try { return (typeof db !== 'undefined') ? db : null; } catch(e){ return null; } }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function strip(t){ try { return (typeof window.__mwStripMarker==='function') ? window.__mwStripMarker(t) : String(t||'').replace(/\s*#mock wrong question\s*$/i,''); } catch(e){ return String(t||''); } }
+  function toast(m){ try{ if(typeof mtToast==='function'){ mtToast(m); return; } }catch(e){} console.log('[CS]',m); }
+
+  function store(){
+    const d = getDb(); if(!d) return null;
+    let s = d[STORE_KEY];
+    if(!s || s.isConceptStore !== true){ s = { isConceptStore:true, subject:'__SYS', sheets:{}, meta:{} }; d[STORE_KEY] = s; }
+    s.sheets = s.sheets || {}; s.meta = s.meta || {};
+    return s;
+  }
+
+  // Make sure the 4 MOCK-QUESTIONS subjects exist so weekly buckets render on the dashboard.
+  function ensureMockSubjects(){
+    try{
+      const need = ['QUANT MOCK QUESTIONS','GS MOCK QUESTIONS','ENGLISH MOCK QUESTIONS','REASONING MOCK QUESTIONS'];
+      const cat  = {'QUANT MOCK QUESTIONS':'Maths','GS MOCK QUESTIONS':'GS','ENGLISH MOCK QUESTIONS':'English','REASONING MOCK QUESTIONS':'Reasoning'};
+      let changed = false;
+      if(typeof SUBJECTS !== 'undefined' && Array.isArray(SUBJECTS)){
+        need.forEach(s => { if(SUBJECTS.indexOf(s) === -1){ SUBJECTS.push(s); changed = true; } });
+      }
+      if(typeof SUBJECT_CATEGORIES !== 'undefined' && SUBJECT_CATEGORIES){
+        Object.keys(cat).forEach(s => { if(!SUBJECT_CATEGORIES[s]){ SUBJECT_CATEGORIES[s] = cat[s]; changed = true; } });
+      }
+      if(changed){
+        try { localStorage.setItem('megaQuizSubjects_v5', JSON.stringify(SUBJECTS)); }catch(e){}
+        if(typeof renderDashboard === 'function') renderDashboard();
+        console.log('[CS] Ensured MOCK QUESTIONS subjects on dashboard');
+      }
+    }catch(e){ console.warn('[CS] ensureMockSubjects', e); }
+  }
+  try { window.csEnsureMockSubjects = ensureMockSubjects; } catch(e){}
+
+  // Collect every question from all weekly buckets in this subject's pool, grouped tag0 → tag1.
+  function collectPool(subject){
+    const cfg = CS_SUBJECTS[subject]; const d = getDb() || {};
+    const re = new RegExp('^quiz_mock_wrong_' + cfg.slug + '_wk_');
+    const groups = {}; let total = 0, weeks = 0;
+    Object.keys(d).forEach(k => {
+      if(!re.test(k)) return;
+      const quiz = d[k]; if(!quiz || !Array.isArray(quiz.questions)) return;
+      weeks++;
+      quiz.questions.forEach(q => {
+        if(!q || !q.question) return;
+        const t = Array.isArray(q.tags) ? q.tags : [];
+        const t0 = (t[0]||'').trim() || 'Untagged';
+        const t1 = (t[1]||'').trim() || '(no topic)';
+        groups[t0] = groups[t0] || {};
+        groups[t0][t1] = groups[t0][t1] || [];
+        groups[t0][t1].push(strip(q.question));
+        total++;
+      });
+    });
+    return { groups, total, weeks };
+  }
+
+  function poolCount(subject){ try { return collectPool(subject).total; } catch(e){ return 0; } }
+
+  // ── Prompt builder ──
+  function buildPrompt(subject){
+    const cfg = CS_SUBJECTS[subject];
+    const pool = collectPool(subject);
+    const L = [];
+    L.push('# Missing Concept Sheet builder — ' + subject);
+    L.push('');
+    L.push('Below are the questions I got WRONG / could not solve in my ' + subject + ' mock-wrong pool, grouped by topic (tag[0] → tag[1]).');
+    if(cfg.kind === 'formula'){
+      L.push('For EACH topic, list the standard FORMULAS and CONCEPTS I must know to solve these questions confidently. Be exam-focused and concise — actual formulas, shortcuts, and the core idea, not vague advice.');
+    } else if(cfg.kind === 'theory'){
+      L.push('For EACH topic, list the THEORY and KEY FACTS I must know to answer these questions — the specific points/facts these questions test, stated crisply for revision.');
+    } else if(cfg.kind === 'rule'){
+      L.push('For EACH topic, list the GRAMMAR RULES / patterns / usage points I must understand to get these questions right, with a one-line explanation each.');
+    } else {
+      L.push('For EACH topic, list the CONCEPTS / tricks / approaches I must know to solve these questions, stated crisply.');
+    }
+    L.push('');
+    L.push('## OUTPUT — return ONLY this JSON (no prose, no markdown fences):');
+    L.push('{');
+    L.push('  "<tag0>": {');
+    L.push('    "<tag1>": [');
+    L.push('      {"title": "<short name of the formula/concept/rule>", "body": "<the actual formula / fact / rule — 1 to 3 lines>"}');
+    L.push('    ]');
+    L.push('  }');
+    L.push('}');
+    L.push('');
+    L.push('Keep the SAME tag[0] and tag[1] names exactly as given below. Merge duplicate concepts. Aim for the 4–10 most important entries per topic.');
+    L.push('');
+    L.push('## MY WRONG QUESTIONS (grouped):');
+    L.push('');
+    const t0s = Object.keys(pool.groups).sort();
+    t0s.forEach(t0 => {
+      L.push('### tag[0] = ' + t0);
+      const t1s = Object.keys(pool.groups[t0]).sort();
+      t1s.forEach(t1 => {
+        L.push('');
+        L.push('• tag[1] = ' + t1 + '  (' + pool.groups[t0][t1].length + ' questions):');
+        pool.groups[t0][t1].forEach((qtext, i) => {
+          const clean = qtext.replace(/\s+/g, ' ').trim();
+          L.push('   ' + (i+1) + '. ' + clean);
+        });
+      });
+      L.push('');
+    });
+    return L.join('\n');
+  }
+
+  // ── Modal ──
+  window.csOpen = function(){
+    ensureMockSubjects();
+    let m = document.getElementById('cs-modal');
+    if(!m){ m = document.createElement('div'); m.id = 'cs-modal'; document.body.appendChild(m); }
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
+    const subjBtns = Object.keys(CS_SUBJECTS).map(s => {
+      const c = poolCount(s);
+      const sel = CS.subject === s;
+      return '<button onclick="csPick(\'' + s + '\')" style="padding:14px;background:' + (sel?'#7c3aed':'#1e293b') + ';border:1.5px solid ' + (sel?'#a78bfa':'#334155') + ';border-radius:12px;color:#f1f5f9;font-weight:900;font-size:14px;cursor:pointer">' + CS_SUBJECTS[s].icon + ' ' + s + '<br><span style="font-size:9px;color:#94a3b8;font-weight:700">' + c + ' questions in pool</span></button>';
+    }).join('');
+    m.innerHTML =
+      '<div style="background:#0f172a;border:1px solid #334155;border-radius:18px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;padding:20px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
+          '<div style="font-size:18px;font-weight:900;color:#f1f5f9">📄 Missing Concept Sheet</div>' +
+          '<button onclick="document.getElementById(\'cs-modal\').remove()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer">×</button>' +
+        '</div>' +
+        '<div style="font-size:12px;color:#94a3b8;font-weight:700;margin-bottom:16px">Builds a study sheet from ALL your Mock-Wrong weekly questions — grouped by tag[1] inside each subject. Pick a subject → Copy Prompt → Claude.ai → paste JSON → Save. Then view or print as PDF.</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px">' + subjBtns + '</div>' +
+        '<div id="cs-flow" style="display:' + (CS.subject?'block':'none') + '"></div>' +
+      '</div>';
+    if(CS.subject) csRenderFlow();
+  };
+
+  window.csPick = function(s){ CS.subject = s; csOpen(); };
+
+  function hasSheet(subject){
+    const s = store(); if(!s) return false;
+    const slug = CS_SUBJECTS[subject].slug;
+    return !!(s.sheets[slug] && Object.keys(s.sheets[slug]).length);
+  }
+
+  function csRenderFlow(){
+    const flow = document.getElementById('cs-flow'); if(!flow) return;
+    const subject = CS.subject; const cfg = CS_SUBJECTS[subject];
+    const pool = collectPool(subject);
+    const built = hasSheet(subject);
+    const s = store(); const meta = (s && s.meta[cfg.slug]) || null;
+    let info = pool.total ? (pool.total + ' questions across ' + pool.weeks + ' weekly bucket(s)') : 'No questions in this pool yet — capture some Mock-Wrong questions first.';
+    let metaLine = (built && meta) ? ('<div style="font-size:10px;color:#34d399;font-weight:800;margin-bottom:10px">✅ Sheet built ' + (meta.generatedAt ? new Date(meta.generatedAt).toLocaleDateString('en-IN') : '') + ' · from ' + (meta.qCount||'?') + ' questions</div>') : '';
+    flow.innerHTML =
+      '<div style="border-top:1px solid #334155;padding-top:12px;margin-bottom:10px;font-size:13px;font-weight:900;color:#f1f5f9">' + cfg.icon + ' ' + subject + ' — ' + esc(info) + '</div>' +
+      metaLine +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">' +
+        '<button onclick="csCopyPrompt()" style="flex:1;min-width:130px;padding:11px;background:#6366f1;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">📋 Copy Prompt</button>' +
+        '<button onclick="window.open(\'https://claude.ai\',\'_blank\')" style="flex:1;min-width:130px;padding:11px;background:#6366f1;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">🚀 Open Claude.ai</button>' +
+      '</div>' +
+      '<textarea id="cs-json" placeholder="Paste the concept JSON from Claude.ai here..." style="width:100%;height:110px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#f1f5f9;padding:10px;font-size:12px;font-family:monospace;margin-bottom:10px"></textarea>' +
+      '<button onclick="csSave()" style="width:100%;padding:12px;background:#16a34a;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:13px;cursor:pointer;margin-bottom:10px">💾 Save Concept Sheet</button>' +
+      (built ? ('<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        '<button onclick="csView()" style="flex:1;min-width:130px;padding:11px;background:#0e7490;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">👁️ View Sheet</button>' +
+        '<button onclick="csPrint()" style="flex:1;min-width:130px;padding:11px;background:#b45309;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">🖨️ Print PDF</button>' +
+      '</div>') : '');
+  }
+
+  window.csCopyPrompt = function(){
+    if(!CS.subject){ toast('Pick a subject first'); return; }
+    const pool = collectPool(CS.subject);
+    if(!pool.total){ toast('No questions in this pool yet'); return; }
+    const p = buildPrompt(CS.subject);
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(p).then(()=>toast('✅ Prompt copied — paste into Claude.ai'), ()=>csFallbackCopy(p));
+    } else csFallbackCopy(p);
+  };
+  function csFallbackCopy(p){
+    try{ const ta=document.createElement('textarea'); ta.value=p; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('✅ Prompt copied'); }
+    catch(e){ toast('Copy failed — select & copy manually'); }
+  }
+
+  window.csSave = async function(){
+    if(!CS.subject){ toast('Pick a subject first'); return; }
+    const raw = (document.getElementById('cs-json')||{}).value || '';
+    if(!raw.trim()){ toast('Paste the concept JSON first'); return; }
+    let data;
+    try{
+      const clean = raw.replace(/```json/g,'').replace(/```/g,'').trim();
+      data = JSON.parse(clean);
+    }catch(e){ toast('Invalid JSON — check the paste'); return; }
+    if(!data || typeof data !== 'object' || Array.isArray(data)){ toast('Expected an object keyed by tag[0]'); return; }
+    // Normalise: { tag0: { tag1: [ {title, body} | "string" ] } }
+    const sheet = {};
+    Object.keys(data).forEach(t0 => {
+      const inner = data[t0]; if(!inner || typeof inner !== 'object') return;
+      sheet[t0] = {};
+      Object.keys(inner).forEach(t1 => {
+        let arr = inner[t1];
+        if(!Array.isArray(arr)) arr = [arr];
+        sheet[t0][t1] = arr.map(it => {
+          if(typeof it === 'string') return { title:'', body:it };
+          return { title:String((it&&it.title)||''), body:String((it&&it.body)|| (it&&it.detail) || '') };
+        }).filter(x => x.title || x.body);
+      });
+    });
+    const s = store(); if(!s){ toast('DB not loaded'); return; }
+    const cfg = CS_SUBJECTS[CS.subject];
+    s.sheets[cfg.slug] = sheet;
+    s.meta[cfg.slug] = { generatedAt: Date.now(), qCount: collectPool(CS.subject).total };
+    try{
+      if(typeof saveData === 'function'){ await saveData(); }
+      toast('✅ ' + CS.subject + ' concept sheet saved');
+    }catch(e){ console.error('[CS] save failed', e); toast('Save failed — check console'); return; }
+    csRenderFlow();
+  };
+
+  // ── Sheet HTML (used by both View and Print) ──
+  function sheetHTML(subject, onlyT0){
+    const cfg = CS_SUBJECTS[subject]; const s = store();
+    const sheet = (s && s.sheets[cfg.slug]) || {};
+    const t0s = Object.keys(sheet).sort().filter(t0 => !onlyT0 || t0 === onlyT0);
+    if(!t0s.length) return '<div style="color:#94a3b8;padding:20px;text-align:center">No concept sheet yet.</div>';
+    let html = '';
+    t0s.forEach(t0 => {
+      html += '<div class="cs-sec"><div class="cs-sec-head">' + esc(t0) + '</div>';
+      const t1s = Object.keys(sheet[t0]).sort();
+      t1s.forEach(t1 => {
+        const items = sheet[t0][t1] || [];
+        if(!items.length) return;
+        html += '<div class="cs-topic"><div class="cs-topic-head">' + esc(t1) + '</div><ul class="cs-list">';
+        items.forEach(it => {
+          const title = it.title ? ('<b>' + esc(it.title) + ':</b> ') : '';
+          html += '<li>' + title + esc(it.body) + '</li>';
+        });
+        html += '</ul></div>';
+      });
+      html += '</div>';
+    });
+    return html;
+  }
+
+  const SHEET_CSS =
+    '.cs-doc{font-family:"Nunito Sans",system-ui,sans-serif;color:#0f172a}' +
+    '.cs-doc h1{font-size:20px;font-weight:900;margin:0 0 4px}' +
+    '.cs-doc .cs-sub{font-size:11px;color:#64748b;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px}' +
+    '.cs-sec{margin-bottom:18px;break-inside:avoid}' +
+    '.cs-sec-head{font-size:15px;font-weight:900;color:#fff;background:#4338ca;padding:7px 12px;border-radius:8px;margin-bottom:8px}' +
+    '.cs-topic{margin:0 0 10px 4px;break-inside:avoid}' +
+    '.cs-topic-head{font-size:13px;font-weight:900;color:#4338ca;border-bottom:1.5px solid #e2e8f0;padding-bottom:3px;margin-bottom:5px}' +
+    '.cs-list{margin:0;padding-left:18px}' +
+    '.cs-list li{font-size:12.5px;line-height:1.5;color:#1e293b;margin-bottom:4px}' +
+    '.cs-list li b{color:#0f172a}';
+
+  window.csView = function(){
+    if(!CS.subject) return;
+    const cfg = CS_SUBJECTS[CS.subject];
+    let v = document.getElementById('cs-view-modal');
+    if(!v){ v = document.createElement('div'); v.id='cs-view-modal'; document.body.appendChild(v); }
+    v.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100000;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto';
+    v.innerHTML =
+      '<div style="background:#fff;border-radius:16px;max-width:680px;width:100%;margin:20px 0;padding:22px;position:relative">' +
+        '<style>' + SHEET_CSS + '</style>' +
+        '<div style="position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">' +
+          '<div style="display:flex;gap:8px">' +
+            '<button onclick="csPrint()" style="padding:8px 14px;background:#b45309;border:none;border-radius:9px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">🖨️ Print PDF</button>' +
+          '</div>' +
+          '<button onclick="document.getElementById(\'cs-view-modal\').remove()" style="background:#1e293b;border:none;color:#fff;font-size:14px;font-weight:900;cursor:pointer;border-radius:8px;padding:6px 12px">Close ×</button>' +
+        '</div>' +
+        '<div class="cs-doc"><h1>' + cfg.icon + ' ' + esc(CS.subject) + ' — Missing Concept Sheet</h1>' +
+        '<div class="cs-sub">' + esc(KIND_LABEL[cfg.kind]) + ' · built from Mock-Wrong questions</div>' +
+        sheetHTML(CS.subject, null) + '</div>' +
+        csSectionPrintBar(CS.subject) +
+      '</div>';
+  };
+
+  // A row of "print just this tag[0]" buttons — Yogi wants subject-wise PDFs
+  // down to each tag[0] (Polity, Modern History, Advanced Maths, Arithmetic…).
+  function csSectionPrintBar(subject){
+    const cfg = CS_SUBJECTS[subject]; const s = store();
+    const sheet = (s && s.sheets[cfg.slug]) || {};
+    const t0s = Object.keys(sheet).sort();
+    if(t0s.length < 2) return '';
+    const btns = t0s.map(t0 => '<button onclick="csPrint(\'' + esc(t0).replace(/'/g,"\\'") + '\')" style="padding:7px 11px;background:#1e293b;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-weight:800;font-size:11px;cursor:pointer">🖨️ ' + esc(t0) + '</button>').join('');
+    return '<div style="margin-top:16px;padding-top:12px;border-top:1px solid #e2e8f0"><div style="font-size:10px;font-weight:900;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Print one section as PDF</div><div style="display:flex;gap:6px;flex-wrap:wrap">' + btns + '</div></div>';
+  }
+
+  // Print subject-wise. If a tag[0] is passed, print just that section.
+  window.csPrint = function(onlyT0){
+    if(!CS.subject) return;
+    const cfg = CS_SUBJECTS[CS.subject];
+    const titleExtra = onlyT0 ? (' — ' + onlyT0) : '';
+    let host = document.getElementById('cs-print-host');
+    if(!host){ host = document.createElement('div'); host.id='cs-print-host'; document.body.appendChild(host); }
+    host.innerHTML =
+      '<style id="cs-print-style">@media print{body *{visibility:hidden!important}' +
+      '#cs-print-host,#cs-print-host *{visibility:visible!important}' +
+      '#cs-print-host{position:absolute;left:0;top:0;width:100%;height:auto;overflow:visible;padding:14px}' +
+      '@page{margin:14mm}}' +
+      '#cs-print-host{position:fixed;left:-99999px;top:0}' + SHEET_CSS + '</style>' +
+      '<div class="cs-doc"><h1>' + cfg.icon + ' ' + esc(CS.subject) + ' — Missing Concept Sheet' + esc(titleExtra) + '</h1>' +
+      '<div class="cs-sub">' + esc(KIND_LABEL[cfg.kind]) + ' · ' + new Date().toLocaleDateString('en-IN') + '</div>' +
+      sheetHTML(CS.subject, onlyT0||null) + '</div>';
+    setTimeout(function(){ try{ window.print(); }catch(e){ toast('Print not available'); } }, 120);
+  };
+
+  // Boot: ensure subjects on load so weekly buckets show up.
+  function boot(){ try { ensureMockSubjects(); } catch(e){} }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(boot, 800); });
+  else setTimeout(boot, 800);
+  console.log('[CS] Missing Concept Sheet module ready — call csOpen()');
 })();
 </script>
 
