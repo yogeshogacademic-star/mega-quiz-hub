@@ -2729,6 +2729,14 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                 const merged = JSON.parse(JSON.stringify(localSyllabusData));
                 let changed = false;
                 Object.keys(cloudSyllabusData).forEach(key => {
+                    // GUARD: never merge a known-stale topic in from cloud, and actively
+                    // drop it if a stale local copy still exists. Keeps the additive merge
+                    // from resurrecting rows that the locked 18-topic list has retired.
+                    const _cv = cloudSyllabusData[key];
+                    if (_cv && typeof scIsStaleTopic === 'function' && scIsStaleTopic(_cv.subject, _cv.name)) {
+                        if (merged[key]) { delete merged[key]; changed = true; }
+                        return;
+                    }
                     if (!merged[key]) { merged[key] = cloudSyllabusData[key]; changed = true; return; }
                     progressFields.forEach(f => {
                         if ((cloudSyllabusData[key][f]||0) > (merged[key][f]||0)) {
@@ -5590,6 +5598,11 @@ window.closeNotePractice = () => { const ov = document.getElementById('np-overla
                 const dateFields     = ['lecDate','r1Date','r2Date','r3Date','r4Date'];
                 const mergedSc = JSON.parse(JSON.stringify(localScRaw));
                 Object.keys(cloudScRaw).forEach(key => {
+                    const _cv = cloudScRaw[key];
+                    if (_cv && typeof scIsStaleTopic === 'function' && scIsStaleTopic(_cv.subject, _cv.name)) {
+                        if (mergedSc[key]) delete mergedSc[key];
+                        return;
+                    }
                     if (!mergedSc[key]) { mergedSc[key] = cloudScRaw[key]; return; }
                     // Take MAX progress for each round
                     progressFields.forEach(f => {
@@ -10351,6 +10364,49 @@ const SC_DEFAULT = {
   "Art & Culture": ["Architecture & Sculpture","Paintings","Music & Dance","Puppetry & Theatre","Languages & Literature","Fairs, Festivals & Handicrafts","Indian Philosophy"]
 };
 
+// ── PERMANENT STALE-TOPIC KILL LIST ───────────────────────────────────────────
+// Polity tag[1] was migrated to the locked 18-topic Laxmikant list (Jun 2026).
+// These OLD combo/duplicate tracker rows must NEVER appear again on ANY device.
+// Why a permanent idempotent filter (not another one-shot like scPurgeDeadTopicsOnce):
+//   1. The one-shot flag (scPurgeDeadTopics_v1) is already 'done' on every device, so
+//      it can never run again.
+//   2. The cloud syllabus merge is ADDITIVE — a device that still holds a stale row
+//      pushes it back to cloud, and every other device re-pulls it. A one-shot can't win
+//      that race. A cheap O(n) filter on every load guarantees convergence to clean,
+//      no matter what the merge brings back.
+// This is the SAME single-source-of-truth principle used to fix the Notes additive-merge
+// bug: the locked 18-topic list wins, stale always loses.
+const SC_STALE_TOPICS = {
+  "Polity": [
+    "Making, Preamble & Sources",
+    "Elections, Amendments, Parts & Schedules",
+    "Union, Territory & Citizenship",
+    "DPSP & Fundamental Duties",
+    "Local Govt (Panchayats & Municipalities)",
+    "Special Provisions & Anti-Defection",
+    "State Govt & Legislature"
+  ]
+};
+function scIsStaleTopic(subject, name) {
+  const list = SC_STALE_TOPICS[subject];
+  if (!list || !name) return false;
+  // Strip ALL whitespace + lowercase so spacing typos like
+  // "Elections, Amendments,Parts & Schedules" (missing space after comma)
+  // still match "Elections, Amendments, Parts & Schedules".
+  const norm = s => String(s).toLowerCase().replace(/\s+/g, '');
+  const n = norm(name);
+  return list.some(x => norm(x) === n);
+}
+function scDropStaleTopics() {
+  let dropped = 0;
+  Object.keys(scDb).forEach(key => {
+    const t = scDb[key]; if (!t) return;
+    if (scIsStaleTopic(t.subject, t.name)) { delete scDb[key]; dropped++; }
+  });
+  if (dropped) console.log('[scDropStaleTopics] removed ' + dropped + ' stale tracker row(s).');
+  return dropped;
+}
+
 // Revision intervals in days
 const SC_INTERVALS = { lec: 3, r1: 7, r2: 14, r3: 30 };
 
@@ -10467,6 +10523,8 @@ function scInitDefault() {
       localStorage.setItem('scPurgeDeadTopics_v1','done');
     }catch(e){ console.warn('[scPurgeDeadTopicsOnce] skipped:', e); }
   })();
+  // PERMANENT: always strip known-stale topic rows (idempotent, survives cloud merge).
+  scDropStaleTopics();
   scSave();
 }
 
