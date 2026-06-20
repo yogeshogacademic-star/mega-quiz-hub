@@ -7146,10 +7146,10 @@ window.generateQuantNotes = () => {
             }
             await idbKeyval.set('megaQuizMistakes_v5', data.mistakes);
             mistakesDb = data.mistakes;
-            updateSRSBadge();
             const t = data.mistakes.filter(q=>q&&q.tags&&q.tags[1]==='3D-Mensuration').length;
             const m = data.mistakes.filter(q=>q&&q.tags&&q.tags[1]==='3D-Mensuration'&&q.isMastered).length;
-            alert('✅ Done! Pulled ' + data.mistakes.length + ' SRS cards from cloud.\n3D-Mensuration: ' + m + ' mastered, ' + (t-m) + ' active.');
+            alert('✅ Done! Pulled ' + data.mistakes.length + ' SRS cards from cloud.\n3D-Mensuration: ' + m + ' mastered, ' + (t-m) + ' active.\n\nPage will now reload to apply changes.');
+            location.reload();
         } catch(e) {
             alert('❌ Pull failed: ' + e.message);
         }
