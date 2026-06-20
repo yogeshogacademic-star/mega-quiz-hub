@@ -1061,6 +1061,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                 <div class="flex justify-center gap-4 flex-wrap">
                     <button onclick="exportBackup()" class="bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-blue-100 dark:border-blue-900/30">💾 Full Backup (Everything)</button>
                     <button onclick="triggerRestore()" class="bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-amber-100 dark:border-amber-900/30">📂 Restore Backup 🔒</button>
+                    <button onclick="manualPullFromCloud()" class="bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-900/20 dark:text-purple-400 dark:hover:bg-purple-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-purple-100 dark:border-purple-900/30">☁️ Manual Pull from Cloud</button>
                     <button onclick="recoverAllHistory()" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-emerald-100 dark:border-emerald-900/30">🔄 Recover & Sync History</button>
                     <button onclick="scanDuplicates()" class="bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-orange-100 dark:border-orange-900/30">🔍 Scan Duplicates</button>
                     <button id="debug-mode-btn" onclick="toggleDebugMode()" class="font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border">🔬 Debug Mode</button>
@@ -7132,6 +7133,27 @@ window.generateQuantNotes = () => {
     };
 
     window.triggerRestore = () => { requireAuth(() => { document.getElementById('backup-file-input').click(); }); };
+
+    // ── MANUAL PULL FROM CLOUD — force-pulls mistakesDb from cloud into local IDB ──
+    window.manualPullFromCloud = async () => {
+        if (!confirm('☁️ Manual Pull from Cloud\n\nThis will overwrite your local SRS data with whatever is currently saved in the cloud.\n\nMake sure the cloud has the correct data before proceeding.\n\nContinue?')) return;
+        try {
+            const r = await fetch(CLOUD_URL, { method: 'GET', mode: 'cors' });
+            const data = await r.json();
+            if (!data || !Array.isArray(data.mistakes) || data.mistakes.length < 100) {
+                alert('⛔ Aborted — cloud mistakes data looks empty or too small (' + (data.mistakes||[]).length + ' items). Nothing changed.');
+                return;
+            }
+            await idbKeyval.set('megaQuizMistakes_v5', data.mistakes);
+            mistakesDb = data.mistakes;
+            updateSRSBadge();
+            const t = data.mistakes.filter(q=>q&&q.tags&&q.tags[1]==='3D-Mensuration').length;
+            const m = data.mistakes.filter(q=>q&&q.tags&&q.tags[1]==='3D-Mensuration'&&q.isMastered).length;
+            alert('✅ Done! Pulled ' + data.mistakes.length + ' SRS cards from cloud.\n3D-Mensuration: ' + m + ' mastered, ' + (t-m) + ' active.');
+        } catch(e) {
+            alert('❌ Pull failed: ' + e.message);
+        }
+    };
 
     // ── DAILY AUTO-BACKUP — downloads full backup once per day automatically ──
     window.checkAutoBackup = function() {
