@@ -949,6 +949,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-emerald-400 mb-2 drop-shadow-lg flex items-center gap-3 whitespace-nowrap overflow-visible">
                         Yogesh's Mega Quiz Hub
                         <span class="text-[10px] sm:text-xs text-slate-900 bg-gradient-to-r from-fuchsia-400 to-purple-500 px-2.5 py-1 rounded shadow-[0_0_15px_rgba(217,70,239,0.4)] tracking-widest border border-fuchsia-200">V24</span>
+                        <span id="hub-build-badge" class="text-[9px] text-slate-400 bg-slate-800 px-2 py-1 rounded border border-slate-600 tracking-wider font-mono" title="Build ID — check this matches the latest chat output before uploading to a new chat">BUILD</span>
                     </h1>
                     <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Notes · Quizzes · SRS · Syllabus Command</p>
                 </div>
@@ -1654,6 +1655,19 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
     // --- V21.3 TAG ARCHITECT CORE ENGINE ---
     let CUSTOM_TAGS = JSON.parse(localStorage.getItem('megaQuizCustomTags_v1')) || { tag2: {}, tag3: {} };
     function saveCustomTags() { localStorage.setItem('megaQuizCustomTags_v1', JSON.stringify(CUSTOM_TAGS)); }
+
+    // ── BUILD MARKER — update this every time you deliver a new file ──────────
+    // This is what you check when uploading to a new chat to confirm it's latest.
+    const HUB_BUILD = '2026-06-21 · v22.1';
+    // Features in this build:
+    //   v22.1 — MERGED: Manual Pull from Cloud (manualPullFromCloud) from parallel chat
+    //   v22.0 — Spotted Questions REMOVED · Mock Wrong = single pipeline
+    //           #mock wrong question marker on all MWQ questions
+    //           Missing Concept Sheet (csOpen) — Concept King 2-col layout
+    //           Prompt extracts concept the question is BASED ON (not solving steps)
+    //           BUILD ID badge in hub header
+    // ─────────────────────────────────────────────────────────────────────────
+    try { window.HUB_BUILD = HUB_BUILD; } catch(e) {}
 
     const SYLLABUS_MAP = {
         "Arithmetic": ["Percentage", "Ratio & Proportion", "Profit & Loss", "Discount & Dishonest Shopkeeper", "Time & Work", "Pipe & Cistern", "Simple Interest", "Compound Interest", "Installment", "Average", "Time, Speed & Distance", "Problems on Train", "Boat & Stream", "Circular and Linear Race", "Problems on Ages", "Partnership", "Mixture & Alligation"],
@@ -6725,6 +6739,12 @@ window.closeNotePractice = () => { const ov = document.getElementById('np-overla
 
     // V21.1 SMART ROUTING IMPORTER
     document.addEventListener('DOMContentLoaded', () => {
+        // ── Wire build badge ──
+        try {
+          const badge = document.getElementById('hub-build-badge');
+          if(badge && typeof HUB_BUILD !== 'undefined') badge.textContent = HUB_BUILD;
+        } catch(e) {}
+
         document.getElementById('quiz-container').addEventListener('click', (e) => { const optBtn = e.target.closest('.option-btn'); if (optBtn) { const qIdx = parseInt(optBtn.dataset.qindex); const oIdx = parseInt(optBtn.dataset.oindex); selectOption(qIdx, oIdx); } });
 
         document.getElementById('global-file-input').addEventListener('change', function(e) {
@@ -7134,7 +7154,7 @@ window.generateQuantNotes = () => {
 
     window.triggerRestore = () => { requireAuth(() => { document.getElementById('backup-file-input').click(); }); };
 
-    // ── MANUAL PULL FROM CLOUD — force-pulls mistakesDb from cloud into local IDB ──
+    // ── MANUAL PULL FROM CLOUD — force-pulls full cloud data into local IDB ──
     window.manualPullFromCloud = async () => {
         if (!confirm('☁️ Manual Pull from Cloud\n\nThis will overwrite your local SRS data with whatever is currently saved in the cloud.\n\nMake sure the cloud has the correct data before proceeding.\n\nContinue?')) return;
         try {
@@ -17461,46 +17481,87 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     const cfg = CS_SUBJECTS[subject];
     const pool = collectPool(subject);
     const L = [];
-    L.push('# Missing Concept Sheet builder — ' + subject);
+
+    L.push('You are writing entries for a STANDARD EXAM FORMULA & CONCEPT REFERENCE BOOK');
+    L.push('(like Gagan Pratap Sir\'s "Maths Concept King" — Champion Publication).');
     L.push('');
-    L.push('Below are the questions I got WRONG / could not solve in my ' + subject + ' mock-wrong pool, grouped by topic (tag[0] → tag[1]).');
+    L.push('Below are questions I got wrong in SSC CGL mock tests, grouped by topic.');
+    L.push('Each question REVEALS a specific concept, formula, case, or rule I did not know.');
+    L.push('');
+    L.push('════════════════════════════════════════════════════════');
+    L.push('YOUR ONLY JOB: Identify WHAT CONCEPT each question is testing.');
+    L.push('Write that concept as a clean book entry — title + formula/rule.');
+    L.push('════════════════════════════════════════════════════════');
+    L.push('');
+
     if(cfg.kind === 'formula'){
-      L.push('For EACH topic, list the standard FORMULAS and CONCEPTS I must know to solve these questions confidently. Be exam-focused and concise — actual formulas, shortcuts, and the core idea, not vague advice.');
+      L.push('CONCEPT ENTRIES FOR MATHS:');
+      L.push('  title → the specific CASE or SITUATION name');
+      L.push('         e.g. "Cone inscribed in Cube (side a)"');
+      L.push('         e.g. "Net % change (two successive %)"');
+      L.push('         e.g. "Sphere melted into n smaller spheres"');
+      L.push('  body  → the FORMULA only — variables, relationships, key values');
+      L.push('         e.g. "r = a/2, h = a  →  V = πa³/12"');
+      L.push('         e.g. "Net% = a + b + ab/100"');
+      L.push('         e.g. "R³ = n·r³  →  R/r = n^(1/3)"');
     } else if(cfg.kind === 'theory'){
-      L.push('For EACH topic, list the THEORY and KEY FACTS I must know to answer these questions — the specific points/facts these questions test, stated crisply for revision.');
+      L.push('CONCEPT ENTRIES FOR GS/POLITY/HISTORY/ECONOMY:');
+      L.push('  title → the specific FACT, PROVISION, OR CONCEPT being tested');
+      L.push('         e.g. "Article 356 — President\'s Rule"');
+      L.push('         e.g. "Rowlatt Act (1919)"');
+      L.push('  body  → the KEY FACT only — what it states, date, significance');
+      L.push('         NOT an essay. ONE to THREE crisp lines maximum.');
     } else if(cfg.kind === 'rule'){
-      L.push('For EACH topic, list the GRAMMAR RULES / patterns / usage points I must understand to get these questions right, with a one-line explanation each.');
+      L.push('CONCEPT ENTRIES FOR ENGLISH:');
+      L.push('  title → the specific RULE or PATTERN being tested');
+      L.push('         e.g. "Neither…nor → verb agrees with nearest subject"');
+      L.push('  body  → the RULE only, one line. Example ONLY if essential.');
     } else {
-      L.push('For EACH topic, list the CONCEPTS / tricks / approaches I must know to solve these questions, stated crisply.');
+      L.push('CONCEPT ENTRIES FOR REASONING:');
+      L.push('  title → the specific TYPE or PATTERN being tested');
+      L.push('  body  → the RULE or KEY OBSERVATION only');
     }
+
     L.push('');
-    L.push('## OUTPUT — return ONLY this JSON (no prose, no markdown fences):');
+    L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    L.push('STRICT RULES — READ CAREFULLY:');
+    L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    L.push('❌ DO NOT solve the question or show working');
+    L.push('❌ DO NOT write "set up", "equate", "find x", "let CP=", "solve for"');
+    L.push('❌ DO NOT dump generic topic formulas not related to these questions');
+    L.push('❌ DO NOT mention the question text in your output');
+    L.push('✅ Write ONLY the concept/case the question is BASED ON');
+    L.push('✅ If two questions test the same concept — write it ONCE');
+    L.push('✅ Be as specific as the case: not "cone volume" but "cone in cube"');
+    L.push('✅ body = the formula or key fact, nothing else');
+    L.push('');
+    L.push('OUTPUT FORMAT — return ONLY this JSON (no prose, no markdown fences):');
     L.push('{');
     L.push('  "<tag0>": {');
     L.push('    "<tag1>": [');
-    L.push('      {"title": "<short name of the formula/concept/rule>", "body": "<the actual formula / fact / rule — 1 to 3 lines>"}');
+    L.push('      {"title": "<specific case/concept name>", "body": "<formula or key fact only>"}');
     L.push('    ]');
     L.push('  }');
     L.push('}');
     L.push('');
-    L.push('Keep the SAME tag[0] and tag[1] names exactly as given below. Merge duplicate concepts. Aim for the 4–10 most important entries per topic.');
+    L.push('Use the EXACT same tag[0] and tag[1] names as below. No extras.');
     L.push('');
-    L.push('## MY WRONG QUESTIONS (grouped):');
-    L.push('');
+    L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    L.push('QUESTIONS (grouped by tag):');
+    L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     const t0s = Object.keys(pool.groups).sort();
     t0s.forEach(t0 => {
-      L.push('### tag[0] = ' + t0);
+      L.push('');
+      L.push('▌ ' + t0);
       const t1s = Object.keys(pool.groups[t0]).sort();
       t1s.forEach(t1 => {
-        L.push('');
-        L.push('• tag[1] = ' + t1 + '  (' + pool.groups[t0][t1].length + ' questions):');
+        L.push('  ── ' + t1 + ' (' + pool.groups[t0][t1].length + ' questions):');
         pool.groups[t0][t1].forEach((qtext, i) => {
-          const clean = qtext.replace(/\s+/g, ' ').trim();
-          L.push('   ' + (i+1) + '. ' + clean);
+          L.push('    ' + (i+1) + '. ' + qtext.replace(/\s+/g,' ').trim());
         });
       });
-      L.push('');
     });
+    L.push('');
     return L.join('\n');
   }
 
@@ -17618,92 +17679,167 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
   };
 
   // ── Sheet HTML (used by both View and Print) ──
+  // Section icons for tag[0] chapter banners
+  const SEC_ICON = {
+    'Arithmetic':'📊', 'Advanced Maths':'📐', 'Calculation':'🔢',
+    'Polity':'⚖️', 'Economics':'💹', 'Geography':'🌏',
+    'Ancient History':'🏛️', 'Medieval History':'🏰', 'Modern History':'🏴',
+    'Static GK':'📌', 'Current Affairs':'📰', 'Biology':'🧬',
+    'Physics':'⚡', 'Chemistry':'⚗️', 'Science & Technology':'🔬',
+    'Environment & Ecology':'🌿', 'Art & Culture':'🎭',
+    'English':'📖', 'Reasoning':'🧠'
+  };
+
   function sheetHTML(subject, onlyT0){
     const cfg = CS_SUBJECTS[subject]; const s = store();
     const sheet = (s && s.sheets[cfg.slug]) || {};
     const t0s = Object.keys(sheet).sort().filter(t0 => !onlyT0 || t0 === onlyT0);
-    if(!t0s.length) return '<div style="color:#94a3b8;padding:20px;text-align:center">No concept sheet yet.</div>';
+    if(!t0s.length) return '<div style="color:#64748b;padding:40px;text-align:center;font-size:14px">No concept sheet yet — Copy Prompt → Claude.ai → Save.</div>';
     let html = '';
     t0s.forEach(t0 => {
-      html += '<div class="cs-sec"><div class="cs-sec-head">' + esc(t0) + '</div>';
+      const icon = SEC_ICON[t0] || '📋';
+      html += '<div class="cs-sec">';
+      html += '<div class="cs-sec-head"><span class="cs-sec-head-icon">' + icon + '</span>' + esc(t0) + '</div>';
       const t1s = Object.keys(sheet[t0]).sort();
       t1s.forEach(t1 => {
-        const items = sheet[t0][t1] || [];
+        const items = (sheet[t0][t1] || []).filter(it => it.title || it.body);
         if(!items.length) return;
-        html += '<div class="cs-topic"><div class="cs-topic-head">' + esc(t1) + '</div><ul class="cs-list">';
+        html += '<div class="cs-topic">';
+        html += '<div class="cs-topic-head">' + esc(t1) + '</div>';
+        html += '<div class="cs-grid">';
         items.forEach(it => {
-          const title = it.title ? ('<b>' + esc(it.title) + ':</b> ') : '';
-          html += '<li>' + title + esc(it.body) + '</li>';
+          const title = (it.title || '').trim();
+          const body  = (it.body  || '').trim()
+                          // preserve line breaks from Claude output
+                          .replace(/\n/g, '<br>')
+                          // basic math formatting: superscripts like r², n³
+                          .replace(/([a-zA-Z0-9])\^(\d+)/g, '$1<sup>$2</sup>')
+                          .replace(/(\w)²/g, '$1<sup>2</sup>')
+                          .replace(/(\w)³/g, '$1<sup>3</sup>');
+          html += '<div class="cs-card">';
+          if(title) html += '<div class="cs-card-title">' + esc(title) + '</div>';
+          if(body)  html += '<div class="cs-card-body">' + body + '</div>';
+          html += '</div>';
         });
-        html += '</ul></div>';
+        html += '</div></div>'; // close cs-grid, cs-topic
       });
-      html += '</div>';
+      html += '</div>'; // close cs-sec
     });
     return html;
   }
 
+  function sheetCoverHTML(subject, extra){
+    const cfg = CS_SUBJECTS[subject];
+    const s = store(); const meta = (s && s.meta[cfg.slug]) || {};
+    const date = meta.generatedAt ? new Date(meta.generatedAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : new Date().toLocaleDateString('en-IN');
+    const qCount = meta.qCount || '?';
+    return '<div class="cs-cover">' +
+      '<div class="cs-cover-title">' + cfg.icon + ' ' + esc(subject) + (extra ? ' — ' + esc(extra) : '') + ' · Missing Concept Sheet</div>' +
+      '<div class="cs-cover-sub">SSC CGL 2026 · Mock Wrong Questions · Formula &amp; Concept Reference</div>' +
+      '<div class="cs-cover-meta">Generated from ' + qCount + ' questions · ' + date + '</div>' +
+    '</div>';
+  }
+
   const SHEET_CSS =
-    '.cs-doc{font-family:"Nunito Sans",system-ui,sans-serif;color:#0f172a}' +
-    '.cs-doc h1{font-size:20px;font-weight:900;margin:0 0 4px}' +
-    '.cs-doc .cs-sub{font-size:11px;color:#64748b;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px}' +
-    '.cs-sec{margin-bottom:18px;break-inside:avoid}' +
-    '.cs-sec-head{font-size:15px;font-weight:900;color:#fff;background:#4338ca;padding:7px 12px;border-radius:8px;margin-bottom:8px}' +
-    '.cs-topic{margin:0 0 10px 4px;break-inside:avoid}' +
-    '.cs-topic-head{font-size:13px;font-weight:900;color:#4338ca;border-bottom:1.5px solid #e2e8f0;padding-bottom:3px;margin-bottom:5px}' +
-    '.cs-list{margin:0;padding-left:18px}' +
-    '.cs-list li{font-size:12.5px;line-height:1.5;color:#1e293b;margin-bottom:4px}' +
-    '.cs-list li b{color:#0f172a}';
+    /* ── Document shell ── */
+    '.cs-doc{font-family:"Segoe UI",Arial,sans-serif;background:#e8f4fa;color:#0a2a3a;padding:0 0 24px}' +
+    /* ── Cover block ── */
+    '.cs-cover{background:#0088aa;color:#fff;padding:14px 20px 12px;margin-bottom:0}' +
+    '.cs-cover-title{font-size:22px;font-weight:900;letter-spacing:.01em;margin:0 0 2px}' +
+    '.cs-cover-sub{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;opacity:.85}' +
+    '.cs-cover-meta{font-size:10px;font-weight:700;margin-top:4px;opacity:.75}' +
+    /* ── tag[0] chapter banner ── */
+    '.cs-sec{margin-bottom:0}' +
+    '.cs-sec-head{' +
+      'background:#005577;color:#fff;font-size:14px;font-weight:900;' +
+      'padding:8px 20px;letter-spacing:.04em;text-transform:uppercase;' +
+      'border-top:3px solid #00aacc;margin-top:14px;display:flex;align-items:center;gap:8px' +
+    '}' +
+    '.cs-sec-head-icon{font-size:16px}' +
+    /* ── tag[1] topic sub-header ── */
+    '.cs-topic{margin:0}' +
+    '.cs-topic-head{' +
+      'background:#00aacc;color:#fff;font-size:12.5px;font-weight:900;' +
+      'padding:5px 20px;display:flex;align-items:center;gap:6px;margin-top:1px' +
+    '}' +
+    '.cs-topic-head::before{content:"▸";opacity:.7}' +
+    /* ── Two-column concept grid ── */
+    '.cs-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#c8e0ec;margin:0}' +
+    /* ── Concept card ── */
+    '.cs-card{' +
+      'background:#fff;padding:9px 12px;' +
+      'border-left:3px solid #00aacc;' +
+      'break-inside:avoid' +
+    '}' +
+    '.cs-card-title{' +
+      'font-size:12px;font-weight:900;color:#005577;margin-bottom:3px;line-height:1.3' +
+    '}' +
+    '.cs-card-title::before{content:"❖  ";color:#00aacc;font-size:10px}' +
+    '.cs-card-body{' +
+      'font-size:11.5px;color:#1a3a4a;line-height:1.55;font-family:"Courier New",monospace' +
+    '}' +
+    /* ── Print rules ── */
+    '@media print{' +
+      '.cs-doc{background:#e8f4fa!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+      '.cs-sec-head{background:#005577!important;color:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+      '.cs-topic-head{background:#00aacc!important;color:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+      '.cs-card{border-left:3px solid #00aacc!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+      '.cs-cover{background:#0088aa!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+      '.cs-grid{break-inside:avoid}' +
+      '@page{margin:10mm}' +
+    '}';
 
   window.csView = function(){
     if(!CS.subject) return;
-    const cfg = CS_SUBJECTS[CS.subject];
     let v = document.getElementById('cs-view-modal');
     if(!v){ v = document.createElement('div'); v.id='cs-view-modal'; document.body.appendChild(v); }
-    v.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100000;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto';
+    v.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100000;display:flex;align-items:flex-start;justify-content:center;padding:12px;overflow-y:auto';
     v.innerHTML =
-      '<div style="background:#fff;border-radius:16px;max-width:680px;width:100%;margin:20px 0;padding:22px;position:relative">' +
+      '<div style="max-width:860px;width:100%;margin:16px 0;border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.5)">' +
         '<style>' + SHEET_CSS + '</style>' +
-        '<div style="position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">' +
+        /* sticky toolbar */
+        '<div style="position:sticky;top:0;z-index:10;background:#003344;padding:8px 14px;display:flex;justify-content:space-between;align-items:center">' +
           '<div style="display:flex;gap:8px">' +
-            '<button onclick="csPrint()" style="padding:8px 14px;background:#b45309;border:none;border-radius:9px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">🖨️ Print PDF</button>' +
+            csSectionPrintBar(CS.subject) +
           '</div>' +
-          '<button onclick="document.getElementById(\'cs-view-modal\').remove()" style="background:#1e293b;border:none;color:#fff;font-size:14px;font-weight:900;cursor:pointer;border-radius:8px;padding:6px 12px">Close ×</button>' +
+          '<button onclick="document.getElementById(\'cs-view-modal\').remove()" style="background:#005577;border:none;color:#fff;font-size:13px;font-weight:900;cursor:pointer;border-radius:7px;padding:6px 14px">✕ Close</button>' +
         '</div>' +
-        '<div class="cs-doc"><h1>' + cfg.icon + ' ' + esc(CS.subject) + ' — Missing Concept Sheet</h1>' +
-        '<div class="cs-sub">' + esc(KIND_LABEL[cfg.kind]) + ' · built from Mock-Wrong questions</div>' +
-        sheetHTML(CS.subject, null) + '</div>' +
-        csSectionPrintBar(CS.subject) +
+        '<div class="cs-doc">' + sheetCoverHTML(CS.subject, null) + sheetHTML(CS.subject, null) + '</div>' +
       '</div>';
   };
 
-  // A row of "print just this tag[0]" buttons — Yogi wants subject-wise PDFs
-  // down to each tag[0] (Polity, Modern History, Advanced Maths, Arithmetic…).
   function csSectionPrintBar(subject){
     const cfg = CS_SUBJECTS[subject]; const s = store();
     const sheet = (s && s.sheets[cfg.slug]) || {};
     const t0s = Object.keys(sheet).sort();
-    if(t0s.length < 2) return '';
-    const btns = t0s.map(t0 => '<button onclick="csPrint(\'' + esc(t0).replace(/'/g,"\\'") + '\')" style="padding:7px 11px;background:#1e293b;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-weight:800;font-size:11px;cursor:pointer">🖨️ ' + esc(t0) + '</button>').join('');
-    return '<div style="margin-top:16px;padding-top:12px;border-top:1px solid #e2e8f0"><div style="font-size:10px;font-weight:900;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Print one section as PDF</div><div style="display:flex;gap:6px;flex-wrap:wrap">' + btns + '</div></div>';
+    // Full PDF button always first
+    let html = '<button onclick="csPrint()" style="padding:6px 12px;background:#b45309;border:none;border-radius:7px;color:#fff;font-weight:900;font-size:11px;cursor:pointer">🖨️ Full PDF</button>';
+    // Per-section buttons if more than one tag[0]
+    if(t0s.length > 1){
+      t0s.forEach(t0 => {
+        const safe = t0.replace(/'/g,"\\'");
+        html += '<button onclick="csPrint(\'' + safe + '\')" style="padding:6px 12px;background:#0e7490;border:none;border-radius:7px;color:#fff;font-weight:800;font-size:11px;cursor:pointer">' + esc(t0) + '</button>';
+      });
+    }
+    return html;
   }
 
   // Print subject-wise. If a tag[0] is passed, print just that section.
   window.csPrint = function(onlyT0){
     if(!CS.subject) return;
-    const cfg = CS_SUBJECTS[CS.subject];
-    const titleExtra = onlyT0 ? (' — ' + onlyT0) : '';
     let host = document.getElementById('cs-print-host');
     if(!host){ host = document.createElement('div'); host.id='cs-print-host'; document.body.appendChild(host); }
     host.innerHTML =
       '<style id="cs-print-style">@media print{body *{visibility:hidden!important}' +
       '#cs-print-host,#cs-print-host *{visibility:visible!important}' +
-      '#cs-print-host{position:absolute;left:0;top:0;width:100%;height:auto;overflow:visible;padding:14px}' +
-      '@page{margin:14mm}}' +
+      '#cs-print-host{position:absolute;left:0;top:0;width:100%;height:auto;overflow:visible;padding:0}' +
+      '@page{margin:8mm}}' +
       '#cs-print-host{position:fixed;left:-99999px;top:0}' + SHEET_CSS + '</style>' +
-      '<div class="cs-doc"><h1>' + cfg.icon + ' ' + esc(CS.subject) + ' — Missing Concept Sheet' + esc(titleExtra) + '</h1>' +
-      '<div class="cs-sub">' + esc(KIND_LABEL[cfg.kind]) + ' · ' + new Date().toLocaleDateString('en-IN') + '</div>' +
-      sheetHTML(CS.subject, onlyT0||null) + '</div>';
-    setTimeout(function(){ try{ window.print(); }catch(e){ toast('Print not available'); } }, 120);
+      '<div class="cs-doc">' +
+        sheetCoverHTML(CS.subject, onlyT0||null) +
+        sheetHTML(CS.subject, onlyT0||null) +
+      '</div>';
+    setTimeout(function(){ try{ window.print(); }catch(e){ toast('Print not available'); } }, 150);
   };
 
   // Boot: ensure subjects on load so weekly buckets show up.
