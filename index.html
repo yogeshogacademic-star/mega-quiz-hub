@@ -1667,7 +1667,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-06-22 · v23.1';
+    const HUB_BUILD = '2026-06-25 · v24';
     // Features in this build:
     //   v23.1 — Concept Sheet INCREMENTAL mode:
     //           · "➕ Add New (N)" sends only unprocessed questions + a
@@ -2251,8 +2251,9 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
             //     due-immediately so it comes up again for proper review.
             //
             if (mostRecentNewStatus !== null && Array.isArray(mistakesDb)) {
+                const _ok = window.__srsKey(oldText), _nk = window.__srsKey(target.question);
                 const srsIdx = mistakesDb.findIndex(
-                    m => m.question === oldText || m.question === target.question
+                    m => m && m.question && (window.__srsKey(m.question) === _ok || window.__srsKey(m.question) === _nk)
                 );
                 if (srsIdx !== -1) {
                     const m = mistakesDb[srsIdx];
@@ -2316,14 +2317,19 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     function initializeSRSData() {
         if(!Array.isArray(mistakesDb)) mistakesDb = [];
-        // DEDUP: keep card with latest nextReview per question text
+        // DEDUP: collapse fingerprint-identical cards (smart-quote / NBSP / dash twins),
+        // keeping the genuinely more-progressed copy. NOTE: a lapse pulls nextReview EARLIER,
+        // so "latest nextReview" is the wrong signal — use __srsBetterCard (step/mastery aware),
+        // matching exactly what the cloud-merge does, so local + cloud never disagree.
         const dedupMap = new Map();
         mistakesDb.forEach(m => {
-            const existing = dedupMap.get(m.question);
-            if (!existing) { dedupMap.set(m.question, m); return; }
-            const existNext = (existing.srs && existing.srs.nextReview) || 0;
-            const mNext = (m.srs && m.srs.nextReview) || 0;
-            if (mNext > existNext) dedupMap.set(m.question, m);
+            const key = window.__srsKey(m.question);
+            const existing = dedupMap.get(key);
+            if (!existing) { dedupMap.set(key, m); return; }
+            const keep = (typeof window.__srsBetterCard === 'function')
+                ? window.__srsBetterCard(existing, m)
+                : (((m.srs && m.srs.nextReview) || 0) > ((existing.srs && existing.srs.nextReview) || 0) ? m : existing);
+            dedupMap.set(key, keep);
         });
         if (dedupMap.size < mistakesDb.length) {
             console.log(`[SRS] Deduped ${mistakesDb.length - dedupMap.size} duplicate card(s).`);
@@ -2344,7 +2350,166 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
             if (isNaN(m.srs.reps) || m.srs.reps < 0) m.srs.reps = 0;
             if (isNaN(m.srs.nextReview)) m.srs.nextReview = Date.now();
         });
+
+        // ── SUBJECT-TRACK RELABEL (per-subject spacing repair) ────────────────────
+        // A card created in an older build (or carrying legacy A/B) can hold a track
+        // from the WRONG subject family, so it spaces like maths instead of like its
+        // real subject. Here we relabel the track to the family that matches tags[0],
+        // KEEPING the same review polarity (right vs wrong) and KEEPING the current due
+        // date + progress untouched — we only correct the schedule it follows NEXT time.
+        // Mastered cards and trackless legacy cards are left alone.
+        try {
+            const RIGHT = { maths: 'MA', english: 'EA', others: 'OA' };
+            const WRONG = { maths: 'MW', english: 'EW', others: 'OW' };
+            const famOf = (subj) => (subj === 'Advanced Maths' || subj === 'Arithmetic') ? 'maths'
+                                  : (subj === 'English') ? 'english' : 'others';
+            const isRightTrack = (t) => (t === 'MA' || t === 'OA' || t === 'EA' || t === 'A');
+            let _fixed = 0;
+            mistakesDb.forEach(m => {
+                if (!m || !m.srs || m.isMastered) return;
+                const t = m.srs.track;
+                if (!t || !window.SRS_TRACKS[t]) return;            // trackless legacy → leave to SM2 path
+                const subj = (Array.isArray(m.tags) && m.tags.length && CORE_SUBJECTS.includes(m.tags[0]))
+                    ? m.tags[0] : (m.subject || m.originalSubject || 'Miscellaneous');
+                const want = (isRightTrack(t) ? RIGHT : WRONG)[famOf(subj)];
+                if (t === want) return;                            // already correct family
+                const newLen = window.SRS_TRACKS[want].length;
+                m.srs.track = want;
+                m.srs.step = Math.min(Math.max(0, m.srs.step || 0), newLen - 1); // clamp into new schedule
+                m.srs.reps = m.srs.step;
+                m.srs.updatedAt = Date.now();
+                _fixed++;
+            });
+            window.__srsTrackFixed = _fixed;
+            if (_fixed > 0) console.log(`[SRS] Re-tracked ${_fixed} card(s) to the correct subject spacing.`);
+        } catch (e) { console.warn('[SRS track relabel] skipped:', e); }
     }
+
+    // Read-only report: per-subject track distribution + any remaining subject↔track
+    // mismatches. Run window.srsTrackReport() in the console anytime to verify spacing.
+    window.srsTrackReport = function() {
+        const RIGHT = { maths: 'MA', english: 'EA', others: 'OA' };
+        const WRONG = { maths: 'MW', english: 'EW', others: 'OW' };
+        const famOf = (s) => (s === 'Advanced Maths' || s === 'Arithmetic') ? 'maths' : (s === 'English') ? 'english' : 'others';
+        const isRight = (t) => (t === 'MA' || t === 'OA' || t === 'EA' || t === 'A');
+        const dist = {}; let mism = 0, mastered = 0, trackless = 0;
+        (mistakesDb || []).forEach(m => {
+            if (!m || !m.srs) return;
+            if (m.isMastered) { mastered++; return; }
+            const t = m.srs.track;
+            if (!t) { trackless++; return; }
+            dist[t] = (dist[t] || 0) + 1;
+            const subj = (Array.isArray(m.tags) && m.tags.length && CORE_SUBJECTS.includes(m.tags[0])) ? m.tags[0] : (m.subject || 'Miscellaneous');
+            const want = (isRight(t) ? RIGHT : WRONG)[famOf(subj)];
+            if (t !== want) mism++;
+        });
+        console.log('── SRS TRACK REPORT ──');
+        console.log('active by track:', dist);
+        console.log('mastered:', mastered, '| trackless legacy:', trackless, '| subject↔track mismatches:', mism);
+        console.log(mism === 0 ? '✅ Every active card is on its correct subject schedule.' : '⚠️ ' + mism + ' card(s) still mismatched — reload once to auto-fix.');
+        return { dist, mastered, trackless, mismatches: mism };
+    };
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SRS SPACING INSPECTOR (read-only — never writes, safe to run anytime)
+    //   srsInspect()            → English cards (default), spacing + attempt history
+    //   srsInspect('Polity')    → any subject by name
+    //   srsInspect('democracy') → any text match across the question
+    //   srsInspect('English', {limit:80, dueOnly:true})
+    // Shows, per card: track, step, stored interval vs the schedule's expected gap,
+    // when it's next due, when it was last graded, the full attempt timeline pulled
+    // from your history, and health flags (DUE / LAPSED / STUCK / TWIN / ORPHAN).
+    // STUCK = you've attempted it 3+ times but it's still at step 0 and not mastered —
+    // that is the exact signature of the "keeps reappearing, never spaces out" bug.
+    // ─────────────────────────────────────────────────────────────────────────
+    window.srsInspect = function(filter, opts) {
+        filter = (filter === undefined || filter === null) ? 'English' : String(filter);
+        opts = opts || {};
+        const limit = opts.limit || 40;
+        const now = Date.now(), DAY = 86400000;
+        const isSubject = CORE_SUBJECTS.some(s => s.toLowerCase() === filter.toLowerCase());
+        const fLow = filter.toLowerCase();
+
+        // 1. DB key set (to detect orphans) + twin counter
+        const dbKeys = new Set();
+        Object.keys(db).forEach(id => { if (db[id] && Array.isArray(db[id].questions)) db[id].questions.forEach(q => { if (q.question) dbKeys.add(window.__srsKey(q.question)); }); });
+        const keyCount = {};
+        mistakesDb.forEach(m => { if (m && m.question) { const k = window.__srsKey(m.question); keyCount[k] = (keyCount[k] || 0) + 1; } });
+
+        // 2. attempt timeline per question key, from history (oldest → newest)
+        const attemptsByKey = {};
+        (historyDb || []).slice().sort((a, b) => (a.ts || 0) - (b.ts || 0)).forEach(h => {
+            if (!Array.isArray(h.reviewData)) return;
+            h.reviewData.forEach(r => {
+                if (!r || !r.question) return;
+                const k = window.__srsKey(r.question);
+                (attemptsByKey[k] = attemptsByKey[k] || []).push({ d: h.date || '?', s: r.status || '?', ts: h.ts || 0 });
+            });
+        });
+
+        // 3. pick matching cards
+        const subjOf = (m) => (Array.isArray(m.tags) && m.tags.length && CORE_SUBJECTS.includes(m.tags[0])) ? m.tags[0] : (m.subject || m.originalSubject || 'Miscellaneous');
+        let cards = mistakesDb.filter(m => {
+            if (!m || !m.question) return false;
+            if (isSubject) return subjOf(m).toLowerCase() === fLow;
+            return m.question.toLowerCase().includes(fLow);
+        });
+        if (opts.dueOnly) cards = cards.filter(m => m.srs && !m.isMastered && m.srs.nextReview <= now);
+
+        // 4. sort: due first, then soonest
+        cards.sort((a, b) => ((a.srs && a.srs.nextReview) || 0) - ((b.srs && b.srs.nextReview) || 0));
+
+        const rows = [];
+        cards.slice(0, limit).forEach(m => {
+            const s = m.srs || {};
+            const k = window.__srsKey(m.question);
+            const track = s.track || '—';
+            const sched = window.SRS_TRACKS[track];
+            const total = sched ? sched.length : '?';
+            const step = (typeof s.step === 'number') ? s.step : '—';
+            const expected = (sched && typeof step === 'number' && step < sched.length) ? sched[step].base : null;
+            const dueInD = s.nextReview ? Math.round((s.nextReview - now) / DAY) : null;
+            const lastGradedD = s.updatedAt ? Math.round((now - s.updatedAt) / DAY) : null;
+            const hist = attemptsByKey[k] || [];
+            const flags = [];
+            if (m.isMastered) flags.push('MASTERED');
+            else if (s.nextReview && s.nextReview <= now) flags.push('DUE');
+            if (s.interval === 1 && (s.failStreak || 0) > 0) flags.push('LAPSED');
+            if (s.struggling) flags.push('STRUGGLING(x' + (s.failStreak || 0) + ')');
+            if (!m.isMastered && (typeof step === 'number') && step === 0 && hist.length >= 3) flags.push('⚠STUCK');
+            if (keyCount[k] > 1) flags.push('⚠TWIN(x' + keyCount[k] + ')');
+            if (!dbKeys.has(k)) flags.push('⚠ORPHAN');
+
+            rows.push({
+                question: m.question.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 55),
+                subj: subjOf(m),
+                track,
+                'step': (step === '—' ? '—' : step + '/' + total),
+                'interval(d)': s.interval != null ? s.interval : '—',
+                'expected(d)': expected != null ? expected : (m.isMastered ? 'done' : '—'),
+                'due in(d)': m.isMastered ? '—' : (dueInD === null ? '—' : (dueInD <= 0 ? 'DUE ' + dueInD : '+' + dueInD)),
+                reps: s.reps != null ? s.reps : '—',
+                'graded ago(d)': lastGradedD === null ? '—' : lastGradedD,
+                attempts: hist.length,
+                seq: hist.map(a => a.s === 'correct' ? '✓' : a.s === 'wrong' ? '✗' : '·').join(''),
+                flags: flags.join(' ') || 'ok'
+            });
+        });
+
+        // 5. summary
+        const due = cards.filter(m => m.srs && !m.isMastered && m.srs.nextReview <= now).length;
+        const mastered = cards.filter(m => m.isMastered).length;
+        const stuck = rows.filter(r => r.flags.includes('STUCK')).length;
+        const twins = rows.filter(r => r.flags.includes('TWIN')).length;
+        const orphans = rows.filter(r => r.flags.includes('ORPHAN')).length;
+        console.log('%c── SRS INSPECT: ' + filter + ' ──', 'font-weight:bold;font-size:13px');
+        console.log(`matched ${cards.length} card(s)  |  due now ${due}  |  mastered ${mastered}  |  ⚠stuck ${stuck}  |  ⚠twins ${twins}  |  ⚠orphans ${orphans}`);
+        console.log('Columns: interval = days the card was last given · expected = the schedule gap for its current step · seq = your attempt history (✓ right, ✗ wrong, · skipped)');
+        console.table(rows);
+        if (stuck || twins || orphans) console.log('%c⚠ Bug signatures present. STUCK/TWIN/ORPHAN cards never space out. Run runSRSIntegrityCheck() to merge twins + clear orphans, then reload.', 'color:#dc2626;font-weight:bold');
+        else console.log('%c✅ No stuck/twin/orphan cards in this set — spacing is advancing normally.', 'color:#16a34a;font-weight:bold');
+        return rows;
+    };
 
     // V21.1 Storage Expansion
     async function updateLocalCache() {
@@ -4033,7 +4198,7 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
         const recentlyGraded = window._lastSprintGraded || new Set();
 
         if(type === 'global') {
-            dueQs = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now() && !m.isMastered && !recentlyGraded.has(m.question));
+            dueQs = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now() && !m.isMastered && !recentlyGraded.has(window.__srsKey(m.question)));
             // If filtering removes everything, fall back to full due list (edge case: only 1 sprint card exists)
             if(dueQs.length === 0) dueQs = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now() && !m.isMastered);
             titleStr = "🔥 Master Global SRS Sprint";
@@ -4042,7 +4207,7 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
             let masterMap = getMasterMap(); 
             dueQs = mistakesDb.filter(m => {
                 if (!m.srs || m.srs.nextReview > Date.now() || m.isMastered) return false;
-                if (recentlyGraded.has(m.question)) return false;
+                if (recentlyGraded.has(window.__srsKey(m.question))) return false;
                 let clean = masterMap[m.question]; let activeTags = clean ? clean.tags : (Array.isArray(m.tags) ? m.tags : []);
                 let subName = activeTags.length > 0 ? activeTags[0] : (m.subject || m.originalSubject || "Miscellaneous");
                 return subName === sub;
@@ -4429,7 +4594,7 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
 
         // PERFORMANCE FIX: build index map once — O(n) — instead of findIndex per question O(n²)
         const srsIndexMap = new Map();
-        mistakesDb.forEach((m, idx) => { if(m.question) srsIndexMap.set(m.question, idx); });
+        mistakesDb.forEach((m, idx) => { if(m.question) srsIndexMap.set(window.__srsKey(m.question), idx); });
 
         activeQuestions.forEach((q, i) => {
             const sel = quizState.answers[i]; let isMistake = false; let status = ''; let uText = 'Skipped'; let cText = 'N/A';
@@ -4441,7 +4606,7 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
                 if (sel === undefined) { skipped++; isMistake = true; status = 'skipped'; } else if (q.options && q.options[sel] && q.options[sel].correct) { correct++; status = 'correct'; uText = q.options[sel].text; } else { wrong++; isMistake = true; status = 'wrong'; uText = q.options ? q.options[sel].text : "N/A"; }
             }
 
-            let mistIdx = srsIndexMap.get(q.question) ?? -1;
+            let mistIdx = srsIndexMap.get(window.__srsKey(q.question)) ?? -1;
             if (currentQuizId === 'quiz_retry') {
                 // Retry round — NO SRS updates, just record result for review
             } else if (currentQuizId === 'quiz_srs') {
@@ -4628,7 +4793,7 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
 
         // BUG3 FIX: store graded questions in memory so recentlyGraded works even after cloud strips reviewData
         if(currentQuizId && currentQuizId.startsWith('quiz_srs')){
-            window._lastSprintGraded = new Set(activeQuestions.map(q => q.question));
+            window._lastSprintGraded = new Set(activeQuestions.map(q => window.__srsKey(q.question)));
             window._srsSprintJustCompleted = true; // triggers post-save cloud verification
         }
 
@@ -4946,7 +5111,10 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
 
     // Auto-grade a single card: status = 'correct' | 'wrong' | 'skipped'
     function autoGradeSRS(qText, status) {
-        let mistIdx = mistakesDb.findIndex(m => m.question === qText);
+        // IDENTITY FIX: find by canonical key so a punctuation/whitespace twin still
+        // resolves to its real card (was: exact === match → graded card stayed "due").
+        const _qk = window.__srsKey(qText);
+        let mistIdx = mistakesDb.findIndex(m => m && m.question && window.__srsKey(m.question) === _qk);
         if (mistIdx === -1) return null;
         let m = mistakesDb[mistIdx];
         if (!m.srs) m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() };
@@ -5015,7 +5183,8 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
     // Send to Masters — instantly vault a question
     window.sendToMasters = (safeId) => {
         let qText = window.editRegistry[safeId]; if (!qText) return;
-        let mistIdx = mistakesDb.findIndex(m => m.question === qText);
+        const _vk = window.__srsKey(qText);
+        let mistIdx = mistakesDb.findIndex(m => m && m.question && window.__srsKey(m.question) === _vk);
         if (mistIdx === -1) return alert("Question not found in SRS queue.");
         mistakesDb[mistIdx].srs.interval = 30;
         mistakesDb[mistIdx].srs.reps = 10;
@@ -5108,14 +5277,14 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
         const srsMap = {};
         mistakesDb.forEach(m => {
             if (!m.question) return;
-            srsMap[m.question] = m;
+            srsMap[window.__srsKey(m.question)] = m;
         });
 
         // Split into: In SRS, Not in SRS yet
         const now = Date.now();
         const inSRS = [], notInSRS = [];
         allDbQuestions.forEach(item => {
-            const m = srsMap[item.q];
+            const m = srsMap[window.__srsKey(item.q)];
             if (m) {
                 const msLeft = m.srs ? (m.srs.nextReview - now) : 0;
                 let dueLabel = m.isMastered ? '👑 Mastered'
@@ -5205,12 +5374,12 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
         window.viewHistoryOrphans = () => {
         requireAuth(() => {
             const allDbQ = new Set();
-            Object.keys(db).forEach(id => { if (db[id] && Array.isArray(db[id].questions)) db[id].questions.forEach(q => { if(q.question) allDbQ.add(q.question); }); });
+            Object.keys(db).forEach(id => { if (db[id] && Array.isArray(db[id].questions)) db[id].questions.forEach(q => { if(q.question) allDbQ.add(window.__srsKey(q.question)); }); });
             const bySubject = {}; let total = 0;
             historyDb.forEach(h => {
                 if (!Array.isArray(h.reviewData)) return;
                 h.reviewData.forEach(r => {
-                    if (!r.question || allDbQ.has(r.question)) return;
+                    if (!r.question || allDbQ.has(window.__srsKey(r.question))) return;
                     total++;
                     const s = h.subject || 'Unknown';
                     if (!bySubject[s]) bySubject[s] = [];
@@ -5252,19 +5421,22 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
 
         window.runSRSIntegrityCheck = () => {
         requireAuth(() => {
-            // Build master set of all valid question texts currently in db
+            // Build master set of all valid question keys currently in db (canonical —
+            // immune to punctuation/whitespace drift, so a real card isn't falsely orphaned)
             const allDbQuestions = new Set();
             Object.keys(db).forEach(id => {
                 if (db[id] && Array.isArray(db[id].questions))
-                    db[id].questions.forEach(q => { if (q.question) allDbQuestions.add(q.question); });
+                    db[id].questions.forEach(q => { if (q.question) allDbQuestions.add(window.__srsKey(q.question)); });
             });
 
-            // 1. ORPHANED — in SRS but source question gone from all quizzes
-            const orphaned = mistakesDb.filter(m => !allDbQuestions.has(m.question));
+            // 1. ORPHANED — in SRS but source question gone from all quizzes (key-based)
+            const orphaned = mistakesDb.filter(m => !allDbQuestions.has(window.__srsKey(m.question)));
 
-            // 2. DUPLICATES — same question text more than once in SRS
+            // 2. DUPLICATES — same question (by canonical key) more than once in SRS.
+            //    Key-based now CATCHES smart-quote / dash / spacing twins the old
+            //    exact-match scan silently missed (the real cause of the orphan loop).
             const seenQ = new Set(); const duplicates = [];
-            mistakesDb.forEach(m => { if (seenQ.has(m.question)) duplicates.push(m.question); else seenQ.add(m.question); });
+            mistakesDb.forEach(m => { const k = window.__srsKey(m.question); if (seenQ.has(k)) duplicates.push(m.question); else seenQ.add(k); });
 
             // 3. CORRUPT CARDS — missing .srs object, or NaN/null/negative fields
             const corrupt = mistakesDb.filter(m => {
@@ -5289,7 +5461,7 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
             let histOrphanCount = 0;
             historyDb.forEach(h => {
                 if (!Array.isArray(h.reviewData)) return;
-                h.reviewData.forEach(r => { if (r.question && !allDbQuestions.has(r.question)) histOrphanCount++; });
+                h.reviewData.forEach(r => { if (r.question && !allDbQuestions.has(window.__srsKey(r.question))) histOrphanCount++; });
             });
 
             // Build report
@@ -5338,10 +5510,17 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
                 mistakesDb = mistakesDb.filter(m => !ots.has(m.question));
             }
 
-            // Fix 2: remove duplicates (keep first occurrence)
+            // Fix 2: collapse duplicates by canonical key — keep the MORE-PROGRESSED
+            // copy (step/mastery aware), not just the first one, so no SRS progress is lost.
             if (duplicates.length > 0) {
-                const seen = new Set();
-                mistakesDb = mistakesDb.filter(m => { if (seen.has(m.question)) return false; seen.add(m.question); return true; });
+                const byKey = new Map();
+                mistakesDb.forEach(m => {
+                    const k = window.__srsKey(m.question);
+                    const ex = byKey.get(k);
+                    if (!ex) { byKey.set(k, m); return; }
+                    byKey.set(k, (typeof window.__srsBetterCard === 'function') ? window.__srsBetterCard(ex, m) : ex);
+                });
+                mistakesDb = Array.from(byKey.values());
             }
 
             // Fix 3: repair corrupt cards (reset to safe defaults, keep question + subject)
@@ -5370,7 +5549,7 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
             if (histOrphanCount > 0) {
                 historyDb = historyDb.map(h => {
                     if (!Array.isArray(h.reviewData)) return h;
-                    h.reviewData = h.reviewData.filter(r => !r.question || allDbQuestions.has(r.question));
+                    h.reviewData = h.reviewData.filter(r => !r.question || allDbQuestions.has(window.__srsKey(r.question)));
                     return h;
                 });
             }
@@ -5883,6 +6062,21 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
         return s;
     };
 
+    // ── CANONICAL SRS IDENTITY KEY (the orphan-loop fix) ──────────────────────
+    // Every SRS hot path (grading, sprint filtering, R1 "is-this-new" filter,
+    // orphan/duplicate detection, on-load dedup) MUST identify a question by this
+    // key — NOT by raw `m.question === qText`. Raw exact-match treats a smart-quote /
+    // NBSP / en-dash / trailing-space twin as a different question, which (a) makes a
+    // graded card invisible so it stays "due" forever, and (b) makes R1 think it's new
+    // and push a 2nd card. Routing through the same fingerprint the cloud-merge already
+    // uses makes all layers agree, so twins can no longer be created or stranded.
+    // Safe fallback if __qFingerprint is somehow unavailable: lowercase + collapse ws.
+    window.__srsKey = function(text) {
+        return (typeof window.__qFingerprint === 'function')
+            ? window.__qFingerprint(text)
+            : String(text || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    };
+
     // djb2 hash → short stable key (for ignore-list pair keys & media tokens)
     window.__dupHash = function(s) {
         let h = 5381; s = String(s || '');
@@ -6070,12 +6264,14 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
     //   C) no card → nothing to do.
     window.__dupSrsReconcile = function(removedQText, keptQObj) {
         if (!removedQText || removedQText === (keptQObj && keptQObj.question)) return 'none';
-        const ri = mistakesDb.findIndex(m => m && m.question === removedQText);
+        const _rk = window.__srsKey(removedQText);
+        const ri = mistakesDb.findIndex(m => m && m.question && window.__srsKey(m.question) === _rk);
         if (ri === -1) return 'none';
         const removedCard = mistakesDb[ri];
         const removedFp = window.__qFingerprint(removedQText);
         const keptText = keptQObj && keptQObj.question;
-        const ki = keptText ? mistakesDb.findIndex(m => m && m.question === keptText) : -1;
+        const _kk = keptText ? window.__srsKey(keptText) : null;
+        const ki = _kk ? mistakesDb.findIndex(m => m && m.question && window.__srsKey(m.question) === _kk) : -1;
         if (ki !== -1) {
             // Case A — merge: kept-text card inherits better progress
             const keptCard = mistakesDb[ki];
@@ -11531,7 +11727,7 @@ window.scStartRevision = (key, rev) => {
     }
   } else if (rev === 'r1') {
     const srsMap = new Map();
-    mistakesDb.forEach(m => { if (m.question) srsMap.set(m.question, m); });
+    mistakesDb.forEach(m => { if (m.question) srsMap.set(window.__srsKey(m.question), m); });
 
     // AUTO-RECONSTRUCT r1Progress from history if it was wiped by sync.
     // GUARD: only fire when R1 is NOT yet marked done (t.r1 is false/null).
@@ -11585,13 +11781,13 @@ window.scStartRevision = (key, rev) => {
       // question has already graduated to SRS, so "not in SRS" = genuinely new.
       // Filter by SRS membership ONLY — ignore r1QuestionsAttempted, which can be
       // stale or corrupt from an earlier buggy click (this is what stuck Hemisphere).
-      questions = questions.filter(q => !srsMap.has(q.question));
+      questions = questions.filter(q => !srsMap.has(window.__srsKey(q.question)));
     } else if (attemptedSet.size > 0) {
       // Primary: filter by actual question texts seen — immune to drift
-      questions = questions.filter(q => !srsMap.has(q.question) && !attemptedSet.has(q.question));
+      questions = questions.filter(q => !srsMap.has(window.__srsKey(q.question)) && !attemptedSet.has(q.question));
     } else if (doneSoFar === 0) {
       // TRULY fresh start (progress=0 AND attempted=[])
-      questions = questions.filter(q => !srsMap.has(q.question));
+      questions = questions.filter(q => !srsMap.has(window.__srsKey(q.question)));
     } else if (doneSoFar >= questions.length) {
       questions = []; // all done → completion modal
     } else {
@@ -11599,7 +11795,7 @@ window.scStartRevision = (key, rev) => {
       // Self-heal from history already failed (e.g., cloud-stripped reviewData).
       // Reconstruct attempted from deterministic pool ordering to stop wrong-Q leak
       // and total-inflation. Best-effort recovery.
-      const srsFiltered = questions.filter(q => !srsMap.has(q.question));
+      const srsFiltered = questions.filter(q => !srsMap.has(window.__srsKey(q.question)));
       t.r1QuestionsAttempted = srsFiltered.slice(0, doneSoFar).map(q => q.question);
       scSave();
       console.warn('[R1 Sync-Conflict Recovery] Reconstructed ' + t.r1QuestionsAttempted.length + ' attempted Qs from deterministic pool');
@@ -11771,7 +11967,7 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
     // Filter by wrong[] for R2/R3/R4 - SAME logic as scStartRevision
     if (rev === 'r1') {
       const srsMap = new Map();
-      mistakesDb.forEach(m => { if (m.question) srsMap.set(m.question, m); });
+      mistakesDb.forEach(m => { if (m.question) srsMap.set(window.__srsKey(m.question), m); });
       const doneSoFar = t.r1Progress || 0;
       // SELF-HEAL: rebuild r1QuestionsAttempted from history if sync wiped it
       if ((t.r1QuestionsAttempted || []).length === 0 && doneSoFar > 0) {
@@ -11791,16 +11987,16 @@ function scLaunchRevQuiz(key, rev, questions, startIdx) {
       const attemptedSet = new Set(t.r1QuestionsAttempted || []);
       if (attemptedSet.size > 0) {
         // Primary: filter by actual question texts seen — immune to pool/SRS drift
-        questions = questions.filter(q => !srsMap.has(q.question) && !attemptedSet.has(q.question));
+        questions = questions.filter(q => !srsMap.has(window.__srsKey(q.question)) && !attemptedSet.has(q.question));
       } else if (doneSoFar === 0) {
         // TRULY fresh start (progress=0 AND attempted=[])
-        questions = questions.filter(q => !srsMap.has(q.question));
+        questions = questions.filter(q => !srsMap.has(window.__srsKey(q.question)));
       } else if (doneSoFar >= questions.length) {
         questions = [];
       } else {
         // BUG-FIX (Jun 2026): SYNC CONFLICT — progress > 0 but attempted=[].
         // Reconstruct from deterministic pool order to stop wrong-Q leak + total inflation.
-        const srsFiltered = questions.filter(q => !srsMap.has(q.question));
+        const srsFiltered = questions.filter(q => !srsMap.has(window.__srsKey(q.question)));
         t.r1QuestionsAttempted = srsFiltered.slice(0, doneSoFar).map(q => q.question);
         scSave();
         console.warn('[R1 Sync-Conflict Recovery scLaunchRevQuiz] Reconstructed ' + t.r1QuestionsAttempted.length + ' attempted Qs');
@@ -12914,14 +13110,14 @@ window.scMarkRevDoneAuto = (key, rev) => {
     try {
       const wrongList = Array.isArray(t.r1Wrong) ? t.r1Wrong : [];
       if (wrongList.length) {
-        const inSrs = new Set(mistakesDb.filter(m => m && m.question).map(m => m.question));
+        const inSrs = new Set(mistakesDb.filter(m => m && m.question).map(m => window.__srsKey(m.question)));
         const qMap = new Map();
         Object.values(db).forEach(quiz => {
           if (!quiz || !quiz.questions || quiz.isScRevision || quiz.isSRS || quiz.isWeakBank) return;
           quiz.questions.forEach(q => { if (q && q.question && !qMap.has(q.question)) qMap.set(q.question, q); });
         });
         wrongList.forEach(qt => {
-          if (inSrs.has(qt)) return;            // already in SRS — skip (idempotent)
+          if (inSrs.has(window.__srsKey(qt))) return;            // already in SRS — skip (idempotent)
           const qObj = qMap.get(qt); if (!qObj) return;
           const card = JSON.parse(JSON.stringify(qObj));
           card.subject = (qObj.tags && qObj.tags[0]) || t.subject || 'Miscellaneous';
@@ -12967,7 +13163,7 @@ window.scMarkRevDoneAuto = (key, rev) => {
     
     // Build SRS index map for quick lookup
     const srsIndexMap = new Map();
-    mistakesDb.forEach((m, idx) => { if (m.question) srsIndexMap.set(m.question, idx); });
+    mistakesDb.forEach((m, idx) => { if (m.question) srsIndexMap.set(window.__srsKey(m.question), idx); });
     
     // Build question object map for creating new SRS entries
     const qObjMap = new Map();
@@ -12982,7 +13178,7 @@ window.scMarkRevDoneAuto = (key, rev) => {
     });
 
     t.r1QuestionsAttempted.forEach(qText => {
-      const mistIdx = srsIndexMap.get(qText);
+      const mistIdx = srsIndexMap.get(window.__srsKey(qText));
       const inSRS = mistIdx !== undefined && mistakesDb[mistIdx];
 
       if (r4WrongSet.has(qText)) {
