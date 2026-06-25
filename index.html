@@ -1238,6 +1238,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                 </div>
                 <div class="flex items-center gap-2">
                     <button onclick="runSRSIntegrityCheck()" class="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-700 hover:bg-amber-200 transition-colors" title="Check SRS for orphans + missing questions">🔍 Integrity</button>
+                    <button onclick="srsInspectModal('English')" class="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 border border-violet-200 dark:border-violet-700 hover:bg-violet-200 transition-colors" title="See each card's spacing + your attempt history (English by default)">🔬 Inspect Spacing</button>
                     <button onclick="viewHistoryOrphans()" class="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-700 hover:bg-blue-200 transition-colors">👁️ View Orphans</button>
                     <button onclick="closeSRSModal()" class="text-slate-400 hover:text-red-500 font-black text-3xl transition-colors">&times;</button>
                 </div>
@@ -1667,7 +1668,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-06-25 · v24';
+    const HUB_BUILD = '2026-06-25 · v24.2';
     // Features in this build:
     //   v23.1 — Concept Sheet INCREMENTAL mode:
     //           · "➕ Add New (N)" sends only unprocessed questions + a
@@ -2511,6 +2512,70 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
         return rows;
     };
 
+    // On-screen version of srsInspect — a real table modal (works on iPad/iPhone where
+    // there's no console). Tap a subject chip to switch. Pure read-only.
+    window.srsInspectModal = function(subject) {
+        subject = subject || 'English';
+        const rows = window.srsInspect(subject, { limit: 300 }) || [];
+        const old = document.getElementById('srs-inspect-modal'); if (old) old.remove();
+
+        const chipSubs = ['English', 'Polity', 'Reasoning', 'Arithmetic', 'Advanced Maths', 'History', 'Economics', 'Geography'];
+        const chips = chipSubs.map(s => `<button onclick="srsInspectModal('${s}')" style="padding:5px 11px;border-radius:999px;font-size:10px;font-weight:900;border:1px solid ${s===subject?'#7c3aed':'#e2e8f0'};background:${s===subject?'#7c3aed':'#fff'};color:${s===subject?'#fff':'#475569'};cursor:pointer;white-space:nowrap">${s}</button>`).join('');
+
+        const flagColor = f => f.includes('ORPHAN')||f.includes('STUCK')||f.includes('TWIN') ? '#dc2626'
+            : f.includes('MASTERED') ? '#92400e' : f.includes('DUE') ? '#2563eb' : f.includes('LAPSED')||f.includes('STRUGGLING') ? '#d97706' : '#16a34a';
+
+        const headers = ['#', 'Question', 'track', 'step', 'int(d)', 'exp(d)', 'due in(d)', 'reps', 'attempts', 'seq', 'flags'];
+        const headHTML = headers.map(h => `<th style="position:sticky;top:0;background:#f8fafc;padding:7px 8px;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;color:#64748b;text-align:left;border-bottom:2px solid #e2e8f0;white-space:nowrap">${h}</th>`).join('');
+        const bodyHTML = rows.length ? rows.map((r, i) => {
+            const fc = flagColor(r.flags);
+            const bad = r.flags.includes('ORPHAN')||r.flags.includes('STUCK')||r.flags.includes('TWIN');
+            return `<tr style="background:${bad?'#fef2f2':(i%2?'#fff':'#fcfcfd')}">
+                <td style="padding:7px 8px;font-size:10px;color:#94a3b8;font-weight:900">${i+1}</td>
+                <td style="padding:7px 8px;font-size:11px;color:#1e293b;font-weight:600;max-width:260px;min-width:180px;line-height:1.4">${(r.question||'').replace(/</g,'&lt;')}</td>
+                <td style="padding:7px 8px;font-size:11px;font-weight:900;color:#7c3aed;white-space:nowrap">${r.track}</td>
+                <td style="padding:7px 8px;font-size:11px;font-weight:700;white-space:nowrap">${r.step}</td>
+                <td style="padding:7px 8px;font-size:11px;text-align:center">${r['interval(d)']}</td>
+                <td style="padding:7px 8px;font-size:11px;text-align:center;color:#64748b">${r['expected(d)']}</td>
+                <td style="padding:7px 8px;font-size:11px;font-weight:700;white-space:nowrap">${r['due in(d)']}</td>
+                <td style="padding:7px 8px;font-size:11px;text-align:center">${r.reps}</td>
+                <td style="padding:7px 8px;font-size:11px;text-align:center;font-weight:700">${r.attempts}</td>
+                <td style="padding:7px 8px;font-size:13px;letter-spacing:1px;white-space:nowrap;font-family:monospace">${r.seq||'—'}</td>
+                <td style="padding:7px 8px;font-size:10px;font-weight:900;color:${fc};white-space:nowrap">${r.flags}</td>
+            </tr>`;
+        }).join('') : `<tr><td colspan="11" style="padding:24px;text-align:center;color:#94a3b8;font-weight:700;font-size:12px">No ${subject} cards in SRS yet.</td></tr>`;
+
+        const stuckN = rows.filter(r => r.flags.includes('STUCK')).length;
+        const twinN  = rows.filter(r => r.flags.includes('TWIN')).length;
+        const orphN  = rows.filter(r => r.flags.includes('ORPHAN')).length;
+        const dueN   = rows.filter(r => (r['due in(d)']+'').includes('DUE')).length;
+        const bad = stuckN + twinN + orphN;
+        const banner = bad
+            ? `<div style="background:#fef2f2;border-bottom:1px solid #fecaca;padding:9px 18px;font-size:11px;font-weight:800;color:#b91c1c">⚠ ${bad} problem card(s): ${stuckN} stuck · ${twinN} twin · ${orphN} orphan — these never space out. Tap 🔍 Integrity to merge/clear, then reload.</div>`
+            : `<div style="background:#f0fdf4;border-bottom:1px solid #bbf7d0;padding:9px 18px;font-size:11px;font-weight:800;color:#15803d">✅ No stuck/twin/orphan cards in ${subject} — spacing is advancing normally.</div>`;
+
+        const m = document.createElement('div');
+        m.id = 'srs-inspect-modal';
+        m.style.cssText = 'position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:12px;background:rgba(0,0,0,0.75)';
+        m.innerHTML = `<div style="background:#fff;border-radius:20px;width:100%;max-width:920px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 25px 60px rgba(0,0,0,0.3)">
+            <div style="padding:16px 18px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+                <div><div style="font-size:16px;font-weight:900;color:#1e293b">🔬 SRS Spacing — ${subject}</div>
+                <div style="font-size:10px;color:#94a3b8;font-weight:700;margin-top:2px">${rows.length} cards · ${dueN} due now · seq = your attempts (✓ right ✗ wrong · skip)</div></div>
+                <button onclick="document.getElementById('srs-inspect-modal').remove()" style="font-size:26px;color:#94a3b8;background:none;border:none;cursor:pointer;line-height:1">&times;</button>
+            </div>
+            ${banner}
+            <div style="display:flex;gap:6px;padding:10px 18px;border-bottom:1px solid #f1f5f9;overflow-x:auto;flex-shrink:0">${chips}</div>
+            <div style="overflow:auto;flex:1">
+                <table style="border-collapse:collapse;width:100%"><thead><tr>${headHTML}</tr></thead><tbody>${bodyHTML}</tbody></table>
+            </div>
+            <div style="padding:11px 18px;border-top:1px solid #f1f5f9;flex-shrink:0;font-size:10px;color:#64748b;font-weight:600">
+                <b>int(d)</b> = gap it was last given · <b>exp(d)</b> = schedule gap for its step (match = healthy) · <b>STUCK</b> = 3+ attempts but still step 0
+            </div>
+        </div>`;
+        document.body.appendChild(m);
+        m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+    };
+
     // V21.1 Storage Expansion
     async function updateLocalCache() {
         initializeSRSData();
@@ -2989,6 +3054,17 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                     const localWb = merged[key].wbAttempts || [];
                     if (cloudWb.length > localWb.length) {
                         merged[key].wbAttempts = cloudWb; changed = true;
+                    }
+                    // CUSTOM DISPLAY ORDER — carry across devices, newest reorder wins.
+                    // (Without this the laptop kept its alphabetical copy and the iPad's
+                    //  dragged sub-topic order never arrived.)
+                    if (cloudSyllabusData[key]._subOrder && (cloudSyllabusData[key]._subOrderTs||0) > (merged[key]._subOrderTs||0)) {
+                        merged[key]._subOrder   = cloudSyllabusData[key]._subOrder;
+                        merged[key]._subOrderTs = cloudSyllabusData[key]._subOrderTs||0; changed = true;
+                    }
+                    if (cloudSyllabusData[key]._order != null && (cloudSyllabusData[key]._orderTs||0) > (merged[key]._orderTs||0)) {
+                        merged[key]._order   = cloudSyllabusData[key]._order;
+                        merged[key]._orderTs = cloudSyllabusData[key]._orderTs||0; changed = true;
                     }
                 });
                 if (changed) {
@@ -5853,6 +5929,15 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
                         const ca = cloudScRaw[key][f]||[], la = mergedSc[key][f]||[];
                         if (ca.length > la.length) mergedSc[key][f] = ca;
                     });
+                    // CUSTOM DISPLAY ORDER — newest reorder wins (matches main merge)
+                    if (cloudScRaw[key]._subOrder && (cloudScRaw[key]._subOrderTs||0) > (mergedSc[key]._subOrderTs||0)) {
+                        mergedSc[key]._subOrder   = cloudScRaw[key]._subOrder;
+                        mergedSc[key]._subOrderTs = cloudScRaw[key]._subOrderTs||0;
+                    }
+                    if (cloudScRaw[key]._order != null && (cloudScRaw[key]._orderTs||0) > (mergedSc[key]._orderTs||0)) {
+                        mergedSc[key]._order   = cloudScRaw[key]._order;
+                        mergedSc[key]._orderTs = cloudScRaw[key]._orderTs||0;
+                    }
                 });
                 localStorage.setItem('sc_syllabus_v1', JSON.stringify(mergedSc));
                 if (typeof scLoad === 'function') scLoad();
@@ -11464,7 +11549,7 @@ function scGetAvailableSubTopics(topicName, subject) {
     });
     return subsArr;
   }
-  return subsArr.sort(); // default alphabetical
+  return subsArr; // default = dashboard order (first-seen as questions appear in db), NOT alphabetical
 }
 
 function scShowTrackingModeModal(key, subTopics) {
@@ -12275,12 +12360,13 @@ window.scReorderMove=function(idx,dir){
 };
 window.scReorderSave=function(){
   const st=window._scReorderState;
+  const _ts=Date.now();
   if(st.type==='topics'){
-    st.items.forEach((it,i)=>{ if(scDb[it.id]) scDb[it.id]._order=i; });
+    st.items.forEach((it,i)=>{ if(scDb[it.id]){ scDb[it.id]._order=i; scDb[it.id]._orderTs=_ts; } });
   } else {
     // subtopics — store an order map on the parent topic
     const t=scDb[st.topicKey];
-    if(t){ t._subOrder = {}; st.items.forEach((it,i)=>{ t._subOrder[it.label]=i; }); }
+    if(t){ t._subOrder = {}; st.items.forEach((it,i)=>{ t._subOrder[it.label]=i; }); t._subOrderTs=_ts; }
   }
   scSave();
   scCloseModal();
