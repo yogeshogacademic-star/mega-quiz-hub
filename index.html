@@ -1664,7 +1664,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-06-25 · v24.3';
+    const HUB_BUILD = '2026-06-26 · v24.5';
     // Features in this build:
     //   v23.1 — Concept Sheet INCREMENTAL mode:
     //           · "➕ Add New (N)" sends only unprocessed questions + a
@@ -4541,7 +4541,7 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
     window.revealOptions = (idx) => {
         if(quizState.submitted || quizState.isPaused) return; quizState.revealed[idx] = true;
         const cont = document.getElementById(`opts-cont-${idx}`); const over = document.getElementById(`blind-over-${idx}`);
-        if(cont) cont.classList.remove('blur-md', 'pointer-events-none', 'select-none', 'opacity-30'); if(over) over.remove();
+        if(cont) cont.classList.remove('blur-xl', 'blur-md', 'pointer-events-none', 'select-none', 'opacity-20', 'opacity-30'); if(over) over.remove();
     };
 
     document.addEventListener('keydown', (e) => {
@@ -6083,7 +6083,7 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
         const colors = { r1:'blue', r2:'emerald', r3:'amber', r4:'purple' };
         const srsAfter = (mistakesDb||[]).length;
         const srsAdded = srsAfter - srsBefore;
-        const nextRev = { r1:'R2', r2:'R3', r3:'R4', r4:'SRS' }[rev];
+        const nextRev = { r1:'R2', r2:'SRS' }[rev];
         const wrongKey = rev+'Wrong';
         const dueDate = new Date(Date.now() + 3*86400000).toLocaleDateString();
 
@@ -10926,8 +10926,6 @@ function scGetNextDue(t) {
   if (!t.lec) return null;
   if (!t.r1) return t.lecDate ? scAddDays(t.lecDate, SC_INTERVALS.lec) : null;
   if (!t.r2) return t.r1Date ? scAddDays(t.r1Date, SC_INTERVALS.r1) : null;
-  if (!t.r3) return t.r2Date ? scAddDays(t.r2Date, SC_INTERVALS.r2) : null;
-  if (!t.r4) return t.r3Date ? scAddDays(t.r3Date, SC_INTERVALS.r3) : null;
   return null;
 }
 
@@ -10935,7 +10933,6 @@ function scGetNextRevLabel(t) {
   if (!t.lec || t.r4) return null;
   if (!t.r1) return 'R1';
   if (!t.r2) return 'R2';
-  if (!t.r3) return 'R3';
   return null;
 }
 
@@ -11156,14 +11153,13 @@ function scRenderTracker() {
   const chapters = chaptersForSubject;
 
   let html = `<div class="flex gap-2 flex-wrap mb-3 pb-3 border-b border-slate-200 dark:border-slate-800">${tabsHtml}</div>
-  <div class="grid gap-0 mb-1 px-2" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 46px 72px 52px 52px 52px 28px">
+  <div class="grid gap-0 mb-1 px-2" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 72px 52px 52px 52px 28px">
     <div></div>
     <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 pl-2">Topic</div>
     <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Status</div>
     <div class="text-[9px] font-black uppercase tracking-widest text-violet-400 text-center">Lec</div>
     <div class="text-[9px] font-black uppercase tracking-widest text-blue-400 text-center">R1</div>
     <div class="text-[9px] font-black uppercase tracking-widest text-emerald-400 text-center">R2</div>
-    <div class="text-[9px] font-black uppercase tracking-widest text-amber-400 text-center">R3</div>
     <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Next Due</div>
     <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Total</div>
     <div class="text-[9px] font-black uppercase tracking-widest text-emerald-400 text-center">SRS</div>
@@ -11277,7 +11273,7 @@ function scRenderTracker() {
       </div>`;
 
       html += `
-        <div class="grid items-center gap-0 px-2 py-1 min-h-[46px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 46px 72px 52px 52px 52px 28px">
+        <div class="grid items-center gap-0 px-2 py-1 min-h-[46px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 72px 52px 52px 52px 28px">
           <div class="text-slate-300 dark:text-slate-600 text-[10px] text-center">${t.priority ? '⭐' : ''}</div>
           <div class="flex items-center gap-0.5 pl-2">
             <span class="text-[12px] font-semibold ${status === 'done' ? 'line-through text-slate-400' : ''}">${t.name}</span>
@@ -11285,11 +11281,10 @@ function scRenderTracker() {
           </div>
           <div class="flex justify-center"><span class="text-[8px] font-black px-1.5 py-0.5 rounded-full ${statusClass}">${statusLabel}</span></div>
           ${hasSubTopics 
-            ? `<div class="flex items-center justify-center text-[10px] text-blue-500 dark:text-blue-400 font-bold" style="grid-column: span 4">📊 by sub-topic</div>` 
+            ? `<div class="flex items-center justify-center text-[10px] text-blue-500 dark:text-blue-400 font-bold" style="grid-column: span 3">📊 by sub-topic</div>` 
             : `<div class="flex justify-center">${lecTick}</div>
           <div class="flex flex-col items-center">${scRevTick(t, 'r1', t.r1, daysUntil, revLabel)}</div>
-          <div class="flex flex-col items-center">${scRevTick(t, 'r2', t.r2, daysUntil, revLabel)}</div>
-          <div class="flex flex-col items-center">${scRevTick(t, 'r3', t.r3, daysUntil, revLabel)}</div>`}
+          <div class="flex flex-col items-center">${scRevTick(t, 'r2', t.r2, daysUntil, revLabel)}</div>`}
           <div class="text-center">${dueHtml}</div>
           <div class="flex items-center justify-center">${_colTotal}</div>
           <div class="flex items-center justify-center">${_colSRS}</div>
@@ -11374,7 +11369,7 @@ function scRenderTracker() {
           </div>`;
           
           html += `
-        <div class="grid items-center gap-0 px-2 py-1 min-h-[40px] bg-slate-50 dark:bg-slate-800/40 border-l border-r border-b border-slate-100 dark:border-slate-800" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 46px 72px 52px 52px 52px 28px">
+        <div class="grid items-center gap-0 px-2 py-1 min-h-[40px] bg-slate-50 dark:bg-slate-800/40 border-l border-r border-b border-slate-100 dark:border-slate-800" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 72px 52px 52px 52px 28px">
           <div class="text-slate-300 dark:text-slate-600 text-[10px] text-center">└</div>
           <div class="flex items-center gap-0.5 pl-4">
             <span class="text-[11px] text-slate-600 dark:text-slate-400">${st.name}</span>
@@ -11383,7 +11378,6 @@ function scRenderTracker() {
           <div class="flex justify-center">${subLecTick}</div>
           <div class="flex flex-col items-center">${scRevTick(st, 'r1', st.r1, subDaysUntil, subRevLabel)}</div>
           <div class="flex flex-col items-center">${scRevTick(st, 'r2', st.r2, subDaysUntil, subRevLabel)}</div>
-          <div class="flex flex-col items-center">${scRevTick(st, 'r3', st.r3, subDaysUntil, subRevLabel)}</div>
           <div class="text-center"></div>
           <div class="flex items-center justify-center">${_subColTotal}</div>
           <div class="flex items-center justify-center">${_subColSRS}</div>
@@ -13145,7 +13139,7 @@ function scShowConfidenceModal(key, rev) {
     const wrongArr = t[rev + 'Wrong'] || [];
     const wrongCnt  = wrongArr.length;
     const correctCnt = Math.max(0, totalAnswered - wrongCnt);
-    const nextRev = rev === 'r2' ? 'R3' : rev === 'r3' ? 'R4' : null;
+    const nextRev = null;
     setTimeout(() => {
       document.getElementById('sc-modal-content').innerHTML = `
         <div class="text-center">
@@ -13192,12 +13186,14 @@ window.scMarkRevDoneAuto = (key, rev) => {
   t[rev + 'Date'] = scToday();
   t[rev + 'Progress'] = 0;
 
-  // R4 REMOVED — completing R3 now closes the revision cycle. We keep the r4 flag in the
-  // data model (set it true here) so every existing "fully done" check keeps working and
-  // cloud sync stays backward-compatible. SRS feeding already happened at R1 (Track A for
-  // correct, Track B for wrong), so the old R4-graduation below is obsolete and never runs
-  // (rev is never 'r4' anymore — R4 has no UI/launch path).
-  if (rev === 'r3') {
+  // R3 & R4 REMOVED — completing R2 now closes the revision cycle. We keep the r3/r4 flags
+  // in the data model (set them true here) so every existing "fully done" check keeps working
+  // and cloud sync stays backward-compatible. SRS feeding already happened at R1 (Track A for
+  // correct, Track B for wrong), so the old R3/R4-graduation below is obsolete and never runs
+  // (rev is never 'r3' or 'r4' anymore — they have no UI/launch path).
+  if (rev === 'r2') {
+    t.r3 = true;
+    t.r3Date = scToday();
     t.r4 = true;
     t.r4Date = scToday();
     // SAFETY NET (closes the gap left by removing R4 graduation):
