@@ -1664,7 +1664,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-07-02 · v24.7';
+    const HUB_BUILD = '2026-07-03 · v24.9';
     // Features in this build:
     //   v23.1 — Concept Sheet INCREMENTAL mode:
     //           · "➕ Add New (N)" sends only unprocessed questions + a
@@ -11065,25 +11065,21 @@ function scDaysUntil(date) { if(!date) return 9999; return Math.ceil((new Date(d
 
 function scGetStatus(t) {
   if (!t.lec) return 'not_started';
-  if (t.r4) { return scHasNewQuestions(t) ? 'new_qs' : 'done'; }
+  if (t.r1) { return scHasNewQuestions(t) ? 'new_qs' : 'done'; }
   const nextDue = scGetNextDue(t);
   if (nextDue && scDaysUntil(nextDue) < 0) return 'overdue';
-  if (t.r1 || t.r2 || t.r3) return 'learning';
   return 'learning';
 }
 
 function scGetNextDue(t) {
   if (!t.lec) return null;
   if (!t.r1) return t.lecDate ? scAddDays(t.lecDate, SC_INTERVALS.lec) : null;
-  if (!t.r2) return t.r1Date ? scAddDays(t.r1Date, SC_INTERVALS.r1) : null;
   return null;
 }
 
 function scGetNextRevLabel(t) {
-  if (!t.lec || t.r4) return null;
-  if (!t.r1) return 'R1';
-  if (!t.r2) return 'R2';
-  return null;
+  if (!t.lec || t.r1) return null;
+  return 'R1';
 }
 
 function scGetQsDone(topicName, subject, subTopicName) {
@@ -11128,9 +11124,9 @@ function scRenderStats() {
     const s = scGetStatus(t);
     if (s === 'done') done++;
     else if (s === 'learning') learning++;
-    if (s === 'overdue') overdue++;
+    if (s === 'overdue' && scGetNextRevLabel(t) === 'R1') overdue++;
     const due = scGetNextDue(t);
-    if (due && due <= todayStr) today++;
+    if (due && due <= todayStr && scGetNextRevLabel(t) === 'R1') today++;
   });
   document.getElementById('sc-stat-done').textContent = done;
   document.getElementById('sc-stat-learning').textContent = learning;
@@ -11143,16 +11139,12 @@ function scRenderTodayBanner() {
   const todayStr = scToday();
   const items = [];
   Object.entries(scDb).forEach(([key, t]) => {
-    if (!t.lec || t.r4) return;
+    if (!t.lec || t.r1) return;
     const due = scGetNextDue(t);
     if (!due) return;
     const daysUntil = scDaysUntil(due);
     const label = scGetNextRevLabel(t);
-    if (t.r4 && typeof scHasNewQuestions === 'function' && scHasNewQuestions(t)) {
-      const nc = (scGetTopicQsCount(t.name)||0) - (t.r4QsTotal||0);
-      items.push(`<span class="bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 text-[10px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap">⚡ ${t.name} — ${nc} new Qs</span>`);
-    }
-    if (daysUntil <= 0) {
+    if (daysUntil <= 0 && label === 'R1') {
       const overdueDays = Math.abs(daysUntil);
       const cls = overdueDays > 0 ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200' : 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200';
       const txt = overdueDays > 0 ? `🔴 ${label} — ${t.name} (${overdueDays}d overdue)` : `🔵 ${label} — ${t.name}`;
@@ -11303,13 +11295,12 @@ function scRenderTracker() {
   const chapters = chaptersForSubject;
 
   let html = `<div class="flex gap-2 flex-wrap mb-3 pb-3 border-b border-slate-200 dark:border-slate-800">${tabsHtml}</div>
-  <div class="grid gap-0 mb-1 px-2" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 72px 52px 52px 52px 28px">
+  <div class="grid gap-0 mb-1 px-2" style="grid-template-columns:16px 1fr 80px 46px 46px 72px 52px 52px 52px 28px">
     <div></div>
     <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 pl-2">Topic</div>
     <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Status</div>
     <div class="text-[9px] font-black uppercase tracking-widest text-violet-400 text-center">Lec</div>
     <div class="text-[9px] font-black uppercase tracking-widest text-blue-400 text-center">R1</div>
-    <div class="text-[9px] font-black uppercase tracking-widest text-emerald-400 text-center">R2</div>
     <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Next Due</div>
     <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Total</div>
     <div class="text-[9px] font-black uppercase tracking-widest text-emerald-400 text-center">SRS</div>
@@ -11423,7 +11414,7 @@ function scRenderTracker() {
       </div>`;
 
       html += `
-        <div class="grid items-center gap-0 px-2 py-1 min-h-[46px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 72px 52px 52px 52px 28px">
+        <div class="grid items-center gap-0 px-2 py-1 min-h-[46px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" style="grid-template-columns:16px 1fr 80px 46px 46px 72px 52px 52px 52px 28px">
           <div class="text-slate-300 dark:text-slate-600 text-[10px] text-center">${t.priority ? '⭐' : ''}</div>
           <div class="flex items-center gap-0.5 pl-2">
             <span class="text-[12px] font-semibold ${status === 'done' ? 'line-through text-slate-400' : ''}">${t.name}</span>
@@ -11431,10 +11422,9 @@ function scRenderTracker() {
           </div>
           <div class="flex justify-center"><span class="text-[8px] font-black px-1.5 py-0.5 rounded-full ${statusClass}">${statusLabel}</span></div>
           ${hasSubTopics 
-            ? `<div class="flex items-center justify-center text-[10px] text-blue-500 dark:text-blue-400 font-bold" style="grid-column: span 3">📊 by sub-topic</div>` 
+            ? `<div class="flex items-center justify-center text-[10px] text-blue-500 dark:text-blue-400 font-bold" style="grid-column: span 2">📊 by sub-topic</div>` 
             : `<div class="flex justify-center">${lecTick}</div>
-          <div class="flex flex-col items-center">${scRevTick(t, 'r1', t.r1, daysUntil, revLabel)}</div>
-          <div class="flex flex-col items-center">${scRevTick(t, 'r2', t.r2, daysUntil, revLabel)}</div>`}
+          <div class="flex flex-col items-center">${scRevTick(t, 'r1', t.r1, daysUntil, revLabel)}</div>`}
           <div class="text-center">${dueHtml}</div>
           <div class="flex items-center justify-center">${_colTotal}</div>
           <div class="flex items-center justify-center">${_colSRS}</div>
@@ -11475,8 +11465,6 @@ function scRenderTracker() {
           let subRevLabel = null;
           if (!st.lec) subRevLabel = null;
           else if (!st.r1) subRevLabel = 'R1';
-          else if (!st.r2) subRevLabel = 'R2';
-          else if (!st.r3) subRevLabel = 'R3';
           else subRevLabel = null;
           
           const subDaysUntil = subRevLabel && st[subRevLabel.toLowerCase()+'Date'] 
@@ -11519,7 +11507,7 @@ function scRenderTracker() {
           </div>`;
           
           html += `
-        <div class="grid items-center gap-0 px-2 py-1 min-h-[40px] bg-slate-50 dark:bg-slate-800/40 border-l border-r border-b border-slate-100 dark:border-slate-800" style="grid-template-columns:16px 1fr 80px 46px 46px 46px 72px 52px 52px 52px 28px">
+        <div class="grid items-center gap-0 px-2 py-1 min-h-[40px] bg-slate-50 dark:bg-slate-800/40 border-l border-r border-b border-slate-100 dark:border-slate-800" style="grid-template-columns:16px 1fr 80px 46px 46px 72px 52px 52px 52px 28px">
           <div class="text-slate-300 dark:text-slate-600 text-[10px] text-center">└</div>
           <div class="flex items-center gap-0.5 pl-4">
             <span class="text-[11px] text-slate-600 dark:text-slate-400">${st.name}</span>
@@ -11527,7 +11515,6 @@ function scRenderTracker() {
           <div class="flex justify-center"><span class="text-[8px] font-black px-1.5 py-0.5 rounded-full ${subStatusClass}">${subStatusLabel}</span></div>
           <div class="flex justify-center">${subLecTick}</div>
           <div class="flex flex-col items-center">${scRevTick(st, 'r1', st.r1, subDaysUntil, subRevLabel)}</div>
-          <div class="flex flex-col items-center">${scRevTick(st, 'r2', st.r2, subDaysUntil, subRevLabel)}</div>
           <div class="text-center"></div>
           <div class="flex items-center justify-center">${_subColTotal}</div>
           <div class="flex items-center justify-center">${_subColSRS}</div>
@@ -11567,8 +11554,8 @@ function scRevTick(t, rev, checked, daysUntil, revLabel) {
   if (typeof totalQsNow !== 'number') totalQsNow = 0;
   
   const totalQsAtR1 = t.r1QsTotalRaw || 0;
-  // Red badge ONLY when all 4 cycles complete AND new questions added
-  const allCyclesDone = t.r1 && t.r2 && t.r3 && t.r4;
+  // Red badge ONLY when R1 (the single cycle) complete AND new questions added
+  const allCyclesDone = t.r1;
   const newQsDetected = checked && rev === 'r1' && allCyclesDone && totalQsAtR1 > 0 && totalQsNow > totalQsAtR1;
   const newQsCount = newQsDetected ? totalQsNow - totalQsAtR1 : 0;
 
@@ -11758,9 +11745,9 @@ window.scSetTrackingMode = (key, mode) => {
 
 function scHasNewQuestions(t) {
   // NEW badge ONLY when:
-  // 1. ALL 4 cycles complete
+  // 1. R1 (the single revision cycle) is complete
   // 2. Questions added since R1 started (r1QsTotalRaw is the baseline)
-  if (!t.r4) return false;
+  if (!t.r1) return false;
   if (!t.r1QsTotalRaw) return false;
   const current = scGetTopicQsCount(t.isSubTopic ? t.parentName : t.name, t.subject);
   return typeof current === 'number' && current > t.r1QsTotalRaw;
@@ -12016,7 +12003,7 @@ window.scStartRevision = (key, rev) => {
       }
     }
     const attemptedSet = new Set(t.r1QuestionsAttempted || []);
-    const allCyclesComplete = !!(t.r1 && t.r2 && t.r3 && t.r4);
+    const allCyclesComplete = !!t.r1;
     if (allCyclesComplete) {
       // NEW-QUESTIONS-AFTER-FULL-CYCLE (the red-badge case): every previously-done
       // question has already graduated to SRS, so "not in SRS" = genuinely new.
@@ -12054,7 +12041,7 @@ window.scStartRevision = (key, rev) => {
   scShowDebugPanel(key, rev, questions, t, (mistakesDb||[]).length).then(proceed => {
     if (!proceed) return;
     if (rev === 'r1') {
-      const allDone = !!(t.r1 && t.r2 && t.r3 && t.r4);
+      const allDone = !!t.r1;
       if (allDone) {
         // Fresh batch of brand-new questions after a completed cycle — launch directly.
         // (Skips the "X done" continue modal that would show a stale attempted count.)
