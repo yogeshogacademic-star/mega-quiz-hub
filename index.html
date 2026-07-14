@@ -1664,7 +1664,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-07-03 · v24.9';
+    const HUB_BUILD = '2026-07-14 · v25.1';
     // Features in this build:
     //   v23.1 — Concept Sheet INCREMENTAL mode:
     //           · "➕ Add New (N)" sends only unprocessed questions + a
@@ -2074,7 +2074,10 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                 optionsHTML += `<label class="flex items-center gap-3"><input type="radio" name="edit-corr" id="edit-corr-${i}" class="w-4 h-4 text-amber-500" ${opt.correct ? 'checked' : ''}> <input type="text" id="edit-opt-${i}" value="${opt.text.replace(/"/g, '&quot;')}" class="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300"></label>`;
             });
             document.getElementById('edit-options-container').innerHTML = optionsHTML;
-        } else { document.getElementById('edit-options-container').innerHTML = `<div class="text-xs text-slate-500 font-bold">Typing or No Options Found</div>`; }
+        } else if (foundRef.type === 'typing' || foundRef.exactAnswer !== undefined) {
+            const _exVal = (foundRef.exactAnswer !== undefined && foundRef.exactAnswer !== null) ? String(foundRef.exactAnswer) : '';
+            document.getElementById('edit-options-container').innerHTML = `<div class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">⌨️ Typing Question — Exact Answer</div><input type="text" id="edit-exact-answer" value="${_exVal.replace(/"/g, '&quot;')}" class="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-300">`;
+        } else { document.getElementById('edit-options-container').innerHTML = `<div class="text-xs text-slate-500 font-bold">No Options Found</div>`; }
         
         document.getElementById('edit-solution').value = foundRef.solution || "";
         
@@ -2139,12 +2142,22 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
         if (imgData !== "") target.image = imgData; else target.image = null; 
         if(target.tags.length > 0) { target.subject = target.tags[0]; target.originalSubject = target.tags[0]; }
 
+        // ── COLLISION GUARD (v25.0): warn if the new text matches a DIFFERENT existing question
+        if (window.__srsKey(target.question) !== window.__srsKey(oldText)) {
+            const _nkGuard = window.__srsKey(target.question); let _clash = false;
+            for (let qid in db) {
+                if (!db[qid] || !Array.isArray(db[qid].questions)) continue;
+                if (db[qid].questions.some(qx => qx && qx.question && qx.question !== oldText && window.__srsKey(qx.question) === _nkGuard)) { _clash = true; break; }
+            }
+            if (_clash && !confirm("⚠️ WARNING: Ye naya question text kisi DUSRE existing question se match karta hai.\n\nSave karne par dedup/SRS dono ko SAME question treat karega.\n\nPhir bhi save karein?")) return;
+        }
+
         let updatedDb = false;
         for(let qid in db) {
             if (!db[qid] || !Array.isArray(db[qid].questions)) continue; 
             let idx = db[qid].questions.findIndex(qx => qx.question === oldText);
             if(idx !== -1) {
-                if (db[qid].questions[idx].type === 'typing') { target.type = 'typing'; target.exactAnswer = db[qid].questions[idx].exactAnswer; }
+                if (db[qid].questions[idx].type === 'typing') { target.type = 'typing'; const _exEl1 = document.getElementById('edit-exact-answer'); target.exactAnswer = (_exEl1 && _exEl1.value.trim() !== '') ? _exEl1.value.trim() : db[qid].questions[idx].exactAnswer; }
                 if(target.image === null) delete db[qid].questions[idx].image; db[qid].questions[idx] = {...db[qid].questions[idx], ...target}; updatedDb = true;
             }
         }
@@ -2153,7 +2166,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
             let mistIdx = mistakesDb.findIndex(m => m.question === oldText);
             if(mistIdx !== -1) {
                 let existingSRS = mistakesDb[mistIdx].srs; let existingMastered = mistakesDb[mistIdx].isMastered;
-                if (mistakesDb[mistIdx].type === 'typing') { target.type = 'typing'; target.exactAnswer = mistakesDb[mistIdx].exactAnswer; }
+                if (mistakesDb[mistIdx].type === 'typing') { target.type = 'typing'; const _exEl2 = document.getElementById('edit-exact-answer'); target.exactAnswer = (_exEl2 && _exEl2.value.trim() !== '') ? _exEl2.value.trim() : mistakesDb[mistIdx].exactAnswer; }
                 if(target.image === null) delete mistakesDb[mistIdx].image;
                 mistakesDb[mistIdx] = {...mistakesDb[mistIdx], ...target, srs: existingSRS, isMastered: existingMastered}; updatedDb = true;
             }
@@ -2259,7 +2272,48 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
         // ── END HISTORY PATCH + SRS RESYNC ────────────────────────────────────────
 
         if(updatedDb) {
+            // ── SYLLABUS TEXT SYNC (v25.0) ── rename the question inside r1..r4 wrong
+            // lists + r1QuestionsAttempted so the OLD text never survives as an orphan.
+            if (target.question !== oldText) {
+                try {
+                    const _scStoreE = (typeof scDb !== 'undefined' && scDb) ? scDb : (typeof window.scDb !== 'undefined' ? window.scDb : null);
+                    if (_scStoreE) {
+                        const _okSyl = window.__srsKey(oldText); let _sylTouched = false;
+                        Object.keys(_scStoreE).forEach(tk => {
+                            const t = _scStoreE[tk]; if (!t) return;
+                            ['r1Wrong','r2Wrong','r3Wrong','r4Wrong','r1QuestionsAttempted'].forEach(f => {
+                                if (!Array.isArray(t[f])) return;
+                                t[f].forEach((qq, qi) => {
+                                    if (typeof qq === 'string' && window.__srsKey(qq) === _okSyl) { t[f][qi] = target.question; _sylTouched = true; }
+                                });
+                            });
+                        });
+                        if (_sylTouched && typeof scSave === 'function') scSave();
+                    }
+                } catch(e) { console.warn('Syllabus text sync failed:', e); }
+            }
+
             rebuildSearchCache(); saveData(); updateSRSBadge(); closeEditModal();
+
+            // ── LIVE QUIZ SYNC (v25.0) ── if a quiz attempt is running, patch the
+            // in-memory copy + repaint, so submit saves ONLY the new version (no ghost twin).
+            try {
+                const _qScrE = document.getElementById('screen-quiz');
+                if (_qScrE && !_qScrE.classList.contains('hidden') && quizState && !quizState.submitted && Array.isArray(activeQuestions)) {
+                    const _okLive = window.__srsKey(oldText); let _liveHit = false;
+                    activeQuestions.forEach((aq) => {
+                        if (!aq || !aq.question) return;
+                        if (window.__srsKey(aq.question) !== _okLive && aq.question !== target.question) return;
+                        const _keepIdx = aq.originalIndex;
+                        if (aq.type === 'typing' && target.exactAnswer === undefined) { target.type = 'typing'; target.exactAnswer = aq.exactAnswer; }
+                        Object.assign(aq, target);
+                        if (target.image === null) delete aq.image;
+                        if (_keepIdx !== undefined) aq.originalIndex = _keepIdx;
+                        _liveHit = true;
+                    });
+                    if (_liveHit) { renderQuizView(); window.__quizRestoreUI(); }
+                }
+            } catch(e) { console.warn('Live quiz sync failed:', e); }
             if(!document.getElementById('screen-db-manager').classList.contains('hidden')) renderDBList(document.getElementById('db-manager-search').value);
             if(!document.getElementById('search-results-container').classList.contains('hidden')) performSearch(document.getElementById('omni-search').value);
             // ── UNCONDITIONAL SCORE + CARD REFRESH ────────────────────────────────
@@ -2341,6 +2395,10 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                 if (mistakesDb.length < before) console.log(`[SRS] Removed ${before - mistakesDb.length} blacklisted (deleted) card(s).`);
             }
         } catch (e) {}
+
+        // ── v25.1 SRS↔HUB INVARIANT: card without a hub question cannot exist.
+        //    Self-healing on every load — orphans die here before they can sync out. ──
+        try { if (typeof window.__srsPurgeOrphans === 'function') window.__srsPurgeOrphans('load'); } catch (e) {}
 
         // ── MIGRATE LEGACY CARDS onto the unified ladder: every non-mastered card
         //    gets a real subject track + a step estimated from its interval, so the
@@ -2945,6 +3003,11 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                 finalMap.set(fpk, _better(ex, m));
             });
             mistakesDb = Array.from(finalMap.values());
+            // v25.1 SRS↔HUB INVARIANT: db above is already cloud-fresh (cloud wins for quizzes),
+            // so purge any merged-in card whose question is gone from the hub — BEFORE this
+            // device can push it back to cloud. This kills the orphan-resurrection loop at
+            // its source on every device, with zero lists to maintain.
+            try { if (typeof window.__srsPurgeOrphans === 'function') window.__srsPurgeOrphans('cloud-sync'); } catch(e) {}
             // BUG11 FIX: flush to IndexedDB immediately — don't wait for end of applyCloudData
             try { idbKeyval.set('megaQuizMistakes_v5', mistakesDb); } catch(e) {}
         }
@@ -4291,8 +4354,16 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
     window.launchSRSSprint = (type) => {
         let dueQs = []; let titleStr = "";
 
+        // v25.1 SRS↔HUB INVARIANT: never serve a card whose question left the hub —
+        // this is what was minting fresh history-orphans on every English sprint.
+        try { if (typeof window.__srsPurgeOrphans === 'function') window.__srsPurgeOrphans('sprint'); } catch(e) {}
+
         // BUG FIX: use in-memory set of last sprint's questions (cloud history strips reviewData)
-        const recentlyGraded = window._lastSprintGraded || new Set();
+        // v25.1 FIX: EXPIRE after 6h — on an always-open tab (iPad PWA) yesterday's
+        // failed cards were being filtered out of TODAY's sprint even though they
+        // were genuinely due again. The filter only exists to stop instant repeats.
+        const _lgFresh = window._lastSprintGradedAt && (Date.now() - window._lastSprintGradedAt) < 6 * 60 * 60 * 1000;
+        const recentlyGraded = (_lgFresh && window._lastSprintGraded) ? window._lastSprintGraded : new Set();
 
         if(type === 'global') {
             dueQs = mistakesDb.filter(m => m.srs && m.srs.nextReview <= Date.now() && !m.isMastered && !recentlyGraded.has(window.__srsKey(m.question)));
@@ -4574,6 +4645,16 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
         if (!m) return m;
         if (!m.srs) m.srs = { reps: 0, ease: 2.5, interval: 1, nextReview: Date.now() };
         window.__srsMigrateCard(m);                       // guarantee a track
+        // v25.1 FIX: __srsMigrateCard early-returns for MASTERED cards, so a mastered
+        // legacy card could reach here trackless. Its lapse then wrote step=top with no
+        // track, and the NEXT grade re-migrated from interval=1 → step 0 — the card fell
+        // to the bottom of the ladder instead of "one RIGHT re-masters". Assign the real
+        // subject track here (without touching step/due) so the lapse lands correctly.
+        if (!m.srs.track || !window.SRS_TRACKS[m.srs.track]) {
+            const _tags = Array.isArray(m.tags) ? m.tags : (m.subject ? [m.subject] : []);
+            m.srs.track = window.pickSRSTrack(_tags, false);
+            if (typeof m.srs.step !== 'number' || isNaN(m.srs.step)) m.srs.step = 0;
+        }
         const sched = window.SRS_TRACKS[m.srs.track] || window.SRS_TRACKS.OW;
         const SRS_DAY_MS = 24 * 60 * 60 * 1000;
         const top = sched.length - 1;
@@ -4650,6 +4731,51 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
     };
     window.__delBlacklistHas = function(qText) {
         try { return window.__delBlacklist().has(window.__qFingerprint(qText)); } catch (e) { return false; }
+    };
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // v25.1 — SRS↔HUB INVARIANT (self-healing, no lists, no buttons)
+    //   RULE: a question that does not exist in the hub db cannot have an SRS card.
+    //   Runs on every load + after every cloud sync + before every sprint, ON EVERY
+    //   DEVICE. Since the hub db is cloud-wins (replace, not merge), a hub deletion
+    //   propagates everywhere automatically — and this purge kills the matching SRS
+    //   card the moment it's seen, BEFORE the device can push it back to cloud.
+    //   Orphans therefore die at birth on every device: no blacklist growth, no
+    //   manual cleanup, no resurrection path.
+    //   SAFETY (June-2026 wipe lesson): if the purge would remove >20% of SRS AND
+    //   more than 20 cards, the db is probably partial/corrupt → skip + warn.
+    // ═════════════════════════════════════════════════════════════════════════
+    window.__srsHubKeySet = function() {
+        const keys = new Set();
+        Object.keys(db).forEach(id => {
+            const quiz = db[id];
+            if (!quiz || !Array.isArray(quiz.questions)) return;
+            // sprint/mock residue quizzes are not "the hub" — a card must live in a REAL quiz
+            if (id === 'quiz_srs' || id.startsWith('quiz_master_mock') || id.startsWith('quiz_topic_practice') || id.startsWith('quiz_weak_bank')) return;
+            if (quiz.isScRevision || quiz.isSRS || quiz.isWeakBank) return;
+            quiz.questions.forEach(q => { if (q && q.question) keys.add(window.__srsKey(q.question)); });
+        });
+        return keys;
+    };
+    window.__srsPurgeOrphans = function(reason) {
+        try {
+            if (!Array.isArray(mistakesDb) || mistakesDb.length === 0) return { removed: 0, skipped: false };
+            const hubKeys = window.__srsHubKeySet();
+            // db empty/not loaded yet → never purge against a ghost hub
+            if (hubKeys.size === 0) return { removed: 0, skipped: true };
+            const orphans = mistakesDb.filter(m => m && m.question && !hubKeys.has(window.__srsKey(m.question)));
+            if (orphans.length === 0) return { removed: 0, skipped: false };
+            // SAFETY GUARD: mass-drop = suspicious db state → do NOT purge
+            if (orphans.length > 20 && orphans.length > mistakesDb.length * 0.2) {
+                console.warn(`[SRS Purge] SKIPPED (${reason}): would remove ${orphans.length}/${mistakesDb.length} cards — hub db looks partial/corrupt. No purge performed.`);
+                return { removed: 0, skipped: true };
+            }
+            const orphanKeys = new Set(orphans.map(m => window.__srsKey(m.question)));
+            mistakesDb = mistakesDb.filter(m => !m || !m.question || !orphanKeys.has(window.__srsKey(m.question)));
+            try { idbKeyval.set('megaQuizMistakes_v5', mistakesDb); } catch (e) {}
+            console.log(`[SRS Purge] (${reason}) removed ${orphans.length} orphan card(s) — question no longer in hub.`);
+            return { removed: orphans.length, skipped: false, keys: orphanKeys };
+        } catch (e) { console.warn('[SRS Purge] error:', e); return { removed: 0, skipped: true }; }
     };
 
     window.togglePause = () => {
@@ -4763,7 +4889,7 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
 
             const card = document.createElement('div'); card.id = `qcard-${qIndex}`;
             card.className = `bg-white dark:bg-slate-900 p-6 sm:p-10 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-lg ${lobbySettings.perQTimer ? 'hidden' : ''}`;
-            card.innerHTML = `<div class="flex justify-between items-center mb-8 border-b border-slate-100 dark:border-slate-800 pb-4"><span class="text-xs font-black text-emerald-500 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/30 px-4 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-800/30">Question ${qIndex + 1}</span><button onclick="toggleMark(${qIndex})" id="markBtn-${qIndex}" class="text-xs font-black text-slate-400 hover:text-purple-500 flex items-center gap-2 transition-colors uppercase px-4 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg"><span class="text-lg leading-none">📌</span> Mark (M)</button></div><div class="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6 leading-relaxed question-img-wrap">${window.formatQuestionHTML ? window.formatQuestionHTML(q.question) : q.question}</div>${imageHTML}<div class="relative"><div id="opts-cont-${qIndex}" class="space-y-2 transition-all duration-300 ${isBlind ? 'blur-xl opacity-20 pointer-events-none select-none' : ''}">${optsHTML}</div>${blindOverlay}</div>${tagHtml}`;
+            card.innerHTML = `<div class="flex justify-between items-center mb-8 border-b border-slate-100 dark:border-slate-800 pb-4"><span class="text-xs font-black text-emerald-500 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/30 px-4 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-800/30">Question ${qIndex + 1}</span><div class="flex items-center gap-2"><button onclick="quizEditQ(${qIndex})" class="text-sm font-black text-slate-400 hover:text-amber-500 transition-colors px-3 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg" title="Edit this question — updates everywhere in the Hub">✏️</button><button onclick="quizDeleteQ(${qIndex})" class="text-sm font-black text-slate-400 hover:text-red-500 transition-colors px-3 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg" title="Delete this question from everywhere — permanent">🗑️</button><button onclick="toggleMark(${qIndex})" id="markBtn-${qIndex}" class="text-xs font-black text-slate-400 hover:text-purple-500 flex items-center gap-2 transition-colors uppercase px-4 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg"><span class="text-lg leading-none">📌</span> Mark (M)</button></div></div><div class="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6 leading-relaxed question-img-wrap">${window.formatQuestionHTML ? window.formatQuestionHTML(q.question) : q.question}</div>${imageHTML}<div class="relative"><div id="opts-cont-${qIndex}" class="space-y-2 transition-all duration-300 ${isBlind ? 'blur-xl opacity-20 pointer-events-none select-none' : ''}">${optsHTML}</div>${blindOverlay}</div>${tagHtml}`;
             fragment.appendChild(card);
         });
         
@@ -5031,6 +5157,7 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
         // BUG3 FIX: store graded questions in memory so recentlyGraded works even after cloud strips reviewData
         if(currentQuizId && currentQuizId.startsWith('quiz_srs')){
             window._lastSprintGraded = new Set(activeQuestions.map(q => window.__srsKey(q.question)));
+            window._lastSprintGradedAt = Date.now(); // v25.1: expiry stamp (see launchSRSSprint)
             window._srsSprintJustCompleted = true; // triggers post-save cloud verification
         }
 
@@ -5369,18 +5496,22 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
         mistakesDb[mistIdx].srs.interval = 30;
         mistakesDb[mistIdx].srs.reps = 10;
         mistakesDb[mistIdx].srs.nextReview = Date.now() + (30 * 24 * 60 * 60 * 1000);
+        // v25.1 FIX: stamp the vault as the LATEST action — without this, the
+        // freshest-wins cloud merge saw an older timestamp and another device's
+        // earlier grade could silently un-vault the card.
+        mistakesDb[mistIdx].srs.updatedAt = Date.now();
         mistakesDb[mistIdx].isMastered = true;
         saveData(); updateSRSBadge();
         const widget = document.getElementById(`sm2-widget-${safeId}`);
         if (widget) widget.innerHTML = `<div class="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest w-full text-center py-3 flex items-center justify-center gap-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800/50">👑 Vaulted to Masters!</div>`;
     };
 
-    // Delete a single question from absolutely everywhere: db (all quizzes), SRS, and history reviewData
-    window.deleteQuestionEverywhere = (safeId) => {
-        const qText = window.editRegistry[safeId];
-        if (!qText) return;
-        if (!confirm(`🗑️ DELETE THIS QUESTION EVERYWHERE?\n\n"${qText.substring(0, 100)}${qText.length > 100 ? '...' : ''}"\n\nThis will permanently remove it from:\n• Every quiz in the Hub\n• Your SRS queue\n• All past attempt history\n• Syllabus wrong-question lists\n\nIt is blacklisted so it can NEVER come back (cloud or import).\nThis cannot be undone.`)) return;
-
+    // ============================================================
+    // v25.0 — DELETE ENGINE (refactored)
+    // Core deletes by TEXT from: db (all quizzes), SRS, history (+rescore),
+    // syllabus wrong-lists, live review list — then blacklists forever.
+    // ============================================================
+    window.__deleteQuestionCoreByText = (qText) => {
         // Canonical key — immune to smart-quote / NBSP / dash / spacing twins.
         const _dk = window.__srsKey(qText);
         const _fp = window.__qFingerprint(qText);
@@ -5400,16 +5531,26 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
         const srsRemoved = srsBefore - mistakesDb.length;
 
         // 3. Scrub from all history attempt reviewData (key-based)
+        //    + RESCORE (v25.0): recalc score/accuracy/totals so stats stay consistent
         let histScrubbed = 0;
         historyDb.forEach(h => {
             if (!Array.isArray(h.reviewData)) return;
             const before = h.reviewData.length;
             h.reviewData = h.reviewData.filter(r => !r || !r.question || window.__srsKey(r.question) !== _dk);
-            histScrubbed += before - h.reviewData.length;
+            const removed = before - h.reviewData.length;
+            histScrubbed += removed;
+            if (removed > 0) {
+                let c = 0, w = 0, sk = 0;
+                h.reviewData.forEach(r => { if (!r) return; if (r.status === 'correct') c++; else if (r.status === 'skipped') sk++; else w++; });
+                const total = h.reviewData.length || 1;
+                h.totalCorrect = c; h.totalWrong = w; h.totalSkipped = sk;
+                h.score    = parseFloat(((c * 2) - (w * 0.66)).toFixed(2));
+                h.accuracy = Math.round((c / total) * 100);
+            }
         });
 
         // 4. Scrub from syllabus wrong-question lists (r1Wrong..r4Wrong) so it never
-        //    re-drills in R2/R3/R4. Works on whatever syllabus store exists.
+        //    re-drills. Works on whatever syllabus store exists.
         let sylScrubbed = 0;
         try {
             const _scStore = (typeof scDb !== 'undefined' && scDb) ? scDb
@@ -5425,7 +5566,14 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
             });
         } catch (e) {}
 
-        // 5. PERMANENT BLACKLIST + tombstone → cloud-merge & importers will reject it,
+        // 5. Purge from the in-memory results review list (v25.0 GHOST FIX):
+        //    without this, editing another question later re-renders the results
+        //    cards from this list and the deleted card visually resurrects.
+        if (Array.isArray(window.currentReviewQuestions)) {
+            window.currentReviewQuestions = window.currentReviewQuestions.filter(q => !q || !q.question || window.__srsKey(q.question) !== _dk);
+        }
+
+        // 6. PERMANENT BLACKLIST + tombstone → cloud-merge & importers will reject it,
         //    so it can never resurrect from another device or an old JSON file.
         window.__delBlacklistAdd([_fp]);
         if (typeof window.__srsTombstoneAdd === 'function') window.__srsTombstoneAdd([_fp]);
@@ -5433,7 +5581,41 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
         saveData(); rebuildSearchCache(); updateSRSBadge();
         try { if (typeof scSave === 'function') scSave(); } catch(e){}
 
-        // 6. Collapse the card in the DOM instantly — no need to re-render everything
+        // 7. If results screen is open, refresh the visible score banner (v25.0)
+        try {
+            if (!document.getElementById('screen-results').classList.contains('hidden')) {
+                const viewIdx = (window.currentHistoryViewIndex != null) ? window.currentHistoryViewIndex : 0;
+                const le = historyDb[viewIdx];
+                if (le) {
+                    const _el = id => document.getElementById(id);
+                    if(_el('res-score'))   _el('res-score').textContent   = le.score;
+                    if(_el('res-correct')) _el('res-correct').textContent = le.totalCorrect || 0;
+                    if(_el('res-wrong'))   _el('res-wrong').textContent   = le.totalWrong   || 0;
+                    if(_el('res-skipped')) _el('res-skipped').textContent = le.totalSkipped || 0;
+                }
+            }
+        } catch(e){}
+
+        return { dbRemoved, srsRemoved, histScrubbed, sylScrubbed };
+    };
+
+    window.__deleteToast = (res) => {
+        const toast = document.createElement('div');
+        toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs font-black uppercase tracking-widest px-5 py-3 rounded-xl shadow-2xl z-[9999] border border-slate-700';
+        toast.textContent = `🗑️ Deleted & blacklisted — Hub (${res.dbRemoved}), SRS (${res.srsRemoved}), History (${res.histScrubbed}), Syllabus (${res.sylScrubbed})`;
+        document.body.appendChild(toast);
+        setTimeout(() => { toast.style.transition = 'opacity 0.4s'; toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 3000);
+    };
+
+    // Results-screen wrapper (unchanged behavior: confirm → core → collapse card)
+    window.deleteQuestionEverywhere = (safeId) => {
+        const qText = window.editRegistry[safeId];
+        if (!qText) return;
+        if (!confirm(`🗑️ DELETE THIS QUESTION EVERYWHERE?\n\n"${qText.substring(0, 100)}${qText.length > 100 ? '...' : ''}"\n\nThis will permanently remove it from:\n• Every quiz in the Hub\n• Your SRS queue\n• All past attempt history\n• Syllabus wrong-question lists\n\nIt is blacklisted so it can NEVER come back (cloud or import).\nThis cannot be undone.`)) return;
+
+        const res = window.__deleteQuestionCoreByText(qText);
+
+        // Collapse the card in the DOM instantly — no need to re-render everything
         const card = document.getElementById(`review-card-${safeId}`);
         if (card) {
             card.style.transition = 'opacity 0.3s, max-height 0.4s';
@@ -5443,13 +5625,109 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
             setTimeout(() => { card.style.maxHeight = '0'; card.style.marginBottom = '0'; }, 50);
             setTimeout(() => card.remove(), 500);
         }
+        window.__deleteToast(res);
+    };
 
-        // Small toast confirmation
-        const toast = document.createElement('div');
-        toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs font-black uppercase tracking-widest px-5 py-3 rounded-xl shadow-2xl z-[9999] border border-slate-700';
-        toast.textContent = `🗑️ Deleted & blacklisted — Hub (${dbRemoved}), SRS (${srsRemoved}), History (${histScrubbed}), Syllabus (${sylScrubbed})`;
-        document.body.appendChild(toast);
-        setTimeout(() => { toast.style.transition = 'opacity 0.4s'; toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 3000);
+    // ============================================================
+    // v25.0 — EDIT / DELETE DURING A LIVE QUIZ ATTEMPT
+    // ============================================================
+    // Repaint helper: after a full renderQuizView(), re-apply the user's
+    // selections, marks, palette state and focus — nothing gets lost.
+    window.__quizRestoreUI = () => {
+        try {
+            Object.keys(quizState.answers).forEach(k => {
+                const qi = parseInt(k, 10); const q = activeQuestions[qi];
+                if (!q) return;
+                if (q.type === 'typing' || q.exactAnswer !== undefined) return; // typed value already re-rendered from quizState
+                const sel = quizState.answers[qi]; if (typeof sel !== 'number') return;
+                (q.options || []).forEach((_, i) => {
+                    if (i !== sel) return;
+                    const el = document.getElementById(`opt-${qi}-${i}`); if (!el) return;
+                    el.className = 'option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-100 shadow-md transform scale-[1.01]';
+                    el.children[0].className = 'min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-emerald-500 text-white shadow-inner';
+                });
+            });
+            Object.keys(quizState.marked).forEach(k => {
+                if (!quizState.marked[k]) return;
+                const btn = document.getElementById(`markBtn-${k}`);
+                if (btn) btn.className = "text-xs font-black text-purple-600 dark:text-purple-400 flex items-center gap-2 transition-colors uppercase bg-purple-100 dark:bg-purple-900/30 px-4 py-1.5 rounded-lg border border-purple-200 dark:border-purple-800/50";
+            });
+            // Restore focus WITHOUT calling setFocus (avoids per-Q timer reset + scroll jump)
+            if (activeQuestions.length > 0) {
+                const f = Math.max(0, Math.min(quizState.currentFocus, activeQuestions.length - 1));
+                quizState.currentFocus = f;
+                document.querySelectorAll('.palette-btn').forEach(b => b.classList.remove('palette-active'));
+                const pb = document.getElementById(`pal-${f}`); if (pb) pb.classList.add('palette-active');
+                if (lobbySettings.perQTimer) { const fc = document.getElementById(`qcard-${f}`); if (fc) fc.classList.remove('hidden'); }
+            }
+            updatePaletteAndCounts();
+        } catch(e) { console.warn('quizRestoreUI failed:', e); }
+    };
+
+    // ✏️ Edit during attempt — opens the SAME global edit modal.
+    // saveEdit's Live Quiz Sync patches the running copy, so on submit
+    // ONLY the updated version is saved everywhere. No ghost twin.
+    window.quizEditQ = (qIndex) => {
+        if (quizState.submitted || quizState.isPaused) return;
+        const q = activeQuestions[qIndex];
+        if (!q || !q.question) return;
+        openGlobalEditModal(q.question);
+    };
+
+    // 🗑️ Delete during attempt — full everywhere-delete + blacklist, then
+    // removes ALL identical copies from the running attempt and reindexes
+    // answers/marks/locks/reveals so nothing shifts onto the wrong question.
+    window.quizDeleteQ = (qIndex) => {
+        if (quizState.submitted || quizState.isPaused) return;
+        const q = activeQuestions[qIndex];
+        if (!q || !q.question) return;
+        const qText = q.question;
+        if (!confirm(`🗑️ DELETE THIS QUESTION EVERYWHERE?\n\n"${qText.substring(0, 100)}${qText.length > 100 ? '...' : ''}"\n\nRemoved from:\n• Every quiz in the Hub\n• SRS queue • Attempt history • Syllabus lists\n• THIS running attempt (right now)\n\nBlacklisted — can NEVER come back (cloud or import).\nThis cannot be undone.`)) return;
+
+        const res = window.__deleteQuestionCoreByText(qText);
+
+        // Remove ALL identical copies from the running attempt + build old→new index map
+        const _dk = window.__srsKey(qText);
+        const keepMap = []; let ni = 0; const newQs = [];
+        activeQuestions.forEach((aq, i) => {
+            const isDel = aq && aq.question && window.__srsKey(aq.question) === _dk;
+            if (isDel) { keepMap[i] = -1; } else { keepMap[i] = ni++; newQs.push(aq); }
+        });
+        const _remap = (obj) => {
+            const o = {};
+            Object.keys(obj || {}).forEach(k => {
+                const m = keepMap[parseInt(k, 10)];
+                if (m !== undefined && m !== -1) o[m] = obj[k];
+            });
+            return o;
+        };
+        quizState.answers  = _remap(quizState.answers);
+        quizState.marked   = _remap(quizState.marked);
+        quizState.revealed = _remap(quizState.revealed);
+        quizState.locked   = _remap(quizState.locked);
+        activeQuestions = newQs;
+
+        // Nothing left? End the attempt gracefully (no junk history entry).
+        if (activeQuestions.length === 0) {
+            clearInterval(quizState.interval);
+            try { window.speechSynthesis.cancel(); } catch(e){}
+            quizState.submitted = true;
+            window.__deleteToast(res);
+            alert('Quiz mein koi question nahi bacha — dashboard pe wapas. (No attempt saved.)');
+            showScreen('dashboard');
+            return;
+        }
+
+        // Fix focus: follow the old focused question if it survived, else nearest survivor
+        const anchor = (quizState.currentFocus >= 0 ? quizState.currentFocus : qIndex);
+        let nf;
+        if (keepMap[anchor] !== undefined && keepMap[anchor] !== -1) nf = keepMap[anchor];
+        else nf = Math.min(keepMap.slice(0, anchor).filter(v => v !== -1).length, activeQuestions.length - 1);
+        quizState.currentFocus = Math.max(0, Math.min(nf, activeQuestions.length - 1));
+
+        renderQuizView();
+        window.__quizRestoreUI();
+        window.__deleteToast(res);
     };
 
     // NOTE: questions enter SRS only via Syllabus R1 (the SRS authority) and are
@@ -5579,10 +5857,66 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
         document.body.appendChild(modal);
         modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
     };
+        // ═══════════════════════════════════════════════════════════════════
+        // v25.1 — ORPHAN CENTER (SRS orphans + history orphans, one modal)
+        //   Section 1: SRS cards whose question no longer exists in the hub —
+        //              with a DELETE FOREVER button. Deletion is permanent by
+        //              construction: the SRS↔HUB invariant re-kills any copy a
+        //              stale device pushes back, on every device, automatically.
+        //   Section 2: history reviewData rows pointing at deleted questions —
+        //              with a scrub button (attempts kept, dead rows removed).
+        // ═══════════════════════════════════════════════════════════════════
+        window.__orphanDeleteAllSRS = () => {
+            const hubKeys = window.__srsHubKeySet();
+            if (hubKeys.size === 0) return alert('Hub db looks empty — not deleting anything for safety.');
+            const orphans = mistakesDb.filter(m => m && m.question && !hubKeys.has(window.__srsKey(m.question)));
+            if (orphans.length === 0) return alert('✅ No SRS orphans to delete.');
+            if (!confirm(`Permanently delete ${orphans.length} orphan SRS card(s)?\n\nTheir questions no longer exist in the hub. This cannot come back from cloud or any device.`)) return;
+            const keys = new Set(orphans.map(m => window.__srsKey(m.question)));
+            mistakesDb = mistakesDb.filter(m => !m || !m.question || !keys.has(window.__srsKey(m.question)));
+            // scrub the same dead questions out of history reviewData too
+            let histScrubbed = 0;
+            historyDb.forEach(h => {
+                if (!Array.isArray(h.reviewData)) return;
+                const before = h.reviewData.length;
+                h.reviewData = h.reviewData.filter(r => !r || !r.question || !keys.has(window.__srsKey(r.question)));
+                histScrubbed += before - h.reviewData.length;
+            });
+            try { idbKeyval.set('megaQuizMistakes_v5', mistakesDb); } catch(e) {}
+            try { idbKeyval.set('megaQuizHistory_v5', historyDb); } catch(e) {}
+            saveData(); if (typeof updateSRSBadge === 'function') updateSRSBadge();
+            alert(`✅ Deleted forever:\n• ${orphans.length} orphan SRS card(s)\n• ${histScrubbed} dead history row(s)\n\nThe SRS↔Hub invariant now blocks them on every device — they cannot return.`);
+            const old = document.getElementById('orphan-viewer-modal'); if (old) old.remove();
+            window.viewHistoryOrphans();
+        };
+        window.__orphanScrubHistory = () => {
+            const allDbQ = window.__srsHubKeySet();
+            if (allDbQ.size === 0) return alert('Hub db looks empty — not scrubbing anything for safety.');
+            let scrubbed = 0;
+            historyDb.forEach(h => {
+                if (!Array.isArray(h.reviewData)) return;
+                const before = h.reviewData.length;
+                h.reviewData = h.reviewData.filter(r => !r || !r.question || allDbQ.has(window.__srsKey(r.question)));
+                scrubbed += before - h.reviewData.length;
+            });
+            if (scrubbed === 0) return alert('✅ No history orphans to scrub.');
+            try { idbKeyval.set('megaQuizHistory_v5', historyDb); } catch(e) {}
+            saveData();
+            alert(`✅ Scrubbed ${scrubbed} dead history row(s). Attempts themselves are kept.`);
+            const old = document.getElementById('orphan-viewer-modal'); if (old) old.remove();
+            window.viewHistoryOrphans();
+        };
         window.viewHistoryOrphans = () => {
         requireAuth(() => {
-            const allDbQ = new Set();
-            Object.keys(db).forEach(id => { if (db[id] && Array.isArray(db[id].questions)) db[id].questions.forEach(q => { if(q.question) allDbQ.add(window.__srsKey(q.question)); }); });
+            const allDbQ = window.__srsHubKeySet();
+            // ── SECTION 1: SRS ORPHANS (in SRS, not in hub) ──
+            const srsOrphans = mistakesDb.filter(m => m && m.question && !allDbQ.has(window.__srsKey(m.question)));
+            const srsBySubject = {};
+            srsOrphans.forEach(m => {
+                const s = (Array.isArray(m.tags) && m.tags[0]) || m.subject || 'Unknown';
+                (srsBySubject[s] = srsBySubject[s] || []).push(m);
+            });
+            // ── SECTION 2: HISTORY ORPHANS ──
             const bySubject = {}; let total = 0;
             historyDb.forEach(h => {
                 if (!Array.isArray(h.reviewData)) return;
@@ -5595,32 +5929,50 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
                         bySubject[s].push({ question: r.question, title: h.title || '?', date: h.date || '?' });
                 });
             });
-            if (total === 0) { alert('✅ No history orphans — all clean!'); return; }
+            if (total === 0 && srsOrphans.length === 0) { alert('✅ No orphans anywhere — SRS and history are fully clean!'); return; }
             const subjects = Object.keys(bySubject).sort();
             const uniqueTotal = subjects.reduce((s,k) => s + bySubject[k].length, 0);
             let existing = document.getElementById('orphan-viewer-modal');
             if (existing) existing.remove();
+            const srsSections = Object.keys(srsBySubject).sort().map(s => {
+                const items = srsBySubject[s];
+                const rows = items.map((m,i) => {
+                    const st = (typeof window.srsCardStatusLabel === 'function') ? window.srsCardStatusLabel(m).label : '';
+                    return `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #fee2e2"><div style="font-size:10px;color:#f87171;font-weight:900;width:18px;flex-shrink:0">${i+1}</div><div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:700;color:#1e293b;line-height:1.4;word-break:break-word">${m.question.substring(0,120)}${m.question.length>120?'...':''}</div><div style="font-size:10px;color:#94a3b8;margin-top:2px">${st}</div></div></div>`;
+                }).join('');
+                return `<div style="margin-bottom:18px"><div style="font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:999px;display:inline-block;padding:2px 10px;margin-bottom:6px">${s} — ${items.length} card(s)</div><div style="background:#fff7f7;border:1px solid #fecaca;border-radius:10px;padding:4px 12px">${rows}</div></div>`;
+            }).join('');
             const sections = subjects.map(s => {
                 const items = bySubject[s];
                 const rows = items.map((it,i) => `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #f1f5f9"><div style="font-size:10px;color:#94a3b8;font-weight:900;width:18px;flex-shrink:0">${i+1}</div><div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:700;color:#1e293b;line-height:1.4;word-break:break-word">${it.question.substring(0,120)}${it.question.length>120?'...':''}</div><div style="font-size:10px;color:#94a3b8;margin-top:2px">From: <b>${it.title}</b> · ${it.date}</div></div></div>`).join('');
                 return `<div style="margin-bottom:18px"><div style="font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#6366f1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:999px;display:inline-block;padding:2px 10px;margin-bottom:6px">${s} — ${items.length} Q</div><div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:4px 12px">${rows}</div></div>`;
             }).join('');
+            const srsBlock = srsOrphans.length > 0
+                ? `<div style="margin-bottom:22px">
+                     <div style="font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#dc2626;margin-bottom:8px">🗑 SRS Orphans (${srsOrphans.length}) — in SRS but NOT in hub</div>
+                     ${srsSections}
+                     <button onclick="window.__orphanDeleteAllSRS()" style="width:100%;padding:12px;border-radius:12px;background:#dc2626;color:#fff;font-weight:900;font-size:12px;text-transform:uppercase;letter-spacing:.06em;border:none;cursor:pointer;box-shadow:0 4px 12px rgba(220,38,38,.3)">🗑 Delete All ${srsOrphans.length} Forever (SRS + History)</button>
+                   </div>`
+                : `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px 16px;font-size:11px;font-weight:800;color:#15803d;margin-bottom:22px">✅ Zero SRS orphans — every card is linked to a live hub question. Sprints are clean.</div>`;
+            const histBlock = uniqueTotal > 0
+                ? `<div>
+                     <div style="font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#6366f1;margin-bottom:8px">👁 History Orphans (${uniqueTotal} unique)</div>
+                     ${sections}
+                     <button onclick="window.__orphanScrubHistory()" style="width:100%;padding:12px;border-radius:12px;background:#fef3c7;color:#92400e;font-weight:900;font-size:12px;text-transform:uppercase;letter-spacing:.06em;border:1px solid #fde68a;cursor:pointer">🧹 Scrub ${total} Dead History Row(s)</button>
+                   </div>`
+                : `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px 16px;font-size:11px;font-weight:800;color:#15803d">✅ Zero history orphans.</div>`;
             const modal = document.createElement('div');
             modal.id = 'orphan-viewer-modal';
             modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,0.75)';
             modal.innerHTML = `<div style="background:#fff;border-radius:22px;box-shadow:0 20px 50px rgba(0,0,0,0.3);width:100%;max-width:660px;max-height:85vh;display:flex;flex-direction:column;border:1px solid #e2e8f0;overflow:hidden">
                 <div style="padding:18px 22px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
-                    <div><div style="font-size:17px;font-weight:900;color:#1e293b">👁️ History Orphans (${uniqueTotal} unique)</div>
-                    <div style="font-size:11px;color:#94a3b8;font-weight:700;margin-top:2px">These are old versions of questions you edited — completely safe to clean</div></div>
+                    <div><div style="font-size:17px;font-weight:900;color:#1e293b">🧭 Orphan Center</div>
+                    <div style="font-size:11px;color:#94a3b8;font-weight:700;margin-top:2px">SRS cards + history rows whose question no longer exists in the hub</div></div>
                     <button onclick="document.getElementById('orphan-viewer-modal').remove()" style="font-size:24px;color:#94a3b8;background:none;border:none;cursor:pointer;line-height:1">&times;</button>
                 </div>
-                <div style="background:#eff6ff;border-bottom:1px solid #bfdbfe;padding:9px 22px;font-size:11px;font-weight:700;color:#1d4ed8;flex-shrink:0">
-                    💡 These questions still exist in your Hub — just with corrected text. The history has the old version. Your SRS cards are 100% safe.
-                </div>
-                <div style="overflow-y:auto;flex:1;padding:18px 22px">${sections}</div>
+                <div style="overflow-y:auto;flex:1;padding:18px 22px">${srsBlock}${histBlock}</div>
                 <div style="display:flex;gap:10px;padding:14px 18px;border-top:1px solid #f1f5f9;flex-shrink:0">
                     <button onclick="document.getElementById('orphan-viewer-modal').remove()" style="flex:1;padding:10px;border-radius:10px;background:#f1f5f9;color:#475569;font-weight:900;font-size:11px;text-transform:uppercase;border:none;cursor:pointer">Close</button>
-                    <button onclick="document.getElementById('orphan-viewer-modal').remove();runSRSIntegrityCheck();" style="flex:1;padding:10px;border-radius:10px;background:#fef3c7;color:#92400e;font-weight:900;font-size:11px;text-transform:uppercase;border:1px solid #fde68a;cursor:pointer">I've Reviewed — Run Fix</button>
                 </div></div>`;
             document.body.appendChild(modal);
             modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
@@ -6463,6 +6815,12 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
 
     // ── SRS survivor logic + tombstones (unchanged behaviour from v1) ───────
     window.__srsBetterCard = function(a, b) {
+        // v25.1 FIX: FRESHEST REVIEW WINS FIRST. Previously "mastered wins" ran before
+        // the timestamp check, so a STALE mastered twin (old cloud copy) beat a card
+        // you had just failed — silently erasing the lapse and re-mastering the card.
+        // If both carry real timestamps and they differ, the later edit is the truth.
+        const _ua = (a && a.srs && a.srs.updatedAt) || 0, _ub = (b && b.srs && b.srs.updatedAt) || 0;
+        if (_ua && _ub && _ua !== _ub) return _ua > _ub ? a : b;
         if (!!(a && a.isMastered) !== !!(b && b.isMastered)) return (a && a.isMastered) ? a : b;
         // For new track-based cards, STEP is the true progress signal (interval can drop to 1
         // on a lapse, so interval alone would wrongly discard a just-failed card). When both
@@ -13427,7 +13785,10 @@ window.scMarkRevDoneAuto = (key, rev) => {
             let newCard = JSON.parse(JSON.stringify(qObj));
             newCard.subject = (qObj.tags && qObj.tags[0]) || t.subject || 'Miscellaneous';
             const _newWrongInterval = 1 + Math.random() * 2; // Days 1–3
-            newCard.srs = { reps: 0, ease: 2.5, interval: Math.round(_newWrongInterval * 10) / 10, nextReview: now + (_newWrongInterval * 24 * 60 * 60 * 1000) };
+            // v25.1 FIX: create on the real subject WRONG track (was trackless → later
+            // migrated conservatively with a recomputed step; now consistent from birth)
+            const _trkW = window.pickSRSTrack(newCard.tags, false);
+            newCard.srs = { track: _trkW, step: 0, reps: 0, ease: 2.5, interval: Math.round(_newWrongInterval * 10) / 10, nextReview: now + (_newWrongInterval * 24 * 60 * 60 * 1000), updatedAt: now };
             newCard.isMastered = false;
             mistakesDb.push(newCard);
           }
@@ -13451,7 +13812,9 @@ window.scMarkRevDoneAuto = (key, rev) => {
             let newCard = JSON.parse(JSON.stringify(qObj));
             newCard.subject = (qObj.tags && qObj.tags[0]) || t.subject || 'Miscellaneous';
             const _r4Interval = 4 + Math.random() * 3; // Days 4–7 random spread
-            newCard.srs = { reps: 1, ease: 2.5, interval: Math.round(_r4Interval * 10) / 10, nextReview: now + (_r4Interval * 24 * 60 * 60 * 1000) };
+            // v25.1 FIX: create on the real subject RIGHT track (was trackless)
+            const _trkR = window.pickSRSTrack(newCard.tags, true);
+            newCard.srs = { track: _trkR, step: 0, reps: 1, ease: 2.5, interval: Math.round(_r4Interval * 10) / 10, nextReview: now + (_r4Interval * 24 * 60 * 60 * 1000), updatedAt: now };
             newCard.isMastered = false;
             mistakesDb.push(newCard);
           }
