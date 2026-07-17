@@ -1664,7 +1664,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-07-14 · v25.1';
+    const HUB_BUILD = '2026-07-14 · v25.2';
     // Features in this build:
     //   v23.1 — Concept Sheet INCREMENTAL mode:
     //           · "➕ Add New (N)" sends only unprocessed questions + a
@@ -2945,7 +2945,31 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
         }
 
         // ── DB: cloud wins for quiz files (source of truth) ──
+        // v25.2 — CONCEPT SHEETS: merged per-subject by generatedAt (newer wins),
+        // so a stale device pushing an old db can never wipe a newer sheet.
+        const _localCS = db && db['__conceptSheets'];
         db = data.db;
+        try {
+            const _cloudCS = db['__conceptSheets'];
+            if (_localCS && _localCS.isConceptStore === true) {
+                if (!_cloudCS || _cloudCS.isConceptStore !== true) {
+                    db['__conceptSheets'] = _localCS;
+                    console.warn('[Sync] Cloud had no concept sheets — restored local copy.');
+                } else {
+                    _cloudCS.sheets = _cloudCS.sheets || {}; _cloudCS.meta = _cloudCS.meta || {};
+                    const _ls = _localCS.sheets || {}, _lm = _localCS.meta || {};
+                    Object.keys(_ls).forEach(slug => {
+                        const lt = (_lm[slug] && _lm[slug].generatedAt) || 0;
+                        const ct = (_cloudCS.meta[slug] && _cloudCS.meta[slug].generatedAt) || 0;
+                        if (lt > ct) {
+                            _cloudCS.sheets[slug] = _ls[slug];
+                            _cloudCS.meta[slug]   = _lm[slug];
+                            console.warn('[Sync] Concept sheet "' + slug + '": local copy newer — kept local.');
+                        }
+                    });
+                }
+            }
+        } catch (e) { console.warn('[Sync] concept-sheet merge skipped', e); }
         // PERMANENT DELETE: strip any question the user hard-deleted, so it can never
         // come back through a cloud copy made on another (not-yet-updated) device.
         try {
@@ -18320,7 +18344,8 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
       .replace(/\([^)]*\)/g,' ')      // drop "(side a)" etc.
       .replace(CS_FILLER,' ')
       .replace(/[^a-z0-9]+/g,' ')
-      .trim().split(/\s+/).filter(Boolean);
+      .trim().split(/\s+/).filter(Boolean)
+      .map(w => w.length > 3 ? w.replace(/s$/,'') : w);   // crude stem: tangents≈tangent
   }
   function wordSim(a, b){               // Jaccard overlap of two word-arrays
     if(!a.length || !b.length) return 0;
@@ -18335,6 +18360,32 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
       if(wordSim(w, existingWordArrays[i]) >= CS_SIM_THRESHOLD) return true;
     }
     return false;
+  }
+  // Like isDupTitle but returns WHICH existing entry matched (index), else -1.
+  function findDupIndex(title, existingWordArrays){
+    const w = titleWords(title);
+    for(let i=0;i<existingWordArrays.length;i++){
+      if(wordSim(w, existingWordArrays[i]) >= CS_SIM_THRESHOLD) return i;
+    }
+    return -1;
+  }
+  // De-duplicate a q array by normalised text (keeps first occurrence order).
+  function dedupQ(arr){
+    const seen = new Set(); const out = [];
+    (arr||[]).forEach(q => {
+      const k = String(q||'').toLowerCase().replace(/\s+/g,' ').trim();
+      if(!k || seen.has(k)) return; seen.add(k); out.push(String(q).trim());
+    });
+    return out;
+  }
+  // Safety filter for Claude-generated inline SVG figures.
+  function csSafeSvg(sv){
+    sv = String(sv==null?'':sv).trim();
+    if(!sv) return '';
+    if(!/^<svg[\s>]/i.test(sv)) return '';
+    if(/<script|<iframe|<foreignobject|<image|on\w+\s*=|javascript:|href\s*=|xlink/i.test(sv)) return '';
+    if(sv.length > 4000) return '';
+    return sv;
   }
   // Existing concept word-arrays per tag1, for merge dedup.
   function existingKeyMap(subject){
@@ -18360,13 +18411,15 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
   }
 
   // ── Prompt builder ──  mode: 'full' (default) | 'incremental'
+  // v25.2 — Quant uses the CONCEPT-FAMILY schema (standard heading, setup line,
+  // LaTeX result boxes, optional SVG figure, verbatim source questions).
+  // GS / English / Reasoning keep the simple 4-field schema + a q array.
   function buildPrompt(subject, mode){
     mode = mode || 'full';
     const cfg = CS_SUBJECTS[subject];
     const pool = collectPool(subject);
     const processed = (mode === 'incremental') ? processedSet(subject) : new Set();
 
-    // pick questions to send
     const useGroups = {};
     Object.keys(pool.groups).forEach(t0 => {
       Object.keys(pool.groups[t0]).forEach(t1 => {
@@ -18376,12 +18429,12 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     });
 
     const L = [];
-    L.push('You are writing entries for a STANDARD EXAM FORMULA & CONCEPT REFERENCE BOOK');
+    L.push('You are writing entries for a PREMIUM EXAM FORMULA & CONCEPT REFERENCE BOOK');
     L.push('(like Gagan Pratap Sir\'s "Maths Concept King" — Champion Publication).');
     L.push('');
     if(mode === 'incremental'){
       L.push('I already have a concept book. Below are ONLY the NEW questions added since the');
-      L.push('last update. Add concepts for these — but DO NOT repeat anything already in the book.');
+      L.push('last update. Add entries for these — but DO NOT repeat anything already in the book.');
     } else {
       L.push('Below are questions I got wrong in SSC CGL mock tests, grouped by topic.');
     }
@@ -18393,76 +18446,106 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     L.push('NOT how you would solve that specific question.');
     L.push('════════════════════════════════════════════════════════');
     L.push('');
-    L.push('Each entry has 4 fields (title, formula, ex, cue):');
-    L.push('  title   → the exact CASE/SITUATION, with its variable in brackets');
-    L.push('            e.g. "Largest cone inside a cube (side a)"');
-    L.push('  formula → the formula in its POPULAR / building-block form');
-    L.push('            (show how it is remembered, not the over-collapsed result)');
-    L.push('  ex      → (optional) a one-line example using ASSUMED clean values');
-    L.push('            (x, y, or round numbers) — NEVER the question\'s numbers');
-    L.push('  cue     → (optional) a ≤5-word memory hook in plain words');
-    L.push('');
 
     if(cfg.kind === 'formula'){
-      L.push('GOLD-STANDARD EXAMPLES (match this exactly):');
-      L.push('  {"title":"Regular hexagon inscribed in circle (radius R)",');
-      L.push('   "formula":"Hexagon = 6 equilateral △ of side R  →  Area = 6 × (√3/4) × R²",');
-      L.push('   "ex":"", "cue":"six equilateral triangles"}');
-      L.push('  {"title":"Largest cone inside a cube (side a)",');
-      L.push('   "formula":"r = a/2, h = a  →  V = (1/3)π(a/2)²·a = πa³/12",');
-      L.push('   "ex":"", "cue":"cone base fits the square face"}');
-      L.push('  {"title":"Two successive % changes (a% then b%)",');
-      L.push('   "formula":"Net% = a + b + ab/100  (keep +/− signs)",');
-      L.push('   "ex":"+20% then +30% → 20+30+6 = 56%", "cue":""}');
-      L.push('  {"title":"Two fill pipes alone take a, b hours",');
-      L.push('   "formula":"Together = ab/(a+b) hours",');
-      L.push('   "ex":"", "cue":"add the rates 1/a + 1/b"}');
-    } else if(cfg.kind === 'theory'){
-      L.push('GOLD-STANDARD EXAMPLES (match this exactly):');
-      L.push('  {"title":"Article 356 — President\'s Rule",');
-      L.push('   "formula":"Imposed on failure of constitutional machinery in a State; max 3 yrs with 6-monthly approval",');
-      L.push('   "ex":"", "cue":"State emergency"}');
-      L.push('  {"title":"Rowlatt Act (1919)",');
-      L.push('   "formula":"Allowed detention without trial; led to Jallianwala Bagh protest",');
-      L.push('   "ex":"", "cue":"\\"No appeal, no plea\\""}');
-      L.push('  (formula field = the KEY FACT in 1–2 crisp lines, not an essay)');
-    } else if(cfg.kind === 'rule'){
-      L.push('GOLD-STANDARD EXAMPLES (match this exactly):');
-      L.push('  {"title":"Neither…nor — verb agreement",');
-      L.push('   "formula":"Verb agrees with the NEAREST subject",');
-      L.push('   "ex":"Neither he nor they ARE coming", "cue":"nearest subject wins"}');
+      L.push('Each entry is a CONCEPT FAMILY with these fields:');
+      L.push('  title   → the STANDARD textbook name — the name a teacher says out loud:');
+      L.push('            "Angle Bisector Theorem", "Common Tangents of Two Circles",');
+      L.push('            "Law of Sines", "CI vs SI — Two Years", "Euler Line".');
+      L.push('            No famous name exists → short case-name: "Largest cone inside a cube".');
+      L.push('  setup   → ONE line stating the situation in words, ending with ", then:"');
+      L.push('            e.g. "In \\\\(\\\\triangle ABC\\\\), \\\\(AD\\\\) bisects \\\\(\\\\angle A\\\\) and meets \\\\(BC\\\\) at \\\\(D\\\\), then:"');
+      L.push('  results → array of result boxes: {"case":"<short label or empty>","latex":"<LaTeX formula>"}');
+      L.push('            ONE clean formula per box. Related cases of the SAME setup are separate');
+      L.push('            boxes in the SAME family (e.g. Direct tangent / Internal tangent).');
+      L.push('  note    → (optional) one-line special case in words + inline LaTeX, else ""');
+      L.push('  cue     → (optional) ≤6-word memory hook in plain words, else ""');
+      L.push('  ex      → (optional) one-line example with ASSUMED clean values — NEVER the question\'s numbers');
+      L.push('  fig     → (optional) a MINIMAL inline SVG for spatial concepts ONLY (triangles,');
+      L.push('            circles, solids). viewBox=\'0 0 140 100\', at most ~12 elements,');
+      L.push('            stroke \'#1E3A5F\' for the base figure, \'#B8641B\' for the highlighted part,');
+      L.push('            SINGLE QUOTES for every attribute, tiny labels <text font-size=\'9\'>.');
+      L.push('            Non-spatial concept → "".');
+      L.push('  q       → array of the source questions VERBATIM (exact text, NO options), max 3.');
+      L.push('');
+      L.push('GOLD-STANDARD EXAMPLE (match this shape exactly):');
+      L.push('{"title":"Common Tangents of Two Circles",');
+      L.push(' "setup":"Two circles with radii \\\\(r_1, r_2\\\\) and centres \\\\(d\\\\) apart, then:",');
+      L.push(' "results":[{"case":"Direct (external)","latex":"L=\\\\sqrt{d^{2}-(r_1-r_2)^{2}}"},');
+      L.push('            {"case":"Internal (transverse)","latex":"L=\\\\sqrt{d^{2}-(r_1+r_2)^{2}}"}],');
+      L.push(' "note":"Touching externally \\\\((d=r_1+r_2)\\\\): direct tangent \\\\(=2\\\\sqrt{r_1 r_2}\\\\), internal \\\\(=0\\\\).",');
+      L.push(' "cue":"direct → difference · internal → sum",');
+      L.push(' "ex":"",');
+      L.push(' "fig":"<svg viewBox=\'0 0 140 100\'><circle cx=\'40\' cy=\'55\' r=\'26\' fill=\'none\' stroke=\'#1E3A5F\' stroke-width=\'1.6\'/><circle cx=\'108\' cy=\'55\' r=\'15\' fill=\'none\' stroke=\'#1E3A5F\' stroke-width=\'1.6\'/><line x1=\'15\' y1=\'27\' x2=\'132\' y2=\'37\' stroke=\'#B8641B\' stroke-width=\'1.5\'/></svg>",');
+      L.push(' "q":["<verbatim question 1>","<verbatim question 2>"]}');
+      L.push('');
+      L.push('LATEX RULES:');
+      L.push('✅ ALL math in LaTeX. In the JSON string, escape every backslash: \\\\dfrac, \\\\sqrt, \\\\angle, \\\\triangle, \\\\pi, \\\\theta.');
+      L.push('✅ \\\\dfrac{a}{b} for fractions, ^{ } and _{ } for powers/subscripts, \\\\times for ×.');
+      L.push('✅ In setup/note, wrap inline math as \\\\( ... \\\\).');
+      L.push('✅ Fixed notation for the whole book: a,b,c = sides opposite A,B,C · s = semi-perimeter ·');
+      L.push('   R = circumradius · r = inradius · d = centre distance · h = height · θ = angle ·');
+      L.push('   P = principal · r% = rate · t = time.');
+      L.push('');
+      L.push('FAMILY RULES:');
+      L.push('✅ Questions testing the SAME setup go into ONE family (multiple result boxes / shared q list) — never near-duplicate families.');
+      L.push('✅ Every question below MUST appear VERBATIM in exactly one family\'s q array.');
     } else {
-      L.push('GOLD-STANDARD EXAMPLES (match this exactly):');
-      L.push('  {"title":"<pattern/type name>", "formula":"<the rule/key observation>",');
-      L.push('   "ex":"<assumed-value example>", "cue":"<memory hook>"}');
+      L.push('Each entry has 5 fields (title, formula, ex, cue, q):');
+      L.push('  title   → the exact CASE/SITUATION or standard name');
+      L.push('  formula → the key fact / rule / formula in its POPULAR remembered form');
+      L.push('  ex      → (optional) a one-line example using ASSUMED clean values — NEVER the question\'s numbers');
+      L.push('  cue     → (optional) a ≤5-word memory hook in plain words');
+      L.push('  q       → array of the source questions VERBATIM (exact text, NO options), max 3');
+      L.push('');
+      if(cfg.kind === 'theory'){
+        L.push('GOLD-STANDARD EXAMPLES (match this exactly):');
+        L.push('  {"title":"Article 356 — President\'s Rule",');
+        L.push('   "formula":"Imposed on failure of constitutional machinery in a State; max 3 yrs with 6-monthly approval",');
+        L.push('   "ex":"", "cue":"State emergency", "q":["<verbatim question>"]}');
+        L.push('  (formula field = the KEY FACT in 1–2 crisp lines, not an essay)');
+      } else if(cfg.kind === 'rule'){
+        L.push('GOLD-STANDARD EXAMPLES (match this exactly):');
+        L.push('  {"title":"Neither…nor — verb agreement",');
+        L.push('   "formula":"Verb agrees with the NEAREST subject",');
+        L.push('   "ex":"Neither he nor they ARE coming", "cue":"nearest subject wins", "q":["<verbatim question>"]}');
+      } else {
+        L.push('GOLD-STANDARD EXAMPLES (match this exactly):');
+        L.push('  {"title":"<pattern/type name>", "formula":"<the rule/key observation>",');
+        L.push('   "ex":"<assumed-value example>", "cue":"<memory hook>", "q":["<verbatim question>"]}');
+      }
+      L.push('');
+      L.push('✅ Every question below MUST appear VERBATIM in exactly one entry\'s q array.');
     }
 
     L.push('');
     L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     L.push('STRICT RULES:');
     L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    L.push('❌ NEVER use the question\'s actual numbers, names, or its answer.');
+    L.push('❌ NEVER use the question\'s actual numbers, names, or its answer in title/setup/results/note.');
     L.push('❌ NEVER write solving steps: "set up", "equate", "solve for", "let CP=", "find x".');
     L.push('❌ NEVER over-collapse a formula — keep the popular/building-block form.');
-    L.push('❌ NEVER restate the question text.');
-    L.push('✅ State the GENERAL formula with standard variables (R radius, a side, h height...).');
-    L.push('✅ If an example helps, ASSUME clean values (x, y, 10, 20, 100) and show one line.');
+    L.push('❌ NEVER reword the questions in q — copy them EXACTLY as given.');
+    L.push('✅ State the GENERAL formula with standard variables.');
     L.push('✅ For word-problem topics give the core RELATIONSHIP (e.g. "Profit ∝ Capital × Time").');
-    L.push('✅ If two questions test the same concept, write it ONCE.');
-    L.push('✅ Use consistent variable letters across the whole book.');
 
     if(mode === 'incremental'){
-      const km = existingKeyMap(subject); const s = store(); const sheet = (s && s.sheets[cfg.slug]) || {};
+      const s = store(); const sheet = (s && s.sheets[cfg.slug]) || {};
       L.push('');
       L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      L.push('ALREADY IN THE BOOK — do NOT repeat these. Only add genuinely NEW concepts:');
+      L.push('ALREADY IN THE BOOK — do NOT re-create these concepts:');
       L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       Object.keys(sheet).sort().forEach(t0 => {
         Object.keys(sheet[t0]).sort().forEach(t1 => {
           const titles = (sheet[t0][t1]||[]).map(it => it.title || it.formula).filter(Boolean);
-          if(titles.length) L.push('  • ' + t1 + ': ' + titles.join(' | '));
+          if(titles.length) L.push('  • [' + t0 + ' › ' + t1 + '] ' + titles.join(' | '));
         });
       });
+      L.push('');
+      L.push('If a NEW question tests a concept ALREADY in the book list above, do NOT create a');
+      L.push('new entry. Instead put it in a top-level "_attach" array:');
+      L.push('  "_attach": [{"tag0":"<tag0>","tag1":"<tag1>","title":"<EXACT title from the book list>","q":"<verbatim question>"}]');
+      L.push('Only genuinely NEW concepts go into the normal structure.');
     }
 
     L.push('');
@@ -18470,13 +18553,17 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     L.push('{');
     L.push('  "<tag0>": {');
     L.push('    "<tag1>": [');
-    L.push('      {"title":"<case name (variable)>", "formula":"<popular-form formula/fact>", "ex":"<assumed-value example or empty>", "cue":"<≤5-word hook or empty>"}');
+    if(cfg.kind === 'formula'){
+      L.push('      {"title":"...","setup":"...","results":[{"case":"","latex":""}],"note":"","cue":"","ex":"","fig":"","q":["..."]}');
+    } else {
+      L.push('      {"title":"...","formula":"...","ex":"","cue":"","q":["..."]}');
+    }
     L.push('    ]');
     L.push('  }');
+    if(mode === 'incremental') L.push('  ,"_attach": [ ...optional, see above... ]');
     L.push('}');
     L.push('');
     L.push('Use the EXACT same tag[0] and tag[1] names as below. No extras.');
-    if(mode === 'incremental') L.push('Return ONLY concepts that are NOT already in the book list above.');
     L.push('');
     L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     L.push(mode === 'incremental' ? 'NEW QUESTIONS TO PROCESS (grouped by tag):' : 'QUESTIONS (grouped by tag):');
@@ -18595,43 +18682,66 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
       data = JSON.parse(clean);
     }catch(e){ toast('Invalid JSON — check the paste'); return; }
     if(!data || typeof data !== 'object' || Array.isArray(data)){ toast('Expected an object keyed by tag[0]'); return; }
-    // Normalise to { tag0: { tag1: [ {title, formula, ex, cue} ] } }
-    // Accepts new schema (formula/ex/cue), old schema (body), or plain strings.
+
+    // v25.2 — optional "_attach" list: new questions that belong to EXISTING concepts.
+    let attachList = [];
+    if(Array.isArray(data._attach)) attachList = data._attach;
+    delete data._attach;
+
+    // Normalise — supports BOTH schemas:
+    //   v2 family: {title, setup, results:[{case,latex}], note, cue, ex, fig, q[]}
+    //   legacy:    {title, formula, ex, cue} (+ optional q[])
+    const normQ = a => Array.isArray(a) ? dedupQ(a).slice(0,3) : [];
     const sheet = {};
     Object.keys(data).forEach(t0 => {
-      const inner = data[t0]; if(!inner || typeof inner !== 'object') return;
+      const inner = data[t0]; if(!inner || typeof inner !== 'object' || Array.isArray(inner)) return;
       sheet[t0] = {};
       Object.keys(inner).forEach(t1 => {
         let arr = inner[t1];
         if(!Array.isArray(arr)) arr = [arr];
         const seen = new Set();
         sheet[t0][t1] = arr.map(it => {
-          if(typeof it === 'string') return { title:'', formula:it, ex:'', cue:'' };
-          const formula = String((it&&it.formula) || (it&&it.body) || (it&&it.detail) || '');
-          return {
-            title:   String((it&&it.title) || ''),
-            formula: formula,
-            ex:      String((it&&it.ex) || (it&&it.example) || ''),
-            cue:     String((it&&it.cue) || (it&&it.hook) || '')
+          if(typeof it === 'string') return { title:'', formula:it, ex:'', cue:'', q:[] };
+          if(!it || typeof it !== 'object') return null;
+          const e = {
+            title: String(it.title||''),
+            setup: String(it.setup||''),
+            note:  String(it.note||''),
+            cue:   String(it.cue||it.hook||''),
+            ex:    String(it.ex||it.example||''),
+            fig:   csSafeSvg(it.fig||''),
+            q:     normQ(it.q)
           };
+          if(Array.isArray(it.results) && it.results.length){
+            e.results = it.results
+              .map(r => ({ 'case': String((r&&r['case'])||''), latex: String((r&&r.latex)||(r&&r.formula)||'') }))
+              .filter(r => r.latex);
+            e.formula = '';
+          } else {
+            e.formula = String(it.formula||it.body||it.detail||'');
+          }
+          return e;
         }).filter(x => {
-          if(!(x.title || x.formula)) return false;
-          const dk = (x.title + '|' + x.formula).toLowerCase().replace(/\s+/g,' ').trim();
+          if(!x) return false;
+          const sig = x.formula || (x.results ? x.results.map(r=>r.latex).join(';') : '');
+          if(!(x.title || sig)) return false;
+          const dk = (x.title + '|' + sig).toLowerCase().replace(/\s+/g,' ').trim();
           if(seen.has(dk)) return false;
           seen.add(dk); return true;
         });
       });
     });
+
     const s = store(); if(!s){ toast('DB not loaded'); return; }
     const cfg = CS_SUBJECTS[CS.subject]; const slug = cfg.slug;
     const mode = CS.mode || 'full';
     const pool = collectPool(CS.subject);
 
-    let added = 0, skipped = 0;
+    let added = 0, attached = 0, skipped = 0;
     if(mode === 'incremental' && s.sheets[slug] && Object.keys(s.sheets[slug]).length){
-      // MERGE new concepts into existing sheet, skipping fuzzy-duplicate titles
+      // MERGE new concepts; near-duplicate concept → carry its questions onto the existing entry
       const existing = s.sheets[slug];
-      const km = existingKeyMap(CS.subject);   // t0 -> t1 -> [wordArray,...]
+      const km = existingKeyMap(CS.subject);
       Object.keys(sheet).forEach(t0 => {
         existing[t0] = existing[t0] || {};
         km[t0] = km[t0] || {};
@@ -18640,8 +18750,16 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
           km[t0][t1] = km[t0][t1] || [];
           sheet[t0][t1].forEach(it => {
             const title = it.title || it.formula;
-            if(isDupTitle(title, km[t0][t1])){ skipped++; return; }   // near-dup → skip
-            km[t0][t1].push(titleWords(title));                       // so within-batch dups also collapse
+            const di = findDupIndex(title, km[t0][t1]);
+            if(di > -1){
+              const tgt = existing[t0][t1][di];
+              if(tgt && it.q && it.q.length){
+                tgt.q = dedupQ((tgt.q||[]).concat(it.q)).slice(-3);
+                attached += it.q.length;
+              }
+              skipped++; return;
+            }
+            km[t0][t1].push(titleWords(title));
             existing[t0][t1].push(it);
             added++;
           });
@@ -18654,6 +18772,33 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
       s.sheets[slug] = sheet;
     }
 
+    // v25.2 — "_attach": hook new questions onto existing concepts by fuzzy title match
+    if(attachList.length && s.sheets[slug]){
+      const book = s.sheets[slug];
+      attachList.forEach(a => {
+        if(!a || !a.title || !a.q) return;
+        const qtxt = String(a.q).trim(); if(!qtxt) return;
+        const wt = titleWords(String(a.title));
+        let best = null, bestSim = 0;
+        const scan = (t0, t1) => {
+          (book[t0][t1]||[]).forEach(it => {
+            const sim = wordSim(wt, titleWords(it.title || it.formula));
+            if(sim > bestSim){ bestSim = sim; best = it; }
+          });
+        };
+        if(a.tag0 && a.tag1 && book[a.tag0] && book[a.tag0][a.tag1]) scan(a.tag0, a.tag1);
+        if(bestSim < CS_SIM_THRESHOLD){
+          Object.keys(book).forEach(t0 => Object.keys(book[t0]).forEach(t1 => scan(t0, t1)));
+        }
+        if(best && bestSim >= CS_SIM_THRESHOLD){
+          best.q = dedupQ((best.q||[]).concat([qtxt])).slice(-3);
+          attached++;
+        } else {
+          console.warn('[CS] _attach: no concept matched "' + a.title + '" — question not attached');
+        }
+      });
+    }
+
     // Mark every current pool question as processed (covers old + newly-added)
     s.meta[slug] = {
       generatedAt: Date.now(),
@@ -18663,17 +18808,25 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     };
     try{
       if(typeof saveData === 'function'){ await saveData(); }
-      const msg = (mode === 'incremental')
-        ? ('✅ Added ' + added + ' new concept(s)' + (skipped ? (', skipped ' + skipped + ' dup(s)') : ''))
-        : ('✅ ' + CS.subject + ' sheet saved (' + added + ' concepts)');
+      let msg;
+      if(mode === 'incremental'){
+        const bits = ['✅ Added ' + added + ' new concept(s)'];
+        if(attached) bits.push(attached + ' question(s) attached to existing');
+        if(skipped)  bits.push(skipped + ' dup(s) merged');
+        msg = bits.join(' · ');
+      } else {
+        msg = '✅ ' + CS.subject + ' sheet saved (' + added + ' concepts)';
+      }
       toast(msg);
     }catch(e){ console.error('[CS] save failed', e); toast('Save failed — check console'); return; }
     CS.mode = 'full';
     csRenderFlow();
   };
 
-  // ── Sheet HTML (used by both View and Print) ──
-  // Section icons for tag[0] chapter banners
+  // ── Concept King book renderer (v25.2) ──────────────────────────────────
+  // View & Print both open a STANDALONE document in a NEW TAB (KaTeX math,
+  // navy/gold book styling, A4 two-column print). The old same-page
+  // visibility-hack print (blank pages on iPad/iPhone Safari) is gone.
   const SEC_ICON = {
     'Arithmetic':'📊', 'Advanced Maths':'📐', 'Calculation':'🔢',
     'Polity':'⚖️', 'Economics':'💹', 'Geography':'🌏',
@@ -18684,7 +18837,8 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     'English':'📖', 'Reasoning':'🧠'
   };
 
-  // ── Math typography: ASCII/markup → proper symbols, sup/sub, fractions ──
+
+  // ── Math typography (legacy-format entries) ──
   const CS_GREEK = {theta:'θ',alpha:'α',beta:'β',gamma:'γ',delta:'δ',pi:'π',lambda:'λ',mu:'μ',sigma:'σ',Sigma:'Σ',Delta:'Δ',phi:'φ',omega:'ω'};
   function csMath(s){
     if(s == null) return '';
@@ -18704,7 +18858,8 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     return s;
   }
 
-  // ── Small SVG diagram library, matched by keyword in the concept title ──
+
+  // ── Keyword SVG library (legacy-format entries) ──
   const _A='#0a6e8f', _B='#13a3c9';
   function _svg(inner){ return '<svg class="cs-dia" viewBox="0 0 120 86" xmlns="http://www.w3.org/2000/svg">'+inner+'</svg>'; }
   const CS_DIA = {
@@ -18734,145 +18889,198 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     return '';
   }
 
-  function sheetHTML(subject, onlyT0){
-    const cfg = CS_SUBJECTS[subject]; const s = store();
-    const sheet = (s && s.sheets[cfg.slug]) || {};
-    const t0s = Object.keys(sheet).sort().filter(t0 => !onlyT0 || t0 === onlyT0);
-    if(!t0s.length) return '<div class="cs-empty">No concept sheet yet — Copy Prompt → Claude.ai → Save.</div>';
-    let html = '';
-    t0s.forEach(t0 => {
-      const icon = SEC_ICON[t0] || '📋';
-      let cc = 0; Object.keys(sheet[t0]).forEach(t1 => { cc += (sheet[t0][t1]||[]).length; });
-      html += '<div class="cs-sec"><div class="cs-sec-head"><span class="cs-ic">' + icon + '</span>' + esc(t0) +
-              '<span class="cs-cc">' + cc + ' concepts · ' + Object.keys(sheet[t0]).length + ' topics</span></div>';
-      const t1s = Object.keys(sheet[t0]).sort();
-      t1s.forEach((t1, ti) => {
-        const items = (sheet[t0][t1] || []).filter(it => it.title || it.formula);
-        if(!items.length) return;
-        html += '<div class="cs-topic"><div class="cs-topic-head"><span class="cs-tn">' + (ti+1) + '</span>' + esc(t1) + '</div><div class="cs-grid">';
-        items.forEach(it => {
-          const dia = diagramFor(it.title || '');
-          html += '<div class="cs-card"><div class="cs-num"></div>';
-          if(it.title) html += '<div class="cs-ttl"><span class="cs-di">❖</span>' + csMath(it.title) + '</div>';
-          html += '<div class="cs-bd">';
-          if(dia)        html += dia;
-          if(it.formula) html += '<div class="cs-f">' + csMath(it.formula) + '</div>';
-          if(it.ex)      html += '<div class="cs-ex"><b>Ex:</b> ' + csMath(it.ex) + '</div>';
-          if(it.cue)     html += '<div class="cs-cue">' + csMath(it.cue) + '</div>';
-          html += '</div></div>';
-        });
-        html += '</div></div>';
-      });
-      html += '</div>';
-    });
-    return html;
+
+  const BOOK_CSS = [
+    ":root{--paper:#FDFBF5;--ink:#22252B;--navy:#1E3A5F;--navyd:#14283F;--gold:#B8641B;--goldl:#C9A24B;--cueb:#FBF3E2;--cuet:#7A4A0E;--qb:#F2F0EA;--qt:#4A4D55;--box:#FBF8F0;--rule:#DCD5C5}",
+    "*{box-sizing:border-box;margin:0;padding:0}",
+    "body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans-serif;font-size:13px;line-height:1.55}",
+    ".wrap{max-width:960px;margin:0 auto;padding:20px 20px 60px}",
+    ".printbar{position:sticky;top:0;z-index:9;background:var(--navyd);color:#fff;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;padding:8px}",
+    ".printbar button{background:var(--gold);color:#fff;border:none;font-weight:700;font-size:12px;padding:7px 14px;cursor:pointer;border-radius:4px;font-family:'Inter'}",
+    ".printbar button.sec{background:#2C4A73}",
+    ".printbar span{font-size:10.5px;color:#C9CEDA;width:100%;text-align:center}",
+    ".cover{border:3px double var(--navy);padding:26px 24px 20px;text-align:center;margin-bottom:20px;background:#fff}",
+    ".cover .eb{font-size:10.5px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);font-weight:700}",
+    ".cover h1{font-family:'Bitter',serif;font-weight:800;font-size:34px;color:var(--navyd);margin:8px 0 3px}",
+    ".cover .sub{font-family:'Spectral',serif;font-style:italic;font-size:14px;color:#5A5E68}",
+    ".cover .st{display:flex;justify-content:center;gap:26px;margin-top:16px;padding-top:12px;border-top:1px solid var(--rule)}",
+    ".cover .st b{display:block;font-family:'Bitter',serif;font-size:20px;color:var(--navy)}",
+    ".cover .st span{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#7A7E88}",
+    ".ntn{border:1px solid var(--goldl);background:var(--box);padding:8px 14px;margin-bottom:18px;font-size:11.5px;display:flex;flex-wrap:wrap;gap:3px 16px}",
+    ".ntn b{font-family:'Bitter',serif;color:var(--navy);margin-right:6px}",
+    ".pban{background:var(--navyd);color:#F3EEE2;font-family:'Bitter',serif;font-weight:700;font-size:14px;letter-spacing:2px;text-transform:uppercase;text-align:center;padding:9px;margin:28px 0 16px}",
+    ".chd{display:flex;align-items:baseline;justify-content:space-between;border-bottom:3px solid var(--navy);margin-bottom:13px;padding-bottom:5px}",
+    ".chd h2{font-family:'Bitter',serif;font-size:20px;color:var(--navyd)}",
+    ".chd .m{font-size:11px;color:#7A7E88;font-weight:600}",
+    ".cols{column-count:2;column-gap:24px}",
+    "@media(max-width:780px){.cols{column-count:1}}",
+    ".fam{break-inside:avoid;page-break-inside:avoid;background:#fff;border:1px solid var(--rule);margin-bottom:15px;display:inline-block;width:100%}",
+    ".fhead{background:var(--navy);color:#F5F1E6;font-family:'Bitter',serif;font-weight:700;font-size:13px;padding:6px 11px;display:flex;align-items:baseline;gap:8px}",
+    ".fhead .fn{color:var(--goldl);font-size:11.5px}",
+    ".fb{padding:10px 12px 9px}",
+    ".setup{font-size:12.5px;color:#3A3E47;margin-bottom:8px}",
+    ".figrow{display:flex;gap:12px;align-items:center;margin-bottom:4px}",
+    ".fig{flex:0 0 auto;max-width:150px}",
+    ".fig svg{display:block;width:100%;height:auto;background:#FBFAF6;border:1px solid #EDE7D8}",
+    ".res{flex:1;min-width:0}",
+    ".rbox{border:1.5px solid var(--goldl);background:var(--box);padding:7px 10px;margin-bottom:7px;text-align:center;font-size:13.5px}",
+    ".rbox .case{display:block;font-size:9.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--gold);text-align:left;margin-bottom:3px}",
+    ".fml{border:1.5px solid var(--goldl);background:var(--box);padding:7px 10px;margin-bottom:7px;font-family:'Spectral',Georgia,serif;font-weight:600;font-size:13px;line-height:1.6;overflow:hidden}",
+    ".fig-old{float:right;width:110px;height:auto;margin:0 0 4px 8px}",
+    ".nte{font-size:11.5px;color:#5A5E68;margin:2px 0 8px}",
+    ".nte b{color:var(--navy)}",
+    ".chips{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 8px}",
+    ".cue{background:var(--cueb);color:var(--cuet);border:1px solid #EAD9B5;font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px}",
+    ".cue:before{content:'\\25C6  ';color:var(--gold)}",
+    ".exc{background:#EDF3F8;color:#1E4E79;border:1px solid #CFE0EE;font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px}",
+    ".qbk{border-top:1px dashed var(--rule);padding-top:6px}",
+    ".qlb{font-size:9.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold);margin-bottom:3px}",
+    ".q{font-size:11.5px;color:var(--qt);line-height:1.5;background:var(--qb);padding:6px 9px;border-left:3px solid var(--gold);margin-bottom:5px}",
+    ".q:last-child{margin-bottom:0}",
+    ".csfr{display:inline-flex;flex-direction:column;text-align:center;vertical-align:middle;font-size:.82em;line-height:1;margin:0 2px}",
+    ".csnu{border-bottom:1.3px solid currentColor;padding:0 3px 1px}.csde{padding:1px 3px 0}",
+    ".fml sup{font-size:.72em;vertical-align:super}.fml sub{font-size:.72em;vertical-align:sub}",
+    ".katex{font-size:1.02em}",
+    ".empty{color:#64748b;padding:40px;text-align:center;font-size:14px}",
+    "@media print{",
+    " .printbar{display:none}",
+    " body{background:#fff;font-size:11.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}",
+    " .wrap{max-width:none;padding:0}",
+    " .cols{column-count:2;column-gap:7mm}",
+    " .fam,.fhead,.rbox,.fml,.q,.pban{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}",
+    " .pban,.chd{break-after:avoid}",
+    " @page{size:A4;margin:10mm}",
+    "}"
+  ].join('');
+
+  // One concept card — handles BOTH entry formats.
+  function csCardHTML(it, idx){
+    const num = (idx+1) < 10 ? ('0'+(idx+1)) : String(idx+1);
+    const head = esc(it.title || (it.formula ? it.formula.slice(0,60) : 'Concept'));
+    let h = '<div class="fam"><div class="fhead"><span class="fn">' + num + '</span><span>' + head + '</span></div><div class="fb">';
+    if(Array.isArray(it.results)){
+      // v2 family format — KaTeX
+      if(it.setup) h += '<div class="setup">' + esc(it.setup) + '</div>';
+      const boxes = it.results.map(r =>
+        '<div class="rbox">' + (r['case'] ? '<span class="case">' + esc(r['case']) + '</span>' : '') +
+        '\\(' + esc(r.latex) + '\\)</div>').join('');
+      const fig = csSafeSvg(it.fig || '');
+      if(fig) h += '<div class="figrow"><div class="fig">' + fig + '</div><div class="res">' + boxes + '</div></div>';
+      else    h += '<div class="res">' + boxes + '</div>';
+      if(it.note) h += '<div class="nte">' + esc(it.note) + '</div>';
+    } else {
+      // legacy format — csMath typography + keyword diagram
+      const dia = diagramFor(it.title || '');
+      h += '<div class="fml">' + (dia ? '<span class="fig-old">' + dia + '</span>' : '') + csMath(it.formula || '') + '</div>';
+    }
+    const chips = [];
+    if(it.cue) chips.push('<span class="cue">' + esc(it.cue) + '</span>');
+    if(it.ex)  chips.push('<span class="exc">Ex: ' + (Array.isArray(it.results) ? esc(it.ex) : csMath(it.ex)) + '</span>');
+    if(chips.length) h += '<div class="chips">' + chips.join('') + '</div>';
+    const qs = Array.isArray(it.q) ? it.q.filter(Boolean) : [];
+    if(qs.length){
+      h += '<div class="qbk"><div class="qlb">Where it appeared' + (qs.length > 1 ? (' \u00b7 ' + qs.length + ' Qs') : '') + '</div>' +
+           qs.map(q => '<div class="q">' + esc(q) + '</div>').join('') + '</div>';
+    }
+    h += '</div></div>';
+    return h;
   }
 
-  function sheetCoverHTML(subject, extra){
-    const cfg = CS_SUBJECTS[subject];
-    const s = store(); const meta = (s && s.meta[cfg.slug]) || {};
-    const date = meta.generatedAt ? new Date(meta.generatedAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : new Date().toLocaleDateString('en-IN');
-    const qCount = meta.qCount || '?';
-    return '<div class="cs-cover">' +
-      '<div class="cs-cover-title">' + cfg.icon + ' ' + esc(subject) + (extra ? ' — ' + esc(extra) : '') + ' · Missing Concept Sheet</div>' +
-      '<div class="cs-cover-sub">SSC CGL 2026 · Mock Wrong Questions · Formula &amp; Concept Reference</div>' +
-      '<div class="cs-cover-meta">Generated from ' + qCount + ' questions · ' + date + '</div>' +
-    '</div>';
-  }
-
-  const SHEET_CSS =
-    '.cs-doc{font-family:"Georgia","Times New Roman",serif;background:#e4f3fa;color:#0c2733;padding:0 0 22px}' +
-    /* cover */
-    '.cs-cover{background:linear-gradient(120deg,#0a6e8f,#13a3c9);color:#fff;padding:16px 22px 14px;margin-bottom:0}' +
-    '.cs-cover-title{font-family:Arial,sans-serif;font-size:21px;font-weight:900;letter-spacing:.01em;margin:0 0 3px}' +
-    '.cs-cover-sub{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;opacity:.9}' +
-    '.cs-cover-meta{font-size:10px;font-weight:700;margin-top:4px;opacity:.8}' +
-    /* tag0 banner */
-    '.cs-sec{margin-bottom:0}' +
-    '.cs-sec-head{background:linear-gradient(90deg,#0a6e8f,#13a3c9);color:#fff;font-family:Arial,sans-serif;font-size:16px;font-weight:900;padding:10px 22px;letter-spacing:1.5px;text-transform:uppercase;margin-top:0;display:flex;align-items:center;gap:10px}' +
-    '.cs-ic{font-size:17px}' +
-    '.cs-cc{margin-left:auto;font-size:11px;font-weight:bold;background:rgba(255,255,255,.18);padding:4px 13px;border-radius:16px;letter-spacing:.3px;text-transform:none}' +
-    /* tag1 sub-banner */
-    '.cs-topic{margin:0}' +
-    '.cs-topic-head{background:#127ea0;color:#fff;font-family:Arial,sans-serif;font-size:13px;font-weight:bold;padding:6px 22px;display:flex;align-items:center;gap:8px;letter-spacing:.3px}' +
-    '.cs-tn{background:#fff;color:#0a6e8f;border-radius:50%;width:18px;height:18px;font-size:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:bold}' +
-    /* two-column card grid */
-    '.cs-grid{column-count:2;column-gap:0}' +
-    '.cs-card{break-inside:avoid;border-bottom:1px solid #c6e3ee;border-right:1px solid #c6e3ee;background:#fff;padding:10px 14px 11px 13px;position:relative;display:inline-block;width:100%}' +
-    '.cs-num{position:absolute;left:0;top:10px;width:5px;height:calc(100% - 20px);background:#13a3c9}' +
-    '.cs-ttl{font-family:Arial,sans-serif;font-weight:bold;font-size:12px;color:#0a5a76;line-height:1.32;margin-bottom:5px;padding-left:6px}' +
-    '.cs-di{color:#13a3c9;margin-right:5px;font-size:10px}' +
-    '.cs-bd{padding-left:6px}' +
-    '.cs-f{font-family:"Cambria Math","Georgia",serif;font-size:12.5px;color:#10303d;line-height:1.6;background:#eef8fc;border-left:3px solid #13a3c9;padding:5px 10px;margin:3px 0;border-radius:0 5px 5px 0}' +
-    '.cs-ex{font-family:Georgia,serif;font-size:11px;color:#0a6e8f;background:#f3fbfd;padding:3px 9px;margin:3px 0;border-radius:4px}' +
-    '.cs-ex b{color:#127ea0}' +
-    '.cs-cue{font-size:10.5px;color:#6f909c;font-style:italic;margin-top:3px;padding-left:2px}' +
-    '.cs-dia{float:right;width:104px;height:74px;margin:0 0 3px 8px;background:#f4fbfd;border:1px solid #d4ebf3;border-radius:6px;padding:3px}' +
-    '.cs-empty{color:#64748b;padding:40px;text-align:center;font-size:14px;font-family:Arial,sans-serif}' +
-    /* fractions / sup / sub */
-    '.csfr{display:inline-flex;flex-direction:column;text-align:center;vertical-align:middle;font-size:.82em;line-height:1;margin:0 2px}' +
-    '.csnu{border-bottom:1.3px solid currentColor;padding:0 3px 1px}.csde{padding:1px 3px 0}' +
-    '.cs-f sup,.cs-ttl sup,.cs-ex sup{font-size:.72em;vertical-align:super}' +
-    '.cs-f sub,.cs-ttl sub,.cs-ex sub{font-size:.72em;vertical-align:sub}' +
-    /* print: force colours */
-    '@media print{' +
-      '.cs-doc,.cs-cover,.cs-sec-head,.cs-topic-head,.cs-card,.cs-f,.cs-ex{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
-      '.cs-card{break-inside:avoid}' +
-      '@page{margin:10mm}' +
-    '}';
-
-  window.csView = function(){
-    if(!CS.subject) return;
-    let v = document.getElementById('cs-view-modal');
-    if(!v){ v = document.createElement('div'); v.id='cs-view-modal'; document.body.appendChild(v); }
-    v.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100000;display:flex;align-items:flex-start;justify-content:center;padding:12px;overflow-y:auto';
-    v.innerHTML =
-      '<div style="max-width:860px;width:100%;margin:16px 0;border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.5)">' +
-        '<style>' + SHEET_CSS + '</style>' +
-        /* sticky toolbar */
-        '<div style="position:sticky;top:0;z-index:10;background:#003344;padding:8px 14px;display:flex;justify-content:space-between;align-items:center">' +
-          '<div style="display:flex;gap:8px">' +
-            csSectionPrintBar(CS.subject) +
-          '</div>' +
-          '<button onclick="document.getElementById(\'cs-view-modal\').remove()" style="background:#005577;border:none;color:#fff;font-size:13px;font-weight:900;cursor:pointer;border-radius:7px;padding:6px 14px">✕ Close</button>' +
-        '</div>' +
-        '<div class="cs-doc">' + sheetCoverHTML(CS.subject, null) + sheetHTML(CS.subject, null) + '</div>' +
-      '</div>';
-  };
-
-  function csSectionPrintBar(subject){
+  function csBookBody(subject){
     const cfg = CS_SUBJECTS[subject]; const s = store();
     const sheet = (s && s.sheets[cfg.slug]) || {};
     const t0s = Object.keys(sheet).sort();
-    // Full PDF button always first
-    let html = '<button onclick="csPrint()" style="padding:6px 12px;background:#b45309;border:none;border-radius:7px;color:#fff;font-weight:900;font-size:11px;cursor:pointer">🖨️ Full PDF</button>';
-    // Per-section buttons if more than one tag[0]
-    if(t0s.length > 1){
-      t0s.forEach(t0 => {
-        const safe = t0.replace(/'/g,"\\'");
-        html += '<button onclick="csPrint(\'' + safe + '\')" style="padding:6px 12px;background:#0e7490;border:none;border-radius:7px;color:#fff;font-weight:800;font-size:11px;cursor:pointer">' + esc(t0) + '</button>';
+    if(!t0s.length) return null;
+    let html = '', chapters = 0, concepts = 0;
+    t0s.forEach(t0 => {
+      let inner = '';
+      const t1s = Object.keys(sheet[t0]).sort();
+      t1s.forEach(t1 => {
+        const items = (sheet[t0][t1] || []).filter(it => it.title || it.formula || it.results);
+        if(!items.length) return;
+        chapters++; concepts += items.length;
+        inner += '<div class="chd"><h2>' + esc(t1) + '</h2><div class="m">' + items.length + ' concepts</div></div>' +
+                 '<div class="cols">' + items.map(csCardHTML).join('') + '</div>';
       });
-    }
-    return html;
+      if(!inner) return;
+      const icon = SEC_ICON[t0] || '';
+      html += '<div class="pt" data-t0="' + esc(t0) + '">' +
+              '<div class="pban">' + (icon ? icon + ' ' : '') + esc(t0) + '</div>' + inner + '</div>';
+    });
+    return { html: html, chapters: chapters, concepts: concepts };
   }
 
-  // Print subject-wise. If a tag[0] is passed, print just that section.
-  window.csPrint = function(onlyT0){
-    if(!CS.subject) return;
-    let host = document.getElementById('cs-print-host');
-    if(!host){ host = document.createElement('div'); host.id='cs-print-host'; document.body.appendChild(host); }
-    host.innerHTML =
-      '<style id="cs-print-style">@media print{body *{visibility:hidden!important}' +
-      '#cs-print-host,#cs-print-host *{visibility:visible!important}' +
-      '#cs-print-host{position:absolute;left:0;top:0;width:100%;height:auto;overflow:visible;padding:0}' +
-      '@page{margin:8mm}}' +
-      '#cs-print-host{position:fixed;left:-99999px;top:0}' + SHEET_CSS + '</style>' +
-      '<div class="cs-doc">' +
-        sheetCoverHTML(CS.subject, onlyT0||null) +
-        sheetHTML(CS.subject, onlyT0||null) +
-      '</div>';
-    setTimeout(function(){ try{ window.print(); }catch(e){ toast('Print not available'); } }, 150);
-  };
+  const CS_NOTATION =
+    '<div class="ntn"><span><b>Notation</b></span>' +
+    '<span>\\(a,b,c\\) = sides opposite \\(A,B,C\\)</span>' +
+    '<span>\\(s\\) = semi-perimeter</span>' +
+    '<span>\\(R\\) = circumradius</span>' +
+    '<span>\\(r\\) = inradius</span>' +
+    '<span>\\(d\\) = centre distance</span>' +
+    '<span>\\(\\theta\\) = angle</span>' +
+    '<span>\\(P\\) = principal \u00b7 \\(t\\) = time</span></div>';
+
+  function buildBookDoc(subject, auto){
+    const cfg = CS_SUBJECTS[subject];
+    const body = csBookBody(subject);
+    if(!body) return '';
+    const s = store(); const meta = (s && s.meta[cfg.slug]) || {};
+    const date = meta.generatedAt ? new Date(meta.generatedAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : new Date().toLocaleDateString('en-IN');
+    const qCount = meta.qCount || '?';
+    const sheet = (s && s.sheets[cfg.slug]) || {};
+    const t0s = Object.keys(sheet).sort();
+    const secBtns = (t0s.length > 1)
+      ? t0s.map(t0 => '<button class="sec" data-pt="' + esc(t0) + '">' + esc(t0) + '</button>').join('')
+      : '';
+    const cover =
+      '<div class="cover"><div class="eb">Mock Insights \u00b7 SSC CGL 2026</div>' +
+      '<h1>CONCEPT KING</h1>' +
+      '<div class="sub">' + esc(subject) + ' \u2014 Mock Edition \u00b7 every formula my mocks proved I didn\u2019t know</div>' +
+      '<div class="st">' +
+        '<div><b>' + qCount + '</b><span>mock-wrong Qs</span></div>' +
+        '<div><b>' + body.chapters + '</b><span>chapters</span></div>' +
+        '<div><b>' + body.concepts + '</b><span>concepts</span></div>' +
+        '<div><b>' + esc(date) + '</b><span>edition</span></div>' +
+      '</div></div>';
+    const tabScript =
+      'function pOnly(t0){var ps=document.querySelectorAll(".pt");ps.forEach(function(p){p.style.display=(!t0||p.getAttribute("data-t0")===t0)?"":"none";});' +
+      'setTimeout(function(){window.print();setTimeout(function(){ps.forEach(function(p){p.style.display="";});},400);},60);}' +
+      'document.addEventListener("click",function(ev){var b=ev.target.closest("[data-pt]");if(b){pOnly(b.getAttribute("data-pt"));}});' +
+      'window.addEventListener("load",function(){' +
+        'try{if(window.renderMathInElement){renderMathInElement(document.body,{delimiters:[{left:"\\\\(",right:"\\\\)",display:false},{left:"\\\\[",right:"\\\\]",display:true}],throwOnError:false});}}catch(e){}' +
+        'if(document.body.getAttribute("data-auto")==="1"){setTimeout(function(){try{window.print();}catch(e){}},800);}' +
+      '});';
+    return '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+      '<title>Concept King \u2014 ' + esc(subject) + '</title>' +
+      '<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800&family=Inter:wght@400;500;600;700&family=Spectral:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">' +
+      '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">' +
+      '<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"><\/script>' +
+      '<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"><\/script>' +
+      '<style>' + BOOK_CSS + '</style></head>' +
+      '<body data-auto="' + (auto ? '1' : '0') + '">' +
+      '<div class="printbar"><button data-pt="">\ud83d\udda8\ufe0f Print / Save as PDF</button>' + secBtns +
+      '<span>A4 \u00b7 2-column \u00b7 math renders in ~1s (needs internet first open) \u00b7 cards never split across pages</span></div>' +
+      '<div class="wrap">' + cover + (cfg.kind === 'formula' ? CS_NOTATION : '') + body.html + '</div>' +
+      '<script>' + tabScript + '<\/script>' +
+      '</body></html>';
+  }
+
+  function openBook(subject, auto){
+    if(!subject){ toast('Pick a subject first'); return; }
+    const html = buildBookDoc(subject, auto);
+    if(!html){ toast('No concept sheet yet \u2014 Copy Prompt \u2192 Claude.ai \u2192 Save.'); return; }
+    const w = window.open('', '_blank');
+    if(!w){ toast('Popup blocked \u2014 allow popups for this site, then tap again'); return; }
+    try{
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+    }catch(e){ console.error('[CS] book tab failed', e); toast('Could not open the book tab \u2014 check console'); }
+  }
+
+  window.csView  = function(){ openBook(CS.subject, false); };
+  window.csPrint = function(){ openBook(CS.subject, true);  };
 
   // Boot: ensure subjects on load so weekly buckets show up.
   function boot(){ try { ensureMockSubjects(); } catch(e){} }
