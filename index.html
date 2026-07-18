@@ -17457,22 +17457,26 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     p += `Each screenshot may contain ONE or MULTIPLE questions — read every visible question.\n\n`;
     p += `For each question, produce a JSON object using this EXACT schema:\n\n`;
     p += '```json\n';
-    p += `{\n  "question": "<full question text exactly as in screenshot>",\n  "options": [\n    {"text": "<A>", "correct": false},\n    {"text": "<B>", "correct": false},\n    {"text": "<C>", "correct": true},\n    {"text": "<D>", "correct": false}\n  ],\n  "tags": ["<tag[0]>", "<tag[1]>", "<tag[2]>", "<tag[3]>"],\n  "solution": "<b>Shortcut:</b> <2–3 line solution>",\n  "mockSource": "Week ${wk.display} · ${subject} Pool",\n  "needsRetag": false\n}\n`;
+    p += `{\n  "question": "<full question text exactly as in screenshot>",\n  "options": [\n    {"text": "<A>", "correct": false},\n    {"text": "<B>", "correct": false},\n    {"text": "<C>", "correct": true},\n    {"text": "<D>", "correct": false}\n  ],\n  "tags": ["<tag[0]>", "<tag[1]>", "<tag[2]>", "<tag[3]>"],\n  "solution": "<2–3 line solution — smartest/fastest method, no label prefix>",\n  "mockSource": "Week ${wk.display} · ${subject} Pool"\n}\n`;
     p += '```\n\n';
     p += `## TAG RULES (CRITICAL — DO NOT INVENT ANY TAG)\n\n`;
     p += `**tag[0]** MUST be exactly one of: ${cfg.parents.map(x => `"${x}"`).join(', ')}\n\n`;
-    p += `**tag[1] / tag[2] / tag[3]** — copy EXACTLY (same spelling, spacing, punctuation, &) from the menu below. This menu IS my hub's real tag list. Order only from it — never make up a new name.\n`;
+    p += `**tag[1] / tag[2] / tag[3]** — this menu below IS my hub's real, live tag list. ALWAYS prefer an EXACT copy (same spelling, spacing, punctuation, &) from it.\n`;
     p += `\`\`\`\n${window.__hubBuildTagMenu(cfg.parents)}\`\`\`\n\n`;
     p += `⚠️ Shapes are NEVER tag[1]. Triangle/Circle/Quadrilateral/Rectangle/Square/Trapezium/Rhombus/Polygon/Hexagon → tag[2]; tag[1]="2D-Mensuration" (use "Geometry" only for angle/property questions). Cube/Cuboid/Cylinder/Cone/Sphere/Hemisphere/Prism/Pyramid/Frustum → tag[2]; tag[1]="3D-Mensuration".\n\n`;
-    p += `## FALLBACK — WHEN A QUESTION DOES NOT FIT THE MENU (do NOT invent)\n\n`;
-    p += `1. tag[1] not in the menu for that tag[0] → set tag[1]="" , tag[2]="" , tag[3]="" and "needsRetag": true.\n`;
-    p += `2. tag[1] fits but NO listed tag[2] matches → keep tag[1], set tag[2]="" , tag[3]="" and "needsRetag": true.\n`;
-    p += `3. tag[2] matches but no listed tag[3] fits → keep tag[0..2], set tag[3]="" and "needsRetag": true.\n`;
-    p += `4. Never create new tag names. If in doubt, leave that slot "" and flag needsRetag — I will tag it myself later.\n`;
-    p += `5. Solution MUST always start with "<b>Shortcut:</b>" followed by 2–3 concise lines.\n`;
-    p += `6. Extract the FULL question text — include tables, data, conditions, line breaks.\n`;
-    p += `7. Mark exactly ONE option as "correct": true (the right answer per the mock solution).\n`;
-    p += `8. "mockSource" MUST be EXACTLY: "Week ${wk.display} · ${subject} Pool" (don't paraphrase).\n\n`;
+    p += `## WHEN A QUESTION DOES NOT MATCH THE MENU — SUGGEST, DON'T LEAVE BLANK\n\n`;
+    p += `The menu is the FIRST choice. If a slot has no exact match, do NOT leave it "" — instead put YOUR single best-guess tag there (concise, standard SSC terminology, styled like the existing menu names) AND add "needsReview": true to that question object. I will confirm or fix it in one tap on my side — your guess is a suggestion, never a silent commit.\n`;
+    p += `Rules for the guess:\n`;
+    p += `1. tag[0] is FIXED — it MUST be exactly one of the ${cfg.parents.length} parents above. Never guess tag[0].\n`;
+    p += `2. tag[1] no menu match → best-guess the standard chapter/topic name + "needsReview": true.\n`;
+    p += `3. tag[2] no menu match → best-guess the sub-topic/shape + "needsReview": true.\n`;
+    p += `4. tag[3] is the question-specific concept — always fill your best specific label (no review flag needed for tag[3] alone).\n`;
+    p += `5. Match my naming STYLE: use "&" not "and", Title Case, singular where my menu is singular (e.g. "Profit & Loss", "Boat & Stream").\n`;
+    p += `6. If you did use the menu exactly for tag[1] AND tag[2], do NOT add needsReview.\n`;
+    p += `7. Extract the FULL question text — include tables, data, conditions, line breaks.\n`;
+    p += `8. Mark exactly ONE option as "correct": true (the right answer per the mock solution).\n`;
+    p += `9. Write the solution as the smartest/fastest method directly — NO "Shortcut:" or any label prefix.\n`;
+    p += `10. "mockSource" MUST be EXACTLY: "Week ${wk.display} · ${subject} Pool" (don't paraphrase).\n\n`;
     p += `## OUTPUT\n\n`;
     p += `Return ONLY a JSON array of question objects — no commentary, no markdown fences, no preamble:\n\n`;
     p += `[\n  { ...question1... },\n  { ...question2... }\n]\n\n`;
@@ -17857,7 +17861,7 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
       if (errs.length) issues.push(...errs);
       let tags = Array.isArray(q.tags) ? q.tags.slice(0, 4) : [];
       while (tags.length < 4) tags.push('');
-      let flagged = q.needsRetag === true;
+      let flagged = q.needsRetag === true || q.needsReview === true;
       if (typeof window.normalizeHubTags === 'function') {
         const norm = window.normalizeHubTags(tags);
         tags = norm.tags;
@@ -18644,10 +18648,11 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
       '</div>' +
       '<textarea id="cs-json" placeholder="Paste the concept JSON from Claude.ai here..." style="width:100%;height:110px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#f1f5f9;padding:10px;font-size:12px;font-family:monospace;margin-bottom:10px"></textarea>' +
       '<button onclick="csSave()" style="width:100%;padding:12px;background:#16a34a;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:13px;cursor:pointer;margin-bottom:10px">💾 Save Concept Sheet</button>' +
-      (built ? ('<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      (built ? ('<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
         '<button onclick="csView()" style="flex:1;min-width:130px;padding:11px;background:#0e7490;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">👁️ View Sheet</button>' +
         '<button onclick="csPrint()" style="flex:1;min-width:130px;padding:11px;background:#b45309;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">🖨️ Print PDF</button>' +
-      '</div>') : '');
+      '</div>') : '') +
+      '<button onclick="csQBank()" style="width:100%;padding:11px;background:#1E3A5F;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">🗒️ Wrong Question Bank (chapter-wise practice)</button>';
   }
 
   window.csCopyPrompt = function(mode){
@@ -19081,6 +19086,180 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
 
   window.csView  = function(){ openBook(CS.subject, false); };
   window.csPrint = function(){ openBook(CS.subject, true);  };
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  WRONG QUESTION BANK — tag-wise practice sheet (Option A: question + answer
+  //  in brackets). Built straight from the mock-wrong pool, NO Claude needed.
+  //  Same iPad-safe new-tab print system as Concept King.
+  // ══════════════════════════════════════════════════════════════════════════
+  function qbAnswerOf(qobj){
+    // qobj may carry the full question object (with options) when available.
+    try{
+      const opts = qobj && qobj.options;
+      if(Array.isArray(opts) && opts.length){
+        let letter = '', txt = '';
+        for(let i=0;i<opts.length;i++){
+          if(opts[i] && opts[i].correct === true){ letter = String.fromCharCode(65+i); txt = String(opts[i].text||'').trim(); break; }
+        }
+        if(txt) return letter ? (letter + ' — ' + txt) : txt;
+      }
+    }catch(e){}
+    return '';
+  }
+
+  // Collect the FULL question objects (not just text) grouped tag0 → tag1,
+  // so we can print options + answer. Mirrors collectPool's matching logic.
+  function collectPoolFull(subject){
+    const cfg = CS_SUBJECTS[subject]; const d = getDb() || {};
+    const container = cfg.container;
+    const keyRe = new RegExp('^quiz_mock_wrong_' + cfg.slug);
+    const groups = {}; let total = 0; const seen = new Set();
+    Object.keys(d).forEach(k => {
+      if(k === STORE_KEY) return;
+      const quiz = d[k]; if(!quiz || !Array.isArray(quiz.questions)) return;
+      const isMatch = (quiz.subject === container) || keyRe.test(k);
+      if(!isMatch) return;
+      quiz.questions.forEach(q => {
+        if(!q || !q.question) return;
+        const cleanQ = strip(q.question);
+        const dk = cleanQ.toLowerCase().replace(/\s+/g,' ').trim();
+        if(seen.has(dk)) return; seen.add(dk);
+        const t = Array.isArray(q.tags) ? q.tags : [];
+        const t0 = (t[0]||'').trim() || 'Untagged';
+        const t1 = (t[1]||'').trim() || '(no topic)';
+        groups[t0] = groups[t0] || {};
+        groups[t0][t1] = groups[t0][t1] || [];
+        groups[t0][t1].push({ q: cleanQ, options: q.options, ans: qbAnswerOf(q) });
+        total++;
+      });
+    });
+    return { groups, total };
+  }
+
+  const QBANK_CSS = [
+    ":root{--paper:#FDFBF5;--ink:#22252B;--navy:#1E3A5F;--navyd:#14283F;--gold:#B8641B;--goldl:#C9A24B;--rule:#DCD5C5;--ansbg:#F0F5F0;--anstx:#2C6B3F}",
+    "*{box-sizing:border-box;margin:0;padding:0}",
+    "body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans-serif;font-size:13px;line-height:1.5}",
+    ".wrap{max-width:960px;margin:0 auto;padding:20px 20px 60px}",
+    ".printbar{position:sticky;top:0;z-index:9;background:var(--navyd);color:#fff;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;padding:8px}",
+    ".printbar button{background:var(--gold);color:#fff;border:none;font-weight:700;font-size:12px;padding:7px 14px;cursor:pointer;border-radius:4px;font-family:'Inter'}",
+    ".printbar button.sec{background:#2C4A73}",
+    ".printbar label{color:#C9CEDA;font-size:11px;display:flex;gap:5px;align-items:center;cursor:pointer}",
+    ".printbar span{font-size:10.5px;color:#C9CEDA;width:100%;text-align:center}",
+    ".cover{border:3px double var(--navy);padding:24px;text-align:center;margin-bottom:20px;background:#fff}",
+    ".cover .eb{font-size:10.5px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);font-weight:700}",
+    ".cover h1{font-family:'Bitter',serif;font-weight:800;font-size:32px;color:var(--navyd);margin:8px 0 3px}",
+    ".cover .sub{font-family:'Spectral',serif;font-style:italic;font-size:14px;color:#5A5E68}",
+    ".cover .st{display:flex;justify-content:center;gap:26px;margin-top:16px;padding-top:12px;border-top:1px solid var(--rule)}",
+    ".cover .st b{display:block;font-family:'Bitter',serif;font-size:20px;color:var(--navy)}",
+    ".cover .st span{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#7A7E88}",
+    ".pban{background:var(--navyd);color:#F3EEE2;font-family:'Bitter',serif;font-weight:700;font-size:14px;letter-spacing:2px;text-transform:uppercase;text-align:center;padding:9px;margin:26px 0 14px}",
+    ".chd{display:flex;align-items:baseline;justify-content:space-between;border-bottom:3px solid var(--navy);margin-bottom:12px;padding-bottom:5px}",
+    ".chd h2{font-family:'Bitter',serif;font-size:19px;color:var(--navyd)}",
+    ".chd .m{font-size:11px;color:#7A7E88;font-weight:600}",
+    ".cols{column-count:2;column-gap:26px}",
+    "@media(max-width:780px){.cols{column-count:1}}",
+    ".qc{break-inside:avoid;page-break-inside:avoid;margin-bottom:11px;display:flex;gap:8px;align-items:baseline}",
+    ".qc .n{font-family:'Bitter',serif;font-weight:800;font-size:12px;color:var(--gold);min-width:22px;flex:0 0 auto}",
+    ".qc .body{flex:1;min-width:0}",
+    ".qc .qt{font-size:12.5px;color:var(--ink);line-height:1.5}",
+    ".qc .opts{font-size:11.5px;color:#4A4D55;margin-top:3px;line-height:1.6}",
+    ".qc .ans{display:inline-block;font-size:11px;font-weight:600;color:var(--anstx);background:var(--ansbg);border:1px solid #CFE3D2;border-radius:5px;padding:1px 8px;margin-top:4px}",
+    ".ansML{color:#7A7E88;font-style:italic}",
+    ".empty{color:#64748b;padding:40px;text-align:center;font-size:14px}",
+    "@media print{",
+    " .printbar{display:none}",
+    " body{background:#fff;font-size:11.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}",
+    " .wrap{max-width:none;padding:0}",
+    " .cols{column-count:2;column-gap:7mm}",
+    " .pban,.chd{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;break-after:avoid}",
+    " body.hideAns .ans{display:none!important}",
+    " @page{size:A4;margin:10mm}",
+    "}"
+  ].join('');
+
+  function qbBody(subject){
+    const pool = collectPoolFull(subject);
+    const t0s = Object.keys(pool.groups).sort();
+    if(!t0s.length) return null;
+    let html = '', chapters = 0, total = 0;
+    t0s.forEach(t0 => {
+      let inner = '';
+      const t1s = Object.keys(pool.groups[t0]).sort();
+      t1s.forEach(t1 => {
+        const items = pool.groups[t0][t1] || [];
+        if(!items.length) return;
+        chapters++; total += items.length;
+        let cards = '';
+        items.forEach((it, i) => {
+          let opts = '';
+          if(Array.isArray(it.options) && it.options.length){
+            opts = '<div class="opts">' + it.options.map((o,oi) =>
+              '(' + String.fromCharCode(65+oi) + ') ' + esc(String(o.text||''))).join('&nbsp;&nbsp; ') + '</div>';
+          }
+          const ans = it.ans ? ('<div class="ans">Ans: ' + esc(it.ans) + '</div>')
+                             : '<div class="ans ansML">Ans: (check hub)</div>';
+          cards += '<div class="qc"><span class="n">' + (i+1) + '.</span><div class="body">' +
+                   '<div class="qt">' + esc(it.q) + '</div>' + opts + ans + '</div></div>';
+        });
+        inner += '<div class="chd"><h2>' + esc(t1) + '</h2><div class="m">' + items.length + ' Qs</div></div>' +
+                 '<div class="cols">' + cards + '</div>';
+      });
+      if(!inner) return;
+      const icon = SEC_ICON[t0] || '';
+      html += '<div class="pt" data-t0="' + esc(t0) + '"><div class="pban">' + (icon?icon+' ':'') + esc(t0) + '</div>' + inner + '</div>';
+    });
+    return { html: html, chapters: chapters, total: total };
+  }
+
+  function buildQBankDoc(subject, auto){
+    const cfg = CS_SUBJECTS[subject];
+    const body = qbBody(subject);
+    if(!body) return '';
+    const pool = collectPoolFull(subject);
+    const date = new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+    const t0s = Object.keys(pool.groups).sort();
+    const secBtns = (t0s.length > 1)
+      ? t0s.map(t0 => '<button class="sec" data-pt="' + esc(t0) + '">' + esc(t0) + '</button>').join('') : '';
+    const cover =
+      '<div class="cover"><div class="eb">Mock Insights \u00b7 SSC CGL 2026</div>' +
+      '<h1>WRONG QUESTION BANK</h1>' +
+      '<div class="sub">' + esc(subject) + ' \u2014 chapter-wise practice from every mock I got wrong</div>' +
+      '<div class="st">' +
+        '<div><b>' + body.total + '</b><span>questions</span></div>' +
+        '<div><b>' + body.chapters + '</b><span>chapters</span></div>' +
+        '<div><b>' + esc(date) + '</b><span>edition</span></div>' +
+      '</div></div>';
+    const script =
+      'function pOnly(t0){var ps=document.querySelectorAll(".pt");ps.forEach(function(p){p.style.display=(!t0||p.getAttribute("data-t0")===t0)?"":"none";});' +
+      'setTimeout(function(){window.print();setTimeout(function(){ps.forEach(function(p){p.style.display="";});},400);},60);}' +
+      'document.addEventListener("click",function(ev){var b=ev.target.closest("[data-pt]");if(b){pOnly(b.getAttribute("data-pt"));}});' +
+      'var hideChk=document.getElementById("hideAns");if(hideChk){hideChk.addEventListener("change",function(){document.body.classList.toggle("hideAns",hideChk.checked);});}' +
+      'window.addEventListener("load",function(){if(document.body.getAttribute("data-auto")==="1"){setTimeout(function(){try{window.print();}catch(e){}},400);}});';
+    return '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+      '<title>Wrong Question Bank \u2014 ' + esc(subject) + '</title>' +
+      '<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800&family=Inter:wght@400;500;600;700&family=Spectral:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">' +
+      '<style>' + QBANK_CSS + '</style></head>' +
+      '<body data-auto="' + (auto?'1':'0') + '">' +
+      '<div class="printbar"><button data-pt="">\ud83d\udda8\ufe0f Print / Save as PDF</button>' + secBtns +
+      '<label><input type="checkbox" id="hideAns"> hide answers when printing</label>' +
+      '<span>A4 \u00b7 2-column \u00b7 answer shown in green after each question \u00b7 tick \u201chide answers\u201d for a blank practice sheet</span></div>' +
+      '<div class="wrap">' + cover + body.html + '</div>' +
+      '<script>' + script + '<\/script></body></html>';
+  }
+
+  window.csQBank = function(auto){
+    const subject = CS.subject;
+    if(!subject){ toast('Pick a subject first'); return; }
+    const html = buildQBankDoc(subject, !!auto);
+    if(!html){ toast('No wrong questions in this pool yet'); return; }
+    const w = window.open('', '_blank');
+    if(!w){ toast('Popup blocked \u2014 allow popups, then tap again'); return; }
+    try{ w.document.open(); w.document.write(html); w.document.close(); }
+    catch(e){ console.error('[QBank] failed', e); toast('Could not open \u2014 check console'); }
+  };
+
 
   // Boot: ensure subjects on load so weekly buckets show up.
   function boot(){ try { ensureMockSubjects(); } catch(e){} }
