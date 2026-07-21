@@ -1664,7 +1664,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-07-14 · v25.2';
+    const HUB_BUILD = '2026-07-19 · v25.3';
     // Features in this build:
     //   v23.1 — Concept Sheet INCREMENTAL mode:
     //           · "➕ Add New (N)" sends only unprocessed questions + a
@@ -14160,6 +14160,19 @@ body.light select.inp option { background:white; }
     <div id="h-week-perf" style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-around"></div>
   </div>
 
+  <!-- Daily Checklist -->
+  <div class="card" style="margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+      <div style="font-size:14px;font-weight:900;color:var(--text)">✅ Daily Checklist</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div id="dc-streak" style="font-size:11px;font-weight:900;color:var(--yellow)"></div>
+        <button onclick="dcAddTask()" style="background:rgba(79,110,247,0.12);border:1px solid rgba(79,110,247,0.3);color:#818cf8;font-size:10px;font-weight:900;padding:4px 11px;border-radius:999px;cursor:pointer">+ Add</button>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:10px">⏱ = timer toggle · 📊 = counts toward daily study hours</div>
+    <div id="dc-list"></div>
+  </div>
+
   <!-- (Weekly Checklist removed — replaced by 🎯 This Week's Tasks) -->
 
   <!-- ROW 2: Tasks + Today Logged -->
@@ -14543,120 +14556,6 @@ let weeklyChart = null, debtChart = null;
 
 // ════════════════ UTILS ════════════════
 function istNow(){ return new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'})); }
-// ══════════════════════════════════════════════════════════════════════════
-// IDLE SENTINEL — Mamba pace enforcer (escape-window logic).
-// Tied to your 4 daily blocks. For the block you're in NOW it computes:
-//   required pace = (block target - hours logged) / hours remaining in block
-// The siren fires the moment required pace crosses 50% — i.e. when finishing
-// would start to need more than half of every remaining minute. That's EARLY,
-// while recovery is still easy, never when you're already cornered. If you keep
-// pace, your remaining target shrinks with the clock, pace stays low, total
-// silence. It only screams when you're genuinely drifting, with max runway left.
-// ══════════════════════════════════════════════════════════════════════════
-(function IdleSentinel(){
-  const TRIGGER   = 0.50;       // fire when required pace ≥ 50%
-  const CHECK_MS  = 60000;      // re-check every minute
-  const REFIRE_MS = 20*60000;   // if snoozed/dismissed, don't renag same block for 20 min
-  let alarmCtx=null, alarmTimer=null, firing=false;
-  let mutedBlockUntil={};       // { blockKey: timestamp } suppress re-fire per block
-
-  function hhmmToMin(s){ const m=(s||'').split(':'); return (+m[0]||0)*60+(+m[1]||0); }
-  function curMinOfDay(){ const n=istNow(); return n.getHours()*60+n.getMinutes(); }
-
-  // Which block are we in right now? Respects sleep window (no fire while asleep).
-  function currentBlock(){
-    try{
-      const cur=curMinOfDay();
-      const wake=hhmmToMin((D&&D.wakeTarget)||'05:00');
-      let sleep=hhmmToMin((D&&D.sleepTarget)||'23:30');
-      // outside wake→sleep window → no block (silent)
-      let c=cur, sl=sleep; if(sl<=wake) sl+=1440; let cc=c; if(cc<wake) cc+=1440;
-      if(!(cc>=wake && cc<=sl)) return null;
-      for(const b of WR_BUCKETS){ if(cur>=b.start*60 && cur<b.end*60) return b; }
-      return null;
-    }catch(e){ return null; }
-  }
-
-  // required pace for the active block (0..∞). Lower is safer.
-  function blockPace(b){
-    const logged = (typeof wrBucketHours==='function' ? (wrBucketHours(todayStr())[b.key]||0) : 0);
-    const remainTarget = Math.max(0, b.target - logged);
-    if(remainTarget<=0) return { pace:0, logged, remainTarget:0, remainMin:0 };
-    const remainMin = Math.max(1, b.end*60 - curMinOfDay());
-    const remainTargetMin = remainTarget*60;
-    return { pace: remainTargetMin/remainMin, logged, remainTarget, remainMin };
-  }
-
-  function pickTask(){
-    try{
-      const wt=(D&&D.weeklyTasks)||[];
-      for(const g of wt){ const s=(g.tasks||[]).find(t=>t.starred&&!t.done); if(s) return {label:`${g.subject}: ${s.text}`,action:()=>showScreen('planner')}; }
-      for(const g of wt){ const a=(g.tasks||[]).find(t=>!t.done); if(a) return {label:`${g.subject}: ${a.text}`,action:()=>showScreen('planner')}; }
-    }catch(e){}
-    try{ const due=(typeof mistakesDb!=='undefined'?mistakesDb:[]).filter(m=>m&&m.srs&&m.srs.nextReview<=Date.now()&&!m.isMastered).length;
-      if(due>0) return {label:`Clear SRS — ${due} card${due!==1?'s':''} due`,action:()=>showScreen('home')}; }catch(e){}
-    return {label:'Start any quiz — 25 questions. Move.',action:()=>showScreen('home')};
-  }
-
-  function beepOnce(ctx,t0){
-    const seq=[[0,90],[150,90],[300,90],[480,260],[800,260],[1120,260],[1450,90],[1600,90],[1750,90]];
-    seq.forEach(([off,dur])=>{ const o=ctx.createOscillator(),g=ctx.createGain(); o.type='square'; o.frequency.value=880; o.connect(g); g.connect(ctx.destination);
-      const s=t0+off/1000; g.gain.setValueAtTime(0.0001,s); g.gain.exponentialRampToValueAtTime(0.6,s+0.01); g.gain.exponentialRampToValueAtTime(0.0001,s+dur/1000); o.start(s); o.stop(s+dur/1000+0.02); });
-    return 2.1;
-  }
-  function startAlarm(){
-    try{ alarmCtx=alarmCtx||new (window.AudioContext||window.webkitAudioContext)(); if(alarmCtx.state==='suspended') alarmCtx.resume();
-      const loop=()=>{ if(!firing) return; const len=beepOnce(alarmCtx,alarmCtx.currentTime+0.05); alarmTimer=setTimeout(loop,(len+0.6)*1000); }; loop(); }catch(e){}
-    try{ if(navigator.vibrate){ const v=()=>{ if(!firing) return; navigator.vibrate([200,100,200,100,200,300,400,200,400]); }; v(); } }catch(e){}
-  }
-  function stopAlarm(){ firing=false; if(alarmTimer){ clearTimeout(alarmTimer); alarmTimer=null; } try{ if(navigator.vibrate) navigator.vibrate(0); }catch(e){} }
-
-  function fire(b,info){
-    if(firing||document.getElementById('idle-sentinel-overlay')) return;
-    firing=true;
-    const need=info.remainTarget, mins=info.remainMin;
-    const needH=Math.floor(need), needM=Math.round((need-needH)*60);
-    const loggedH=Math.floor(info.logged), loggedM=Math.round((info.logged-loggedH)*60);
-    const task=pickTask();
-    const ov=document.createElement('div'); ov.id='idle-sentinel-overlay';
-    ov.style.cssText='position:fixed;inset:0;z-index:2147483647;background:radial-gradient(circle at 50% 40%,#7f1d1d,#450a0a 70%,#1c0505);display:flex;align-items:center;justify-content:center;padding:24px;font-family:inherit;animation:idlePulse 1s ease-in-out infinite';
-    ov.innerHTML=`
-      <style>@keyframes idlePulse{0%,100%{background-color:#450a0a}50%{background-color:#7f1d1d}}@keyframes idleShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}</style>
-      <div style="max-width:440px;width:100%;text-align:center;color:#fff;animation:idleShake .5s ease-in-out 3">
-        <div style="font-size:60px;line-height:1;margin-bottom:6px">🚨</div>
-        <div style="font-size:24px;font-weight:900;margin-bottom:4px">${b.label.toUpperCase()} IS SLIPPING</div>
-        <div style="font-size:13px;font-weight:700;color:#fecaca;margin-bottom:16px">You're falling behind pace. Catch it NOW — still easy.</div>
-        <div style="background:rgba(0,0,0,.35);border:1px solid #ef4444;border-radius:14px;padding:14px;margin-bottom:14px">
-          <div style="font-size:28px;font-weight:900;margin:2px 0">${needH}h ${needM}m <span style="font-size:14px;color:#fca5a5">needed in ${Math.floor(mins/60)}h ${mins%60}m</span></div>
-          <div style="font-size:12px;font-weight:800;color:#fecaca">Logged this block: ${loggedH}h ${loggedM}m of ${b.target}h</div>
-        </div>
-        <div style="font-size:11px;font-weight:900;color:#fca5a5;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Do this NOW</div>
-        <div style="font-size:15px;font-weight:800;background:#fff;color:#7f1d1d;border-radius:12px;padding:11px;margin-bottom:16px">${task.label}</div>
-        <button id="idle-start-btn" style="width:100%;background:#16a34a;color:#fff;font-weight:900;font-size:17px;padding:15px;border:none;border-radius:12px;cursor:pointer;box-shadow:0 6px 20px rgba(22,163,74,.5);margin-bottom:10px">▶ START NOW</button>
-        <button id="idle-snooze-btn" style="width:100%;background:transparent;color:#fca5a5;font-weight:700;font-size:13px;padding:10px;border:1px solid #b91c1c;border-radius:10px;cursor:pointer">Snooze 20 min</button>
-      </div>`;
-    document.body.appendChild(ov); startAlarm();
-    const mute=()=>{ mutedBlockUntil[b.key]=Date.now()+REFIRE_MS; };
-    document.getElementById('idle-start-btn').onclick=()=>{ stopAlarm(); ov.remove(); mute(); try{task.action();}catch(e){} };
-    document.getElementById('idle-snooze-btn').onclick=()=>{ stopAlarm(); ov.remove(); mute(); };
-  }
-
-  function check(){
-    try{
-      if(firing||document.hidden) return;
-      const b=currentBlock(); if(!b) return;
-      if(mutedBlockUntil[b.key] && Date.now()<mutedBlockUntil[b.key]) return;
-      const info=blockPace(b);
-      if(info.remainTarget<=0) return;            // block target already met → silent
-      if(info.pace>=TRIGGER) fire(b,info);
-    }catch(e){}
-  }
-
-  function primeAudio(){ try{ alarmCtx=alarmCtx||new (window.AudioContext||window.webkitAudioContext)(); if(alarmCtx.state==='suspended') alarmCtx.resume(); }catch(e){} document.removeEventListener('pointerdown',primeAudio); document.removeEventListener('keydown',primeAudio); }
-  document.addEventListener('pointerdown',primeAudio); document.addEventListener('keydown',primeAudio);
-  setInterval(check,CHECK_MS);
-  window._idleSentinelTest=function(){ const b=currentBlock()||WR_BUCKETS[2]; fire(b, blockPace(b)); }; // preview in console
-})();
 
 function todayStr(){ const d=istNow(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function dateStr(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
@@ -14676,10 +14575,10 @@ function save(){
   //  flushed that emptiness over good localStorage AND pushed it to cloud.) If D looks
   // empty but storage has real data, abort the write and warn instead of destroying it.
   try {
-    const dHasData = (Object.keys(D.logs||{}).length>0) || (Object.keys(D.blocks||{}).length>0) || (Object.keys(D.checklist||{}).length>0) || ((D.streak&&D.streak.count>0)) || ((D.weeklyTasks||[]).length>0);
+    const dHasData = (Object.keys(D.logs||{}).length>0) || (Object.keys(D.blocks||{}).length>0) || (Object.keys(D.checklist||{}).length>0) || (Object.keys(D.dailyLog||{}).length>0) || ((D.streak&&D.streak.count>0)) || ((D.weeklyTasks||[]).length>0);
     if(!dHasData){
       const prev = JSON.parse(localStorage.getItem(STORE)||'{}');
-      const prevHasData = (Object.keys(prev.logs||{}).length>0) || (Object.keys(prev.blocks||{}).length>0) || (Object.keys(prev.checklist||{}).length>0) || ((prev.streak&&prev.streak.count>0)) || ((prev.weeklyTasks||[]).length>0);
+      const prevHasData = (Object.keys(prev.logs||{}).length>0) || (Object.keys(prev.blocks||{}).length>0) || (Object.keys(prev.checklist||{}).length>0) || (Object.keys(prev.dailyLog||{}).length>0) || ((prev.streak&&prev.streak.count>0)) || ((prev.weeklyTasks||[]).length>0);
       if(prevHasData){
         console.warn('[War Room] save() BLOCKED — in-memory D is empty but stored data exists. Refusing to overwrite. Reload the page to restore.');
         return; // abort: do NOT overwrite good data, do NOT push empty to cloud
@@ -14697,7 +14596,7 @@ function save(){
     if(typeof pushFn === 'function') pushFn().catch(function(){});
   }, 2000);
 }
-function load(){ const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);}catch(e){} D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||50; D.checklist=D.checklist||{}; D.sleepLog=D.sleepLog||{}; D.wakeTarget=D.wakeTarget||'05:00'; D.sleepTarget=D.sleepTarget||'23:30'; D.weeklyTasks=D.weeklyTasks||[]; D.wtWeekStart=D.wtWeekStart||''; D.wtArchive=D.wtArchive||[]; D.meta=D.meta||{}; wtMigrateMockDates(); wtCheckWeekReset(); }
+function load(){ const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);}catch(e){} D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||50; D.checklist=D.checklist||{}; D.sleepLog=D.sleepLog||{}; D.wakeTarget=D.wakeTarget||'05:00'; D.sleepTarget=D.sleepTarget||'23:30'; D.weeklyTasks=D.weeklyTasks||[]; D.wtWeekStart=D.wtWeekStart||''; D.wtArchive=D.wtArchive||[]; D.meta=D.meta||{}; D.dailyItems=D.dailyItems||dcDefaultItems(); D.dailyLog=D.dailyLog||{}; wtMigrateMockDates(); wtCheckWeekReset(); }
 
 // Stamp last-edited time on a setting so cloud-sync merge picks the freshest version cross-device.
 // Call this whenever you mutate D.wakeTarget / D.sleepTarget / D.target / D.weeklyTasks / D.wtArchive / D.wtWeekStart
@@ -15385,6 +15284,7 @@ function renderHome(){
   renderBuckets();
   renderSleep();
   renderWeeklyTasks();
+  renderDailyChecklist();
 
   // Alerts
   renderAlerts(today);
@@ -16038,6 +15938,154 @@ function renderWeeklyPlanner(){
   if(lbl) lbl.textContent=isCurrentWeek?'This Week':wrPlannerWeekOffset===-1?'Last Week':wrPlannerWeekOffset===1?'Next Week':'Week of '+fmt(wsDate);
   if(dts) dts.textContent=fmt(wsDate)+' \u2013 '+fmt(weDate);
   renderChecklist();
+}
+
+// ════════════════ DAILY CHECKLIST (recurring, resets at midnight) ════════════════
+function dcDefaultItems(){
+  return [
+    {id:'full-mock',      label:'Full Mock',                          timed:false, logToDaily:false, removable:false},
+    {id:'sec-maths',      label:'Sectional — Maths',                  timed:false, logToDaily:false, removable:false},
+    {id:'sec-english',    label:'Sectional — English',                timed:false, logToDaily:false, removable:false},
+    {id:'sec-gs',         label:'Sectional — GS',                     timed:false, logToDaily:false, removable:false},
+    {id:'sec-reasoning',  label:'Sectional — Reasoning',              timed:false, logToDaily:false, removable:false},
+    {id:'calculation',    label:'Calculation',                        timed:true,  logToDaily:true,  removable:false},
+    {id:'vocab',          label:'Vocab',                              timed:true,  logToDaily:true,  removable:false},
+    {id:'grammar',        label:'Grammar — 5 Rules',                  timed:true,  logToDaily:true,  removable:false},
+    {id:'quant-formula',  label:'Quant Chapter — Formula Revision',   timed:true,  logToDaily:true,  removable:false},
+  ];
+}
+
+function dcTodayEntry(){
+  const key=todayStr();
+  if(!D.dailyLog[key]) D.dailyLog[key]={};
+  return D.dailyLog[key];
+}
+
+function dcAddTask(){
+  const label=prompt('Task name:');
+  if(!label||!label.trim()) return;
+  const id='custom-'+Date.now();
+  D.dailyItems.push({id, label:label.trim(), timed:false, logToDaily:false, removable:true});
+  save(); renderDailyChecklist();
+}
+
+function dcRemoveTask(id){
+  if(!confirm('Remove this task from the daily checklist?')) return;
+  D.dailyItems=D.dailyItems.filter(x=>x.id!==id);
+  save(); renderDailyChecklist();
+}
+
+function dcToggleFlag(id,flag){
+  const item=D.dailyItems.find(x=>x.id===id); if(!item) return;
+  item[flag]=!item[flag];
+  save(); renderDailyChecklist();
+}
+
+function dcToggleDone(id){
+  const entry=dcTodayEntry();
+  entry[id]=entry[id]||{done:false,note:'',minutes:0};
+  entry[id].done=!entry[id].done;
+  save(); renderDailyChecklist();
+}
+
+function dcSetNote(id,val){
+  const entry=dcTodayEntry();
+  entry[id]=entry[id]||{done:false,note:'',minutes:0};
+  entry[id].note=val;
+  save();
+}
+
+let _dcTimers={}; // itemId -> intervalId
+
+function dcStartTimer(id){
+  if(_dcTimers[id]) return; // already running
+  const item=D.dailyItems.find(x=>x.id===id); if(!item) return;
+  const v=prompt('Kitne minute ka timer?','30');
+  if(v===null) return;
+  const mins=parseInt(v);
+  if(!mins||mins<=0){ alert('Enter a valid number of minutes'); return; }
+  let remaining=mins*60;
+  const tick=()=>{
+    const b=document.getElementById('dc-timer-'+id);
+    if(b) b.textContent='⏱ '+Math.floor(remaining/60)+':'+String(remaining%60).padStart(2,'0');
+  };
+  tick();
+  _dcTimers[id]=setInterval(()=>{
+    remaining--;
+    tick();
+    if(remaining<=0){
+      clearInterval(_dcTimers[id]); delete _dcTimers[id];
+      dcTimerDone(item, mins);
+    }
+  },1000);
+  renderDailyChecklist();
+}
+
+function dcTimerDone(item, mins){
+  const entry=dcTodayEntry();
+  entry[item.id]=entry[item.id]||{done:false,note:'',minutes:0};
+  entry[item.id].done=true;
+  entry[item.id].minutes=(entry[item.id].minutes||0)+mins;
+  if(item.logToDaily){
+    const now=Date.now();
+    const timeLabel=new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',hour12:true});
+    const log={ id:now, date:todayStr(), type:'checklist', status:'done', subject:'Custom', chapter:'', topic:'', custom:item.label, label:item.label, hrs:Math.round((mins/60)*100)/100, note:(entry[item.id].note||''), priority:'medium', time:timeLabel };
+    if(!D.logs[todayStr()]) D.logs[todayStr()]=[];
+    D.logs[todayStr()].push(log);
+    updateDebt(todayStr()); updateStreak();
+  }
+  save();
+  renderDailyChecklist(); renderTodayLogList(); renderHome();
+  const el=document.createElement('div');
+  el.textContent='✅ '+item.label+' — '+mins+' min done'+(item.logToDaily?' · added to daily log':'');
+  el.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);max-width:320px;background:#10b981;color:#fff;padding:11px 18px;border-radius:12px;font-size:13px;font-weight:800;z-index:2147483647;box-shadow:0 8px 24px rgba(0,0,0,.3);text-align:center';
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),3000);
+  try{ if(navigator.vibrate) navigator.vibrate([150,80,150]); }catch(e){}
+}
+
+function dcStreakCount(){
+  let count=0;
+  let d=new Date(todayStr()+'T00:00:00');
+  const items=D.dailyItems||[];
+  if(!items.length) return 0;
+  while(true){
+    const key=dateStr(d);
+    const entry=D.dailyLog[key];
+    if(!entry) break;
+    const allDone=items.every(it=>entry[it.id]&&entry[it.id].done);
+    if(!allDone) break;
+    count++;
+    d.setDate(d.getDate()-1);
+  }
+  return count;
+}
+
+function renderDailyChecklist(){
+  const el=document.getElementById('dc-list');
+  if(!el) return;
+  const entry=dcTodayEntry();
+  const items=D.dailyItems||[];
+  const streakEl=document.getElementById('dc-streak');
+  if(streakEl){ const s=dcStreakCount(); streakEl.textContent=s>0?('🔥 '+s+' day streak'):''; }
+  if(!items.length){ el.innerHTML='<div style="text-align:center;padding:12px;color:var(--muted);font-size:11px;font-weight:700">No tasks — add one above</div>'; return; }
+  el.innerHTML=items.map(item=>{
+    const st=entry[item.id]||{done:false,note:'',minutes:0};
+    const timerRunning=!!_dcTimers[item.id];
+    return `<div style="padding:9px 4px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div onclick="dcToggleDone('${item.id}')" style="width:20px;height:20px;border-radius:6px;border:2px solid ${st.done?'#10b981':'var(--border2)'};background:${st.done?'#10b981':'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer">
+          ${st.done?'<span style="color:white;font-size:11px;font-weight:900">\u2713</span>':''}
+        </div>
+        <div style="flex:1;font-size:12px;font-weight:700;${st.done?'text-decoration:line-through;color:var(--muted)':''}">${item.label}${st.minutes?' <span style="color:var(--muted);font-weight:600">('+st.minutes+'m)</span>':''}</div>
+        ${item.timed?`<button id="dc-timer-${item.id}" onclick="dcStartTimer('${item.id}')" style="background:var(--bg3);border:1px solid var(--border);color:var(--accent);font-size:10px;font-weight:900;padding:4px 9px;border-radius:8px;cursor:pointer;white-space:nowrap">${timerRunning?'⏱ running':'▶ Start'}</button>`:''}
+        <button onclick="dcToggleFlag('${item.id}','timed')" title="Toggle timer" style="background:none;border:none;color:${item.timed?'var(--accent)':'var(--muted)'};cursor:pointer;font-size:13px">⏱</button>
+        <button onclick="dcToggleFlag('${item.id}','logToDaily')" title="Toggle: counts toward daily study hours" style="background:none;border:none;color:${item.logToDaily?'var(--green)':'var(--muted)'};cursor:pointer;font-size:13px">📊</button>
+        ${item.removable?`<button onclick="dcRemoveTask('${item.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px">\xd7</button>`:''}
+      </div>
+      <input type="text" placeholder="note (optional)" value="${(st.note||'').replace(/"/g,'&quot;')}" oninput="dcSetNote('${item.id}',this.value)" style="margin-top:6px;margin-left:30px;width:calc(100% - 30px);background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:7px;font-size:11px">
+    </div>`;
+  }).join('');
 }
 
 function wrChecklistKey(){
@@ -17135,7 +17183,7 @@ window._plannerSave = function() {
     // Only save if D has actual data — prevents overwriting with empty D
     // before plannerInit has run load()
     if(typeof save === 'function' && typeof D !== 'undefined') {
-      const hasData = Object.keys(D.blocks||{}).length > 0 || Object.keys(D.logs||{}).length > 0 || Object.keys(D.checklist||{}).length > 0 || (D.streak&&D.streak.count>0);
+      const hasData = Object.keys(D.blocks||{}).length > 0 || Object.keys(D.logs||{}).length > 0 || Object.keys(D.checklist||{}).length > 0 || Object.keys(D.dailyLog||{}).length > 0 || (D.streak&&D.streak.count>0);
       if(hasData) save();
     }
   } catch(e) {}
