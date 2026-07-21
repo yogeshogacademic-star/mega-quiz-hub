@@ -9558,6 +9558,8 @@ window.retryWrong = function() {
     <button class="mt-tab" onclick="mtSwitchTab('radar')">🎯 Weak Zone</button>
   </div>
 
+  <div id="mt-challenge-banner"></div>
+
   <!-- LOG TAB -->
   <div id="mt-view-log" class="mt-view mt-active">
     <div id="mt-step-type" class="mt-section-card">
@@ -9577,6 +9579,7 @@ window.retryWrong = function() {
       </div>
     </div>
     <div id="mt-step-form" style="display:none">
+      <div id="mt-challenge-toggle-wrap" style="margin-bottom:14px"></div>
       <div class="mt-field-row">
         <div><label class="mt-label">Platform / Series</label><input class="mt-input" id="mt-platform" type="text" placeholder="e.g. Testbook, KD Campus"/></div>
         <div><label class="mt-label">Mock Number</label><input class="mt-input" id="mt-mockno" type="text" placeholder="e.g. Mock 7"/></div>
@@ -9637,6 +9640,9 @@ window.retryWrong = function() {
       <select class="mt-input" id="mt-pf-filter" onchange="mtRenderHistory()"><option value="">All Platforms</option></select>
       <select class="mt-input" id="mt-df-filter" onchange="mtRenderHistory()"><option value="">All Difficulties</option><option>Easy</option><option>Medium</option><option>Hard</option></select>
       <select class="mt-input" id="mt-tf-filter" onchange="mtRenderHistory()"><option value="">Full + Sectional</option><option value="full">Full Mocks</option><option value="sectional">Sectionals</option></select>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+      <button onclick="mtExportSheet()" style="padding:9px 16px;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:900;cursor:pointer;box-shadow:0 2px 6px rgba(79,70,229,0.25)">📄 Export Full-Mock Sheet</button>
     </div>
     <div id="mt-history-list"></div>
   </div>
@@ -9820,6 +9826,26 @@ window.retryWrong = function() {
     } else { if(disp) disp.style.display='none'; }
   };
 
+  /* CHALLENGE TOGGLE — default ON (grind active) */
+  let mtChallengeOn=true;
+  function mtRenderChallengeToggle(){
+    const wrap=document.getElementById('mt-challenge-toggle-wrap'); if(!wrap) return;
+    if(!mtCurrentType){ wrap.innerHTML=''; return; }
+    const isFull=mtCurrentType==='full';
+    const label=isFull?'🔥 Part of 75 Hard Challenge':`⚔️ Part of 25 Sectional Challenge${mtCurrentSubject?' · '+mtCurrentSubject:''}`;
+    const accent=isFull?'#ef4444':'#7c3aed';
+    const bg=mtChallengeOn?(isFull?'#fef2f2':'#faf5ff'):'#f8fafc';
+    const bd=mtChallengeOn?(isFull?'#fecaca':'#e9d5ff'):'#e2e8f0';
+    wrap.innerHTML=`<div onclick="mtToggleChallenge()" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;background:${bg};border:1.5px solid ${bd};border-radius:14px;padding:12px 16px" class="dark:bg-slate-800/40 dark:border-slate-700">
+      <div style="font-size:13px;font-weight:900;color:${mtChallengeOn?accent:'#94a3b8'}">${label}</div>
+      <div style="width:44px;height:24px;border-radius:999px;background:${mtChallengeOn?accent:'#cbd5e1'};position:relative;flex-shrink:0;transition:background .15s">
+        <div style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:${mtChallengeOn?'23px':'3px'};transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></div>
+      </div>
+    </div>
+    <div style="font-size:10px;font-weight:700;color:#94a3b8;margin-top:5px;padding-left:2px">${mtChallengeOn?'Counts toward your challenge series ('+(isFull?'#N/75':'#N/25')+')':'Normal mock — not in any challenge series'}</div>`;
+  }
+  window.mtToggleChallenge=function(){ mtChallengeOn=!mtChallengeOn; mtRenderChallengeToggle(); };
+
   /* TYPE / SUBJECT SELECT */
   window.mtSelectType=function(type){
     mtCurrentType=type; mtCurrentSubject='';
@@ -9830,6 +9856,7 @@ window.retryWrong = function() {
       mtBuildGrids(SECTS);
       document.getElementById('mt-sect-data-title').textContent='All Sections — Total | Attempted | Correct | Wrong';
       document.getElementById('mt-step-form').style.display='block';
+      mtRenderChallengeToggle();
     } else {
       document.getElementById('mt-step-subject').style.display='block';
       document.getElementById('mt-step-form').style.display='none';
@@ -9842,6 +9869,7 @@ window.retryWrong = function() {
     mtBuildGrids([subj]);
     document.getElementById('mt-sect-data-title').textContent=`${subj} — Total | Attempted | Correct | Wrong`;
     document.getElementById('mt-step-form').style.display='block';
+    mtRenderChallengeToggle();
   };
 
   function mtBuildGrids(sectList){
@@ -9860,7 +9888,8 @@ window.retryWrong = function() {
   function mtNet(sec,sectList){ let n=0; sectList.forEach(s=>{ n+=(parseInt(sec[s]?.correct||0)*2)-(parseInt(sec[s]?.wrong||0)*0.5); }); return n; }
 
   window.mtResetToStep1=function(){
-    mtCurrentType=''; mtCurrentSubject=''; mtFocus=0; mtCurrentFeeling='';
+    mtCurrentType=''; mtCurrentSubject=''; mtFocus=0; mtCurrentFeeling=''; mtChallengeOn=true;
+    const _ct=document.getElementById('mt-challenge-toggle-wrap'); if(_ct) _ct.innerHTML='';
     document.getElementById('mt-step-form').style.display='none';
     document.getElementById('mt-step-subject').style.display='none';
     ['mt-btn-full','mt-btn-sectional'].forEach(id=>document.getElementById(id)?.classList.remove('selected'));
@@ -9885,6 +9914,7 @@ window.retryWrong = function() {
     const percentile=rankNum>0&&rankTotal>0&&rankNum<=rankTotal?parseFloat(((rankTotal-rankNum)/rankTotal*100).toFixed(2)):null;
     const mock={
       id:Date.now(), type:mtCurrentType, subject:mtCurrentType==='sectional'?mtCurrentSubject:'',
+      challenge:!!mtChallengeOn,
       platform, mockno,
       date:document.getElementById('mt-date').value||new Date().toISOString().split('T')[0],
       tag:document.getElementById('mt-tag').value.trim(),
@@ -9969,7 +9999,146 @@ window.retryWrong = function() {
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:8px 14px;text-align:center" class="dark:bg-slate-800 dark:border-slate-700"><div style="font-size:18px;font-weight:900;color:#be185d">${sects.length}</div><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase">Sectionals</div></div>
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:8px 14px;text-align:center" class="dark:bg-slate-800 dark:border-slate-700"><div style="font-size:18px;font-weight:900;color:#6366f1">${avg}</div><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase">Avg Score</div></div>
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:8px 14px;text-align:center" class="dark:bg-slate-800 dark:border-slate-700"><div style="font-size:18px;font-weight:900;color:#f59e0b">${streak}🔥</div><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase">Streak</div></div>`;
+    mtRenderChallengeBanner();
   }
+
+  /* CHALLENGE BANNER — 75 full + 25 sectional (per subject) progress */
+  function mtRenderChallengeBanner(){
+    const host=document.getElementById('mt-challenge-banner'); if(!host) return;
+    const ch75=mtMocks.filter(m=>m.type!=='sectional'&&m.challenge);
+    const n75=ch75.length;
+    const nets=ch75.map(m=>m.net);
+    const cAvg=nets.length?(nets.reduce((a,b)=>a+b,0)/nets.length).toFixed(1):'—';
+    const cBest=nets.length?Math.max(...nets).toFixed(1):'—';
+    const cLast=nets.length?nets[nets.length-1].toFixed(1):'—';
+    const pct75=Math.min(100,Math.round((n75/75)*100));
+    const subEmoji={'Quant':'📐','English':'📖','Reasoning':'🧠','GK':'🌍'};
+    const subBars=SECTS.map(sub=>{
+      const c=mtMocks.filter(m=>m.type==='sectional'&&m.subject===sub&&m.challenge).length;
+      const p=Math.min(100,Math.round((c/25)*100));
+      return `<div style="flex:1;min-width:120px">
+        <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:900;margin-bottom:3px"><span style="color:${SECT_COLORS[sub]}">${subEmoji[sub]} ${sub==='GK'?'GS':sub}</span><span style="color:#94a3b8">${c}/25</span></div>
+        <div style="background:#f1f5f9;border-radius:999px;height:6px;overflow:hidden" class="dark:bg-slate-700"><div style="width:${p}%;height:100%;background:${SECT_COLORS[sub]};border-radius:999px"></div></div>
+      </div>`;
+    }).join('');
+    host.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:16px">
+      <div style="background:linear-gradient(135deg,#fef2f2,#fff);border:1.5px solid #fecaca;border-radius:16px;padding:14px 18px" class="dark:bg-slate-800/40 dark:border-red-900/40">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+          <div style="font-size:15px;font-weight:900;color:#dc2626">🔥 75 Hard Challenge</div>
+          <div style="display:flex;gap:14px;font-size:11px;font-weight:700;color:#64748b">
+            <span>Avg <b style="color:#6366f1">${cAvg}</b></span><span>Best <b style="color:#16a34a">${cBest}</b></span><span>Last <b style="color:#0f172a" class="dark:text-slate-200">${cLast}</b></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="flex:1;background:#fee2e2;border-radius:999px;height:11px;overflow:hidden"><div style="width:${pct75}%;height:100%;background:linear-gradient(90deg,#f87171,#dc2626);border-radius:999px;transition:width .3s"></div></div>
+          <span style="font-size:13px;font-weight:900;color:#dc2626;min-width:52px;text-align:right">${n75}/75</span>
+        </div>
+      </div>
+      <div style="background:linear-gradient(135deg,#faf5ff,#fff);border:1.5px solid #e9d5ff;border-radius:16px;padding:14px 18px" class="dark:bg-slate-800/40 dark:border-purple-900/40">
+        <div style="font-size:15px;font-weight:900;color:#7c3aed;margin-bottom:10px">⚔️ 25 Sectional Challenge</div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap">${subBars}</div>
+      </div>
+    </div>`;
+  }
+
+  /* SERIES NUMBER MAP — dynamic, by date then id order so backfill/delete self-renumbers */
+  function mtSeriesMap(){
+    const map={}; // id -> #N
+    // 75 Full challenge
+    mtMocks.filter(m=>m.challenge&&m.type==='full')
+      .slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')||a.id-b.id)
+      .forEach((m,i)=>{ map[m.id]=i+1; });
+    // 25 Sectional challenge — per subject
+    SECTS.forEach(sub=>{
+      mtMocks.filter(m=>m.challenge&&m.type==='sectional'&&m.subject===sub)
+        .slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')||a.id-b.id)
+        .forEach((m,i)=>{ map[m.id]=i+1; });
+    });
+    return map;
+  }
+
+  /* EXPORT — Full-Mock running-log sheet, opens in new tab (iPad/iPhone Safari safe) */
+  window.mtExportSheet=function(){
+    const seriesMap=mtSeriesMap();
+    const full=mtMocks.filter(m=>m.type!=='sectional').slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')||a.id-b.id);
+    if(!full.length){ mtToast('No full mocks to export yet!'); return; }
+    const cutoff=parseFloat(document.getElementById('mt-cutoff')?.value)||0;
+    let running=0;
+    const rows=full.map((m,i)=>{
+      running+=m.net;
+      const runAvg=(running/(i+1)).toFixed(1);
+      const prev=i>0?full[i-1].net:null;
+      const delta=prev!=null?(m.net-prev):null;
+      const deltaStr=delta==null?'—':(delta>=0?'▲ +'+delta.toFixed(1):'▼ '+delta.toFixed(1));
+      const deltaColor=delta==null?'#94a3b8':(delta>=0?'#16a34a':'#ef4444');
+      const gap=cutoff>0?(m.net-cutoff).toFixed(1):null;
+      const sc=s=>m.sections&&m.sections[s]?`${m.sections[s].correct}/${m.sections[s].attempted}`:'—';
+      const series=m.challenge?`#${seriesMap[m.id]||'?'}/75`:'—';
+      return `<tr>
+        <td class="c">${i+1}</td>
+        <td class="c" style="font-weight:900;color:${m.challenge?'#ef4444':'#94a3b8'}">${series}</td>
+        <td>${m.date||''}</td>
+        <td>${m.platform||''}</td>
+        <td>${m.mockno||''}</td>
+        <td class="c" style="font-weight:900;color:${m.net>=0?'#16a34a':'#ef4444'}">${m.net.toFixed(1)}</td>
+        <td class="c" style="color:${deltaColor};font-weight:700">${deltaStr}</td>
+        <td class="c" style="font-weight:700;color:#6366f1">${runAvg}</td>
+        ${cutoff>0?`<td class="c" style="color:${gap>=0?'#16a34a':'#ef4444'};font-weight:700">${gap>=0?'+':''}${gap}</td>`:''}
+        <td class="c">${m.rank||'—'}</td>
+        <td class="c">${m.percentile!=null?m.percentile+'%':'—'}</td>
+        <td class="c" style="color:${SECT_COLORS.Quant}">${sc('Quant')}</td>
+        <td class="c" style="color:${SECT_COLORS.English}">${sc('English')}</td>
+        <td class="c" style="color:${SECT_COLORS.Reasoning}">${sc('Reasoning')}</td>
+        <td class="c" style="color:${SECT_COLORS.GK}">${sc('GK')}</td>
+        <td class="c">${m.difficulty||'—'}</td>
+        <td class="c">${m.feeling||'—'}</td>
+      </tr>`;
+    }).join('');
+    const nets=full.map(m=>m.net);
+    const avg=(nets.reduce((a,b)=>a+b,0)/nets.length).toFixed(1);
+    const best=Math.max(...nets).toFixed(1);
+    const worst=Math.min(...nets).toFixed(1);
+    const chCount=full.filter(m=>m.challenge).length;
+    const colSpanRest=cutoff>0?13:12;
+    const footer=`<tr class="foot">
+      <td class="c" colspan="5" style="text-align:right">TOTALS →</td>
+      <td class="c">Avg ${avg}</td>
+      <td class="c" colspan="${colSpanRest}" style="text-align:left">Best ${best} · Worst ${worst} · ${full.length} full mocks · ${chCount} in 75-Challenge</td>
+    </tr>`;
+    const head=`<tr>
+      <th>#</th><th>Series</th><th>Date</th><th>Platform</th><th>Mock No.</th><th>Net</th><th>Δ Prev</th><th>Run Avg</th>
+      ${cutoff>0?'<th>Cutoff Gap</th>':''}
+      <th>Rank</th><th>%ile</th><th>Quant<br>C/A</th><th>Eng<br>C/A</th><th>Reas<br>C/A</th><th>GK<br>C/A</th><th>Diff</th><th>Feeling</th>
+    </tr>`;
+    const today=new Date().toISOString().split('T')[0];
+    const doc=`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Full Mock Sheet — ${today}</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f8fafc;color:#1e293b;padding:24px}
+      .hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+      h1{font-size:20px;font-weight:900}
+      .sub{font-size:12px;color:#64748b;font-weight:700}
+      .btn{padding:9px 18px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:900;cursor:pointer}
+      table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);font-size:12px}
+      th{background:#4f46e5;color:#fff;padding:8px 6px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:0.3px;text-align:left}
+      td{padding:7px 6px;border-bottom:1px solid #f1f5f9}
+      td.c{text-align:center}
+      tr:nth-child(even) td{background:#fafbff}
+      .foot td{background:#eef2ff!important;font-weight:900;border-top:2px solid #4f46e5}
+      @media print{ body{padding:0;background:#fff} .btn,.noprint{display:none!important} table{box-shadow:none;font-size:10px} th{-webkit-print-color-adjust:exact;print-color-adjust:exact} @page{size:A4 landscape;margin:10mm} }
+    </style></head><body>
+      <div class="hdr">
+        <div><h1>📄 Full Mock Sheet</h1><div class="sub">${full.length} mocks · exported ${today} · Mega Quiz Hub</div></div>
+        <button class="btn noprint" onclick="window.print()">🖨️ Save as PDF</button>
+      </div>
+      <table><thead>${head}</thead><tbody>${rows}${footer}</tbody></table>
+      <div class="sub noprint" style="margin-top:14px">Tip: in the print dialog choose "Save as PDF", landscape. Set cutoff in the Analysis tab to see the Cutoff-Gap column here.</div>
+    </body></html>`;
+    const w=window.open('','_blank');
+    if(!w){ mtToast('Popup blocked — allow popups to export'); return; }
+    w.document.open(); w.document.write(doc); w.document.close();
+  };
 
   /* HISTORY */
   window.mtRenderHistory=function(){
@@ -9977,10 +10146,11 @@ window.retryWrong = function() {
     const df=document.getElementById('mt-df-filter')?.value||'';
     const tf=document.getElementById('mt-tf-filter')?.value||'';
     const list=document.getElementById('mt-history-list'); if(!list) return;
-    const filtered=mtMocks.filter(m=>(!pf||m.platform===pf)&&(!df||m.difficulty===df)&&(!tf||(tf==='full'?m.type!=='sectional':m.type==='sectional'))).slice().reverse();
-    if(!filtered.length){ list.innerHTML='<div class="mt-empty">📭 No mocks yet. Log your first one!</div>'; return; }
     const feelEmoji={'Confident':'😎','Neutral':'😐','Felt Bad':'😟'};
-    list.innerHTML=filtered.map(m=>{
+    const seriesMap=mtSeriesMap();
+    const pass=m=>(!pf||m.platform===pf)&&(!df||m.difficulty===df)&&(!tf||(tf==='full'?m.type!=='sectional':m.type==='sectional'));
+
+    const rowHtml=(m,seriesBadge)=>{
       const isSect=m.type==='sectional';
       const netColor=m.net>=0?'#16a34a':'#ef4444';
       const activeSects=isSect?[m.subject]:SECTS;
@@ -9992,7 +10162,7 @@ window.retryWrong = function() {
       return `<div class="mt-mock-row" onclick="mtToggleDetail(${m.id})">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            ${typeBadge}${tagBadge}
+            ${seriesBadge||''}${typeBadge}${tagBadge}
             <span style="font-weight:900;font-size:14px;color:#1e293b" class="dark:text-slate-100">${m.platform} — ${m.mockno}</span>
             <span style="font-size:11px;font-weight:700;color:#94a3b8">${m.date}${pctStr}</span>
           </div>
@@ -10011,8 +10181,73 @@ window.retryWrong = function() {
           <div style="font-weight:700">${m.wrongs||'No wrong notes.'}</div>
         </div>
       </div>`;
-    }).join('');
+    };
+
+    const sectionWrap=(title,sub,bars,rowsHtml,accent)=>`
+      <div style="margin-bottom:22px">
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px">
+          <span style="font-size:14px;font-weight:900;color:${accent}">${title}</span>
+          <span style="font-size:11px;font-weight:700;color:#94a3b8">${sub}</span>
+        </div>
+        ${bars||''}
+        ${rowsHtml||'<div class="mt-empty" style="padding:14px">No mocks here yet.</div>'}
+      </div>`;
+
+    // ---- Bucket the mocks ----
+    const oldFull=mtMocks.filter(m=>m.type!=='sectional'&&!m.challenge&&pass(m)).slice().reverse();
+    const chFull=mtMocks.filter(m=>m.type!=='sectional'&&m.challenge&&pass(m)).slice().sort((a,b)=>(seriesMap[b.id]||0)-(seriesMap[a.id]||0));
+    const chFullTotal=mtMocks.filter(m=>m.type!=='sectional'&&m.challenge).length;
+
+    let html='';
+
+    // Respect the type filter: hide full sections if filtering sectional-only, etc.
+    const showFull=(tf!=='sectional');
+    const showSect=(tf!=='full');
+
+    if(showFull){
+      // 75 HARD CHALLENGE
+      const bar75=`<div style="margin:6px 0 10px">${mtProgressBar(chFullTotal,75,'#ef4444')}</div>`;
+      const chBadge=m=>`<span style="background:#ef4444;color:#fff;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:900">#${seriesMap[m.id]||'?'}/75</span>`;
+      html+=sectionWrap('🔥 75 Hard Challenge',`${chFullTotal} of 75 done`,bar75,chFull.map(m=>rowHtml(m,chBadge(m))).join(''),'#ef4444');
+
+      // OLD / OTHER FULL MOCKS
+      html+=sectionWrap('📄 Old / Other Full Mocks',`${oldFull.length} logged`,'',oldFull.map(m=>rowHtml(m,'')).join(''),'#6366f1');
+    }
+
+    if(showSect){
+      // 25 SECTIONAL CHALLENGE — per subject
+      const subEmoji={'Quant':'📐','English':'📖','Reasoning':'🧠','GK':'🌍'};
+      let sectInner='';
+      SECTS.forEach(sub=>{
+        const chSect=mtMocks.filter(m=>m.type==='sectional'&&m.subject===sub&&m.challenge&&pass(m)).slice().sort((a,b)=>(seriesMap[b.id]||0)-(seriesMap[a.id]||0));
+        const total=mtMocks.filter(m=>m.type==='sectional'&&m.subject===sub&&m.challenge).length;
+        const sBadge=m=>`<span style="background:${SECT_COLORS[sub]};color:#fff;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:900">#${seriesMap[m.id]||'?'}/25</span>`;
+        sectInner+=`<div style="margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span style="font-size:12px;font-weight:900;color:${SECT_COLORS[sub]}">${subEmoji[sub]||''} ${sub}</span>
+            <span style="font-size:10px;font-weight:700;color:#94a3b8">${total}/25</span>
+          </div>
+          <div style="margin-bottom:8px">${mtProgressBar(total,25,SECT_COLORS[sub])}</div>
+          ${chSect.length?chSect.map(m=>rowHtml(m,sBadge(m))).join(''):'<div class="mt-empty" style="padding:10px">No '+sub+' sectionals yet.</div>'}
+        </div>`;
+      });
+      // other (non-challenge) sectionals
+      const otherSect=mtMocks.filter(m=>m.type==='sectional'&&!m.challenge&&pass(m)).slice().reverse();
+      if(otherSect.length){ sectInner+=`<div style="margin-top:10px"><div style="font-size:11px;font-weight:900;color:#94a3b8;margin-bottom:6px">Other sectionals (not in challenge)</div>${otherSect.map(m=>rowHtml(m,'')).join('')}</div>`; }
+      html+=sectionWrap('⚔️ 25 Sectional Challenge','Quant · English · GS · Reasoning — 25 each','',sectInner,'#7c3aed');
+    }
+
+    list.innerHTML=html||'<div class="mt-empty">📭 No mocks yet. Log your first one!</div>';
   };
+
+  /* small reusable progress bar */
+  function mtProgressBar(done,target,color){
+    const pct=Math.min(100,Math.round((done/target)*100));
+    return `<div style="display:flex;align-items:center;gap:8px">
+      <div style="flex:1;background:#f1f5f9;border-radius:999px;height:9px;overflow:hidden" class="dark:bg-slate-700"><div style="width:${pct}%;height:100%;background:${color};border-radius:999px;transition:width .3s"></div></div>
+      <span style="font-size:11px;font-weight:900;color:${color};min-width:44px;text-align:right">${done}/${target}</span>
+    </div>`;
+  }
   window.mtToggleDetail=function(id){ const el=document.getElementById(`mt-detail-${id}`); if(el) el.style.display=el.style.display==='none'?'block':'none'; };
   window.mtDeleteMock=function(e,id){ e.stopPropagation(); if(!confirm('Delete this mock?')) return; const _m=mtMocks.find(x=>x.id===id); mtMocks=mtMocks.filter(m=>m.id!==id); mtSave(); mtRenderHistory(); mtUpdateFilters(); mtUpdateHeaderStats(); mtToast('Deleted');
     // Also remove the matching War Room auto-log so the two stay in sync
