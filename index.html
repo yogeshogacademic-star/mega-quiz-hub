@@ -1752,7 +1752,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-07-23 · v25.6';
+    const HUB_BUILD = '2026-07-23 · v25.7';
 
     // ============================================================
     // GLOBAL TOAST (v25.6) — every native alert() popup in the hub
@@ -9615,6 +9615,15 @@ window.retryWrong = function() {
 .mt-mock-row{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:12px 16px;margin-bottom:8px;cursor:pointer;transition:border-color 0.15s}
 .dark .mt-mock-row{background:#1e293b;border-color:#334155}
 .mt-mock-row:hover{border-color:#6366f1}
+.mt-tf-group{display:inline-flex;gap:6px}
+.mt-tf-btn{padding:8px 14px;border-radius:999px;border:1px solid #e2e8f0;background:#fff;color:#94a3b8;font-size:12px;font-weight:900;cursor:pointer;transition:all .15s;white-space:nowrap}
+.dark .mt-tf-btn{background:#1e293b;border-color:#334155;color:#64748b}
+.mt-tf-btn.active{background:#6366f1;border-color:#6366f1;color:#fff;box-shadow:0 2px 8px rgba(99,102,241,.35)}
+.dark .mt-tf-btn.active{background:#6366f1;border-color:#6366f1;color:#fff}
+.mt-plat-name{font-weight:900;font-size:14px;color:#1e293b}
+.dark .mt-plat-name{color:#f1f5f9}
+.mt-detail-box{margin-top:8px;font-size:12px;color:#64748b;background:#f8fafc;border-radius:8px;padding:10px;white-space:pre-wrap}
+.dark .mt-detail-box{background:#0f172a;color:#94a3b8}
 .mt-badge{padding:3px 8px;border-radius:999px;font-size:10px;font-weight:900}
 .mt-badge-easy{background:#dcfce7;color:#15803d}.mt-badge-medium{background:#fef9c3;color:#a16207}.mt-badge-hard{background:#fee2e2;color:#b91c1c}
 .dark .mt-badge-easy{background:rgba(22,163,74,0.2);color:#86efac}.dark .mt-badge-medium{background:rgba(161,98,7,0.2);color:#fcd34d}.dark .mt-badge-hard{background:rgba(185,28,28,0.2);color:#fca5a5}
@@ -9768,7 +9777,7 @@ window.retryWrong = function() {
     <div class="mt-filter-row">
       <select class="mt-input" id="mt-pf-filter" onchange="mtRenderHistory()"><option value="">All Platforms</option></select>
       <select class="mt-input" id="mt-df-filter" onchange="mtRenderHistory()"><option value="">All Difficulties</option><option>Easy</option><option>Medium</option><option>Hard</option></select>
-      <select class="mt-input" id="mt-tf-filter" onchange="mtRenderHistory()"><option value="">Full + Sectional</option><option value="full">Full Mocks</option><option value="sectional">Sectionals</option></select>
+      <div class="mt-tf-group" id="mt-tf-group"><input type="hidden" id="mt-tf-filter" value=""/><button type="button" class="mt-tf-btn active" data-t="full" onclick="mtToggleType('full','mt-tf-group')">📄 Full Mock</button><button type="button" class="mt-tf-btn active" data-t="sectional" onclick="mtToggleType('sectional','mt-tf-group')">⚔️ Sectional</button></div>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
       <button onclick="mtExportSheet()" style="padding:9px 16px;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:900;cursor:pointer;box-shadow:0 2px 6px rgba(79,70,229,0.25)">📄 Export Full-Mock Sheet</button>
@@ -9825,7 +9834,7 @@ window.retryWrong = function() {
   <div id="mt-view-wrongs" class="mt-view">
     <div class="mt-filter-row">
       <select class="mt-input" id="mt-wpf-filter" onchange="mtRenderWrongs()"><option value="">All Platforms</option></select>
-      <select class="mt-input" id="mt-wtf-filter" onchange="mtRenderWrongs()"><option value="">Full + Sectional</option><option value="full">Full Mocks</option><option value="sectional">Sectionals</option></select>
+      <div class="mt-tf-group" id="mt-wtf-group"><input type="hidden" id="mt-wtf-filter" value=""/><button type="button" class="mt-tf-btn active" data-t="full" onclick="mtToggleType('full','mt-wtf-group')">📄 Full Mock</button><button type="button" class="mt-tf-btn active" data-t="sectional" onclick="mtToggleType('sectional','mt-wtf-group')">⚔️ Sectional</button></div>
       <input type="text" class="mt-input" id="mt-w-search" placeholder="Search topic..." style="width:160px" oninput="mtRenderWrongs()"/>
     </div>
     <div id="mt-wrongs-list"></div>
@@ -10008,7 +10017,6 @@ window.retryWrong = function() {
     sectList.forEach(s=>{
       g.innerHTML+=`<div class="mt-sect-item"><div class="mt-sect-label" style="color:${SECT_COLORS[s]}">${s}</div>
         <input type="number" class="mt-input" id="mts-tot-${s}" placeholder="Total" min="0" value="25"/>
-        <input type="number" class="mt-input" id="mts-att-${s}" placeholder="Attempted" min="0"/>
         <input type="number" class="mt-input" id="mts-cor-${s}" placeholder="Correct" min="0"/>
         <input type="number" class="mt-input" id="mts-wr-${s}" placeholder="Wrong" min="0"/></div>`;
     });
@@ -10037,7 +10045,7 @@ window.retryWrong = function() {
     if(!platform||!mockno){ mtToast('Enter platform and mock number!'); return; }
     const sectList=mtCurrentType==='full'?SECTS:[mtCurrentSubject];
     const sections={};
-    sectList.forEach(s=>{ sections[s]={ total:parseInt(document.getElementById(`mts-tot-${s}`)?.value)||0, attempted:parseInt(document.getElementById(`mts-att-${s}`)?.value)||0, correct:parseInt(document.getElementById(`mts-cor-${s}`)?.value)||0, wrong:parseInt(document.getElementById(`mts-wr-${s}`)?.value)||0 }; });
+    sectList.forEach(s=>{ const _c=parseInt(document.getElementById(`mts-cor-${s}`)?.value)||0, _w=parseInt(document.getElementById(`mts-wr-${s}`)?.value)||0; sections[s]={ total:parseInt(document.getElementById(`mts-tot-${s}`)?.value)||0, attempted:_c+_w, correct:_c, wrong:_w }; });
     const rankNum=parseInt(document.getElementById('mt-rank-num')?.value)||0;
     const rankTotal=parseInt(document.getElementById('mt-rank-total')?.value)||0;
     const percentile=rankNum>0&&rankTotal>0&&rankNum<=rankTotal?parseFloat(((rankTotal-rankNum)/rankTotal*100).toFixed(2)):null;
@@ -10270,6 +10278,22 @@ window.retryWrong = function() {
   };
 
   /* HISTORY */
+  /* Type filter chips (v25.7): '' = both on, 'full'/'sectional' = only that one.
+     Tapping the last active chip flips back to both — never an empty view. */
+  window.mtToggleType=function(t,gid){
+    const isW = gid==='mt-wtf-group';
+    const inp = document.getElementById(isW?'mt-wtf-filter':'mt-tf-filter'); if(!inp) return;
+    const sel = inp.value===''?['full','sectional']:[inp.value];
+    let next;
+    if(sel.indexOf(t)>-1){ const rest=sel.filter(x=>x!==t); next = rest.length?rest[0]:''; }
+    else { next=''; }
+    inp.value=next;
+    const grp=document.getElementById(gid);
+    if(grp) grp.querySelectorAll('.mt-tf-btn').forEach(b=>b.classList.toggle('active', next===''||next===b.dataset.t));
+    if(isW){ if(typeof mtRenderWrongs==='function') mtRenderWrongs(); }
+    else { if(typeof mtRenderHistory==='function') mtRenderHistory(); }
+  };
+
   window.mtRenderHistory=function(){
     const pf=document.getElementById('mt-pf-filter')?.value||'';
     const df=document.getElementById('mt-df-filter')?.value||'';
@@ -10292,7 +10316,7 @@ window.retryWrong = function() {
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
             ${seriesBadge||''}${typeBadge}${tagBadge}
-            <span style="font-weight:900;font-size:14px;color:#1e293b" class="dark:text-slate-100">${m.platform} — ${m.mockno}</span>
+            <span class="mt-plat-name">${m.platform}</span><span style="font-size:11px;font-weight:700;color:#94a3b8">${m.mockno}</span>
             <span style="font-size:11px;font-weight:700;color:#94a3b8">${m.date}${pctStr}</span>
           </div>
           <div style="display:flex;align-items:center;gap:6px">
@@ -10305,7 +10329,7 @@ window.retryWrong = function() {
           </div>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${pills}</div>
-        <div id="mt-detail-${m.id}" style="display:none;margin-top:8px;font-size:12px;color:#64748b;background:#f8fafc;border-radius:8px;padding:10px;white-space:pre-wrap" class="dark:bg-slate-800 dark:text-slate-400">
+        <div id="mt-detail-${m.id}" class="mt-detail-box" style="display:none">
           ${m.takeaway?`<div style="font-weight:900;margin-bottom:6px;color:#6366f1">💡 ${m.takeaway}</div>`:''}
           <div style="font-weight:700">${m.wrongs||'No wrong notes.'}</div>
         </div>
@@ -10885,7 +10909,6 @@ window.retryWrong = function() {
         const sec = (m.sections && m.sections[s]) ? m.sections[s] : {total:25,attempted:'',correct:'',wrong:''};
         return '<div class="mt-sect-item" style="margin-bottom:6px"><div class="mt-sect-label" style="color:'+(SECT_COLORS[s]||'#6366f1')+'">'+s+'</div>'+
           '<input type="number" class="mt-input" id="mt-edit-tot-'+s+'" placeholder="Total" min="0" value="'+(sec.total!=null?sec.total:25)+'"/>'+
-          '<input type="number" class="mt-input" id="mt-edit-att-'+s+'" placeholder="Attempted" min="0" value="'+(sec.attempted!=null?sec.attempted:'')+'"/>'+
           '<input type="number" class="mt-input" id="mt-edit-cor-'+s+'" placeholder="Correct" min="0" value="'+(sec.correct!=null?sec.correct:'')+'"/>'+
           '<input type="number" class="mt-input" id="mt-edit-wr-'+s+'" placeholder="Wrong" min="0" value="'+(sec.wrong!=null?sec.wrong:'')+'"/></div>';
       }).join('');
@@ -10920,7 +10943,7 @@ window.retryWrong = function() {
     _editSects.forEach(function(s){
       _sections[s] = {
         total: parseInt(document.getElementById('mt-edit-tot-'+s)?.value)||0,
-        attempted: parseInt(document.getElementById('mt-edit-att-'+s)?.value)||0,
+        attempted: (parseInt(document.getElementById('mt-edit-cor-'+s)?.value)||0)+(parseInt(document.getElementById('mt-edit-wr-'+s)?.value)||0),
         correct: parseInt(document.getElementById('mt-edit-cor-'+s)?.value)||0,
         wrong: parseInt(document.getElementById('mt-edit-wr-'+s)?.value)||0
       };
