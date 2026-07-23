@@ -333,6 +333,25 @@
             }
         }
 
+        /* Global toast (replaces native alert popups) */
+        #hub-toast {
+            position: fixed; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); left: 50%;
+            transform: translateX(-50%) translateY(8px);
+            background: rgba(15,23,42,0.95); color: #f8fafc;
+            padding: 12px 22px; border-radius: 14px;
+            font-size: 13px; font-weight: 700; line-height: 1.5;
+            z-index: 99999; opacity: 0; pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            max-width: min(560px, 88vw); text-align: center; white-space: pre-line;
+            box-shadow: 0 10px 30px rgba(2,6,23,0.45), 0 0 0 1px rgba(148,163,184,0.15);
+            backdrop-filter: blur(8px);
+        }
+        #hub-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* Quiz option tap pulse */
+        @keyframes opt-pop { 0% { transform: scale(1); } 45% { transform: scale(1.025); } 100% { transform: scale(1.01); } }
+        .option-btn.opt-pop { animation: opt-pop 0.18s ease; }
+
         /* Header button strip: single line, invisible scrollbar */
         .hub-btn-strip::-webkit-scrollbar { display: none; }
         .hub-btn-strip { scrollbar-width: none; -ms-overflow-style: none; }
@@ -1029,6 +1048,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                         <span id="hub-build-badge" class="text-[9px] text-slate-400 bg-slate-800 px-2 py-1 rounded border border-slate-600 tracking-wider font-mono" title="Build ID — check this matches the latest chat output before uploading to a new chat">BUILD</span>
                     </h1>
                     <p class="text-slate-300 font-bold text-sm md:text-base tracking-wide">Notes · Quizzes · SRS · Syllabus Command</p>
+                    <button id="exam-countdown" onclick="setExamDate()" title="Tap to change exam date" class="mt-3 inline-flex items-center gap-2 bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 font-black text-xs px-4 py-1.5 rounded-full tracking-widest uppercase transition-colors"></button>
                 </div>
                 
                 <div class="hub-btn-strip flex items-center gap-2 w-full flex-nowrap overflow-x-auto pb-1">
@@ -1732,7 +1752,48 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-07-23 · v25.5';
+    const HUB_BUILD = '2026-07-23 · v25.6';
+
+    // ============================================================
+    // GLOBAL TOAST (v25.6) — every native alert() popup in the hub
+    // now renders as a styled toast. Native kept as __nativeAlert.
+    // confirm() dialogs untouched (they need a blocking answer).
+    // ============================================================
+    window.__nativeAlert = window.alert.bind(window);
+    window.hubToast = function(msg, ms){
+        let t = document.getElementById('hub-toast');
+        if(!t){ t = document.createElement('div'); t.id = 'hub-toast'; document.body.appendChild(t); }
+        t.textContent = String(msg);
+        clearTimeout(window.__hubToastT);
+        t.classList.add('show');
+        const dur = ms || Math.min(6000, Math.max(2200, String(msg).length * 45));
+        window.__hubToastT = setTimeout(() => t.classList.remove('show'), dur);
+    };
+    window.alert = function(msg){ try { hubToast(msg); } catch(e){ __nativeAlert(msg); } };
+
+    // ============================================================
+    // EXAM COUNTDOWN (v25.6) — date stored per-device in
+    // localStorage (examDate_v1). Tap the pill to change it.
+    // Default 2026-08-15 (Tier-1 window Aug–Sep, exact TBA by SSC).
+    // ============================================================
+    window.__examDateKey = 'examDate_v1';
+    window.setExamDate = function(){
+        const cur = localStorage.getItem(window.__examDateKey) || '2026-08-15';
+        const d = prompt('Tier-1 exam date (YYYY-MM-DD):', cur);
+        if(d === null) return;
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(d.trim()) || isNaN(new Date(d.trim() + 'T00:00:00').getTime())){ hubToast('❌ Use YYYY-MM-DD format'); return; }
+        localStorage.setItem(window.__examDateKey, d.trim());
+        renderExamCountdown();
+        hubToast('🎯 Exam date set: ' + d.trim());
+    };
+    window.renderExamCountdown = function(){
+        const el = document.getElementById('exam-countdown'); if(!el) return;
+        const d = localStorage.getItem(window.__examDateKey) || '2026-08-15';
+        const today = new Date(); today.setHours(0,0,0,0);
+        const days = Math.round((new Date(d + 'T00:00:00') - today) / 86400000);
+        el.textContent = days > 0 ? ('🎯 CGL TIER-1 · ' + days + ' DAYS') : (days === 0 ? '🎯 EXAM DAY — GO KILL IT' : ('🎯 TIER-1 DONE · +' + (-days) + 'd'));
+    };
+    document.addEventListener('DOMContentLoaded', function(){ renderExamCountdown(); });
     // Features in this build:
     //   v23.1 — Concept Sheet INCREMENTAL mode:
     //           · "➕ Add New (N)" sends only unprocessed questions + a
@@ -5000,7 +5061,7 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
         activeQuestions[qIdx].options.forEach((_, i) => {
             const el = document.getElementById(`opt-${qIdx}-${i}`);
             if (i === oIdx) {
-                el.className = 'option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-100 shadow-md transform scale-[1.01]';
+                el.className = 'option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-100 shadow-md transform scale-[1.01] opt-pop';
                 el.children[0].className = 'min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-emerald-500 text-white shadow-inner';
             } else {
                 el.className = 'option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-slate-100 dark:border-slate-800 hover:border-emerald-400 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm hover:shadow-md';
@@ -5735,7 +5796,7 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
                 (q.options || []).forEach((_, i) => {
                     if (i !== sel) return;
                     const el = document.getElementById(`opt-${qi}-${i}`); if (!el) return;
-                    el.className = 'option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-100 shadow-md transform scale-[1.01]';
+                    el.className = 'option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-100 shadow-md transform scale-[1.01] opt-pop';
                     el.children[0].className = 'min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-emerald-500 text-white shadow-inner';
                 });
             });
