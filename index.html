@@ -2,9 +2,9 @@
 <html lang="en" class="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yogesh's Mega Quiz Hub - V24 (Notes)</title>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Yogesh's Mega Quiz Hub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;900&family=Syne:wght@700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -12,7 +12,10 @@
     <script>
         tailwind.config = {
             darkMode: 'class',
-            theme: { extend: { fontFamily: { sans: ['"Nunito Sans"', 'sans-serif'], mono: ['"JetBrains Mono"', 'monospace'] } } }
+            theme: {
+                borderRadius: { none: '0', sm: '4px', DEFAULT: '8px', md: '10px', lg: '12px', xl: '16px', '2xl': '20px', '3xl': '24px', full: '9999px' },
+                extend: { fontFamily: { sans: ['"Nunito Sans"', 'sans-serif'], mono: ['"JetBrains Mono"', 'monospace'], display: ['Syne', 'sans-serif'] } }
+            }
         }
     </script>
     <style>
@@ -278,6 +281,68 @@
         }
         /* On-screen: the print sheet is hidden until print time */
         #fc-print-sheet { display: none; }
+    </style>
+    <style id="ui-polish">
+        /* ============================================================
+           UI POLISH LAYER (v25.4) — visual only, zero logic touched.
+           Design thesis: bring the whole hub onto the War Zone
+           identity (Syne display, navy depth, gradient accents).
+           ============================================================ */
+        :root {
+            --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-pill: 999px;
+            --pol-accent: #4f6ef7; --pol-accent2: #7c3aed;
+            --shadow-1: 0 1px 2px rgba(2,6,23,0.06), 0 1px 3px rgba(2,6,23,0.08);
+            --shadow-2: 0 4px 6px -1px rgba(2,6,23,0.08), 0 10px 15px -3px rgba(2,6,23,0.08);
+            --shadow-3: 0 10px 15px -3px rgba(2,6,23,0.12), 0 20px 25px -5px rgba(2,6,23,0.10);
+            --fs-xs: 11px; --fs-sm: 13px; --fs-base: 15px; --fs-md: 17px; --fs-lg: 20px; --fs-xl: 26px; --fs-2xl: 34px;
+        }
+
+        /* DEPTH — layered backgrounds instead of flat fills */
+        body { background-image: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%); background-attachment: fixed; }
+        .dark body {
+            background-image:
+                radial-gradient(1100px 560px at 85% -8%, rgba(79,110,247,0.10), transparent 60%),
+                radial-gradient(900px 520px at -8% 28%, rgba(124,58,237,0.07), transparent 55%),
+                linear-gradient(180deg, #0a0f1c 0%, #0b1220 100%);
+            background-attachment: fixed;
+        }
+
+        /* TYPOGRAPHY — Syne carries headings, matching War Zone */
+        h1, h2, h3, .font-display { font-family: 'Syne', 'Nunito Sans', sans-serif; letter-spacing: -0.015em; }
+
+        /* ELEVATION — consistent card shadow system */
+        .subject-card, .mamba-card { box-shadow: var(--shadow-1); border-radius: var(--r-lg); }
+        .subject-card:hover, .mamba-card:hover { box-shadow: var(--shadow-3); }
+        .dark .subject-card, .dark .mamba-card { box-shadow: 0 0 0 1px rgba(148,163,184,0.06), var(--shadow-2); }
+
+        /* MICRO-INTERACTIONS */
+        button { transition: transform 0.12s ease, box-shadow 0.2s ease, filter 0.2s ease; }
+        button:not(:disabled):active { transform: scale(0.97); }
+        @keyframes screen-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+        [id^="screen-"]:not(.hidden):not(.wr-screen) { animation: screen-in 0.22s ease; }
+        .wr-screen.active { animation: screen-in 0.22s ease; }
+
+        /* TOUCH + FOCUS POLISH (iPhone/iPad) */
+        * { -webkit-tap-highlight-color: transparent; }
+        :focus-visible { outline: 2px solid var(--pol-accent); outline-offset: 2px; }
+        @supports (padding: max(0px)) {
+            body.pb-20 {
+                padding-left: max(0px, env(safe-area-inset-left));
+                padding-right: max(0px, env(safe-area-inset-right));
+                padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+            }
+        }
+
+        /* SCROLLBAR refinement */
+        ::-webkit-scrollbar-thumb { border-radius: 999px; }
+        .dark ::-webkit-scrollbar-thumb { background: #2b3a55; }
+
+        /* ACCESSIBILITY — respect reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+        }
+        /* Keep motion out of print */
+        @media print { [id^="screen-"] { animation: none !important; } }
     </style>
     <script>
         window.MathJax = {
@@ -1664,7 +1729,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-07-19 · v25.3';
+    const HUB_BUILD = '2026-07-23 · v25.4';
     // Features in this build:
     //   v23.1 — Concept Sheet INCREMENTAL mode:
     //           · "➕ Add New (N)" sends only unprocessed questions + a
@@ -1685,7 +1750,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
         "English": ["Active & Passive Voice", "Cloze Test", "Direct & Indirect Speech", "Figures of Speech", "Grammar & Error Spotting", "HOMONYMS", "Idioms & Phrases", "One Word Substitution", "Para Jumbles", "PREPOSITION", "Phrasal Verbs", "Reading Comprehension", "Sentence Improvement", "Spelling Errors", "Synonyms & Antonyms"],
         "Ancient History": ["Prehistoric & Indus Valley", "Vedic Age", "Buddhism & Jainism", "Mahajanapadas & Magadha", "Mauryan Empire", "Post-Mauryan Period", "Gupta Empire", "Post-Gupta & Harsha"],
         "Medieval History": ["Early Medieval India", "Delhi Sultanate", "Provincial Kingdoms", "Mughal Empire", "Maratha Empire", "Bhakti & Sufi Movements", "Books & Authors"],
-        "Modern History": ["Advent of Europeans", "British Expansion & Anglo-Indian Wars", "Administrative & Constitutional Development", "Economic Impact of British Rule", "Peasant, Tribal & Popular Resistance", "Revolt of 1857", "Socio-Religious Reform Movements", "Foundation of INC & Moderate Phase", "Era of Militant Nationalism (Swadeshi Movement)", "Home Rule Movement & WWI", "Gandhian Era", "Revolutionary Nationalism", "Subhas Chandra Bose & INA", "Communalism & Partition", "Post-Independence Consolidation"],
+        "Modern History": ["Advent of Europeans", "British Expansion & Policies", "Revolt of 1857", "Socio-Religious Reform Movements", "Indian National Congress", "Gandhian Era", "Revolutionary Nationalism", "Partition & Independence", "Post-Independence Consolidation"],
         "Art & Culture": ["Architecture & Sculpture", "Paintings", "Music & Dance", "Puppetry & Theatre", "Languages & Literature", "Fairs, Festivals & Handicrafts", "Indian Philosophy"],
         "Geography": ["Geomorphology", "Mapping", "Census 2011", "Climatology", "Oceanography", "Indian Physical Geography", "Indian Drainage System", "Indian Climate, Soil & Vegetation", "Economic Geography", "Human & Demographic Geography"],
         "Polity": ["Historical Background & Making", "Preamble", "Citizenship", "Fundamental Rights", "Directive Principles", "Fundamental Duties", "Union Executive", "Parliament", "Judiciary", "State Government", "Centre-State Relations", "Emergency Provisions", "Local Government", "Constitutional & Non-Constitutional Bodies", "Constitutional Amendments", "Elections", "Parts, Schedules & Articles", "Bharatiya Nyaya Sanhita (BNS)"],
@@ -11486,7 +11551,7 @@ const SC_DEFAULT = {
   "Polity": ["Historical Background & Making", "Preamble", "Citizenship", "Fundamental Rights", "Directive Principles", "Fundamental Duties", "Union Executive", "Parliament", "Judiciary", "State Government", "Centre-State Relations", "Emergency Provisions", "Local Government", "Constitutional & Non-Constitutional Bodies", "Constitutional Amendments", "Elections", "Parts, Schedules & Articles", "Bharatiya Nyaya Sanhita (BNS)"],
   "Ancient History": ["Prehistoric & Indus Valley","Vedic Age","Buddhism & Jainism","Mahajanapadas & Magadha","Mauryan Empire","Post-Mauryan Period","Gupta Empire","Post-Gupta & Harsha"],
   "Medieval History": ["Early Medieval India","Delhi Sultanate","Provincial Kingdoms","Mughal Empire","Maratha Empire","Bhakti & Sufi Movements","Books & Authors"],
-  "Modern History": ["Advent of Europeans","British Expansion & Anglo-Indian Wars","Administrative & Constitutional Development","Economic Impact of British Rule","Peasant, Tribal & Popular Resistance","Revolt of 1857","Socio-Religious Reform Movements","Foundation of INC & Moderate Phase","Era of Militant Nationalism (Swadeshi Movement)","Home Rule Movement & WWI","Gandhian Era","Revolutionary Nationalism","Subhas Chandra Bose & INA","Communalism & Partition","Post-Independence Consolidation"],
+  "Modern History": ["Advent of Europeans","British Expansion & Policies","Revolt of 1857","Socio-Religious Reform Movements","Indian National Congress","Gandhian Era","Revolutionary Nationalism","Partition & Independence","Post-Independence Consolidation"],
   "Geography": ["Geomorphology","Mapping","Census 2011","Climatology","Oceanography","Indian Physical Geography","Indian Drainage System","Indian Climate, Soil & Vegetation","Economic Geography","Human & Demographic Geography"],
   "Economics": ["Basics of Economy", "Micro-Economics", "Inflation and Unemployment", "National Income", "Budget and Taxation", "Monetary Policy", "Banking System", "Balance of Payments", "Poverty", "Five Year Plan"],
   "Physics": ["Units & Measurements","Mechanics","Gravitation","Properties of Matter","Heat & Thermodynamics","Waves & Sound","Optics","Electricity & Magnetism","Modern Physics"],
@@ -11512,11 +11577,6 @@ const SC_DEFAULT = {
 // This is the SAME single-source-of-truth principle used to fix the Notes additive-merge
 // bug: the locked 18-topic list wins, stale always loses.
 const SC_STALE_TOPICS = {
-  "Modern History": [
-    "British Expansion & Policies",
-    "Indian National Congress",
-    "Partition & Independence"
-  ],
   "Polity": [
     "Making, Preamble & Sources",
     "Elections, Amendments, Parts & Schedules",
@@ -14914,7 +14974,7 @@ const PLANNER_SUBJECTS = {
   "Polity": ["Historical Background & Making", "Preamble", "Citizenship", "Fundamental Rights", "Directive Principles", "Fundamental Duties", "Union Executive", "Parliament", "Judiciary", "State Government", "Centre-State Relations", "Emergency Provisions", "Local Government", "Constitutional & Non-Constitutional Bodies", "Constitutional Amendments", "Elections", "Parts, Schedules & Articles", "Bharatiya Nyaya Sanhita (BNS)"],
   "Ancient History": ["Prehistoric & Indus Valley","Vedic Age","Buddhism & Jainism","Mahajanapadas & Magadha","Mauryan Empire","Post-Mauryan Period","Gupta Empire","Post-Gupta & Harsha"],
   "Medieval History": ["Early Medieval India","Delhi Sultanate","Provincial Kingdoms","Mughal Empire","Maratha Empire","Bhakti & Sufi Movements","Books & Authors"],
-  "Modern History": ["Advent of Europeans","British Expansion & Anglo-Indian Wars","Administrative & Constitutional Development","Economic Impact of British Rule","Peasant, Tribal & Popular Resistance","Revolt of 1857","Socio-Religious Reform Movements","Foundation of INC & Moderate Phase","Era of Militant Nationalism (Swadeshi Movement)","Home Rule Movement & WWI","Gandhian Era","Revolutionary Nationalism","Subhas Chandra Bose & INA","Communalism & Partition","Post-Independence Consolidation"],
+  "Modern History": ["Advent of Europeans","British Expansion & Policies","Revolt of 1857","Socio-Religious Reform Movements","Indian National Congress","Gandhian Era","Revolutionary Nationalism","Partition & Independence","Post-Independence Consolidation"],
   "Geography": ["Geomorphology","Mapping","Census 2011","Climatology","Oceanography","Indian Physical Geography","Indian Drainage System","Indian Climate, Soil & Vegetation","Economic Geography","Human & Demographic Geography"],
   "Economics": ["Basics of Economy", "Micro-Economics", "Inflation and Unemployment", "National Income", "Budget and Taxation", "Monetary Policy", "Banking System", "Balance of Payments", "Poverty", "Five Year Plan"],
   "Physics": ["Units & Measurements","Mechanics","Gravitation","Properties of Matter","Heat & Thermodynamics","Waves & Sound","Optics","Electricity & Magnetism","Modern Physics"],
