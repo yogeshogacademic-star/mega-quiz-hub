@@ -1065,6 +1065,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                     </button>
                     <button onclick="openFactSheet()" class="bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-sm px-3.5 py-2.5 rounded-xl whitespace-nowrap flex-shrink-0 shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-transform hover:-translate-y-1 border border-emerald-400 flex items-center gap-2">📋 Fact Sheet</button>
                     <button onclick="showScreen('mock-tracker')" class="bg-gradient-to-br from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-black text-sm px-3.5 py-2.5 rounded-xl whitespace-nowrap flex-shrink-0 shadow-[0_0_20px_rgba(14,165,233,0.5)] transition-transform hover:-translate-y-1 border border-sky-400 flex items-center gap-2">📝 Mock Tracker</button>
+                    <button onclick="arOpen()" class="bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black text-sm px-3.5 py-2.5 rounded-xl whitespace-nowrap flex-shrink-0 shadow-[0_0_20px_rgba(245,158,11,0.5)] transition-transform hover:-translate-y-1 border border-amber-400 flex items-center gap-2">⚡ Active Recall</button>
                     <button onclick="csOpen()" class="bg-gradient-to-br from-fuchsia-500 to-purple-600 hover:from-fuchsia-400 hover:to-purple-500 text-white font-black text-sm px-3.5 py-2.5 rounded-xl whitespace-nowrap flex-shrink-0 shadow-[0_0_20px_rgba(217,70,239,0.5)] transition-transform hover:-translate-y-1 border border-fuchsia-400 flex items-center gap-2">📄 Concept Sheet</button>
                     <button onclick="openSyllabusCommand()" class="bg-gradient-to-br from-violet-500 to-purple-600 hover:from-violet-400 hover:to-purple-500 text-white font-black text-sm px-3.5 py-2.5 rounded-xl whitespace-nowrap flex-shrink-0 shadow-[0_0_20px_rgba(139,92,246,0.5)] transition-transform hover:-translate-y-1 border border-violet-400 flex items-center gap-2">📚 Syllabus</button>
                     <button onclick="showScreen('planner')" class="bg-gradient-to-br from-teal-500 to-cyan-600 hover:from-teal-400 hover:to-cyan-500 text-white font-black text-sm px-3.5 py-2.5 rounded-xl whitespace-nowrap flex-shrink-0 shadow-[0_0_20px_rgba(20,184,166,0.5)] transition-transform hover:-translate-y-1 border border-teal-400 flex items-center gap-2">⚔️ War Room</button>
@@ -1752,7 +1753,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-07-23 · v25.7';
+    const HUB_BUILD = '2026-07-24 · v25.8';
 
     // ============================================================
     // GLOBAL TOAST (v25.6) — every native alert() popup in the hub
@@ -2903,7 +2904,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
             }
             return base;
         });
-        const payload = { subjects: SUBJECTS, db: cleanDb, syllabusData: scDataCloud, syllabusLastSave: parseInt(localStorage.getItem('sc_syllabus_lastSave')||'0'), history: historyForCloud, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, mockTracker: mockTrackerCloud, plannerData: plannerCloud, srsAuditLog: (window.srsAuditLog||[]), dupIgnore: dupIgnoreCloud, savedAt: nowTs };
+        const payload = { subjects: SUBJECTS, db: cleanDb, syllabusData: scDataCloud, syllabusLastSave: parseInt(localStorage.getItem('sc_syllabus_lastSave')||'0'), history: historyForCloud, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, mockTracker: mockTrackerCloud, plannerData: plannerCloud, srsAuditLog: (window.srsAuditLog||[]), dupIgnore: dupIgnoreCloud, activeRecall: (typeof window.__arForCloud==="function" ? window.__arForCloud() : null), savedAt: nowTs };
         // Expose saveData globally for syllabus functions in other script blocks
         window._saveDataGlobal = saveData;
         try {
@@ -3314,6 +3315,10 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                     }
                 }, 2000);
             }
+        }
+        if (data.activeRecall && typeof data.activeRecall === 'object') {
+            try { if (typeof window.__arFromCloud === 'function') window.__arFromCloud(data.activeRecall); }
+            catch(e) { console.warn('Active Recall merge error:', e); }
         }
         if (data.mockTracker && Array.isArray(data.mockTracker) && data.mockTracker.length > 0) {
             try {
@@ -19703,5 +19708,551 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
   console.log('[CS] Missing Concept Sheet module ready — call csOpen()');
 })();
 </script>
+
+<!-- ═══════════════ ACTIVE RECALL (v25.8) ═══════════════ -->
+<div id="ar-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(8,11,16,.72);backdrop-filter:blur(3px)">
+  <div id="ar-root"></div>
+</div>
+<style>
+#ar-root{position:absolute;inset:14px;background:#eceff4;border-radius:16px;overflow:hidden;
+  display:flex;flex-direction:column;font-family:"Space Grotesk",ui-sans-serif,system-ui,sans-serif;
+  color:#0e1116;font-size:15px;line-height:1.5;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+#ar-root *{box-sizing:border-box}
+#ar-root button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+#ar-root table{border-collapse:collapse;width:100%}
+#ar-head{background:#0e1116;color:#fff;padding:11px 16px;flex:0 0 auto}
+#ar-head .r1{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#ar-head .bk{font-size:16px;font-weight:700;letter-spacing:-.01em}
+#ar-head .bk em{font-style:normal;color:#86efac}
+#ar-head .sb{font-size:11px;color:#98a3b3;letter-spacing:.05em;text-transform:uppercase}
+#ar-head .rt{margin-left:auto;display:flex;gap:5px}
+#ar-head .rt button{font-size:12.5px;padding:5px 12px;border-radius:99px;background:#222c3a;color:#cfd7e3;font-weight:500}
+#ar-head .rt button.on{background:#fff;color:#0e1116;font-weight:700}
+#ar-head .rt button.x{background:#3a2027;color:#fca5a5}
+#ar-nav{display:flex;overflow-x:auto;scrollbar-width:none;margin:9px -16px -11px;padding:0 16px}
+#ar-nav::-webkit-scrollbar{display:none}
+#ar-nav a{flex:0 0 auto;font-size:11.5px;color:#98a3b3;text-decoration:none;padding:7px 11px 10px;white-space:nowrap;cursor:pointer}
+#ar-nav a:hover{color:#fff}
+#ar-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px}
+#ar-body>.wrap{max-width:940px;margin:0 auto}
+#ar-root .panel{background:#fff;border:1px solid #dbe1ea;border-radius:11px;padding:15px 16px;margin-bottom:11px}
+#ar-root .panel.rural{border-left:3px solid #15803d}
+#ar-root .panel.urban{border-left:3px solid #1d4ed8}
+#ar-root .panel.trap{border-left:3px solid #b45309;background:#fdf0dc}
+#ar-root h2.sec{font-size:11.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#8b95a5;
+  margin:32px 0 12px;padding-bottom:7px;border-bottom:1px solid #dbe1ea;display:flex;align-items:center;gap:9px}
+#ar-root h2.sec .k{font-size:10px;background:#0e1116;color:#fff;border-radius:4px;padding:2px 6px}
+#ar-root h2.sec:first-of-type{margin-top:2px}
+#ar-root p.lead{font-family:"Source Serif 4",Georgia,serif;font-size:16px;color:#46505f;margin:0 0 16px}
+#ar-root .snap{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:8px}
+#ar-root .chip{background:#fff;border:1px solid #dbe1ea;border-radius:10px;padding:11px 12px}
+#ar-root .chip .v{font-size:23px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+#ar-root .chip .l{font-size:11.5px;color:#46505f;margin-top:3px;line-height:1.3}
+#ar-root .chip.r .v{color:#15803d} #ar-root .chip.u .v{color:#1d4ed8}
+#ar-root .ladder{display:grid;grid-template-columns:1fr 34px 1fr;background:#fff;border:1px solid #dbe1ea;border-radius:11px;overflow:hidden}
+#ar-root .lhead{padding:10px 13px;font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+#ar-root .lhead.r{background:#e6f4ea;color:#15803d}
+#ar-root .lhead.u{background:#e8eefc;color:#1d4ed8}
+#ar-root .lhead.m{background:#f4f6fa}
+#ar-root .cellR,#ar-root .cellU,#ar-root .cellM{border-top:1px solid #eef1f6;padding:9px 13px;min-height:46px}
+#ar-root .cellM{border-left:1px solid #eef1f6;border-right:1px solid #eef1f6;background:#f7f9fc;display:flex;align-items:center;justify-content:center;color:#8b95a5;font-size:12px;padding:0}
+#ar-root .cellR .a,#ar-root .cellU .a{font-weight:700;font-size:13.5px}
+#ar-root .cellR .a{color:#15803d} #ar-root .cellU .a{color:#1d4ed8}
+#ar-root .cellR .t,#ar-root .cellU .t{font-size:12.5px;color:#46505f;line-height:1.35}
+#ar-root .cellU.none{background:#fafbfd;color:#8b95a5;font-size:12px;display:flex;align-items:center}
+#ar-root .mirror{color:#0e1116;font-weight:700}
+#ar-root .tl{position:relative;padding-left:26px}
+#ar-root .tl::before{content:"";position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:#dbe1ea}
+#ar-root .ev{position:relative;padding:0 0 15px}
+#ar-root .ev::before{content:"";position:absolute;left:-23px;top:6px;width:9px;height:9px;border-radius:99px;background:#fff;border:2px solid #8b95a5}
+#ar-root .ev.key::before{background:#15803d;border-color:#15803d}
+#ar-root .ev .y{font-size:12px;font-weight:700;color:#15803d}
+#ar-root .ev .b{font-size:13px;color:#46505f;font-family:"Source Serif 4",Georgia,serif;line-height:1.4}
+#ar-root .tw{overflow-x:auto;background:#fff;border:1px solid #dbe1ea;border-radius:11px;position:relative}
+#ar-root table th{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:#8b95a5;text-align:left;padding:9px 13px;border-bottom:1px solid #dbe1ea;font-weight:700;white-space:nowrap}
+#ar-root table td{padding:9px 13px;border-bottom:1px solid #eef1f6;font-size:13.5px;vertical-align:top;line-height:1.4}
+#ar-root table tr:last-child td{border-bottom:0}
+#ar-root td.k{font-weight:700;white-space:nowrap}
+#ar-root td.r{color:#15803d;font-weight:600} #ar-root td.u{color:#1d4ed8;font-weight:600}
+#ar-root .yes{color:#15803d;font-weight:700} #ar-root .no{color:#c2410c;font-weight:700}
+#ar-root .traps{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:9px}
+#ar-root .trapcard{background:#fff;border:1px solid #dbe1ea;border-radius:11px;overflow:hidden}
+#ar-root .trapcard .th{background:#fdf0dc;color:#b45309;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:7px 12px}
+#ar-root .trapcard .row{display:flex;border-top:1px solid #eef1f6}
+#ar-root .trapcard .row>div{flex:1;padding:9px 12px;font-size:13px;line-height:1.35}
+#ar-root .trapcard .row>div:first-child{border-right:1px solid #eef1f6}
+#ar-root .trapcard .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#8b95a5;display:block;margin-bottom:2px}
+#ar-root ul.pts{margin:6px 0 0;padding-left:19px}
+#ar-root ul.pts li{font-size:13.5px;margin-bottom:5px;line-height:1.42}
+#ar-root .foot{font-size:11.5px;color:#8b95a5;text-align:center;padding:24px 16px 0;line-height:1.55}
+/* blank mode */
+#ar-root.blank .h{background:#1c2430;color:transparent;box-shadow:0 0 0 2px #1c2430;border-radius:4px}
+#ar-root.blank .h *{visibility:hidden}
+#ar-root.blank .h.show{background:none;color:inherit;box-shadow:none}
+#ar-root.blank .h.show *{visibility:visible}
+#ar-root .h{cursor:pointer;border-radius:4px}
+#ar-root .btog{display:flex;align-items:center;gap:9px;background:#0e1116;color:#fff;border-radius:10px;padding:11px 14px;margin-bottom:14px;cursor:pointer}
+#ar-root .btog .t{font-size:13px;flex:1} #ar-root .btog .t b{color:#86efac}
+#ar-root .sw{width:44px;height:25px;border-radius:99px;background:#39455a;position:relative;flex:0 0 auto}
+#ar-root .sw::after{content:"";position:absolute;top:3px;left:3px;width:19px;height:19px;border-radius:99px;background:#fff;transition:left .15s}
+#ar-root.blank .sw{background:#86efac} #ar-root.blank .sw::after{left:22px}
+/* table quiz */
+#ar-root .tq{position:absolute;top:7px;right:9px;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;background:#0e1116;color:#fff;border-radius:99px;padding:4px 10px;z-index:3;opacity:.85}
+#ar-root td.qz{cursor:pointer;background:#1c2430;color:transparent;border-radius:4px}
+#ar-root td.qz *{visibility:hidden}
+#ar-root td.qz.show{background:#fff8e1;color:inherit}
+#ar-root td.qz.show *{visibility:visible}
+/* home list */
+#ar-root .subh{font-size:11px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#8b95a5;margin:22px 0 9px;display:flex}
+#ar-root .subh span{margin-left:auto;font-weight:500;letter-spacing:0;text-transform:none}
+#ar-root .chrow{background:#fff;border:1px solid #dbe1ea;border-radius:11px;padding:13px 15px;margin-bottom:8px;cursor:pointer}
+#ar-root .chrow:hover{border-color:#8b95a5}
+#ar-root .chrow .n{font-size:15px;font-weight:700;letter-spacing:-.01em}
+#ar-root .chrow .meta{font-size:11.5px;color:#8b95a5;margin-top:3px}
+#ar-root .stack{display:flex;height:8px;border-radius:99px;overflow:hidden;background:#e3e8ef;margin-top:9px}
+#ar-root .stack i{display:block;height:100%}
+#ar-root .stack .a{background:#15803d}#ar-root .stack .b{background:#d97706}#ar-root .stack .c{background:#c2410c}
+#ar-root .addbar{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:6px}
+#ar-root .addbar button,#ar-root .addbar label{font-size:12.5px;padding:8px 14px;border-radius:99px;background:#fff;border:1px solid #dbe1ea;color:#46505f;cursor:pointer;font-weight:500}
+#ar-root .addbar button.pri{background:#0e1116;color:#fff;border-color:#0e1116;font-weight:700}
+/* drill */
+#ar-root .state{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:11px}
+#ar-root .state div{background:#fff;border:1px solid #dbe1ea;border-radius:10px;padding:10px 11px}
+#ar-root .state .n{font-size:21px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+#ar-root .state .l{font-size:10.5px;color:#46505f;margin-top:2px}
+#ar-root .state .c2 .n{color:#15803d}#ar-root .state .c1 .n{color:#d97706}
+#ar-root .state .c0 .n{color:#c2410c}#ar-root .state .c3 .n{color:#9333ea}
+#ar-root .sessbar{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid #dbe1ea;border-radius:10px;padding:9px 13px;margin-bottom:11px;font-size:12.5px;color:#46505f;flex-wrap:wrap}
+#ar-root .sessbar b{color:#0e1116}
+#ar-root .sessbar button{margin-left:auto;font-size:11.5px;padding:5px 11px;border-radius:99px;border:1px solid #dbe1ea;color:#46505f;background:#fff}
+#ar-root .chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:10px}
+#ar-root .chips::-webkit-scrollbar{display:none}
+#ar-root .chips button{flex:0 0 auto;font-size:12px;padding:5px 12px;border-radius:99px;background:#fff;border:1px solid #dbe1ea;color:#46505f}
+#ar-root .chips button.on{background:#0e1116;color:#fff;border-color:#0e1116;font-weight:600}
+#ar-root .prog{height:4px;background:#dde3ec;border-radius:99px;overflow:hidden;margin-bottom:12px}
+#ar-root .prog i{display:block;height:100%;background:#0d7a5f;transition:width .25s}
+#ar-root .qc{background:#fff;border:1px solid #dbe1ea;border-radius:12px;padding:19px 17px}
+#ar-root .qmeta{display:flex;align-items:center;gap:8px;font-size:11.5px;color:#8b95a5;margin-bottom:12px}
+#ar-root .dot{width:8px;height:8px;border-radius:99px}
+#ar-root .b0{background:#c2410c}#ar-root .b1{background:#d97706}#ar-root .b2{background:#15803d}
+#ar-root .qt{font-family:"Source Serif 4",Georgia,serif;font-size:19px;line-height:1.42;margin:0}
+#ar-root .crutch{margin-top:15px;width:100%;border:1px dashed #dbe1ea;border-radius:9px;padding:10px;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#8b95a5;background:#fafbfd}
+#ar-root .crutch:hover{border-color:#8b95a5;color:#46505f}
+#ar-root .opts{display:grid;gap:7px;margin-top:13px}
+#ar-root .opt{text-align:left;border:1px solid #dbe1ea;border-radius:9px;padding:11px 13px;font-size:14.5px;line-height:1.35;display:flex;gap:9px;background:#fff}
+#ar-root .opt .ol{flex:0 0 17px;font-weight:700;color:#8b95a5}
+#ar-root .opt.good{background:#e3f3ee;border-color:#0d7a5f;color:#0d7a5f;font-weight:600}
+#ar-root .rev{margin-top:15px;display:block;width:100%}
+#ar-root .rev .b{display:block;background:#1c2430;color:#7d8899;border-radius:8px;padding:11px 0;text-align:center;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase}
+#ar-root .rev .a{display:none}
+#ar-root .rev.on .b{display:none}
+#ar-root .rev.on .a{display:block;font-size:20px;font-weight:700;color:#0d7a5f;line-height:1.3}
+#ar-root .sol{margin-top:11px;padding:12px 13px;background:#f7f9fc;border-radius:9px;border-left:2px solid #46505f;font-size:13px;line-height:1.5;color:#46505f}
+#ar-root .sol b{color:#0e1116}
+#ar-root .jump{display:inline-block;margin-top:10px;font-size:12px;background:#fdf0dc;color:#b45309;border-radius:99px;padding:6px 13px;font-weight:600}
+#ar-root .grade{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+#ar-root .grade button{padding:13px;border-radius:9px;font-weight:700;font-size:14px}
+#ar-root .gy{background:#e3f3ee;color:#0d7a5f}#ar-root .gn{background:#fdeee4;color:#c2410c}
+#ar-root .cap{font-size:11.5px;color:#b45309;margin-top:10px}
+#ar-root .done{background:#0e1116;color:#fff;border-radius:12px;padding:22px;text-align:center}
+#ar-root .done .n{font-size:38px;font-weight:700;letter-spacing:-.03em;line-height:1}
+#ar-root .done p{font-size:13px;color:#a9b4c4;margin:9px auto 0;max-width:360px;line-height:1.5}
+#ar-root .done button{margin-top:15px;background:#86efac;color:#06251a;font-weight:700;padding:10px 20px;border-radius:8px;font-size:14px}
+#ar-root .stuckbox{background:#faf5ff;border:1px solid #e9d5ff;border-radius:11px;padding:14px 15px;margin-top:14px}
+#ar-root .stuckbox .hh{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#7e22ce;font-weight:700;margin-bottom:8px}
+#ar-root .stuckbox .it{font-family:"Source Serif 4",Georgia,serif;font-size:13.5px;color:#46505f;padding:6px 0;border-top:1px solid #f0e4fb;line-height:1.35}
+#ar-root .small{font-size:11.5px;color:#8b95a5;line-height:1.5}
+#ar-root .empty{text-align:center;padding:44px 20px;color:#8b95a5;font-size:14px}
+@media (max-width:700px){
+  #ar-root{inset:0;border-radius:0}
+  #ar-root .ladder{grid-template-columns:1fr 26px 1fr}
+  #ar-root .state{grid-template-columns:repeat(2,1fr)}
+  #ar-root .qt{font-size:17px}
+  #ar-body{padding:13px}
+}
+</style>
+<script>
+/* ═══════════════ ACTIVE RECALL ═══════════════
+   Chapters are built from db by tag — questions are referenced, never copied.
+   Notes are optional and imported per chapter.
+   Progress: box 0 cold / 1 learning / 2 parked.
+   Parking needs two clean passes in two separate sittings.
+   Using the options crutch cannot park a question.
+   ═══════════════════════════════════════════ */
+(function(){
+  const AR_KEY='megaQuizAR_v1';
+  let A={ chapters:{}, prog:{}, session:1, lastOpen:0 };
+  let view='home', chId=null, filter='all', queue=[], cur=null, doneN=0, targetN=0, crutch=false;
+  let QIDX=null;
+
+  const $=id=>document.getElementById(id);
+  const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  /* ---------- storage ---------- */
+  async function arLoad(){
+    try{ const v=await idbKeyval.get(AR_KEY); if(v&&v.chapters) A=v; }catch(e){}
+    A.chapters=A.chapters||{}; A.prog=A.prog||{}; A.session=A.session||1;
+    const now=Date.now();
+    if(A.lastOpen && now-A.lastOpen>3*3600*1000) A.session++;
+    A.lastOpen=now;
+  }
+  async function arSave(push){
+    try{ await idbKeyval.set(AR_KEY,A); }catch(e){}
+    if(push && typeof saveData==='function') saveData();
+  }
+  window.__arForCloud=()=>A;
+  window.__arFromCloud=function(cloud){
+    if(!cloud||typeof cloud!=='object') return;
+    A.chapters=A.chapters||{}; A.prog=A.prog||{};
+    Object.keys(cloud.chapters||{}).forEach(k=>{
+      const c=cloud.chapters[k], l=A.chapters[k];
+      if(!l || (c.updated||0)>(l.updated||0)) A.chapters[k]=c;
+    });
+    Object.keys(cloud.prog||{}).forEach(k=>{
+      const c=cloud.prog[k], l=A.prog[k];
+      if(!l) { A.prog[k]=c; return; }
+      /* per question: the more advanced record wins, lapses add up */
+      Object.keys(c).forEach(q=>{
+        const cv=c[q], lv=l[q];
+        if(!lv){ l[q]=cv; return; }
+        if((cv.ls||0)>(lv.ls||0) || (cv.b||0)>(lv.b||0)) l[q]={...lv,...cv,lap:Math.max(lv.lap||0,cv.lap||0)};
+      });
+    });
+    A.session=Math.max(A.session||1, cloud.session||1);
+    try{ idbKeyval.set(AR_KEY,A); }catch(e){}
+  };
+
+  /* ---------- question index from db ---------- */
+  function buildIndex(){
+    QIDX={};
+    if(typeof db!=='object'||!db) return;
+    Object.keys(db).forEach(qz=>{
+      const o=db[qz]; if(!o||!Array.isArray(o.questions)) return;
+      o.questions.forEach((q,i)=>{ QIDX[q.id||(qz+'#'+i)]={q,quiz:qz,subject:o.subject}; });
+    });
+  }
+  const qk=(qz,q,i)=>q.id||(qz+'#'+i);
+  function scanTags(){
+    const out={};
+    if(typeof db!=='object'||!db) return out;
+    Object.keys(db).forEach(qz=>{
+      const o=db[qz]; if(!o||!Array.isArray(o.questions)) return;
+      const subj=o.subject||'Untagged';
+      o.questions.forEach((q,i)=>{
+        const t=q.tags||[]; const ch=t[1]||'(no chapter tag)';
+        out[subj]=out[subj]||{};
+        (out[subj][ch]=out[subj][ch]||[]).push({k:qk(qz,q,i),st:t[2]||'General'});
+      });
+    });
+    return out;
+  }
+
+  /* ---------- chapter ops ---------- */
+  function makeChapter(subject,chapter,items){
+    const id=(subject+'-'+chapter).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+    A.chapters[id]={id,subject,chapter,q:items,notesHtml:'',sections:[],secMap:{},updated:Date.now()};
+    A.prog[id]=A.prog[id]||{};
+    items.forEach(it=>{ if(!A.prog[id][it.k]) A.prog[id][it.k]={b:0,lap:0,ls:0}; });
+    return id;
+  }
+  const ch=()=>A.chapters[chId];
+  const pr=()=>A.prog[chId]||{};
+  function statOf(c){
+    const p=A.prog[c.id]||{}; const s=[0,0,0]; let stuck=0;
+    c.q.forEach(it=>{ const r=p[it.k]||{b:0,lap:0}; s[r.b||0]++; if((r.lap||0)>=5) stuck++; });
+    return {s,stuck,total:c.q.length};
+  }
+
+  /* ---------- render: home ---------- */
+  function renderHome(){
+    $('ar-nav').innerHTML='';
+    $('ar-head').querySelector('.bk').innerHTML='Active <em>Recall</em>';
+    $('ar-head').querySelector('.sb').textContent=Object.keys(A.chapters).length+' chapters';
+    $('ar-tabs').style.display='none';
+    const bySub={};
+    Object.values(A.chapters).forEach(c=>{(bySub[c.subject]=bySub[c.subject]||[]).push(c);});
+    const subs=Object.keys(bySub).sort();
+    $('ar-body').innerHTML='<div class="wrap">'+
+      `<div class="addbar">
+         <button class="pri" id="arNew">+ New chapter from your question bank</button>
+         <label>Import notes<input type="file" id="arNotes" accept=".json" hidden></label>
+       </div>
+       <p class="small" style="margin:2px 0 4px">Chapters are built from questions already tagged in your hub — nothing is duplicated. Notes are optional and can be added later.</p>`+
+      (subs.length? subs.map(s=>`
+        <div class="subh">${esc(s)}<span>${bySub[s].length} chapter${bySub[s].length>1?'s':''}</span></div>
+        ${bySub[s].map(c=>{const st=statOf(c);return `
+          <div class="chrow" data-ch="${esc(c.id)}">
+            <div class="n">${esc(c.chapter)}</div>
+            <div class="meta">${st.total} questions · ${st.s[2]} parked · ${st.s[0]} cold${c.notesHtml?' · notes ✓':' · no notes yet'}</div>
+            <div class="stack">
+              <i class="a" style="width:${st.s[2]/st.total*100}%"></i>
+              <i class="b" style="width:${st.s[1]/st.total*100}%"></i>
+              <i class="c" style="width:${st.s[0]/st.total*100}%"></i>
+            </div>
+          </div>`}).join('')}`).join('')
+        : `<div class="empty">No chapters yet.<br><br>Press <b>+ New chapter</b> and pick a tag from your question bank.</div>`)
+      +'</div>';
+    $('arNew').onclick=pickChapter;
+    $('arNotes').onchange=importNotes;
+    $('ar-body').querySelectorAll('[data-ch]').forEach(r=>r.onclick=()=>{chId=r.dataset.ch;view='notes';render();});
+  }
+
+  /* ---------- new chapter picker ---------- */
+  function pickChapter(){
+    buildIndex();
+    const tree=scanTags(); const subs=Object.keys(tree).sort();
+    if(!subs.length){ alert('No tagged questions found in your database.'); return; }
+    $('ar-body').innerHTML='<div class="wrap">'+
+      `<div class="addbar"><button id="arBack2">← Back</button></div>
+       <p class="small" style="margin-bottom:12px">Pick a chapter tag. Every question carrying that tag is included, grouped by its sub-topic tag.</p>`+
+      subs.map(s=>`<div class="subh">${esc(s)}</div>`+
+        Object.keys(tree[s]).sort().map(c=>{
+          const n=tree[s][c].length;
+          const id=(s+'-'+c).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+          const have=!!A.chapters[id];
+          return `<div class="chrow" data-mk="${esc(s)}|||${esc(c)}">
+            <div class="n">${esc(c)}${have?' <span style="font-size:11px;color:#15803d">· already added</span>':''}</div>
+            <div class="meta">${n} questions · ${new Set(tree[s][c].map(x=>x.st)).size} sub-topics</div></div>`;
+        }).join('')).join('')+'</div>';
+    $('arBack2').onclick=()=>{view='home';render();};
+    $('ar-body').querySelectorAll('[data-mk]').forEach(r=>r.onclick=async()=>{
+      const [s,c]=r.dataset.mk.split('|||');
+      const items=tree[s][c];
+      const id=makeChapter(s,c,items);
+      await arSave(true);
+      chId=id; view='drill'; render();
+      if(typeof hubToast==='function') hubToast('Chapter added — '+items.length+' questions');
+    });
+  }
+
+  /* ---------- notes import ---------- */
+  function importNotes(e){
+    const f=e.target.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=async()=>{
+      try{
+        const p=JSON.parse(r.result);
+        if(!p.notesHtml) throw 0;
+        let id=p.chapterId||null;
+        if(!id){
+          const guess=(p.subject+'-'+p.chapter).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+          id=A.chapters[guess]?guess:null;
+        }
+        if(!id||!A.chapters[id]){ alert('No matching chapter. Create the chapter first, then import its notes.'); return; }
+        const c=A.chapters[id];
+        c.notesHtml=p.notesHtml; c.sections=p.sections||[]; c.secMap=p.secMap||{}; c.updated=Date.now();
+        await arSave(true);
+        alert('Notes added to '+c.chapter);
+        view='home'; render();
+      }catch(err){ alert('That file is not a notes pack.'); }
+    };
+    r.readAsText(f); e.target.value='';
+  }
+
+  /* ---------- render: notes ---------- */
+  function renderNotes(){
+    const c=ch(); if(!c) {view='home';return render();}
+    $('ar-head').querySelector('.bk').innerHTML=esc(c.chapter)+' <em>·</em> '+esc(c.subject);
+    $('ar-head').querySelector('.sb').textContent=c.q.length+' questions';
+    $('ar-tabs').style.display='flex';
+    $('arTN').classList.add('on'); $('arTD').classList.remove('on');
+    $('ar-nav').innerHTML=(c.sections||[]).map(s=>`<a data-go="${esc(s.id)}">${esc(s.label)}</a>`).join('');
+    if(!c.notesHtml){
+      $('ar-body').innerHTML='<div class="wrap"><div class="empty">No notes for this chapter yet.<br><br>'+
+        'Use <b>Export questions</b> below, send the file, and import the notes pack you get back.'+
+        '<div class="addbar" style="justify-content:center;margin-top:18px"><button id="arExp">Export questions for notes</button></div></div></div>';
+      $('arExp').onclick=exportQuestions;
+      return;
+    }
+    $('ar-body').innerHTML='<div class="wrap">'+
+      `<div class="btog" id="arBlank"><div class="t"><b>Blank mode</b> — hides every fact. Tap to reveal.</div><div class="sw"></div></div>`+
+      c.notesHtml+'</div>';
+    $('arBlank').onclick=()=>{
+      $('ar-root').classList.toggle('blank');
+      if(!$('ar-root').classList.contains('blank'))
+        $('ar-body').querySelectorAll('.h.show').forEach(x=>x.classList.remove('show'));
+    };
+    wireTables();
+    $('ar-nav').querySelectorAll('[data-go]').forEach(a=>a.onclick=()=>{
+      const t=$('ar-body').querySelector('#'+CSS.escape(a.dataset.go));
+      if(t) t.scrollIntoView({behavior:'smooth',block:'start'});
+    });
+  }
+  function wireTables(){
+    $('ar-body').querySelectorAll('.tw').forEach(w=>{
+      const t=w.querySelector('table'); if(!t||w.querySelector('.tq')) return;
+      const rows=t.querySelectorAll('tr'); if(!rows.length) return;
+      const cols=rows[0].children.length; if(cols<2) return;
+      const b=document.createElement('button');
+      b.className='tq'; b.textContent='Quiz this table'; b.dataset.col='0';
+      b.onclick=()=>{
+        let col=+b.dataset.col;
+        t.querySelectorAll('td').forEach(td=>td.classList.remove('qz','show'));
+        col = col>=cols-1 ? 1 : col+1;
+        rows.forEach(tr=>{ const td=tr.children[col]; if(td&&td.tagName==='TD') td.classList.add('qz'); });
+        b.textContent='Column '+(col+1)+' blanked — tap again';
+        b.dataset.col=col;
+      };
+      t.addEventListener('click',e=>{ const td=e.target.closest('td.qz'); if(td) td.classList.toggle('show'); });
+      w.appendChild(b);
+    });
+  }
+
+  /* ---------- drill ---------- */
+  const eligible=it=>{const r=pr()[it.k]||{b:0,lap:0,ls:0}; return (r.b||0)<2 && r.ls!==A.session && (r.lap||0)<5;};
+  function buildQueue(){
+    const c=ch(); let pool=c.q.filter(eligible);
+    if(filter!=='all') pool=pool.filter(it=>it.st===filter);
+    const p=pr();
+    pool.sort((a,b)=>{const A1=p[a.k]||{},B1=p[b.k]||{};return (A1.b||0)!==(B1.b||0)?(A1.b||0)-(B1.b||0):(B1.lap||0)-(A1.lap||0);});
+    const by={}; pool.forEach(it=>{(by[it.st]=by[it.st]||[]).push(it);});
+    const keys=Object.keys(by),out=[];
+    while(out.length<pool.length){ let add=false;
+      for(const k of keys) if(by[k].length){out.push(by[k].shift());add=true;}
+      if(!add) break; }
+    queue=out; doneN=0; targetN=out.length; nextCard();
+  }
+  function nextCard(){ cur=queue.shift()||null; crutch=false; renderCard(); }
+  async function mark(ok){
+    const p=pr(), r=p[cur.k]||(p[cur.k]={b:0,lap:0,ls:0});
+    if(ok){ if(crutch){ r.b=Math.max(r.b||0,1); } else { r.b=Math.min(2,(r.b||0)+1); } }
+    else { r.b=0; r.lap=(r.lap||0)+1; }
+    r.ls=A.session; doneN++;
+    await arSave(false);
+    nextCard(); renderState();
+  }
+  function renderDrill(){
+    const c=ch(); if(!c){view='home';return render();}
+    $('ar-head').querySelector('.bk').innerHTML=esc(c.chapter)+' <em>·</em> '+esc(c.subject);
+    $('ar-head').querySelector('.sb').textContent=c.q.length+' questions';
+    $('ar-tabs').style.display='flex';
+    $('arTD').classList.add('on'); $('arTN').classList.remove('on');
+    $('ar-nav').innerHTML='';
+    $('ar-body').innerHTML='<div class="wrap">'+
+      '<div class="sessbar" id="arSess"></div><div class="state" id="arState"></div>'+
+      '<div class="chips" id="arChips"></div><div class="prog"><i id="arProg"></i></div>'+
+      '<div id="arCard"></div><div id="arStuck"></div>'+
+      '<div class="addbar" style="margin-top:16px"><button id="arExp2">Export questions for notes</button></div></div>';
+    $('arExp2').onclick=exportQuestions;
+    buildIndex(); renderState(); buildQueue();
+  }
+  function renderState(){
+    const c=ch(); if(!c) return; const st=statOf(c);
+    const due=c.q.filter(eligible).length;
+    $('arState').innerHTML=`
+      <div class="c2"><div class="n">${st.s[2]}</div><div class="l">parked</div></div>
+      <div class="c1"><div class="n">${st.s[1]}</div><div class="l">learning</div></div>
+      <div class="c0"><div class="n">${st.s[0]}</div><div class="l">cold</div></div>
+      <div class="c3"><div class="n">${st.stuck}</div><div class="l">stuck</div></div>`;
+    $('arSess').innerHTML=`<span>Sitting <b>${A.session}</b> · <b>${due}</b> available now · parking needs <b>two clean passes</b></span><button id="arNS">New sitting</button>`;
+    $('arNS').onclick=async()=>{A.session++;await arSave(true);renderState();buildQueue();};
+    const sts=[...new Set(c.q.map(x=>x.st))];
+    $('arChips').innerHTML=[['all','All'],...sts.map(x=>[x,x])].map(([v,l])=>{
+      const n=c.q.filter(it=>(v==='all'||it.st===v)&&eligible(it)).length;
+      return `<button data-f="${esc(v)}" class="${filter===v?'on':''}">${esc(l)} <span style="opacity:.6">${n}</span></button>`;
+    }).join('');
+    $('arChips').querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{filter=b.dataset.f;renderState();buildQueue();});
+    const p=pr();
+    const stuckList=c.q.filter(it=>((p[it.k]||{}).lap||0)>=5);
+    $('arStuck').innerHTML=stuckList.length?`<div class="stuckbox"><div class="hh">Stuck — repetition is not working</div>
+      <p class="small" style="margin:0 0 4px">Missed five times or more. Do not drill these again — read each one beside the fact it is being confused with.</p>
+      ${stuckList.map(it=>{const e=QIDX&&QIDX[it.k];return e?`<div class="it">${esc(String(e.q.question).replace(/<[^>]+>/g,' ').slice(0,120))}…</div>`:'';}).join('')}</div>`:'';
+  }
+  function renderCard(){
+    const box=$('arCard'); if(!box) return;
+    $('arProg').style.width = targetN? (doneN/targetN*100)+'%':'0%';
+    if(!cur){
+      const c=ch(), left=c.q.filter(it=>((pr()[it.k]||{}).b||0)<2).length;
+      box.innerHTML=`<div class="done"><div class="n">${doneN}</div>
+        <p>questions this sitting. ${left} still not parked.</p>
+        <p>Nothing you answered today comes back today — that gap is what makes it stick.</p>
+        <button id="arNS2">New sitting</button></div>`;
+      $('arNS2').onclick=async()=>{A.session++;await arSave(true);renderState();buildQueue();};
+      return;
+    }
+    const e=QIDX&&QIDX[cur.k];
+    if(!e){ doneN++; return nextCard(); }
+    const q=e.q, r=pr()[cur.k]||{b:0,lap:0};
+    const ans=(q.options||[]).find(o=>o.correct); const ansTxt=ans?ans.text:'(no answer key)';
+    const c=ch(); const secId=(c.secMap||{})[cur.st]||'';
+    const sec=(c.sections||[]).find(x=>x.id===secId);
+    box.innerHTML=`<div class="qc">
+      <div class="qmeta"><span class="dot b${r.b||0}"></span>${['cold','learning','parked'][r.b||0]}${r.lap?' · missed '+r.lap+'×':''}
+        <span style="margin-left:auto">${doneN+1} of ${targetN}</span></div>
+      <p class="qt">${q.question}</p>
+      <button class="crutch" id="arCr">Show options — costs you the clean pass</button>
+      <div class="opts" id="arOpt" style="display:none"></div>
+      <button class="rev" id="arRev"><span class="b">Reveal answer</span><span class="a">${esc(ansTxt)}</span></button>
+      <div id="arAfter"></div></div>`;
+    $('arCr').onclick=()=>{
+      crutch=true; $('arCr').style.display='none';
+      const ob=$('arOpt'); ob.style.display='grid';
+      ob.innerHTML=(q.options||[]).map((o,j)=>`<div class="opt"><span class="ol">${'ABCD'[j]||''}</span><span>${o.text}</span></div>`).join('');
+    };
+    $('arRev').onclick=()=>{
+      $('arRev').classList.add('on'); $('arCr').style.display='none';
+      if($('arOpt').style.display==='grid')
+        $('arOpt').querySelectorAll('.opt').forEach((x,j)=>{ if((q.options||[])[j] && q.options[j].correct) x.classList.add('good'); });
+      let h = q.solution? `<div class="sol">${q.solution}</div>`:'';
+      if(sec) h+=`<button class="jump" id="arJump">Read the notes: ${esc(sec.label)} →</button>`;
+      if(crutch) h+=`<div class="cap">You used the options. A correct answer keeps this in <b>learning</b> — it cannot park until you get it clean.</div>`;
+      h+=`<div class="grade"><button class="gy" id="arGY">I had it</button><button class="gn" id="arGN">Missed it</button></div>`;
+      $('arAfter').innerHTML=h;
+      $('arGY').onclick=()=>mark(true); $('arGN').onclick=()=>mark(false);
+      const j=$('arJump'); if(j) j.onclick=()=>{ view='notes'; render();
+        setTimeout(()=>{const t=$('ar-body').querySelector('#'+CSS.escape(secId)); if(t) t.scrollIntoView({behavior:'smooth'});},60); };
+    };
+  }
+
+  /* ---------- export questions for notes ---------- */
+  function exportQuestions(){
+    buildIndex();
+    const c=ch(); if(!c) return;
+    const out={chapterId:c.id,subject:c.subject,chapter:c.chapter,
+      questions:c.q.map(it=>{const e=QIDX[it.k];if(!e)return null;
+        const q=e.q,a=(q.options||[]).findIndex(o=>o.correct);
+        return {k:it.k,st:it.st,q:q.question,o:(q.options||[]).map(o=>o.text),c:a,s:q.solution||''};}).filter(Boolean)};
+    const b=new Blob([JSON.stringify(out)],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(b);
+    a.download=c.id+'_questions.json'; a.click();
+  }
+
+  /* ---------- shell ---------- */
+  function render(){
+    if(view==='home') renderHome();
+    else if(view==='notes') renderNotes();
+    else renderDrill();
+    $('ar-body').scrollTop=0;
+  }
+  window.arOpen=async function(){
+    await arLoad(); buildIndex();
+    $('ar-modal').style.display='block';
+    document.body.style.overflow='hidden';
+    if(!$('ar-head').innerHTML.trim()){
+      $('ar-head').innerHTML=`<div class="r1">
+        <div><div class="bk">Active <em>Recall</em></div><div class="sb"></div></div>
+        <div class="rt" id="ar-tabs2">
+          <button id="arHomeB">All chapters</button>
+          <span id="ar-tabs" style="display:none;gap:5px">
+            <button id="arTN" class="on">Notes</button><button id="arTD">Drill</button></span>
+          <button class="x" id="arClose">Close</button>
+        </div></div><nav id="ar-nav"></nav>`;
+      $('arHomeB').onclick=()=>{view='home';chId=null;render();};
+      $('arTN').onclick=()=>{view='notes';render();};
+      $('arTD').onclick=()=>{view='drill';render();};
+      $('arClose').onclick=window.arClose;
+    }
+    view=chId?view:'home'; render();
+  };
+  window.arClose=async function(){
+    $('ar-modal').style.display='none';
+    document.body.style.overflow='';
+    await arSave(true);
+  };
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape' && $('ar-modal') && $('ar-modal').style.display==='block') window.arClose(); });
+  arLoad();
+})();
+</script>
+<!-- ═══════════════ /ACTIVE RECALL ═══════════════ -->
 
 </body></html>
