@@ -14480,6 +14480,19 @@ body::before { content:''; position:fixed; inset:0; background-image:url("data:i
 .drill-lecbtn.resume { background:#10b981; }
 .drill-lecbtn.end { background:#ef4444; }
 .drill-lecbtn.undo { background:var(--bg3); color:var(--muted2); border:1px solid var(--border); }
+.drill-leccurrent { display:flex; align-items:center; gap:10px; border:1px solid var(--border); border-radius:11px; background:var(--bg2); padding:11px 12px; }
+.drill-leccurrent.doing { border-color:#f59e0b; background:rgba(245,158,11,0.09); }
+.drill-leccurrent.paused { border-color:#6366f1; background:rgba(99,102,241,0.09); }
+.drill-leccurrent .lecname { font-size:14px; font-weight:900; color:var(--text); letter-spacing:0.02em; }
+.drill-leccurrent .lecsub { font-size:10px; font-weight:800; color:var(--muted2); margin-top:2px; }
+.drill-lec-all { text-align:center; padding:12px; font-size:12px; font-weight:900; color:var(--green); border:1px solid var(--border); border-radius:11px; background:rgba(16,185,129,0.08); }
+/* ----- Subject sections (Quant / GS / English / Reasoning) ----- */
+.drill-sect { margin-bottom:16px; }
+.drill-sect-head { display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:8px; flex-wrap:wrap; padding-bottom:6px; border-bottom:1px solid var(--border); }
+.drill-sect-name { font-size:11px; font-weight:900; letter-spacing:0.08em; text-transform:uppercase; }
+.drill-sect-adds { display:flex; gap:4px; flex-wrap:wrap; }
+.drill-sect-adds .drill-add { font-size:9px; padding:3px 6px; margin:0; }
+.drill-sect-empty { font-size:10.5px; color:var(--muted); font-weight:700; padding:7px 9px; border:1px dashed var(--border); border-radius:9px; text-align:center; }
 .drill-lecsetup { display:flex; flex-wrap:wrap; gap:7px; align-items:center; }
 .drill-lecsetup select, .drill-lecsetup input { background:var(--bg2); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:6px 8px; font-size:11.5px; font-weight:700; font-family:var(--font-body); }
 .drill-lecsetup input[type=number] { width:64px; }
@@ -14874,11 +14887,6 @@ body.light select.inp option { background:white; }
     <div class="card drill-col" data-col="newTopic">
       <div class="drill-col-head">
         <div><span style="color:#818cf8">📘</span> New Topic <span class="drill-count" id="drill-count-newTopic"></span></div>
-        <div style="display:flex;align-items:center">
-          <button onclick="drillAddRow('newTopic')" class="drill-add">+ Add</button>
-          <button onclick="drillAddLecture('newTopic')" class="drill-add lec">+ 📘 Lec</button>
-          <button onclick="drillAddQuestions('newTopic')" class="drill-add q">+ ❓ Q</button>
-        </div>
       </div>
       <div id="drill-list-newTopic"></div>
     </div>
@@ -14886,11 +14894,6 @@ body.light select.inp option { background:white; }
     <div class="card drill-col" data-col="revision">
       <div class="drill-col-head">
         <div><span style="color:#34d399">🔁</span> Revision <span class="drill-count" id="drill-count-revision"></span></div>
-        <div style="display:flex;align-items:center">
-          <button onclick="drillAddRow('revision')" class="drill-add">+ Add</button>
-          <button onclick="drillAddLecture('revision')" class="drill-add lec">+ 📘 Lec</button>
-          <button onclick="drillAddSrs('revision')" class="drill-add srs">+ 🔁 SRS</button>
-        </div>
       </div>
       <div id="drill-list-revision"></div>
     </div>
@@ -14898,7 +14901,10 @@ body.light select.inp option { background:white; }
     <div class="card drill-col" data-col="mock">
       <div class="drill-col-head">
         <div><span style="color:#fbbf24">📝</span> Mock / Analysis <span class="drill-count" id="drill-count-mock"></span></div>
-        <button onclick="drillAddRow('mock')" class="drill-add">+ Add</button>
+        <div style="display:flex;align-items:center">
+          <button onclick="drillAddRow('mock')" class="drill-add">+ Add</button>
+          <button onclick="drillAddMockMan('mock')" class="drill-add" style="background:rgba(251,191,36,0.14);border-color:rgba(251,191,36,0.34);color:#fcd34d;margin-left:6px">+ 🎯 Mock Log</button>
+        </div>
       </div>
       <div id="drill-list-mock"></div>
     </div>
@@ -16664,6 +16670,8 @@ function renderWeeklyPlanner(){
 // Each item: { id, text, done }. Cloud-synced via save() like everything else.
 let drillViewDate = (typeof todayStr==='function') ? todayStr() : new Date().toISOString().slice(0,10);
 const DRILL_COLS = ['newTopic','revision','mock'];
+const DRILL_SUBJS = ['Quant','GS','English','Reasoning'];
+const DRILL_SUBJ_COL = { Quant:'#fbbf24', GS:'#34d399', English:'#38bdf8', Reasoning:'#c084fc', Other:'#94a3b8' };
 
 function drillEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -16684,9 +16692,9 @@ function drillDayNav(offset){
 }
 function drillDayPick(val){ if(val){ drillViewDate = val; drillRender(); } }
 
-function drillAddRow(col){
+function drillAddRow(col,sect){
   const entry = drillEntry(drillViewDate);
-  entry[col].push({ id:'dr'+Date.now()+Math.floor(Math.random()*1000), text:'', done:false });
+  entry[col].push({ id:'dr'+Date.now()+Math.floor(Math.random()*1000), type:'task', sect:sect||'', text:'', done:false });
   drillStamp(); save(); drillRenderCol(col); drillUpdateCounts();
   setTimeout(()=>{ const list=document.getElementById('drill-list-'+col); if(list){ const inputs=list.querySelectorAll('.drill-text'); if(inputs.length) inputs[inputs.length-1].focus(); } }, 20);
 }
@@ -16705,9 +16713,13 @@ function drillRemoveRow(col,id){
   entry[col] = entry[col].filter(x=>x.id!==id);
   drillStamp(); save(); drillRenderCol(col); drillUpdateCounts();
 }
+function drillRemoveRowConfirm(col,id){
+  if(confirm('Delete this row? This can’t be undone.')) drillRemoveRow(col,id);
+}
 
 function drillRowDone(it){
   if(it && it.type==='lecture') return (it.total>0 && Array.isArray(it.lecs) && it.lecs.length>0 && it.lecs.every(l=>l.status==='done'));
+  if(it && (it.type==='manual' || it.type==='mockman')) return it.status==='done';
   if(it && it.type==='questions'){ const d=drillQData(it.subject,it.topic); return d.total>0 && d.done>=d.total; }
   if(it && it.type==='srs'){ const d=drillSrsData(it.subject,it.topic); return d.total>0 && d.due===0; }
   return !!(it && it.done);
@@ -16716,20 +16728,50 @@ function drillRowDone(it){
 function drillRenderCol(col){
   const list = document.getElementById('drill-list-'+col); if(!list) return;
   const rows = drillEntry(drillViewDate)[col];
-  if(!rows.length){ list.innerHTML = '<div class="drill-empty">Nothing yet — add a task, 📘 lecture, ❓ questions or 🔁 SRS.</div>'; return; }
-  list.innerHTML = rows.map(it => {
-    if(it.type==='lecture')   return drillRenderLecRow(col,it);
-    if(it.type==='questions') return drillRenderQRow(col,it);
-    if(it.type==='srs')       return drillRenderSrsRow(col,it);
-    return drillRenderTaskRow(col,it);
-  }).join('');
+  if(col==='mock'){
+    list.innerHTML = rows.length ? rows.map(it=>drillRenderRow(col,it)).join('')
+      : '<div class="drill-empty">Nothing yet — add a task or 🎯 mock log.</div>';
+    return;
+  }
+  let html='';
+  DRILL_SUBJS.forEach(sect=>{ html += drillRenderSection(col, sect, rows.filter(r=>(r.sect||'')===sect)); });
+  const other = rows.filter(r=>!DRILL_SUBJS.includes(r.sect||''));
+  if(other.length) html += drillRenderSection(col, 'Other', other);
+  list.innerHTML = html;
+}
+
+function drillRenderSection(col,sect,rows){
+  const c=DRILL_SUBJ_COL[sect]||'#94a3b8';
+  const b=(fn,cls,txt)=>`<button onclick="${fn}('${col}','${sect}')" class="drill-add ${cls}">${txt}</button>`;
+  let adds='';
+  if(sect!=='Other'){
+    if(col==='newTopic') adds = b('drillAddRow','','+ Task')+b('drillAddLecture','lec','📘')+b('drillAddQuestions','q','❓')+b('drillAddManual','man','✍');
+    else                 adds = b('drillAddRow','','+ Task')+b('drillAddLecture','lec','📘')+b('drillAddSrs','srs','🔁')+b('drillAddManual','man','✍');
+  }
+  const body = rows.length ? rows.map(it=>drillRenderRow(col,it)).join('') : `<div class="drill-sect-empty">—</div>`;
+  return `<div class="drill-sect">
+    <div class="drill-sect-head">
+      <span class="drill-sect-name" style="color:${c}">${sect}</span>
+      <div class="drill-sect-adds">${adds}</div>
+    </div>
+    <div class="drill-sect-list">${body}</div>
+  </div>`;
+}
+
+function drillRenderRow(col,it){
+  if(it.type==='lecture')   return drillRenderLecRow(col,it);
+  if(it.type==='questions') return drillRenderQRow(col,it);
+  if(it.type==='srs')       return drillRenderSrsRow(col,it);
+  if(it.type==='manual')    return drillRenderManualRow(col,it);
+  if(it.type==='mockman')   return drillRenderMockManRow(col,it);
+  return drillRenderTaskRow(col,it);
 }
 
 function drillRenderTaskRow(col,it){
   return `<div class="drill-row">
       <div class="drill-box ${it.done?'done':''}" onclick="drillToggle('${col}','${it.id}')">${it.done?'✓':''}</div>
       <input class="drill-text ${it.done?'done':''}" value="${drillEsc(it.text)}" placeholder="Type here…" oninput="drillEditText('${col}','${it.id}',this.value)">
-      <button class="drill-del" onclick="drillRemoveRow('${col}','${it.id}')" title="Remove">✕</button>
+      <button class="drill-del" onclick="drillRemoveRowConfirm('${col}','${it.id}')" title="Remove">✕</button>
     </div>`;
 }
 
@@ -16769,25 +16811,52 @@ function drillRenderLecRow(col,it){
       <select onchange="drillLecSet('${col}','${it.id}','topic',this.value)">${drillTopicOptions(it.subject,it.topic)}</select>
       <input type="number" min="1" max="99" placeholder="#" value="${it.total||''}" id="lecnum-${it.id}">
       <button class="go" onclick="drillLecCreate('${col}','${it.id}')">Create</button>
-      <button class="drill-mini del" onclick="drillRemoveRow('${col}','${it.id}')" title="Remove">✕</button>
+      <button class="drill-mini del" onclick="drillRemoveRowConfirm('${col}','${it.id}')" title="Remove">✕</button>
     </div></div>`;
   }
   const doneN = it.lecs.filter(l=>l.status==='done').length;
   const pct = Math.round(doneN/it.total*100);
-  const chips = it.lecs.map((l,i)=>drillLecChip(col,it.id,i+1,l)).join('');
+  const curIdx = it.lecs.findIndex(l=>l.status!=='done');
+  const currentHtml = (curIdx===-1)
+    ? `<div class="drill-lec-all">✅ All ${it.total} lectures complete</div>`
+    : drillLecCurrent(col, it.id, curIdx+1, it.lecs[curIdx], doneN, it.total);
   return `<div class="drill-lecrow">
     <div class="drill-lecrow-head">
       <div class="drill-lecrow-title"><span class="sub">📘 ${drillEsc(it.subject)}</span><span class="tp">· ${drillEsc(it.topic)}</span></div>
       <div class="drill-lecrow-tools">
         <button class="drill-mini" onclick="drillLecEditCount('${col}','${it.id}')" title="Edit lecture count">✎ ${it.total}</button>
-        <button class="drill-mini del" onclick="drillRemoveRow('${col}','${it.id}')" title="Remove">✕</button>
+        <button class="drill-mini del" onclick="drillRemoveRowConfirm('${col}','${it.id}')" title="Remove">✕</button>
       </div>
     </div>
     <div class="drill-lecbar-wrap">
       <div class="drill-lecbar"><i style="width:${pct}%"></i></div>
       <div class="drill-lecbar-num">${doneN}/${it.total} · ${pct}%</div>
     </div>
-    <div class="drill-lecchips">${chips}</div>
+    ${currentHtml}
+  </div>`;
+}
+
+function drillLecCurrent(col,id,n,l,doneN,total){
+  const sub=`${doneN} of ${total} done · ${total-doneN} left`;
+  let controls, cls='';
+  if(l.status==='doing'){
+    cls='doing';
+    const live=drillFmtLive(drillLecElapsedMs(l.logId));
+    controls=`<span class="drill-lec-timer" data-log="${l.logId}" style="font-size:14px">${live}</span>`+
+      `<button class="drill-lecbtn pause" onclick="drillLecPause('${col}','${id}',${n})">⏸ Pause</button>`+
+      `<button class="drill-lecbtn end" onclick="drillLecEnd('${col}','${id}',${n})">⏹ End</button>`;
+  } else if(l.status==='paused'){
+    cls='paused';
+    controls=`<span class="drill-lec-hrs" style="font-size:13px">${l.hrs||0}h</span>`+
+      `<button class="drill-lecbtn resume" onclick="drillLecResume('${col}','${id}',${n})">▶ Resume</button>`+
+      `<button class="drill-lecbtn end" onclick="drillLecEnd('${col}','${id}',${n})">⏹ End</button>`;
+  } else {
+    controls=`<button class="drill-lecbtn start" onclick="drillLecStart('${col}','${id}',${n})">▶ Start</button>`+
+      `<button class="drill-lecbtn check" onclick="drillLecCheck('${col}','${id}',${n})" title="Already done — mark without timing">✓ Done</button>`;
+  }
+  return `<div class="drill-leccurrent ${cls}">
+    <div style="flex:1;min-width:0"><div class="lecname">LECTURE ${n}</div><div class="lecsub">${sub}</div></div>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">${controls}</div>
   </div>`;
 }
 
@@ -16813,9 +16882,9 @@ function drillLecChip(col,id,n,l){
     `<button class="drill-lecbtn check" onclick="drillLecCheck('${col}','${id}',${n})" title="Already done — mark without timing">✓</button></span>`;
 }
 
-function drillAddLecture(col){
+function drillAddLecture(col,sect){
   const entry=drillEntry(drillViewDate);
-  entry[col].push({ id:'dl'+Date.now()+Math.floor(Math.random()*1000), type:'lecture', subject:'', topic:'', total:0, lecs:[] });
+  entry[col].push({ id:'dl'+Date.now()+Math.floor(Math.random()*1000), type:'lecture', sect:sect||'', subject:'', topic:'', total:0, lecs:[] });
   drillStamp(); save(); drillRenderCol(col); drillUpdateCounts();
 }
 function drillLecSet(col,id,field,val){
@@ -16927,7 +16996,7 @@ function drillSetupUI(col,it,icon,accent){
     <span style="font-size:11px;font-weight:900;color:${accent}">${icon}</span>
     <select onchange="drillLecSet('${col}','${it.id}','subject',this.value)">${drillSubjectOptions(it.subject)}</select>
     <select onchange="drillLecSet('${col}','${it.id}','topic',this.value)">${drillTopicOptions(it.subject,it.topic)}</select>
-    <button class="drill-mini del" onclick="drillRemoveRow('${col}','${it.id}')" title="Remove">✕</button>
+    <button class="drill-mini del" onclick="drillRemoveRowConfirm('${col}','${it.id}')" title="Remove">✕</button>
   </div></div>`;
 }
 
@@ -16940,7 +17009,7 @@ function drillRenderQRow(col,it){
       <div class="drill-lecrow-title"><span class="sub" style="color:#38bdf8">❓ ${drillEsc(it.subject)}</span><span class="tp">· ${drillEsc(it.topic)}</span></div>
       <div class="drill-lecrow-tools">
         <button class="drill-mini" onclick="drillRefresh()" title="Refresh from R1">⟳</button>
-        <button class="drill-mini del" onclick="drillRemoveRow('${col}','${it.id}')" title="Remove">✕</button>
+        <button class="drill-mini del" onclick="drillRemoveRowConfirm('${col}','${it.id}')" title="Remove">✕</button>
       </div>
     </div>
     <div class="drill-lecbar-wrap">
@@ -16961,7 +17030,7 @@ function drillRenderSrsRow(col,it){
       <div class="drill-lecrow-title"><span class="sub" style="color:#34d399">🔁 ${drillEsc(it.subject)}</span><span class="tp">· ${drillEsc(it.topic)}</span></div>
       <div class="drill-lecrow-tools">
         <button class="drill-mini" onclick="drillRefresh()" title="Refresh from SRS">⟳</button>
-        <button class="drill-mini del" onclick="drillRemoveRow('${col}','${it.id}')" title="Remove">✕</button>
+        <button class="drill-mini del" onclick="drillRemoveRowConfirm('${col}','${it.id}')" title="Remove">✕</button>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:12px">
@@ -16974,15 +17043,128 @@ function drillRenderSrsRow(col,it){
   </div>`;
 }
 
-function drillAddQuestions(col){
+function drillAddQuestions(col,sect){
   const entry=drillEntry(drillViewDate);
-  entry[col].push({ id:'dq'+Date.now()+Math.floor(Math.random()*1000), type:'questions', subject:'', topic:'' });
+  entry[col].push({ id:'dq'+Date.now()+Math.floor(Math.random()*1000), type:'questions', sect:sect||'', subject:'', topic:'' });
   drillStamp(); save(); drillRenderCol(col); drillUpdateCounts();
 }
-function drillAddSrs(col){
+function drillAddSrs(col,sect){
   const entry=drillEntry(drillViewDate);
-  entry[col].push({ id:'ds'+Date.now()+Math.floor(Math.random()*1000), type:'srs', subject:'', topic:'' });
+  entry[col].push({ id:'ds'+Date.now()+Math.floor(Math.random()*1000), type:'srs', sect:sect||'', subject:'', topic:'' });
   drillStamp(); save(); drillRenderCol(col); drillUpdateCounts();
+}
+function drillAddManual(col,sect){
+  const entry=drillEntry(drillViewDate);
+  entry[col].push({ id:'dm'+Date.now()+Math.floor(Math.random()*1000), type:'manual', sect:sect||'', subject:'', topic:'', status:'todo', logId:null, hrs:0 });
+  drillStamp(); save(); drillRenderCol(col); drillUpdateCounts();
+}
+function drillAddMockMan(col){
+  const entry=drillEntry(drillViewDate);
+  entry[col].push({ id:'dk'+Date.now()+Math.floor(Math.random()*1000), type:'mockman', name:'', status:'todo', logId:null, hrs:0 });
+  drillStamp(); save(); drillRenderCol(col); drillUpdateCounts();
+}
+function drillMockManCreate(col,id){
+  const it=drillFindRow(col,id); if(!it) return;
+  const inp=document.getElementById('mockname-'+id); const v=((inp&&inp.value)||'').trim();
+  if(!v){ alert('Enter a mock name'); return; }
+  it.name=v; drillStamp(); save(); drillRenderCol(col);
+}
+
+// ── Generic per-row timer (manual + mock-log rows) — logs into the same D.logs ──
+function drillRowLogSpec(col,it){
+  if(it.type==='mockman') return { type:'mock', subject:'Mock', chapter:'', topic:'', label:(it.name||'Mock') };
+  const isRev=(col==='revision');
+  return { type:'study', subject:(it.subject||'Custom'), chapter:(it.topic||''), topic:(it.topic||''), label:(isRev?'Rev: ':'')+(it.subject||'')+' · '+(it.topic||'') };
+}
+function drillRowStart(col,id){
+  const it=drillFindRow(col,id); if(!it||it.status==='doing') return;
+  const now=Date.now();
+  const timeLabel=new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',hour12:true});
+  const spec=drillRowLogSpec(col,it);
+  const log={ id:now, date:drillViewDate, type:spec.type, status:'doing', subject:spec.subject, chapter:spec.chapter, topic:spec.topic, label:spec.label, hrs:0, note:'', priority:'medium', startTs:now, segments:[], time:timeLabel, _drill:true };
+  if(!D.logs[drillViewDate]) D.logs[drillViewDate]=[];
+  D.logs[drillViewDate].push(log);
+  it.status='doing'; it.logId=log.id; it.hrs=0;
+  drillStamp(); save(); drillRenderCol(col); drillStartTicker();
+}
+function drillRowPause(col,id){
+  const it=drillFindRow(col,id); if(!it||it.status!=='doing'||!it.logId) return;
+  if(typeof logPause==='function') logPause(drillViewDate,it.logId);
+  const lg=drillLecLog(it.logId); if(lg) it.hrs=lg.hrs||0;
+  it.status='paused'; drillStamp(); save(); drillRenderCol(col);
+}
+function drillRowResume(col,id){
+  const it=drillFindRow(col,id); if(!it||it.status!=='paused'||!it.logId) return;
+  if(typeof logResume==='function') logResume(drillViewDate,it.logId);
+  it.status='doing'; drillStamp(); save(); drillRenderCol(col); drillStartTicker();
+}
+function drillRowEnd(col,id){
+  const it=drillFindRow(col,id); if(!it||!it.logId) return;
+  if(typeof logDone==='function') logDone(drillViewDate,it.logId);
+  const lg=drillLecLog(it.logId);
+  if(!lg){ it.status='todo'; it.logId=null; it.hrs=0; } else { it.status='done'; it.hrs=lg.hrs||0; }
+  drillStamp(); save(); drillRenderCol(col); drillUpdateCounts();
+}
+function drillRowTimer(col,it){
+  const st=it.status||'todo';
+  if(st==='doing'){
+    const live=drillFmtLive(drillLecElapsedMs(it.logId));
+    return `<div class="drill-leccurrent doing"><div style="flex:1"><div class="lecsub">Timing…</div></div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span class="drill-lec-timer" data-log="${it.logId}" style="font-size:14px">${live}</span>
+        <button class="drill-lecbtn pause" onclick="drillRowPause('${col}','${it.id}')">⏸</button>
+        <button class="drill-lecbtn end" onclick="drillRowEnd('${col}','${it.id}')">⏹ End</button>
+      </div></div>`;
+  }
+  if(st==='paused'){
+    return `<div class="drill-leccurrent paused"><div style="flex:1"><span class="drill-lec-hrs">${it.hrs||0}h</span></div>
+      <div style="display:flex;gap:6px">
+        <button class="drill-lecbtn resume" onclick="drillRowResume('${col}','${it.id}')">▶ Resume</button>
+        <button class="drill-lecbtn end" onclick="drillRowEnd('${col}','${it.id}')">⏹ End</button>
+      </div></div>`;
+  }
+  if(st==='done'){
+    return `<div class="drill-leccurrent" style="border-color:var(--green)"><div style="flex:1"><span class="drill-lec-hrs">✓ Logged ${it.hrs||0}h</span></div>
+      <button class="drill-lecbtn start" onclick="drillRowStart('${col}','${it.id}')" title="Log another session">▶ Again</button></div>`;
+  }
+  return `<div class="drill-leccurrent"><div style="flex:1"><div class="lecsub">Ready to log</div></div>
+    <button class="drill-lecbtn start" onclick="drillRowStart('${col}','${it.id}')">▶ Start</button></div>`;
+}
+
+function drillRenderManualRow(col,it){
+  if(!(it.subject&&it.topic)){
+    return `<div class="drill-lecrow"><div class="drill-lecsetup">
+      <span style="font-size:11px;font-weight:900;color:#fca5a5">✍ Manual</span>
+      <select onchange="drillLecSet('${col}','${it.id}','subject',this.value)">${drillSubjectOptions(it.subject)}</select>
+      <select onchange="drillLecSet('${col}','${it.id}','topic',this.value)">${drillTopicOptions(it.subject,it.topic)}</select>
+      <button class="drill-mini del" onclick="drillRemoveRowConfirm('${col}','${it.id}')" title="Remove">✕</button>
+    </div></div>`;
+  }
+  return `<div class="drill-lecrow">
+    <div class="drill-lecrow-head">
+      <div class="drill-lecrow-title"><span class="sub" style="color:#fca5a5">✍ ${drillEsc(it.subject)}</span><span class="tp">· ${drillEsc(it.topic)}</span></div>
+      <div class="drill-lecrow-tools"><button class="drill-mini del" onclick="drillRemoveRowConfirm('${col}','${it.id}')" title="Remove">✕</button></div>
+    </div>
+    ${drillRowTimer(col,it)}
+  </div>`;
+}
+
+function drillRenderMockManRow(col,it){
+  if(!it.name){
+    return `<div class="drill-lecrow"><div class="drill-lecsetup">
+      <span style="font-size:11px;font-weight:900;color:#fcd34d">🎯 Mock</span>
+      <input type="text" placeholder="Mock name…" value="${drillEsc(it.name||'')}" id="mockname-${it.id}" style="min-width:130px">
+      <button class="go" onclick="drillMockManCreate('${col}','${it.id}')">Add</button>
+      <button class="drill-mini del" onclick="drillRemoveRowConfirm('${col}','${it.id}')" title="Remove">✕</button>
+    </div></div>`;
+  }
+  return `<div class="drill-lecrow">
+    <div class="drill-lecrow-head">
+      <div class="drill-lecrow-title"><span class="sub" style="color:#fcd34d">🎯 ${drillEsc(it.name)}</span></div>
+      <div class="drill-lecrow-tools"><button class="drill-mini del" onclick="drillRemoveRowConfirm('${col}','${it.id}')" title="Remove">✕</button></div>
+    </div>
+    ${drillRowTimer(col,it)}
+  </div>`;
 }
 function drillRefresh(){ drillRender(); }
 
@@ -17018,7 +17200,10 @@ window.drillRenderTimeline=drillRenderTimeline;
 let _drillTickerId=null;
 function drillAnyDoing(){
   const e=drillEntry(drillViewDate);
-  return DRILL_COLS.some(c=> e[c].some(it=> it.type==='lecture' && Array.isArray(it.lecs) && it.lecs.some(l=>l.status==='doing')));
+  return DRILL_COLS.some(c=> e[c].some(it=>{
+    if(it.type==='lecture') return Array.isArray(it.lecs) && it.lecs.some(l=>l.status==='doing');
+    return it.status==='doing';
+  }));
 }
 function drillStartTicker(){
   if(_drillTickerId) return;
@@ -17057,10 +17242,12 @@ function drillRender(){
   if(drillAnyDoing()) drillStartTicker();
 }
 window.drillRender=drillRender; window.drillDayNav=drillDayNav; window.drillDayPick=drillDayPick;
-window.drillAddRow=drillAddRow; window.drillToggle=drillToggle; window.drillEditText=drillEditText; window.drillRemoveRow=drillRemoveRow;
+window.drillAddRow=drillAddRow; window.drillToggle=drillToggle; window.drillEditText=drillEditText; window.drillRemoveRow=drillRemoveRow; window.drillRemoveRowConfirm=drillRemoveRowConfirm;
 window.drillAddLecture=drillAddLecture; window.drillLecSet=drillLecSet; window.drillLecCreate=drillLecCreate; window.drillLecEditCount=drillLecEditCount;
 window.drillLecStart=drillLecStart; window.drillLecPause=drillLecPause; window.drillLecResume=drillLecResume; window.drillLecEnd=drillLecEnd; window.drillLecCheck=drillLecCheck; window.drillLecUndo=drillLecUndo;
 window.drillAddQuestions=drillAddQuestions; window.drillAddSrs=drillAddSrs; window.drillRefresh=drillRefresh;
+window.drillAddManual=drillAddManual; window.drillAddMockMan=drillAddMockMan; window.drillMockManCreate=drillMockManCreate;
+window.drillRowStart=drillRowStart; window.drillRowPause=drillRowPause; window.drillRowResume=drillRowResume; window.drillRowEnd=drillRowEnd;
 
 function dcDefaultItems(){
   return [
