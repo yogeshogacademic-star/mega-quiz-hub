@@ -15473,7 +15473,7 @@ function switchTab(tab,btn){
   if(tab==='home') renderHome();
   if(tab==='calendar'){ renderCalendar(); renderDayDetail(calSelectedDate); }
   if(tab==='stats') renderStats();
-  if(tab==='drill'){ drillViewDate=todayStr(); if(typeof drillBackupOnce==='function') drillBackupOnce(); if(typeof drillRepairOnce==='function') drillRepairOnce(); if(typeof drillRollover==='function') drillRollover(); drillRender(); }
+  if(tab==='drill'){ drillViewDate=todayStr(); if(typeof drillBackupOnce==='function') drillBackupOnce(); if(typeof drillRollover==='function') drillRollover(); drillRender(); }
   if(tab==='log'){ prefillLogTime(); renderTodayLogList(); }
 }
 
@@ -15674,19 +15674,6 @@ function logResume(date, id){
 
 // ── MIDNIGHT SPLIT HELPER ─────────────────────────────────────────────────
 // Returns { 'YYYY-MM-DD': ms } for each IST calendar day a segment falls on.
-// Parse a user-typed clock time. Accepts 12h AM/PM ("12:30 AM", "1:05pm", "1 pm")
-// and 24h ("00:30", "13:05"). Returns {h,m} in 24h, or null.
-function _parseUserClock(str){
-  if(str==null) return null;
-  var s=String(str).trim().toLowerCase().replace(/\s+/g,'');
-  var ap=s.match(/^(\d{1,2})[:.](\d{2})(am|pm)$/);
-  if(ap){ var h=+ap[1], mm=+ap[2]; if(h<1||h>12||mm>59) return null; if(ap[3]==='am'){ if(h===12) h=0; } else { if(h!==12) h+=12; } return {h:h,m:mm}; }
-  var ap2=s.match(/^(\d{1,2})(am|pm)$/);
-  if(ap2){ var h2=+ap2[1]; if(h2<1||h2>12) return null; if(ap2[2]==='am'){ if(h2===12) h2=0; } else { if(h2!==12) h2+=12; } return {h:h2,m:0}; }
-  var t=s.match(/^(\d{1,2})[:.](\d{2})$/);
-  if(t){ var h3=+t[1], m3=+t[2]; if(h3>23||m3>59) return null; return {h:h3,m:m3}; }
-  return null;
-}
 function _splitSegsByDate(segments){
   var byDate={};
   (segments||[]).forEach(function(seg){
@@ -15722,7 +15709,7 @@ function logDone(date, id){
       if(keepAll){
         l.segments.push({from:l.startTs,to:now});
       } else {
-        const endStr=prompt('When did you actually END this? Enter the time in AM/PM (e.g. 12:30 AM or 1:05 PM), IST.\nStart was '+to12hr(startClock)+'.\n\nLeave blank + OK to DELETE this whole log (e.g. you slept):', '');
+        const endStr=prompt('Enter the EXACT time you ENDED this segment (24h HH:MM, IST).\nStart was '+startClock+'.\n\nLeave blank + OK to DELETE this whole log (e.g. you slept):', '');
         if(endStr===null){
           l.segments.push({from:l.startTs,to:now});
         } else if(endStr.trim()===''){
@@ -15731,10 +15718,10 @@ function logDone(date, id){
             return;
           } else { l.segments.push({from:l.startTs,to:now}); }
         } else {
-          const pc=_parseUserClock(endStr);
-          if(pc){
+          const m=endStr.trim().match(/^(\d{1,2}):(\d{2})$/);
+          if(m){
             const startDayStr=new Date(l.startTs).toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
-            let endTs=new Date(startDayStr+'T'+String(pc.h).padStart(2,'0')+':'+String(pc.m).padStart(2,'0')+':00+05:30').getTime();
+            let endTs=new Date(startDayStr+'T'+String(m[1]).padStart(2,'0')+':'+m[2]+':00+05:30').getTime();
             if(endTs<=l.startTs) endTs+=24*3600*1000;
             l.segments.push({from:l.startTs,to:endTs});
           } else {
@@ -17245,14 +17232,12 @@ function drillUpdateCounts(){
 }
 
 // ══════════════ DAILY DRILL — CARRY-FORWARD ══════════════
-// One row per chapter. An unfinished lecture/practice row moves to today,
-// carrying its running count, until it is complete. If the same chapter is
-// already on today, the two MERGE and keep the higher count — progress is
-// never dropped.
+// Anything not finished (lecture / practice / SRS / R1 / task) moves to today,
+// carrying its progress, and keeps moving each day until it's complete.
+// Finished rows stay on the day they were finished. One row per chapter — if a
+// duplicate lands on today, they merge and the higher count wins (nothing dropped).
 function _drillStampDate(d){ D.meta=D.meta||{}; D.meta.drillAt=D.meta.drillAt||{}; D.meta.drillAt[d]=Date.now(); }
 
-// Merge two lecture rows of the SAME chapter into `target` — union of progress,
-// so the higher count always wins and nothing is lost.
 function drillMergeLecRows(target, extra){
   var total=Math.max(target.total||0, extra.total||0, (target.lecs||[]).length, (extra.lecs||[]).length);
   var A=target.lecs||[], B=extra.lecs||[], out=[];
@@ -17268,8 +17253,6 @@ function drillMergeLecRows(target, extra){
   return target;
 }
 
-// Place a carried row onto today: lectures merge by chapter; questions/srs
-// dedupe by chapter; tasks dedupe by id/text.
 function drillMergeIntoToday(todayEntry, col, it){
   var list=todayEntry[col];
   if(it.type==='lecture' && it.subject && it.topic){
@@ -17286,7 +17269,6 @@ function drillMergeIntoToday(todayEntry, col, it){
   list.push(it);
 }
 
-// Carry every unfinished leftover from past days onto today.
 function drillRollover(){
   try{
     D.drill=D.drill||{};
@@ -17306,7 +17288,7 @@ function drillRollover(){
             it.lecs.forEach(function(l){
               if(!l||!l.logId) return;
               if(l.status==='doing'){
-                if(typeof logDone==='function') logDone(pd,l.logId);             // asks when it ended (AM/PM), splits across midnight
+                if(typeof logDone==='function') logDone(pd,l.logId);
                 var lg=(D.logs[pd]||[]).find(function(x){ return x.id===l.logId; });
                 if(lg && lg.status==='done'){ l.status='done'; l.hrs=lg.hrs||0; }
                 else if(!lg){ l.status='todo'; l.logId=null; l.hrs=0; }
@@ -17328,7 +17310,7 @@ function drillRollover(){
   }catch(e){ console.warn('drillRollover error',e); }
 }
 
-// Snapshot drill+logs once per day before rollover, so a bad pass is never fatal.
+// Snapshot drill+logs once per day before rollover, so nothing is ever lost for good.
 function drillBackupOnce(){
   try{
     var stamp=todayStr();
@@ -17339,69 +17321,7 @@ function drillBackupOnce(){
     }
   }catch(e){}
 }
-
-// ── ONE-TIME repair of data damaged by an earlier build. Runs once, then
-//    disables itself (localStorage flag). Restores lost lecture counts from
-//    the timer-logs, puts rows back under the right subject, merges duplicate
-//    chapters, and removes empty carried rows. Not part of the daily flow.
-function drillRepairOnce(){
-  try{
-    if(localStorage.getItem('drill_repair_v1')==='done') return;
-    var sectFor=function(subj){
-      var s=(subj||'').toLowerCase();
-      if(!s) return '';
-      if(s.indexOf('reasoning')>-1) return 'Reasoning';
-      if(s.indexOf('english')>-1) return 'English';
-      if(['arithmetic','advanced math','advance math','maths','math','quant'].some(function(k){ return s.indexOf(k)>-1; })) return 'Quant';
-      return 'GS';
-    };
-    var doneNosFromLogs=function(subject,topic,isRev){
-      var nos=new Set();
-      Object.keys(D.logs||{}).forEach(function(d){
-        (D.logs[d]||[]).forEach(function(l){
-          if(l && l.type==='lecture' && l.status==='done' && l.subject===subject && l.chapter===topic && (!!l.isRevision===!!isRev) && l.lectureNo) nos.add(Number(l.lectureNo));
-        });
-      });
-      return nos;
-    };
-    var repairLec=function(col,it){
-      if(!it||it.type!=='lecture') return;
-      if(!it.sect && it.subject) it.sect=sectFor(it.subject);
-      it.lecs=Array.isArray(it.lecs)?it.lecs:[];
-      it.total=it.total||it.lecs.length||0;
-      while(it.lecs.length<it.total) it.lecs.push({status:'todo',logId:null,hrs:0});
-      if(!it.total||!it.subject||!it.topic) return;
-      doneNosFromLogs(it.subject,it.topic,col==='revision').forEach(function(n){
-        if(n>=1&&n<=it.total){ var l=it.lecs[n-1]; if(l && l.status!=='done' && l.status!=='doing' && l.status!=='paused') l.status='done'; }
-      });
-    };
-    D.drill=D.drill||{};
-    Object.keys(D.drill).forEach(function(date){
-      var e=D.drill[date]; if(!e) return;
-      DRILL_COLS.forEach(function(col){
-        var rows=Array.isArray(e[col])?e[col]:[];
-        rows=rows.filter(function(it){ return !((it.type==='task'||!it.type) && !((it.text||'').trim()) && it._rolledFrom); });
-        rows.forEach(function(it){ if(it.type==='lecture') repairLec(col,it); });
-        var merged=[];
-        rows.forEach(function(it){
-          if(it.type==='lecture' && it.subject && it.topic){
-            var ex=merged.find(function(x){ return x.type==='lecture' && x.subject===it.subject && x.topic===it.topic; });
-            if(ex){ drillMergeLecRows(ex,it); return; }
-          }
-          if((it.type==='questions'||it.type==='srs') && it.subject && it.topic){
-            if(merged.some(function(x){ return x.type===it.type && x.subject===it.subject && x.topic===it.topic; })) return;
-          }
-          merged.push(it);
-        });
-        e[col]=merged;
-      });
-      _drillStampDate(date);
-    });
-    localStorage.setItem('drill_repair_v1','done');
-    save();
-  }catch(e){ console.warn('drillRepairOnce error',e); }
-}
-window.drillRollover=drillRollover; window.drillRepairOnce=drillRepairOnce; window.drillBackupOnce=drillBackupOnce;
+window.drillRollover=drillRollover; window.drillBackupOnce=drillBackupOnce;
 
 function drillRender(){
   const label = document.getElementById('drill-date-label');
