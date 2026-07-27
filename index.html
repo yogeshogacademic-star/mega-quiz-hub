@@ -15473,7 +15473,7 @@ function switchTab(tab,btn){
   if(tab==='home') renderHome();
   if(tab==='calendar'){ renderCalendar(); renderDayDetail(calSelectedDate); }
   if(tab==='stats') renderStats();
-  if(tab==='drill') drillRender();
+  if(tab==='drill'){ drillViewDate=todayStr(); if(typeof drillRollover==='function') drillRollover(); drillRender(); }
   if(tab==='log'){ prefillLogTime(); renderTodayLogList(); }
 }
 
@@ -15674,6 +15674,19 @@ function logResume(date, id){
 
 // ── MIDNIGHT SPLIT HELPER ─────────────────────────────────────────────────
 // Returns { 'YYYY-MM-DD': ms } for each IST calendar day a segment falls on.
+// Parse a user-entered clock time. Accepts 12h AM/PM ("12:30 AM", "1:05pm", "1 pm")
+// and 24h ("00:30", "13:05"). Returns {h,m} in 24h, or null if unparseable.
+function _parseUserClock(str){
+  if(str==null) return null;
+  var s=String(str).trim().toLowerCase().replace(/\s+/g,'');
+  var ap=s.match(/^(\d{1,2})[:.](\d{2})(am|pm)$/);
+  if(ap){ var h=+ap[1], mm=+ap[2]; if(h<1||h>12||mm>59) return null; if(ap[3]==='am'){ if(h===12) h=0; } else { if(h!==12) h+=12; } return {h:h,m:mm}; }
+  var ap2=s.match(/^(\d{1,2})(am|pm)$/);
+  if(ap2){ var h2=+ap2[1]; if(h2<1||h2>12) return null; if(ap2[2]==='am'){ if(h2===12) h2=0; } else { if(h2!==12) h2+=12; } return {h:h2,m:0}; }
+  var t=s.match(/^(\d{1,2})[:.](\d{2})$/);
+  if(t){ var h3=+t[1], m3=+t[2]; if(h3>23||m3>59) return null; return {h:h3,m:m3}; }
+  return null;
+}
 function _splitSegsByDate(segments){
   var byDate={};
   (segments||[]).forEach(function(seg){
@@ -15709,7 +15722,7 @@ function logDone(date, id){
       if(keepAll){
         l.segments.push({from:l.startTs,to:now});
       } else {
-        const endStr=prompt('Enter the EXACT time you ENDED this segment (24h HH:MM, IST).\nStart was '+startClock+'.\n\nLeave blank + OK to DELETE this whole log (e.g. you slept):', '');
+        const endStr=prompt('When did you actually END this? Enter the time in AM/PM (e.g. 12:30 AM or 1:05 PM), IST.\nStart was '+to12hr(startClock)+'.\n\nLeave blank + OK to DELETE this whole log (e.g. you slept):', '');
         if(endStr===null){
           l.segments.push({from:l.startTs,to:now});
         } else if(endStr.trim()===''){
@@ -15718,10 +15731,10 @@ function logDone(date, id){
             return;
           } else { l.segments.push({from:l.startTs,to:now}); }
         } else {
-          const m=endStr.trim().match(/^(\d{1,2}):(\d{2})$/);
-          if(m){
+          const pc=_parseUserClock(endStr);
+          if(pc){
             const startDayStr=new Date(l.startTs).toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
-            let endTs=new Date(startDayStr+'T'+String(m[1]).padStart(2,'0')+':'+m[2]+':00+05:30').getTime();
+            let endTs=new Date(startDayStr+'T'+String(pc.h).padStart(2,'0')+':'+String(pc.m).padStart(2,'0')+':00+05:30').getTime();
             if(endTs<=l.startTs) endTs+=24*3600*1000;
             l.segments.push({from:l.startTs,to:endTs});
           } else {
@@ -17230,6 +17243,75 @@ function drillUpdateCounts(){
   const prog = document.getElementById('drill-progress');
   if(prog) prog.textContent = total ? `${done}/${total} done` : '';
 }
+
+// ── AUTO-ROLLOVER ────────────────────────────────────────────────────────
+// When a day ends with unfinished Daily-Drill rows, carry them forward to
+// today so nothing is stranded on a past date. Finished rows stay on their
+// own day as history; only leftovers travel, and they keep rolling each day
+// until completed.
+function _drillStampDate(d){ D.meta=D.meta||{}; D.meta.drillAt=D.meta.drillAt||{}; D.meta.drillAt[d]=Date.now(); }
+function _drillRowExistsToday(list, it){
+  if(!Array.isArray(list)) return false;
+  if(list.some(x=>x.id===it.id)) return true;                 // same row already moved today
+  if((it.type==='lecture'||it.type==='questions'||it.type==='srs') && it.subject && it.topic){
+    return list.some(x=>x.type===it.type && x.subject===it.subject && x.topic===it.topic); // same chapter already on today
+  }
+  return false;
+}
+function drillRollover(){
+  try{
+    D.drill = D.drill || {};
+    const today = todayStr();
+    const todayEntry = drillEntry(today);
+    const pastDates = Object.keys(D.drill).filter(d => d < today).sort(); // oldest first
+    let moved = 0;
+    pastDates.forEach(function(pd){
+      const src = D.drill[pd]; if(!src) return;
+      DRILL_COLS.forEach(function(col){
+        const rows = Array.isArray(src[col]) ? src[col] : [];
+        if(!rows.length) return;
+        const keep = [];
+        rows.forEach(function(it){
+          // 1) Settle any lecture left running/paused overnight.
+          if(it.type==='lecture' && Array.isArray(it.lecs)){
+            it.lecs.forEach(function(l){
+              if(!l || !l.logId) return;
+              if(l.status==='doing'){
+                // Ran past midnight without End — ask when it actually ended (AM/PM),
+                // log it correctly (splits across midnight), then mark this lecture done.
+                if(typeof logDone==='function') logDone(pd, l.logId);
+                const lg=(D.logs[pd]||[]).find(x=>x.id===l.logId);
+                if(lg && lg.status==='done'){ l.status='done'; l.hrs=lg.hrs||0; }
+                else if(!lg){ l.status='todo'; l.logId=null; l.hrs=0; } // user chose delete
+              }
+            });
+          }
+          // 2) Row finished now? Leave it on its own day as a record.
+          if(drillRowDone(it)){ keep.push(it); return; }
+          // 3) A paused lecture's log must live under today so Resume works there.
+          if(it.type==='lecture' && Array.isArray(it.lecs)){
+            it.lecs.forEach(function(l){
+              if(l && l.status==='paused' && l.logId){
+                const arr=D.logs[pd]||[]; const li=arr.findIndex(x=>x.id===l.logId);
+                if(li>-1){ const lg=arr.splice(li,1)[0]; lg.date=today; D.logs[today]=D.logs[today]||[]; D.logs[today].push(lg); }
+              }
+            });
+          }
+          // 4) Move the leftover row to today (skip if already represented there).
+          if(_drillRowExistsToday(todayEntry[col], it)) return;
+          it._rolledFrom = it._rolledFrom || pd;
+          todayEntry[col].push(it);
+          moved++;
+        });
+        src[col] = keep;
+      });
+      _drillStampDate(pd);
+    });
+    if(moved>0){ _drillStampDate(today); save(); }
+    return moved;
+  }catch(e){ console.warn('drillRollover error', e); }
+}
+window.drillRollover = drillRollover;
 
 function drillRender(){
   const label = document.getElementById('drill-date-label');
