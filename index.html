@@ -3461,19 +3461,53 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
             merged.checklist = merged.checklist || {};
 
             // LOGS: merge day-by-day, id-by-id, latest ts wins, auto-log dedup
-            // DRILL: per-day last-writer-wins using D.meta.drillAt stamps.
+            // DRILL: per-day, per-COLUMN, per-ROW union by id. A row added on EITHER
+            // device is always kept — nothing is dropped. Same-id conflicts (the rare
+            // case two devices edited the identical row) resolve to the "further-along /
+            // richer" copy. This replaces the old whole-day last-writer-wins merge, which
+            // silently wiped the other device's rows — most visibly the Revision column,
+            // which (unlike New-Topic/Mock) has no separate synced backing to recover from.
             merged.drill = merged.drill || {};
             merged.meta = merged.meta || {};
             merged.meta.drillAt = merged.meta.drillAt || {};
             const _localDrill = _lp.drill || {};
             const _localDrillAt = (_lp.meta && _lp.meta.drillAt) || {};
             const _cloudDrillAt = (cloud.meta && cloud.meta.drillAt) || {};
-            Object.keys(_localDrill).forEach(d => {
-                const lt = _localDrillAt[d] || 0, ct = _cloudDrillAt[d] || 0;
-                if (!merged.drill[d] || lt > ct) {
-                    merged.drill[d] = _localDrill[d];
-                    merged.meta.drillAt[d] = Math.max(lt, ct);
-                }
+            const _DRILL_COLS = ['newTopic','revision','mock'];
+            const _drillRowScore = (it) => {
+                if (!it) return -1;
+                let s = 0;
+                if (it.done) s += 2;
+                if (it.status === 'done') s += 3;
+                else if (it.status === 'paused' || it.status === 'doing') s += 1;
+                if (Array.isArray(it.lecs)) s += it.lecs.filter(l => l && l.status === 'done').length;
+                if (it.subject) s += 1;
+                if (it.topic) s += 1;
+                if (it.name) s += 1;
+                if ((it.text || '').trim()) s += 1;
+                if (it.logId) s += 1;
+                return s;
+            };
+            const _mergeDrillCol = (localArr, cloudArr) => {
+                const byId = {}; const order = [];
+                (Array.isArray(cloudArr) ? cloudArr : []).forEach(it => {
+                    if (it && it.id != null && !(it.id in byId)) { byId[it.id] = it; order.push(it.id); }
+                });
+                (Array.isArray(localArr) ? localArr : []).forEach(it => {
+                    if (!it || it.id == null) return;
+                    if (!(it.id in byId)) { byId[it.id] = it; order.push(it.id); }
+                    else if (_drillRowScore(it) >= _drillRowScore(byId[it.id])) { byId[it.id] = it; }
+                });
+                return order.map(id => byId[id]);
+            };
+            const _allDrillDays = new Set([...Object.keys(merged.drill || {}), ...Object.keys(_localDrill)]);
+            _allDrillDays.forEach(d => {
+                const localDay = (_localDrill[d] && typeof _localDrill[d] === 'object') ? _localDrill[d] : {};
+                const cloudDay = (merged.drill[d] && typeof merged.drill[d] === 'object') ? merged.drill[d] : {};
+                const outDay = {};
+                _DRILL_COLS.forEach(c => { outDay[c] = _mergeDrillCol(localDay[c], cloudDay[c]); });
+                merged.drill[d] = outDay;
+                merged.meta.drillAt[d] = Math.max(_localDrillAt[d] || 0, _cloudDrillAt[d] || 0);
             });
 
             const localLogs = _lp.logs || {};
@@ -3610,6 +3644,15 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
             if (window._plannerLoaded && typeof load === 'function') {
                 load();
                 if (typeof renderHome === 'function') renderHome();
+                // If the Daily Drill tab is currently open, re-render it too so freshly
+                // merged rows (e.g. Revision) show immediately without switching tabs.
+                try {
+                    const _ds = document.getElementById('screen-drill');
+                    if (_ds && _ds.classList.contains('active') && typeof drillRender === 'function') {
+                        if (typeof todayStr === 'function') drillViewDate = todayStr();
+                        drillRender();
+                    }
+                } catch(_e) {}
             }
         } catch(e) { console.warn('[War Room Sync] Merge error:', e); }}
         const cloudQCount = Object.values(db).reduce((a,subj) => {
@@ -17275,38 +17318,45 @@ function drillRollover(){
     var today=todayStr();
     var todayEntry=drillEntry(today);
     var pastDates=Object.keys(D.drill).filter(function(d){ return d<today; }).sort();
+    var changed=false;       // any real mutation happened -> worth saving
+    var todayTouched=false;  // today actually received a carried-forward row
     pastDates.forEach(function(pd){
       var src=D.drill[pd]; if(!src) return;
+      var pdTouched=false;   // this past day actually changed -> restamp only then
       DRILL_COLS.forEach(function(col){
         var rows=Array.isArray(src[col])?src[col]:[];
         if(!rows.length) return;
         var keep=[];
         rows.forEach(function(it){
           if(drillRowDone(it)){ keep.push(it); return; }                        // finished -> stays as that day's record
-          if((it.type==='task'||!it.type) && !((it.text||'').trim())){ return; } // blank task -> don't carry
+          if((it.type==='task'||!it.type) && !((it.text||'').trim())){ pdTouched=true; return; } // blank task -> drop (changes the day)
           if(it.type==='lecture' && Array.isArray(it.lecs)){                     // settle a lecture left running/paused overnight
             it.lecs.forEach(function(l){
               if(!l||!l.logId) return;
               if(l.status==='doing'){
                 if(typeof logDone==='function') logDone(pd,l.logId);
                 var lg=(D.logs[pd]||[]).find(function(x){ return x.id===l.logId; });
-                if(lg && lg.status==='done'){ l.status='done'; l.hrs=lg.hrs||0; }
-                else if(!lg){ l.status='todo'; l.logId=null; l.hrs=0; }
+                if(lg && lg.status==='done'){ l.status='done'; l.hrs=lg.hrs||0; pdTouched=true; }
+                else if(!lg){ l.status='todo'; l.logId=null; l.hrs=0; pdTouched=true; }
               } else if(l.status==='paused'){
                 var arr=D.logs[pd]||[]; var li=arr.findIndex(function(x){ return x.id===l.logId; });
-                if(li>-1){ var mlg=arr.splice(li,1)[0]; mlg.date=today; D.logs[today]=D.logs[today]||[]; D.logs[today].push(mlg); }
+                if(li>-1){ var mlg=arr.splice(li,1)[0]; mlg.date=today; D.logs[today]=D.logs[today]||[]; D.logs[today].push(mlg); pdTouched=true; todayTouched=true; }
               }
             });
           }
           if(drillRowDone(it)){ keep.push(it); return; }                         // became done while settling
           drillMergeIntoToday(todayEntry,col,it);
+          todayTouched=true; pdTouched=true;
         });
-        src[col]=keep;
+        if(keep.length!==rows.length){ src[col]=keep; pdTouched=true; }
       });
-      _drillStampDate(pd);
+      if(pdTouched){ _drillStampDate(pd); changed=true; }
     });
-    _drillStampDate(today);
-    save();
+    if(todayTouched){ _drillStampDate(today); changed=true; }
+    // Only save/push when something actually moved. Previously this ran on every
+    // drill-tab open, restamping today's timestamp and letting a device that merely
+    // OPENED the drill overwrite another device's edits cloud-wide.
+    if(changed) save();
   }catch(e){ console.warn('drillRollover error',e); }
 }
 
