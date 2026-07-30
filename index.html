@@ -1809,7 +1809,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-07-24 · v25.8';
+    const HUB_BUILD = '2026-07-29 · v25.9';
 
     // ============================================================
     // GLOBAL TOAST (v25.6) — every native alert() popup in the hub
@@ -9871,8 +9871,7 @@ window.retryWrong = function() {
     <div id="mt-step-form" style="display:none">
       <div id="mt-challenge-toggle-wrap" style="margin-bottom:14px"></div>
       <div class="mt-field-row">
-        <div><label class="mt-label">Platform / Series</label><input class="mt-input" id="mt-platform" type="text" placeholder="e.g. Testbook, KD Campus"/></div>
-        <div><label class="mt-label">Mock Number</label><input class="mt-input" id="mt-mockno" type="text" placeholder="e.g. Mock 7"/></div>
+        <div style="flex:1"><label class="mt-label">Platform / Series</label><input class="mt-input" id="mt-platform" type="text" placeholder="e.g. Testbook, KD Campus"/></div>
       </div>
       <div class="mt-field-row three">
         <div><label class="mt-label">Date</label><input class="mt-input" id="mt-date" type="date"/></div>
@@ -9890,25 +9889,6 @@ window.retryWrong = function() {
         <div><label class="mt-label">Total Candidates (fill later if unknown)</label><input class="mt-input" id="mt-rank-total" type="number" placeholder="e.g. 85000" oninput="mtCalcPercentile()"/></div>
       </div>
       <div id="mt-percentile-display" style="display:none;background:#e0e7ff;border-radius:10px;padding:8px 14px;margin-bottom:12px;font-size:13px;font-weight:900;color:#4338ca">📊 Percentile: <span id="mt-percentile-val">—</span></div>
-      <div style="margin-bottom:12px">
-        <label class="mt-label">Focus Level</label>
-        <div class="mt-rating-row" id="mt-focus-stars">
-          <button class="mt-star-btn" data-f="1" onclick="mtSetFocus(1)">★</button>
-          <button class="mt-star-btn" data-f="2" onclick="mtSetFocus(2)">★</button>
-          <button class="mt-star-btn" data-f="3" onclick="mtSetFocus(3)">★</button>
-          <button class="mt-star-btn" data-f="4" onclick="mtSetFocus(4)">★</button>
-          <button class="mt-star-btn" data-f="5" onclick="mtSetFocus(5)">★</button>
-          <span id="mt-focus-lbl" style="font-size:11px;font-weight:700;color:#94a3b8;margin-left:6px"></span>
-        </div>
-      </div>
-      <div style="margin-bottom:12px">
-        <label class="mt-label">Post-mock Feeling</label>
-        <div style="display:flex;gap:8px;margin-top:6px">
-          <button class="mt-subj-btn" data-feel="Confident" onclick="mtSelectFeeling(this,'Confident')">😎 Confident</button>
-          <button class="mt-subj-btn" data-feel="Neutral" onclick="mtSelectFeeling(this,'Neutral')">😐 Neutral</button>
-          <button class="mt-subj-btn" data-feel="Felt Bad" onclick="mtSelectFeeling(this,'Felt Bad')">😟 Felt Bad</button>
-        </div>
-      </div>
       <div class="mt-section-card">
         <div class="mt-section-title" id="mt-sect-data-title">Section-wise Data — Total | Attempted | Correct | Wrong</div>
         <div class="mt-sect-grid" id="mt-sect-grid"></div>
@@ -9929,7 +9909,7 @@ window.retryWrong = function() {
     <div class="mt-filter-row">
       <select class="mt-input" id="mt-pf-filter" onchange="mtRenderHistory()"><option value="">All Platforms</option></select>
       <select class="mt-input" id="mt-df-filter" onchange="mtRenderHistory()"><option value="">All Difficulties</option><option>Easy</option><option>Medium</option><option>Hard</option></select>
-      <div class="mt-tf-group" id="mt-tf-group"><input type="hidden" id="mt-tf-filter" value=""/><button type="button" class="mt-tf-btn active" data-t="full" onclick="mtToggleType('full','mt-tf-group')">📄 Full Mock</button><button type="button" class="mt-tf-btn active" data-t="sectional" onclick="mtToggleType('sectional','mt-tf-group')">⚔️ Sectional</button></div>
+      <div class="mt-tf-group" id="mt-tf-group"><input type="hidden" id="mt-tf-filter" value="full"/><button type="button" class="mt-tf-btn active" data-t="full" onclick="mtToggleType('full','mt-tf-group')">📄 Full Mock</button><button type="button" class="mt-tf-btn" data-t="sectional" onclick="mtToggleType('sectional','mt-tf-group')">⚔️ Sectional</button></div>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
       <button onclick="mtExportSheet()" style="padding:9px 16px;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:900;cursor:pointer;box-shadow:0 2px 6px rgba(79,70,229,0.25)">📄 Export Full-Mock Sheet</button>
@@ -9942,7 +9922,6 @@ window.retryWrong = function() {
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
       <button class="mt-an-tab active" onclick="mtAnSwitch('full',this)">📋 Full Mock</button>
       <button class="mt-an-tab" onclick="mtAnSwitch('sectional',this)">🎯 Sectional</button>
-      <button class="mt-an-tab" onclick="mtAnSwitch('conditions',this)">🧠 Best Conditions</button>
     </div>
     <div id="mt-an-full">
       <div class="mt-metric-grid" id="mt-metrics"></div>
@@ -9976,7 +9955,6 @@ window.retryWrong = function() {
       </div>
       <div id="mt-drill-content"></div>
     </div>
-    <div id="mt-an-conditions" style="display:none"><div id="mt-conditions-content"></div></div>
   </div>
 
   <!-- STREAK TAB -->
@@ -10016,8 +9994,7 @@ window.retryWrong = function() {
 
     <!-- Basic Info -->
     <div class="mt-field-row">
-      <div><label class="mt-label">Platform</label><input class="mt-input" id="mt-edit-platform" placeholder="e.g. Adda247, Testbook"/></div>
-      <div><label class="mt-label">Mock No.</label><input class="mt-input" id="mt-edit-mockno" placeholder="e.g. 5"/></div>
+      <div style="flex:1"><label class="mt-label">Platform</label><input class="mt-input" id="mt-edit-platform" placeholder="e.g. Adda247, Testbook"/></div>
     </div>
     <div class="mt-field-row three">
       <div><label class="mt-label">Date</label><input class="mt-input" id="mt-edit-date" type="date"/></div>
@@ -10057,10 +10034,7 @@ window.retryWrong = function() {
 
     <!-- Feeling & Notes -->
     <div class="mt-field-row" style="margin-top:4px">
-      <div><label class="mt-label">Post-mock Feeling</label>
-        <select class="mt-input" id="mt-edit-feeling"><option value="">--</option><option>Confident</option><option>Neutral</option><option>Felt Bad</option></select>
-      </div>
-      <div><label class="mt-label">Key Takeaway</label><input class="mt-input" id="mt-edit-takeaway" placeholder="One line summary"/></div>
+      <div style="flex:1"><label class="mt-label">Key Takeaway</label><input class="mt-input" id="mt-edit-takeaway" placeholder="One line summary"/></div>
     </div>
     <div><label class="mt-label">Wrong Notes / Areas to improve</label>
       <textarea class="mt-input" id="mt-edit-wrongs" rows="4" style="resize:vertical" placeholder="Topics that need work..."></textarea>
@@ -10086,6 +10060,105 @@ window.retryWrong = function() {
   function mtLoad(){ try{ mtMocks=JSON.parse(localStorage.getItem('ssc_mock_tracker')||'[]'); }catch(e){ mtMocks=[]; } }
   function mtSave(){ localStorage.setItem('ssc_mock_tracker',JSON.stringify(mtMocks)); }
   function mtToast(msg){ const t=document.getElementById('mt-toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2300); }
+
+  /* ═══════════ WRONG-QUESTION ANALYSIS TRACKING ═══════════
+     analysed status lives on each mock as m.analysed[subject]={done,date}.
+     Single source of truth: ticking in the Daily Drill "Analysis" flow writes it;
+     History shows it read-only (with a ↺ reopen). Cloud-synced like all mtMocks. */
+  function mtIsAnalysed(m,s){ return !!(m.analysed && m.analysed[s] && m.analysed[s].done); }
+  // Pending mocks for a subject: full mocks (that section exists) + sectionals of that subject, not yet analysed.
+  window.mtGetAnalysisPending=function(subject){
+    return mtMocks.filter(m=>{
+      if(m.type==='sectional') return m.subject===subject && !mtIsAnalysed(m,subject);
+      return m.sections && m.sections[subject] && !mtIsAnalysed(m,subject);
+    }).sort((a,b)=>(a.date||'').localeCompare(b.date||'')||a.id-b.id)
+      .map(m=>({ id:m.id, type:m.type, no:m.mockno, platform:m.platform, date:m.date }));
+  };
+  window.mtMarkAnalysed=function(subject, ids, dateStr){
+    const d=dateStr||new Date().toISOString().split('T')[0]; let n=0;
+    (ids||[]).forEach(id=>{ const m=mtMocks.find(x=>x.id===id); if(m){ m.analysed=m.analysed||{}; if(!mtIsAnalysed(m,subject)){ m.analysed[subject]={done:true,date:d}; n++; } } });
+    if(n){ mtSave(); if(typeof mtRenderHistory==='function') mtRenderHistory(); }
+    return n;
+  };
+  window.mtUnmarkAnalysed=function(id, subject){
+    const m=mtMocks.find(x=>x.id===id);
+    if(m&&m.analysed&&m.analysed[subject]){ delete m.analysed[subject]; mtSave(); if(typeof mtRenderHistory==='function') mtRenderHistory(); mtToast('↺ '+subject+' reopened — pending again'); }
+  };
+
+  /* Analysis modal — subject-first, tick pending mocks (full + sectional grouped), one time entry */
+  let mtAnSubject='';
+  function mtAnEnsureModal(){
+    if(document.getElementById('mt-an-modal')) return;
+    const wrap=document.createElement('div');
+    wrap.id='mt-an-modal';
+    wrap.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;align-items:center;justify-content:center;padding:16px;overflow-y:auto';
+    wrap.innerHTML=`<div style="background:#fff;border-radius:20px;padding:22px;max-width:540px;width:100%;max-height:90vh;overflow-y:auto" class="dark:bg-slate-900">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <span style="font-size:16px;font-weight:900;color:#1e293b" class="dark:text-slate-100">📊 Log Mock Analysis</span>
+        <button onclick="mtAnClose()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8">×</button>
+      </div>
+      <div style="font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:8px">Step 1 — Which subject did you analyse?</div>
+      <div id="mt-an-subj-row" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+        <button class="mt-subj-btn" onclick="mtAnPickSubject('Quant',this)">📐 Quant</button>
+        <button class="mt-subj-btn" onclick="mtAnPickSubject('English',this)">📖 English</button>
+        <button class="mt-subj-btn" onclick="mtAnPickSubject('Reasoning',this)">🧠 Reasoning</button>
+        <button class="mt-subj-btn" onclick="mtAnPickSubject('GK',this)">🌍 GK</button>
+      </div>
+      <div id="mt-an-body" style="display:none">
+        <div style="font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:8px">Step 2 — Tick the mocks you analysed</div>
+        <div id="mt-an-list" style="max-height:38vh;overflow-y:auto;border:1px solid #e2e8f0;border-radius:12px;padding:10px;margin-bottom:14px" class="dark:border-slate-700"></div>
+        <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:14px">
+          <div style="flex:1"><label class="mt-label">Time spent (minutes)</label><input class="mt-input" id="mt-an-mins" type="number" min="1" placeholder="e.g. 45"/></div>
+          <div style="font-size:11px;font-weight:700;color:#94a3b8;padding-bottom:12px" id="mt-an-count">0 selected</div>
+        </div>
+        <button onclick="mtAnConfirm()" style="width:100%;padding:13px;background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;border:none;border-radius:14px;font-size:14px;font-weight:900;cursor:pointer">✓ Mark analysed + log time</button>
+      </div>
+    </div>`;
+    document.body.appendChild(wrap);
+  }
+  window.mtOpenAnalysisModal=function(){
+    mtAnEnsureModal(); mtAnSubject='';
+    document.querySelectorAll('#mt-an-subj-row .mt-subj-btn').forEach(b=>{ b.classList.remove('selected'); b.style.background=''; b.style.color=''; });
+    document.getElementById('mt-an-body').style.display='none';
+    const mins=document.getElementById('mt-an-mins'); if(mins) mins.value='';
+    document.getElementById('mt-an-modal').style.display='flex';
+  };
+  window.mtAnClose=function(){ const m=document.getElementById('mt-an-modal'); if(m) m.style.display='none'; };
+  window.mtAnPickSubject=function(s,btn){
+    mtAnSubject=s;
+    document.querySelectorAll('#mt-an-subj-row .mt-subj-btn').forEach(b=>{ b.classList.remove('selected'); b.style.background=''; b.style.color=''; });
+    if(btn){ btn.classList.add('selected'); btn.style.background='#0ea5e9'; btn.style.color='#fff'; }
+    const pending=window.mtGetAnalysisPending(s);
+    const full=pending.filter(p=>p.type!=='sectional');
+    const sect=pending.filter(p=>p.type==='sectional');
+    const item=p=>`<label style="display:flex;align-items:center;gap:9px;padding:7px 4px;cursor:pointer;font-size:13px;font-weight:700;color:#334155" class="dark:text-slate-200">
+      <input type="checkbox" class="mt-an-cb" value="${p.id}" onchange="mtAnUpdateCount()" style="width:17px;height:17px;accent-color:#0ea5e9"/>
+      <span style="font-weight:900;color:#0284c7">#${p.no}</span><span>${p.platform||''}</span><span style="color:#94a3b8;font-weight:600;font-size:11px">${p.date||''}</span></label>`;
+    const grp=(title,arr,color)=>arr.length?`<div style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;color:${color};margin:4px 0 2px">${title} (${arr.length})</div>${arr.map(item).join('')}`:'';
+    const list=document.getElementById('mt-an-list');
+    if(!pending.length){ list.innerHTML='<div style="text-align:center;color:#94a3b8;font-weight:700;padding:14px;font-size:13px">🎉 All '+s+' mocks analysed — nothing pending.</div>'; }
+    else { list.innerHTML=grp('📋 Full mocks',full,'#6366f1')+grp('🎯 Sectional — '+s,sect,'#7c3aed'); }
+    document.getElementById('mt-an-body').style.display='block';
+    mtAnUpdateCount();
+  };
+  window.mtAnUpdateCount=function(){
+    const n=document.querySelectorAll('#mt-an-list .mt-an-cb:checked').length;
+    const el=document.getElementById('mt-an-count'); if(el) el.textContent=n+' selected';
+  };
+  window.mtAnConfirm=function(){
+    const ids=Array.from(document.querySelectorAll('#mt-an-list .mt-an-cb:checked')).map(cb=>parseInt(cb.value));
+    if(!ids.length){ mtToast('Tick at least one mock!'); return; }
+    const mins=parseInt(document.getElementById('mt-an-mins')?.value)||0;
+    if(mins<=0){ mtToast('Enter minutes spent!'); return; }
+    // Build "#5, #8" label from the ticked mocks (in list order)
+    const nos=ids.map(id=>{ const m=mtMocks.find(x=>x.id===id); return m?('#'+m.mockno):''; }).filter(Boolean);
+    const label=nos.join(', ');
+    window.mtMarkAnalysed(mtAnSubject, ids, (typeof drillViewDate!=='undefined'?drillViewDate:null));
+    let logged=false;
+    if(typeof window.drillLogAnalysis==='function'){ try{ window.drillLogAnalysis(mtAnSubject, label, mins, ids); logged=true; }catch(e){} }
+    mtAnClose();
+    mtToast('✓ '+mtAnSubject+' analysis logged'+(logged?' — '+mins+' min to study hours':''));
+  };
 
   /* TAG - free text input, no chips */
   /* FEELING */
@@ -10193,8 +10266,11 @@ window.retryWrong = function() {
     if(!mtCurrentType){ mtToast('Select Full or Sectional first!'); return; }
     if(mtCurrentType==='sectional'&&!mtCurrentSubject){ mtToast('Select a subject!'); return; }
     const platform=document.getElementById('mt-platform').value.trim();
-    const mockno=document.getElementById('mt-mockno').value.trim();
-    if(!platform||!mockno){ mtToast('Enter platform and mock number!'); return; }
+    if(!platform){ mtToast('Enter platform / series!'); return; }
+    // Auto mock number — sequential per type (+subject for sectionals), assigned at save so it never shifts
+    const _grpFn = mtCurrentType==='full' ? (x=>x.type!=='sectional') : (x=>x.type==='sectional' && x.subject===mtCurrentSubject);
+    const _maxNo = mtMocks.filter(_grpFn).reduce((mx,x)=>{ const n=parseInt(String(x.mockno).replace(/\D/g,''))||0; return n>mx?n:mx; }, 0);
+    const mockno = String(_maxNo+1);
     const sectList=mtCurrentType==='full'?SECTS:[mtCurrentSubject];
     const sections={};
     sectList.forEach(s=>{ const _c=parseInt(document.getElementById(`mts-cor-${s}`)?.value)||0, _w=parseInt(document.getElementById(`mts-wr-${s}`)?.value)||0; sections[s]={ total:parseInt(document.getElementById(`mts-tot-${s}`)?.value)||0, attempted:_c+_w, correct:_c, wrong:_w }; });
@@ -10208,7 +10284,6 @@ window.retryWrong = function() {
       date:document.getElementById('mt-date').value||new Date().toISOString().split('T')[0],
       tag:document.getElementById('mt-tag').value.trim(),
       difficulty:document.getElementById('mt-diff').value,
-      focus:mtFocus, feeling:mtCurrentFeeling,
       rank:rankNum||null, rankTotal:rankTotal||null, percentile,
       takeaway:document.getElementById('mt-takeaway').value.trim(),
       sections, wrongs:document.getElementById('mt-wrongs').value.trim(),
@@ -10232,7 +10307,7 @@ window.retryWrong = function() {
   };
 
   function mtResetLogForm(){
-    ['mt-platform','mt-mockno','mt-wrongs','mt-takeaway','mt-rank-num','mt-rank-total','mt-tag'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    ['mt-platform','mt-wrongs','mt-takeaway','mt-rank-num','mt-rank-total','mt-tag'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
     const _st=document.getElementById('mt-start-time'); if(_st) _st.value='09:00';
     const _et=document.getElementById('mt-end-time'); if(_et) _et.value='10:00';
     const d=document.getElementById('mt-date'); if(d) d.value=new Date().toISOString().split('T')[0];
@@ -10381,7 +10456,6 @@ window.retryWrong = function() {
         <td class="c" style="color:${SECT_COLORS.Reasoning}">${sc('Reasoning')}</td>
         <td class="c" style="color:${SECT_COLORS.GK}">${sc('GK')}</td>
         <td class="c">${m.difficulty||'—'}</td>
-        <td class="c">${m.feeling||'—'}</td>
       </tr>`;
     }).join('');
     const nets=full.map(m=>m.net);
@@ -10389,7 +10463,7 @@ window.retryWrong = function() {
     const best=Math.max(...nets).toFixed(1);
     const worst=Math.min(...nets).toFixed(1);
     const chCount=full.filter(m=>m.challenge).length;
-    const colSpanRest=cutoff>0?13:12;
+    const colSpanRest=cutoff>0?12:11;
     const footer=`<tr class="foot">
       <td class="c" colspan="5" style="text-align:right">TOTALS →</td>
       <td class="c">Avg ${avg}</td>
@@ -10398,7 +10472,7 @@ window.retryWrong = function() {
     const head=`<tr>
       <th>#</th><th>Series</th><th>Date</th><th>Platform</th><th>Mock No.</th><th>Net</th><th>Δ Prev</th><th>Run Avg</th>
       ${cutoff>0?'<th>Cutoff Gap</th>':''}
-      <th>Rank</th><th>%ile</th><th>Quant<br>C/A</th><th>Eng<br>C/A</th><th>Reas<br>C/A</th><th>GK<br>C/A</th><th>Diff</th><th>Feeling</th>
+      <th>Rank</th><th>%ile</th><th>Quant<br>C/A</th><th>Eng<br>C/A</th><th>Reas<br>C/A</th><th>GK<br>C/A</th><th>Diff</th>
     </tr>`;
     const today=new Date().toISOString().split('T')[0];
     const doc=`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Full Mock Sheet — ${today}</title>
@@ -10472,8 +10546,6 @@ window.retryWrong = function() {
             <span style="font-size:11px;font-weight:700;color:#94a3b8">${m.date}${pctStr}</span>
           </div>
           <div style="display:flex;align-items:center;gap:6px">
-            ${feel?`<span style="font-size:16px">${feel}</span>`:''}
-            ${m.focus?`<span style="font-size:11px;color:#f59e0b">${'★'.repeat(m.focus)}</span>`:''}
             <span style="font-size:17px;font-weight:900;color:${netColor}">${m.net.toFixed(1)}</span>
             <span class="mt-badge mt-badge-${(m.difficulty||'medium').toLowerCase()}">${m.difficulty||'Medium'}</span>
             <button onclick="event.stopPropagation();mtOpenEdit(${m.id})" style="padding:4px 10px;background:transparent;color:#6366f1;border:1px solid #c7d2fe;border-radius:8px;font-size:11px;font-weight:900;cursor:pointer">Edit</button>
@@ -10481,6 +10553,10 @@ window.retryWrong = function() {
           </div>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${pills}</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;align-items:center">
+          <span style="font-size:10px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px">📊 Analysis</span>
+          ${activeSects.map(s=>{ const done=m.analysed&&m.analysed[s]&&m.analysed[s].done; return `<span style="font-size:10px;font-weight:900;padding:2px 8px;border-radius:999px;background:${done?'#dcfce7':'#f1f5f9'};color:${done?'#15803d':'#94a3b8'}" class="${done?'dark:bg-green-900/40':'dark:bg-slate-700'}">${s} ${done?'✓':'·'}${done?` <span onclick="event.stopPropagation();mtUnmarkAnalysed(${m.id},'${s}')" style="cursor:pointer;color:#ef4444;margin-left:2px" title="Reopen — mark not analysed">↺</span>`:''}</span>`; }).join('')}
+        </div>
         <div id="mt-detail-${m.id}" class="mt-detail-box" style="display:none">
           ${m.takeaway?`<div style="font-weight:900;margin-bottom:6px;color:#6366f1">💡 ${m.takeaway}</div>`:''}
           <div style="font-weight:700">${m.wrongs||'No wrong notes.'}</div>
@@ -10573,7 +10649,6 @@ window.retryWrong = function() {
     if(btn) btn.classList.add('active');
     ['mt-an-full','mt-an-sectional','mt-an-conditions'].forEach((id,i)=>{ const el=document.getElementById(id); if(el) el.style.display=['full','sectional','conditions'][i]===tab?'block':'none'; });
     if(tab==='sectional') mtDrillSubject('Quant',document.querySelector('#mt-drill-subj-btns .mt-subj-btn'));
-    if(tab==='conditions') mtRenderConditions();
   };
 
   window.mtRenderAnalysis=function(){
@@ -10667,32 +10742,6 @@ window.retryWrong = function() {
     </div>
     ${sects.length?`<div class="mt-chart-wrap"><div class="mt-chart-title">${subj} Sectional Trend</div><div style="position:relative;height:170px"><canvas id="mt-drill-chart"></canvas></div></div>`:`<div class="mt-empty">No sectional mocks for ${subj} yet.</div>`}`;
     if(sects.length){ setTimeout(()=>{ const isDark=document.documentElement.classList.contains('dark'); const tc=isDark?'#64748b':'#94a3b8'; const gc=isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.05)'; if(mtCharts.drill) mtCharts.drill.destroy(); const cv=document.getElementById('mt-drill-chart'); if(!cv) return; mtCharts.drill=new Chart(cv.getContext('2d'),{type:'line',data:{labels:sects.map(m=>m.mockno),datasets:[{label:'Net',data:sects.map(m=>m.net),borderColor:SECT_COLORS[subj],backgroundColor:SECT_COLORS[subj]+'22',tension:0.35,fill:true,pointRadius:4,pointBackgroundColor:SECT_COLORS[subj]}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:tc,font:{size:10}},grid:{color:gc}},y:{ticks:{color:tc,font:{size:10}},grid:{color:gc}}}}}); },50); }
-  };
-
-  /* BEST CONDITIONS */
-  window.mtRenderConditions=function(){
-    const el=document.getElementById('mt-conditions-content'); if(!el) return;
-    const full=mtMocks.filter(m=>(m.type==='full'||!m.type)&&m.net);
-    if(full.length<3){ el.innerHTML='<div class="mt-empty">Log at least 3 full mocks to see insights.</div>'; return; }
-    function avgNet(arr){ return arr.length?arr.reduce((a,m)=>a+m.net,0)/arr.length:null; }
-    function insightCard(label,groups){
-      const rows=Object.entries(groups).map(([k,arr])=>({k,avg:avgNet(arr),n:arr.length})).filter(r=>r.avg!=null&&r.n>0).sort((a,b)=>b.avg-a.avg);
-      if(!rows.length) return '';
-      const maxAvg=Math.max(...rows.map(r=>r.avg));
-      const best=rows[0]; const worst=rows[rows.length-1]; const diff=best.avg-worst.avg;
-      return `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px;margin-bottom:10px" class="dark:bg-slate-800/40 dark:border-slate-700">
-        <div style="font-size:11px;font-weight:900;text-transform:uppercase;color:#64748b;margin-bottom:8px">${label}</div>
-        ${rows.map((r,i)=>`<div class="mt-diff-row"><span style="width:90px;font-size:12px;color:${i===0?'#16a34a':i===rows.length-1&&rows.length>1?'#ef4444':'#64748b'}">${r.k}</span><div class="mt-diff-bar-wrap"><div class="mt-diff-bar" style="width:${Math.round((r.avg/maxAvg)*100)}%;background:${i===0?'#16a34a':i===rows.length-1&&rows.length>1?'#ef4444':'#6366f1'}"></div></div><span style="font-size:12px;font-weight:900;color:#1e293b;min-width:60px;text-align:right" class="dark:text-slate-100">${r.avg.toFixed(1)}</span><span style="font-size:10px;color:#94a3b8;min-width:28px;text-align:right">(${r.n})</span></div>`).join('')}
-        ${diff>5?`<div style="margin-top:6px;font-size:11px;font-weight:700;color:#6366f1">💡 ${best.k} → +${diff.toFixed(1)} marks vs ${worst.k}</div>`:''}
-      </div>`;
-    }
-    const byFocus={'Low(1-2)':[],'Mid(3)':[],'High(4-5)':[]}; full.forEach(m=>{ if(!m.focus) return; byFocus[m.focus<=2?'Low(1-2)':m.focus===3?'Mid(3)':'High(4-5)'].push(m); });
-    const byFeeling={'Confident':[],'Neutral':[],'Felt Bad':[]}; full.forEach(m=>{ if(m.feeling&&byFeeling[m.feeling]) byFeeling[m.feeling].push(m); });
-    const byDiff={Easy:[],Medium:[],Hard:[]}; full.forEach(m=>{ if(m.difficulty&&byDiff[m.difficulty]) byDiff[m.difficulty].push(m); });
-    el.innerHTML=`<div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #bbf7d0;border-radius:12px;padding:12px 16px;margin-bottom:14px"><div style="font-size:13px;font-weight:900;color:#15803d">🧠 Best Conditions — ${full.length} full mocks</div></div>
-      ${insightCard('🎯 Focus Level',byFocus)}
-      ${insightCard('😊 Feeling',byFeeling)}
-      ${insightCard('🎲 Difficulty',byDiff)}`;
   };
 
   /* STREAK - MONTHLY CALENDAR */
@@ -11040,9 +11089,9 @@ window.retryWrong = function() {
     const m=mtMocks.find(x=>x.id===id); if(!m) return;
     mtEditId=id;
     const set=(elId,val)=>{ const el=document.getElementById(elId); if(el) el.value=(val!==null&&val!==undefined)?val:''; };
-    set('mt-edit-platform',m.platform); set('mt-edit-mockno',m.mockno);
+    set('mt-edit-platform',m.platform);
     set('mt-edit-date',m.date); set('mt-edit-tag',m.tag);
-    set('mt-edit-feeling',m.feeling); set('mt-edit-takeaway',m.takeaway);
+    set('mt-edit-takeaway',m.takeaway);
     set('mt-edit-wrongs',m.wrongs);
     set('mt-edit-rank',m.rank||''); set('mt-edit-ranktotal',m.rankTotal||'');
     set('mt-edit-total-marks',m.totalMarks||'');
@@ -11103,7 +11152,6 @@ window.retryWrong = function() {
     const _newNet = mtNet(_sections, _editSects);
     mtMocks[idx]={...mtMocks[idx],
       platform:document.getElementById('mt-edit-platform').value.trim(),
-      mockno:document.getElementById('mt-edit-mockno').value.trim(),
       date:document.getElementById('mt-edit-date').value,
       tag:document.getElementById('mt-edit-tag').value.trim(),
       difficulty:document.getElementById('mt-edit-diff').value,
@@ -11116,7 +11164,6 @@ window.retryWrong = function() {
       reasoningScore:getNum('mt-edit-reasoning'),
       gkScore:getNum('mt-edit-gk'),
       attempts:getNum('mt-edit-attempts'),
-      feeling:document.getElementById('mt-edit-feeling').value,
       takeaway:document.getElementById('mt-edit-takeaway').value.trim(),
       wrongs:document.getElementById('mt-edit-wrongs').value.trim(),
       sections:_sections,
@@ -14947,6 +14994,7 @@ body.light select.inp option { background:white; }
         <div style="display:flex;align-items:center">
           <button onclick="drillAddRow('mock')" class="drill-add">+ Add</button>
           <button onclick="drillAddMockMan('mock')" class="drill-add" style="background:rgba(251,191,36,0.14);border-color:rgba(251,191,36,0.34);color:#fcd34d;margin-left:6px">+ 🎯 Mock Log</button>
+          <button onclick="mtOpenAnalysisModal()" class="drill-add" style="background:rgba(14,165,233,0.14);border-color:rgba(14,165,233,0.34);color:#7dd3fc;margin-left:6px">+ 📊 Analysis</button>
         </div>
       </div>
       <div id="drill-list-mock"></div>
@@ -16762,7 +16810,7 @@ function drillRemoveRowConfirm(col,id){
 
 function drillRowDone(it){
   if(it && it.type==='lecture') return (it.total>0 && Array.isArray(it.lecs) && it.lecs.length>0 && it.lecs.every(l=>l.status==='done'));
-  if(it && (it.type==='manual' || it.type==='mockman')) return it.status==='done';
+  if(it && (it.type==='manual' || it.type==='mockman' || it.type==='analysis')) return it.status==='done';
   if(it && it.type==='questions'){ const d=drillQData(it.subject,it.topic); return d.total>0 && d.done>=d.total; }
   if(it && it.type==='srs'){ const d=drillSrsData(it.subject,it.topic); return d.total>0 && d.due===0; }
   return !!(it && it.done);
@@ -16807,6 +16855,7 @@ function drillRenderRow(col,it){
   if(it.type==='srs')       return drillRenderSrsRow(col,it);
   if(it.type==='manual')    return drillRenderManualRow(col,it);
   if(it.type==='mockman')   return drillRenderMockManRow(col,it);
+  if(it.type==='analysis')  return drillRenderAnalysisRow(col,it);
   return drillRenderTaskRow(col,it);
 }
 
@@ -17209,6 +17258,37 @@ function drillRenderMockManRow(col,it){
     ${drillRowTimer(col,it)}
   </div>`;
 }
+// ── Mock-analysis logging (called from Mock Tracker's analysis modal) ──
+// Marks handled by mtMarkAnalysed; here we log the time into D.logs (study hours) + drop a done row.
+window.drillLogAnalysis=function(subject, label, mins, ids){
+  const entry=drillEntry(drillViewDate);
+  const now=Date.now();
+  const hrs=Math.round((mins/60)*100)/100;
+  const timeLabel=new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',hour12:true});
+  if(!D.logs[drillViewDate]) D.logs[drillViewDate]=[];
+  D.logs[drillViewDate].push({ id:now, date:drillViewDate, type:'analysis', status:'done', subject:subject, chapter:'', topic:'', label:'📊 '+subject+' analysis — '+(label||''), hrs:hrs, note:'', priority:'medium', startTs:now, segments:[], time:timeLabel, _drill:true });
+  entry.mock.push({ id:'dan'+now+Math.floor(Math.random()*1000), type:'analysis', subject:subject, label:label||'', mins:mins, hrs:hrs, ids:ids||[], status:'done', logId:now });
+  drillStamp(); save(); drillRenderCol('mock'); drillUpdateCounts();
+  try{ if(typeof renderHomeTodayLogged==='function') renderHomeTodayLogged(); }catch(e){}
+  try{ if(typeof renderHome==='function') renderHome(); }catch(e){}
+};
+function drillRenderAnalysisRow(col,it){
+  return `<div class="drill-lecrow">
+    <div class="drill-lecrow-head">
+      <div class="drill-lecrow-title"><span class="sub" style="color:#7dd3fc">📊 ${drillEsc(it.subject)} analysis</span><span class="tp">· ${drillEsc(it.label||'')}</span></div>
+      <div class="drill-lecrow-tools"><button class="drill-mini del" onclick="drillRemoveAnalysis('${col}','${it.id}')" title="Remove this log">✕</button></div>
+    </div>
+    <div class="drill-leccurrent" style="border-color:var(--green)"><div style="flex:1"><span class="drill-lec-hrs">✓ Logged ${it.mins||0} min</span></div></div>
+  </div>`;
+}
+function drillRemoveAnalysis(col,id){
+  if(!confirm('Remove this analysis time log? (The mocks stay marked analysed — reopen those from History if needed.)')) return;
+  const it=drillFindRow(col,id);
+  if(it && it.logId && D.logs[drillViewDate]){ D.logs[drillViewDate]=D.logs[drillViewDate].filter(l=>l.id!==it.logId); }
+  drillRemoveRow(col,id);
+  try{ if(typeof renderHomeTodayLogged==='function') renderHomeTodayLogged(); }catch(e){}
+}
+window.drillRemoveAnalysis=drillRemoveAnalysis;
 function drillRefresh(){ drillRender(); }
 
 // Today's Timeline — read-only view of the day's planned blocks (D.blocks), in clock order.
