@@ -1809,7 +1809,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-07-30 · v25.11';
+    const HUB_BUILD = '2026-07-30 · v25.12';
 
     // ============================================================
     // GLOBAL TOAST (v25.6) — every native alert() popup in the hub
@@ -3480,6 +3480,13 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                 if (it.done) s += 2;
                 if (it.status === 'done') s += 3;
                 else if (it.status === 'paused' || it.status === 'doing') s += 1;
+                // One-tap Revision rows track done-state in revStatus/revLogId, NOT
+                // status/logId — score them the same way so a "done" revision out-scores
+                // a "doing"/"todo" copy and wins the merge (otherwise a done-on-phone
+                // revision keeps losing the tie to a still-running laptop copy).
+                if (it.revStatus === 'done') s += 3;
+                else if (it.revStatus === 'paused' || it.revStatus === 'doing') s += 1;
+                if (it.revLogId) s += 1;
                 if (Array.isArray(it.lecs)) s += it.lecs.filter(l => l && l.status === 'done').length;
                 if (it.subject) s += 1;
                 if (it.topic) s += 1;
