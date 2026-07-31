@@ -16001,7 +16001,7 @@ function renderTodayLogList(){
     const totalMin=Math.floor((pastMs+currMs)/60000);
     const hh=Math.floor(totalMin/60), mm=totalMin%60;
     const liveStr=(hh>0?hh+'h ':'')+mm+'m';
-    const detail=l.type==='srs'?(()=>{const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;let sj='';if(l.topicMap&&Object.keys(l.topicMap).length){const parts=[];Object.entries(l.topicMap).forEach(([subj,topics])=>{Object.entries(topics).forEach(([tp,v])=>{parts.push(subj+' › '+tp+' ('+v.count+')');});});sj='<br><span style="font-size:9px;color:var(--muted)">'+parts.join(' · ')+'</span>';}else if(l.subjects&&Object.keys(l.subjects).length){sj='<br><span style="font-size:9px;color:var(--muted)">'+Object.entries(l.subjects).map(([s,n])=>s+': '+n).join(' · ')+'</span>';}return l.cards+'cards\xb7'+l.correct+'/'+l.cards+'\xb7'+acc+'%'+sj;})():l.type==='quiz'?(l.questions+'q\xb7'+Math.round((l.correct||0)/(l.questions||1)*100)+'%'+((l.topic||l.subtopic)?'<br><span style="font-size:9px;color:var(--muted)">'+[l.subject,l.topic,l.subtopic].filter(Boolean).join(' › ')+'</span>':'')):l.type==='mock'?'Net: '+l.net:l.type==='lecture'?(l.isRevision?'Rev\xb7'+l.chapter:'Lec#'+l.lectureNo+'\xb7'+l.chapter)+'\xb7'+l.subject:(l.subject+(l.chapter?'\xb7'+l.chapter:''));
+    const detail=l.type==='srs'?(()=>{const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;let sj='';if(l.topicMap&&Object.keys(l.topicMap).length){const parts=[];Object.entries(l.topicMap).forEach(([subj,topics])=>{Object.entries(topics).forEach(([tp,v])=>{parts.push(subj+' › '+tp+' ('+v.count+')');});});sj='<br><span style="font-size:9px;color:var(--muted)">'+parts.join(' · ')+'</span>';}else if(l.subjects&&Object.keys(l.subjects).length){sj='<br><span style="font-size:9px;color:var(--muted)">'+Object.entries(l.subjects).map(([s,n])=>s+': '+n).join(' · ')+'</span>';}return l.cards+'cards\xb7'+l.correct+'/'+l.cards+'\xb7'+acc+'%'+sj;})():l.type==='quiz'?(l.questions+'q\xb7'+Math.round((l.correct||0)/(l.questions||1)*100)+'%'+((l.topic||l.subtopic)?'<br><span style="font-size:9px;color:var(--muted)">'+[l.subject,l.topic,l.subtopic].filter(Boolean).join(' › ')+'</span>':'')):l.type==='mock'?'Net: '+l.net:l.type==='lecture'?(l._continuationOf?'cont\xb7'+(l.chapter||''):(l.isRevision?'Rev\xb7'+l.chapter:'Lec#'+l.lectureNo+'\xb7'+l.chapter))+'\xb7'+l.subject:(l.subject+(l.chapter?'\xb7'+l.chapter:''));
     const isCan=status==='cancelled';
     const borderC=isAuto?'rgba(99,102,241,0.2)':status==='doing'?'rgba(245,158,11,0.25)':status==='paused'?'rgba(99,102,241,0.25)':isCan?'rgba(239,68,68,0.15)':'var(--border)';
     const bgC=isAuto?'rgba(99,102,241,0.05)':status==='doing'?'rgba(245,158,11,0.04)':status==='paused'?'rgba(99,102,241,0.04)':isCan?'rgba(239,68,68,0.03)':'var(--bg3)';
@@ -16707,7 +16707,7 @@ function renderStatsLectures(wd){
   const metaEl=document.getElementById('s-lec-meta');
   const el=document.getElementById('s-lec-summary');
   if(!el) return;
-  const logs=wd.flatMap(d=>(D.logs[d]||[]).filter(l=>l.type==='lecture').map(l=>({...l,_date:d})));
+  const logs=wd.flatMap(d=>(D.logs[d]||[]).filter(l=>l.type==='lecture' && !l._continuationOf).map(l=>({...l,_date:d})));
   if(!logs.length){
     metaEl.textContent='No lectures logged this week';
     el.innerHTML='<div style="text-align:center;padding:16px;color:var(--muted);font-size:11px;font-weight:700">Log lectures in the Log tab 🎬</div>';
@@ -16726,6 +16726,9 @@ function renderStatsLectures(wd){
   });
 
   el.innerHTML=Object.entries(tree).sort((a,b)=>a[0].localeCompare(b[0])).map(([subj,entries])=>{
+    // Count revisions per lecture name so repeats can be numbered (1)/(2)
+    const _revTotal={}, _revSeen={};
+    entries.forEach(e=>{ if(e.isRevision){ const k=(e.lectureName||e.label||'Revision'); _revTotal[k]=(_revTotal[k]||0)+1; } });
     const rows=entries.sort((a,b)=>{
       if(!a.isRevision&&!b.isRevision) return (a.lectureNo||0)-(b.lectureNo||0);
       if(a.isRevision&&!b.isRevision) return 1;
@@ -16735,9 +16738,12 @@ function renderStatsLectures(wd){
       const d=new Date(l._date+'T00:00:00');
       const ds=d.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'});
       if(l.isRevision){
+        const nm=l.lectureName||l.label||'Revision';
+        _revSeen[nm]=(_revSeen[nm]||0)+1;
+        const numTag=_revTotal[nm]>1?` (${_revSeen[nm]})`:'';
         return `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:8px;background:rgba(99,102,241,0.05);border:1px solid rgba(99,102,241,0.12);margin-bottom:4px">
           <span style="font-size:10px;flex-shrink:0">🔄</span>
-          <div style="flex:1;font-size:11px;font-weight:700;color:var(--muted2)">${l.lectureName||l.label||'Revision'}</div>
+          <div style="flex:1;font-size:11px;font-weight:700;color:var(--muted2)">${nm}${numTag}</div>
           <span style="font-size:9px;color:var(--muted);font-weight:700;flex-shrink:0">${ds}</span>
         </div>`;
       }
@@ -17405,7 +17411,7 @@ function drillMockManCreate(col,id){
 
 // ── Generic per-row timer (manual + mock-log rows) — logs into the same D.logs ──
 function drillRowLogSpec(col,it){
-  if(it.type==='mockman') return { type:'mock', subject:'Mock', chapter:'', topic:'', label:(it.name||'Mock') };
+  if(it.type==='mockman') return { type:'mock', subject:'Mock Test', chapter:'', topic:'', label:(it.name||'Mock') };
   const isRev=(col==='revision');
   return { type:'study', subject:(it.subject||'Custom'), chapter:(it.topic||''), topic:(it.topic||''), label:(isRev?'Rev: ':'')+(it.subject||'')+' · '+(it.topic||'') };
 }
@@ -17549,7 +17555,7 @@ window.drillLogAnalysis=function(subject, label, mins, ids){
   const hrs=Math.round((mins/60)*100)/100;
   const timeLabel=new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',hour12:true});
   if(!D.logs[drillViewDate]) D.logs[drillViewDate]=[];
-  D.logs[drillViewDate].push({ id:now, date:drillViewDate, type:'analysis', status:'done', subject:subject, chapter:'', topic:'', label:'📊 '+subject+' analysis — '+(label||''), hrs:hrs, note:'', priority:'medium', startTs:now, segments:[], time:timeLabel, _drill:true });
+  D.logs[drillViewDate].push({ id:now, date:drillViewDate, type:'analysis', status:'done', subject:'Mock Test', chapter:'', topic:'', label:'📊 '+subject+' analysis — '+(label||''), hrs:hrs, note:'', priority:'medium', startTs:now, segments:[], time:timeLabel, _drill:true });
   entry.mock.push({ id:'dan'+now+Math.floor(Math.random()*1000), type:'analysis', subject:subject, label:label||'', mins:mins, hrs:hrs, ids:ids||[], status:'done', logId:now });
   drillStamp(); save(); drillRenderCol('mock'); drillUpdateCounts();
   try{ if(typeof renderHomeTodayLogged==='function') renderHomeTodayLogged(); }catch(e){}
@@ -18685,6 +18691,7 @@ function renderLectureProgress(){
     if(date !== _todayKey) return; // only today's lectures
     logs.forEach(l=>{
       if(l.type!=='lecture') return;
+      if(l._continuationOf) return;   // leftover midnight-split time, not its own lecture
       const s=l.subject||'Other'; const c=l.chapter||'General';
       if(!tree[s]) tree[s]={};
       if(!tree[s][c]) tree[s][c]={fresh:[],revisions:[]};
@@ -18725,7 +18732,7 @@ function renderLectureProgress(){
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
           <div style="font-size:11px;font-weight:900;color:var(--text)">${chap}</div>
           <div style="display:flex;gap:6px;align-items:center">
-            <span style="font-size:10px;font-weight:900;color:#fbbf24">${freshCount} lectures</span>
+            ${freshCount>0?`<span style="font-size:10px;font-weight:900;color:#fbbf24">${freshCount} lecture${freshCount!==1?'s':''}</span>`:''}
             ${revCount>0?`<span style="font-size:9px;background:rgba(99,102,241,0.15);color:#818cf8;padding:1px 6px;border-radius:999px;font-weight:900">🔄 ${revCount} rev</span>`:''}
           </div>
         </div>`;
@@ -18743,15 +18750,21 @@ function renderLectureProgress(){
         </div>`;
       });
 
-      // Revisions
+      // Revisions — number repeats of the same lecture: "name (1)", "name (2)"
       if(data.revisions.length){
         html+=`<div style="margin-top:4px;margin-left:4px">`;
-        data.revisions.forEach(rev=>{
+        const _revSorted=[...data.revisions].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+        const _revTotalByName={}; _revSorted.forEach(r=>{ const k=(r.name||'Revision'); _revTotalByName[k]=(_revTotalByName[k]||0)+1; });
+        const _revSeen={};
+        _revSorted.forEach(rev=>{
           const d=new Date(rev.date+'T00:00:00');
           const dateStr=d.toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+          const nm=rev.name||'Revision';
+          _revSeen[nm]=(_revSeen[nm]||0)+1;
+          const numTag=_revTotalByName[nm]>1?` (${_revSeen[nm]})`:'';
           html+=`<div style="display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:8px;background:rgba(99,102,241,0.05);border:1px solid rgba(99,102,241,0.15);margin-bottom:3px">
             <span style="font-size:10px">🔄</span>
-            <div style="flex:1;font-size:10px;font-weight:700;color:var(--muted2)">${rev.name||'Revision'}</div>
+            <div style="flex:1;font-size:10px;font-weight:700;color:var(--muted2)">${nm}${numTag}</div>
             <span style="font-size:9px;color:var(--muted);font-weight:700">${dateStr}</span>
           </div>`;
         });
