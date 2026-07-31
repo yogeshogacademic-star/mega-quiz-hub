@@ -1809,7 +1809,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-07-30 · v25.12';
+    const HUB_BUILD = '2026-08-01 · v25.13';
 
     // ============================================================
     // GLOBAL TOAST (v25.6) — every native alert() popup in the hub
@@ -3658,6 +3658,10 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                     if (_ds && _ds.classList.contains('active') && typeof drillRender === 'function') {
                         if (typeof todayStr === 'function') drillViewDate = todayStr();
                         drillRender();
+                        // A start/end done on another device is now merged in — repaint above
+                        // reflects it, and this kicks the live clock so a session started
+                        // elsewhere ticks here too.
+                        if (typeof drillAnyDoing === 'function' && drillAnyDoing() && typeof drillStartTicker === 'function') drillStartTicker();
                     }
                 } catch(_e) {}
             }
@@ -5176,7 +5180,7 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
                 let typedVal = quizState.answers[qIndex] || '';
                 optsHTML = `<input type="text" id="type-ans-${qIndex}" oninput="handleTypingAnswer(${qIndex}, this.value)" value="${typedVal.replace(/"/g, '&quot;')}" autocomplete="off" class="w-full p-6 mt-2 text-2xl md:text-3xl font-black text-center text-emerald-600 dark:text-emerald-400 bg-slate-50 dark:bg-slate-950 border-4 border-slate-200 dark:border-slate-700 rounded-2xl focus:border-emerald-500 outline-none shadow-inner transition-colors placeholder-slate-300 dark:placeholder-slate-700" placeholder="Type exact answer here...">`;
             } else {
-                optsHTML = q.options.map((opt, oIndex) => `<div id="opt-${qIndex}-${oIndex}" data-qindex="${qIndex}" data-oindex="${oIndex}" class="option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-slate-100 dark:border-slate-800 hover:border-emerald-400 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm hover:shadow-md"><span class="min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-slate-100 dark:bg-slate-700 text-slate-500 transition-colors">${String.fromCharCode(65+oIndex)}</span><span class="mt-0.5 pointer-events-none option-text">${opt.text}</span></div>`).join('');
+                optsHTML = q.options.map((opt, oIndex) => `<div id="opt-${qIndex}-${oIndex}" data-qindex="${qIndex}" data-oindex="${oIndex}" class="option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-slate-100 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500 bg-white dark:bg-slate-800/70 text-slate-700 dark:text-slate-200 shadow-sm hover:shadow-md"><span class="min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 transition-colors">${String.fromCharCode(65+oIndex)}</span><span class="mt-0.5 pointer-events-none option-text">${opt.text}</span></div>`).join('');
                 speechTxt += ". " + q.options.map((o,i) => `Option ${String.fromCharCode(65+i)}: ${(o.text||'').replace(/<[^>]*>/gm,' ').replace(/&[a-z]+;/gi,' ').replace(/\s+/g,' ').trim()}. `).join('');
             }
                 
@@ -5220,11 +5224,11 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
         activeQuestions[qIdx].options.forEach((_, i) => {
             const el = document.getElementById(`opt-${qIdx}-${i}`);
             if (i === oIdx) {
-                el.className = 'option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-100 shadow-md transform scale-[1.01] opt-pop';
-                el.children[0].className = 'min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-emerald-500 text-white shadow-inner';
+                el.className = 'option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-900 dark:text-indigo-100 shadow-md transform scale-[1.01] opt-pop';
+                el.children[0].className = 'min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-inner';
             } else {
-                el.className = 'option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-slate-100 dark:border-slate-800 hover:border-emerald-400 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm hover:shadow-md';
-                el.children[0].className = 'min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-slate-100 dark:bg-slate-700 text-slate-500';
+                el.className = 'option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-slate-100 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500 bg-white dark:bg-slate-800/70 text-slate-700 dark:text-slate-200 shadow-sm hover:shadow-md';
+                el.children[0].className = 'min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300';
             }
         });
         if (lobbySettings.perQTimer) { if (qIdx >= activeQuestions.length - 1) submitQuiz(); else setFocus(qIdx + 1); } else { setFocus(Math.min(qIdx + 1, activeQuestions.length - 1)); }
@@ -5955,8 +5959,8 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
                 (q.options || []).forEach((_, i) => {
                     if (i !== sel) return;
                     const el = document.getElementById(`opt-${qi}-${i}`); if (!el) return;
-                    el.className = 'option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-100 shadow-md transform scale-[1.01] opt-pop';
-                    el.children[0].className = 'min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-emerald-500 text-white shadow-inner';
+                    el.className = 'option-btn p-5 border-2 rounded-xl cursor-pointer mb-3 font-bold text-sm flex gap-4 transition-all border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-900 dark:text-indigo-100 shadow-md transform scale-[1.01] opt-pop';
+                    el.children[0].className = 'min-w-[28px] w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-inner';
                 });
             });
             Object.keys(quizState.marked).forEach(k => {
@@ -14540,6 +14544,8 @@ body::before { content:''; position:fixed; inset:0; background-image:url("data:i
 .drill-col { display:flex; flex-direction:column; }
 .drill-col-head { display:flex; align-items:center; justify-content:space-between; font-size:14px; font-weight:900; color:var(--text); margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--border); }
 .drill-count { font-size:11px; font-weight:900; color:var(--muted); margin-left:4px; }
+.drill-colbar { height:5px; border-radius:999px; background:var(--bg3); border:1px solid var(--border); overflow:hidden; margin:-4px 0 12px; }
+.drill-colbar > i { display:block; height:100%; width:0%; border-radius:999px; transition:width .4s ease; }
 .drill-add { background:rgba(79,110,247,0.12); border:1px solid rgba(79,110,247,0.3); color:#818cf8; font-size:10px; font-weight:900; padding:4px 11px; border-radius:999px; cursor:pointer; letter-spacing:0.04em; }
 .drill-add:hover { background:rgba(79,110,247,0.22); }
 .drill-row { display:flex; align-items:center; gap:9px; padding:10px 11px; border:1px solid var(--border); border-radius:11px; background:var(--bg3); margin-bottom:8px; }
@@ -14574,20 +14580,30 @@ body::before { content:''; position:fixed; inset:0; background-image:url("data:i
 .drill-lec.done .ln { color:var(--green); }
 .drill-lec-timer { font-variant-numeric:tabular-nums; color:#f59e0b; }
 .drill-lec-hrs { color:var(--green); font-weight:900; }
-.drill-lecbtn { border:none; border-radius:6px; padding:3px 7px; font-size:10px; font-weight:900; cursor:pointer; color:#fff; line-height:1.4; }
-.drill-lecbtn.start { background:#10b981; }
+.drill-lecbtn { border:none; border-radius:999px; padding:5px 11px; font-size:10.5px; font-weight:900; cursor:pointer; color:#fff; line-height:1.4; letter-spacing:0.02em; transition:transform .12s ease, box-shadow .18s ease, filter .18s ease; }
+.drill-lecbtn:hover { filter:brightness(1.08); }
+.drill-lecbtn:active { transform:scale(0.94); }
+.drill-lecbtn.start { background:linear-gradient(135deg,#10b981,#059669); box-shadow:0 2px 10px rgba(16,185,129,0.30); }
 .drill-lecbtn.check { background:var(--bg3); color:var(--muted2); border:1px solid var(--border); }
-.drill-lecbtn.check:hover { color:var(--green); border-color:var(--green); }
-.drill-lecbtn.pause { background:#6366f1; }
-.drill-lecbtn.resume { background:#10b981; }
-.drill-lecbtn.end { background:#ef4444; }
+.drill-lecbtn.check:hover { color:var(--green); border-color:var(--green); filter:none; }
+.drill-lecbtn.pause { background:linear-gradient(135deg,#6366f1,#4f46e5); box-shadow:0 2px 10px rgba(99,102,241,0.30); }
+.drill-lecbtn.resume { background:linear-gradient(135deg,#10b981,#059669); box-shadow:0 2px 10px rgba(16,185,129,0.30); }
+.drill-lecbtn.end { background:linear-gradient(135deg,#f43f5e,#e11d48); box-shadow:0 2px 10px rgba(244,63,94,0.30); }
 .drill-lecbtn.undo { background:var(--bg3); color:var(--muted2); border:1px solid var(--border); }
 .drill-leccurrent { display:flex; align-items:center; gap:10px; border:1px solid var(--border); border-radius:11px; background:var(--bg2); padding:11px 12px; }
-.drill-leccurrent.doing { border-color:#f59e0b; background:rgba(245,158,11,0.09); }
+.drill-leccurrent.doing { border-color:#f59e0b; background:rgba(245,158,11,0.09); animation:drillLivePulse 2.2s ease-in-out infinite; }
 .drill-leccurrent.paused { border-color:#6366f1; background:rgba(99,102,241,0.09); }
+@keyframes drillLivePulse { 0%,100%{ box-shadow:0 0 0 0 rgba(245,158,11,0.0); } 50%{ box-shadow:0 0 0 3px rgba(245,158,11,0.16); } }
+.drill-lec.doing { animation:drillLivePulse 2.2s ease-in-out infinite; }
 .drill-leccurrent .lecname { font-size:14px; font-weight:900; color:var(--text); letter-spacing:0.02em; }
 .drill-leccurrent .lecsub { font-size:10px; font-weight:800; color:var(--muted2); margin-top:2px; }
 .drill-lec-all { text-align:center; padding:12px; font-size:12px; font-weight:900; color:var(--green); border:1px solid var(--border); border-radius:11px; background:rgba(16,185,129,0.08); }
+/* ----- Manual direct-minutes entry ----- */
+.drill-mancurrent { display:flex; align-items:center; gap:8px; border:1px solid var(--border); border-radius:11px; background:var(--bg2); padding:9px 11px; }
+.drill-man-min { width:74px; background:var(--bg3); border:1px solid var(--border2); color:var(--text); font-size:14px; font-weight:900; font-family:var(--font-body); padding:7px 10px; border-radius:9px; outline:none; text-align:center; }
+.drill-man-min:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(79,110,247,0.18); }
+.drill-man-min::-webkit-outer-spin-button,.drill-man-min::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+.drill-man-unit { font-size:12px; font-weight:900; color:var(--muted2); margin-right:auto; }
 /* ----- Subject sections (Quant / GS / English / Reasoning) ----- */
 .drill-sect { margin-bottom:16px; }
 .drill-sect-head { display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:8px; flex-wrap:wrap; padding-bottom:6px; border-bottom:1px solid var(--border); }
@@ -14995,6 +15011,7 @@ body.light select.inp option { background:white; }
       <div class="drill-col-head">
         <div><span style="color:#818cf8">📘</span> New Topic <span class="drill-count" id="drill-count-newTopic"></span></div>
       </div>
+      <div class="drill-colbar"><i id="drill-bar-newTopic" style="background:linear-gradient(90deg,#818cf8,#6366f1)"></i></div>
       <div id="drill-list-newTopic"></div>
     </div>
 
@@ -15002,6 +15019,7 @@ body.light select.inp option { background:white; }
       <div class="drill-col-head">
         <div><span style="color:#34d399">🔁</span> Revision <span class="drill-count" id="drill-count-revision"></span></div>
       </div>
+      <div class="drill-colbar"><i id="drill-bar-revision" style="background:linear-gradient(90deg,#34d399,#10b981)"></i></div>
       <div id="drill-list-revision"></div>
     </div>
 
@@ -15014,6 +15032,7 @@ body.light select.inp option { background:white; }
           <button onclick="mtOpenAnalysisModal()" class="drill-add" style="background:rgba(14,165,233,0.14);border-color:rgba(14,165,233,0.34);color:#7dd3fc;margin-left:6px">+ 📊 Analysis</button>
         </div>
       </div>
+      <div class="drill-colbar"><i id="drill-bar-mock" style="background:linear-gradient(90deg,#fbbf24,#f59e0b)"></i></div>
       <div id="drill-list-mock"></div>
     </div>
   </div>
@@ -15341,7 +15360,15 @@ function fmtShort(s){ const d=new Date(s+'T00:00:00'); return d.toLocaleDateStri
 function subColor(s){ return SUB_COLORS[s]||'#94a3b8'; }
 function t2m(t){ if(!t) return 0; const[h,m]=t.split(':').map(Number); return h*60+m; }
 function to12hr(t){ if(!t)return ''; if(t.includes('AM')||t.includes('PM')) return t; const [h,m]=t.split(':').map(Number); if(isNaN(h)||isNaN(m)) return t; const ap=h>=12?'PM':'AM'; const hr=h%12||12; return hr+':'+(m<10?'0'+m:m)+' '+ap; }
-function hDisp(h){ if(!h||h<=0) return '0h'; const hrs=Math.floor(h),mins=Math.round((h-hrs)*60); return mins>0?`${hrs}h ${mins}m`:`${hrs}h`; }
+// Spelled-out duration: under 1hr -> "45 min"; 1hr+ -> "1 hr 50 min" / "2 hr". Never decimals.
+function hDisp(h){
+  if(!h||h<=0) return '0 min';
+  let totalMin=Math.round(h*60);            // work in whole minutes (kills 1.69h style)
+  if(totalMin<=0) return '0 min';
+  let hrs=Math.floor(totalMin/60), mins=totalMin%60;
+  if(hrs<=0) return mins+' min';
+  return mins>0 ? (hrs+' hr '+mins+' min') : (hrs+' hr');
+}
 function getWeekStart(s){ const d=new Date(s+'T00:00:00'); const day=d.getDay(); const diff=day===0?-6:1-day; d.setDate(d.getDate()+diff); return dateStr(d); }
 function getWeekDates(ws){ return Array.from({length:7},(_,i)=>{ const d=new Date(ws+'T00:00:00'); d.setDate(d.getDate()+i); return dateStr(d); }); }
 
@@ -15811,13 +15838,13 @@ function logDone(date, id){
   if(l.startTs){
     const liveMs=now-l.startTs;
     if(liveMs > 1*3600*1000){
-      const liveH=Math.round(liveMs/3600000*10)/10;
+      const liveDisp=hDisp(liveMs/3600000);
       const startClock=new Date(l.startTs).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',hour12:false});
-      const keepAll=confirm('This session has been running ~'+liveH+'h since '+to12hr(startClock)+' with no pause/done.\n\nOK = count it all (you really studied this long)\nCancel = enter the exact END time instead');
+      const keepAll=confirm('This session has been running ~'+liveDisp+' since '+to12hr(startClock)+' with no pause/done.\n\nOK = count it all (you really studied this long)\nCancel = enter the exact END time instead');
       if(keepAll){
         l.segments.push({from:l.startTs,to:now});
       } else {
-        const endStr=prompt('Enter the EXACT time you ENDED this segment (24h HH:MM, IST).\nStart was '+startClock+'.\n\nLeave blank + OK to DELETE this whole log (e.g. you slept):', '');
+        const endStr=prompt('Enter the EXACT time you ENDED this segment — AM/PM (e.g. 5:30 PM).\nStart was '+to12hr(startClock)+'.\n\nLeave blank + OK to DELETE this whole log (e.g. you slept):', '');
         if(endStr===null){
           l.segments.push({from:l.startTs,to:now});
         } else if(endStr.trim()===''){
@@ -15826,14 +15853,15 @@ function logDone(date, id){
             return;
           } else { l.segments.push({from:l.startTs,to:now}); }
         } else {
-          const m=endStr.trim().match(/^(\d{1,2}):(\d{2})$/);
-          if(m){
+          const hhmm=(typeof _parse12hr==='function')?_parse12hr(endStr):null;   // accepts "5:30 PM" and 24h
+          if(hhmm){
+            const m=hhmm.match(/^(\d{2}):(\d{2})$/);
             const startDayStr=new Date(l.startTs).toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
-            let endTs=new Date(startDayStr+'T'+String(m[1]).padStart(2,'0')+':'+m[2]+':00+05:30').getTime();
+            let endTs=new Date(startDayStr+'T'+m[1]+':'+m[2]+':00+05:30').getTime();
             if(endTs<=l.startTs) endTs+=24*3600*1000;
             l.segments.push({from:l.startTs,to:endTs});
           } else {
-            alert('Bad time format — counting full duration instead.');
+            alert('Bad time — use AM/PM like 5:30 PM. Counting full duration instead.');
             l.segments.push({from:l.startTs,to:now});
           }
         }
@@ -15876,6 +15904,49 @@ function logDone(date, id){
   updateDebt(date); updateStreak();
   save(); renderTodayLogList(); renderHomeTodayLogged(); renderHome();
 }
+// SILENT settle — identical to logDone's close-out but with NO >1hr confirm/prompt.
+// Called ONLY by drillRollover when auto-closing a session left running on a PAST day,
+// so switching to the Daily Drill tab never throws the "enter end time" popup. The trailing
+// active segment is counted in full (start -> now); overnight split still applies.
+function logSettleSilent(date, id){
+  const l=(D.logs[date]||[]).find(x=>x.id===id); if(!l) return;
+  if(l.status==='done'||l.status==='cancelled') return;
+  const now=Date.now();
+  l.segments=l.segments||[];
+  if(l.startTs){ l.segments.push({from:l.startTs,to:now}); }   // count full elapsed, no popup
+  l.status='done'; l.startTs=null; l.ts=now;
+  const byDate=_splitSegsByDate(l.segments);
+  const dates=Object.keys(byDate).sort();
+  if(dates.length>1){
+    l.hrs=Math.round((byDate[date]||0)/3600000*100)/100;
+    if(l.hrs<=0) l.hrs=0;
+    dates.forEach(function(d){
+      if(d===date) return;
+      const ms=byDate[d]; if(!ms) return;
+      const contHrs=Math.round(ms/3600000*100)/100; if(contHrs<=0) return;
+      if(!D.logs[d]) D.logs[d]=[];
+      const already=D.logs[d].find(function(x){ return x._continuationOf===l.id; });
+      if(already){ already.hrs=contHrs; already.ts=now; updateDebt(d); return; }
+      D.logs[d].push({
+        id:now+Math.floor(Math.random()*9000)+1000,
+        date:d, type:l.type||'lecture', status:'done',
+        subject:l.subject||'', chapter:l.chapter||'', topic:l.topic||'', custom:l.custom||'',
+        label:(l.label||l.subject||'Session')+' (cont.)',
+        title:(l.title||l.label||l.subject||'Session')+' (cont.)',
+        hrs:contHrs, note:l.note||'', priority:l.priority||'medium',
+        auto:false, _continuationOf:l.id, ts:now,
+        time:new Date(now).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',hour12:true})
+      });
+      updateDebt(d);
+    });
+  } else {
+    l.hrs=Math.round(l.segments.reduce((a,s)=>(a+(s.to-s.from)),0)/3600000*100)/100;
+    if(l.hrs<=0) l.hrs=0.1;
+  }
+  updateDebt(date); updateStreak();
+  // NOTE: no save()/re-render here — drillRollover batches its own save() at the end.
+}
+
 function logCancel(date, id){
   const l=(D.logs[date]||[]).find(x=>x.id===id); if(!l) return;
   l.status='cancelled'; l.hrs=0; l.startTs=null; l.ts=Date.now();
@@ -16370,10 +16441,10 @@ function calRenderSummary(){
       <div style="font-size:11px;font-weight:900;color:var(--yellow)">🔥 ${streak} day streak</div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-      ${tile(Math.round(totalH*10)/10+'h','Total')}
+      ${tile(hDisp(totalH),'Total')}
       ${tile(active,'Days Active','#818cf8')}
       ${tile(avg+'h','Avg / Day','#fbbf24')}
-      ${tile(Math.round(bestH*10)/10+'h','Best Day','#fb7185')}
+      ${tile(hDisp(bestH),'Best Day','#fb7185')}
     </div>
     <div style="font-size:10px;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">This Week</div>
     <div style="display:flex;gap:6px;align-items:flex-end">${wk}</div>
@@ -17025,12 +17096,12 @@ function drillRenderRevLecRow(col,it){
       `<button class="drill-lecbtn end" onclick="drillRevEnd('${col}','${it.id}')">⏹ End</button>`;
   } else if(st==='paused'){
     cls='paused';
-    controls=`<span class="drill-lec-hrs" style="font-size:13px">${it.revHrs||0}h</span>`+
+    controls=`<span class="drill-lec-hrs" style="font-size:13px">${hDisp(it.revHrs||0)}</span>`+
       `<button class="drill-lecbtn resume" onclick="drillRevResume('${col}','${it.id}')">▶ Resume</button>`+
       `<button class="drill-lecbtn end" onclick="drillRevEnd('${col}','${it.id}')">⏹ End</button>`;
   } else if(st==='done'){
     cls='done';
-    const hrs = it.revHrs ? `<span class="drill-lec-hrs">${it.revHrs}h</span>` : '';
+    const hrs = it.revHrs ? `<span class="drill-lec-hrs">${hDisp(it.revHrs)}</span>` : '';
     const undo = it.revLogId ? '' : `<button class="drill-lecbtn undo" onclick="drillRevUndo('${col}','${it.id}')" title="Undo">↩</button>`;
     controls=`<span style="font-size:12px;font-weight:900;color:#34d399">✅ Revised</span>${hrs}${undo}`;
   } else {
@@ -17107,7 +17178,7 @@ function drillLecCurrent(col,id,n,l,doneN,total){
       `<button class="drill-lecbtn end" onclick="drillLecEnd('${col}','${id}',${n})">⏹ End</button>`;
   } else if(l.status==='paused'){
     cls='paused';
-    controls=`<span class="drill-lec-hrs" style="font-size:13px">${l.hrs||0}h</span>`+
+    controls=`<span class="drill-lec-hrs" style="font-size:13px">${hDisp(l.hrs||0)}</span>`+
       `<button class="drill-lecbtn resume" onclick="drillLecResume('${col}','${id}',${n})">▶ Resume</button>`+
       `<button class="drill-lecbtn end" onclick="drillLecEnd('${col}','${id}',${n})">⏹ End</button>`;
   } else {
@@ -17128,12 +17199,12 @@ function drillLecChip(col,id,n,l){
       `<button class="drill-lecbtn end" onclick="drillLecEnd('${col}','${id}',${n})" title="End">⏹</button></span>`;
   }
   if(l.status==='paused'){
-    return `<span class="drill-lec paused"><span class="ln">L${n}</span><span class="drill-lec-hrs">${l.hrs||0}h</span>`+
+    return `<span class="drill-lec paused"><span class="ln">L${n}</span><span class="drill-lec-hrs">${hDisp(l.hrs||0)}</span>`+
       `<button class="drill-lecbtn resume" onclick="drillLecResume('${col}','${id}',${n})" title="Resume">▶</button>`+
       `<button class="drill-lecbtn end" onclick="drillLecEnd('${col}','${id}',${n})" title="End">⏹</button></span>`;
   }
   if(l.status==='done'){
-    const hrs = l.hrs ? `<span class="drill-lec-hrs">${l.hrs}h</span>` : '';
+    const hrs = l.hrs ? `<span class="drill-lec-hrs">${hDisp(l.hrs)}</span>` : '';
     const undo = l.logId ? '' : `<button class="drill-lecbtn undo" onclick="drillLecUndo('${col}','${id}',${n})" title="Undo">↩</button>`;
     return `<span class="drill-lec done"><span class="ln">L${n} ✓</span>${hrs}${undo}</span>`;
   }
@@ -17379,19 +17450,61 @@ function drillRowTimer(col,it){
       </div></div>`;
   }
   if(st==='paused'){
-    return `<div class="drill-leccurrent paused"><div style="flex:1"><span class="drill-lec-hrs">${it.hrs||0}h</span></div>
+    return `<div class="drill-leccurrent paused"><div style="flex:1"><span class="drill-lec-hrs">${hDisp(it.hrs||0)}</span></div>
       <div style="display:flex;gap:6px">
         <button class="drill-lecbtn resume" onclick="drillRowResume('${col}','${it.id}')">▶ Resume</button>
         <button class="drill-lecbtn end" onclick="drillRowEnd('${col}','${it.id}')">⏹ End</button>
       </div></div>`;
   }
   if(st==='done'){
-    return `<div class="drill-leccurrent" style="border-color:var(--green)"><div style="flex:1"><span class="drill-lec-hrs">✓ Logged ${it.hrs||0}h</span></div>
+    return `<div class="drill-leccurrent" style="border-color:var(--green)"><div style="flex:1"><span class="drill-lec-hrs">✓ Logged ${hDisp(it.hrs||0)}</span></div>
       <button class="drill-lecbtn start" onclick="drillRowStart('${col}','${it.id}')" title="Log another session">▶ Again</button></div>`;
   }
   return `<div class="drill-leccurrent"><div style="flex:1"><div class="lecsub">Ready to log</div></div>
     <button class="drill-lecbtn start" onclick="drillRowStart('${col}','${it.id}')">▶ Start</button></div>`;
 }
+
+// Manual rows: DIRECT minutes entry — no Start/End timer. Type minutes, hit Log,
+// it drops a completed study log (hrs = mins/60) that counts toward study hours.
+function drillManualTimer(col,it){
+  if(it.status==='done'){
+    return `<div class="drill-leccurrent" style="border-color:var(--green)"><div style="flex:1"><span class="drill-lec-hrs">✓ Logged ${hDisp(it.hrs||0)}</span></div>
+      <button class="drill-lecbtn start" onclick="drillManualRelog('${col}','${it.id}')" title="Change the time">✎ Re-log</button></div>`;
+  }
+  return `<div class="drill-mancurrent">
+    <input type="number" min="1" step="1" inputmode="numeric" id="manmin-${it.id}" class="drill-man-min" placeholder="mins" value="${it.mins||''}">
+    <span class="drill-man-unit">min</span>
+    <button class="drill-lecbtn end" onclick="drillManualLog('${col}','${it.id}')">✅ Log</button>
+  </div>`;
+}
+function drillManualLog(col,id){
+  const it=drillFindRow(col,id); if(!it) return;
+  const inp=document.getElementById('manmin-'+id);
+  const mins=Math.round(parseFloat((inp&&inp.value)||'0'));
+  if(!mins||mins<=0){ hubToast? hubToast('Enter minutes first'): alert('Enter minutes first'); return; }
+  const now=Date.now();
+  const hrs=Math.round((mins/60)*100)/100;
+  const timeLabel=new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',hour12:true});
+  const isRev=(col==='revision');
+  const label=(isRev?'Rev: ':'')+(it.subject||'')+' · '+(it.topic||'');
+  if(!D.logs[drillViewDate]) D.logs[drillViewDate]=[];
+  // If re-logging, remove the previous log this row created so hours don't double.
+  if(it.logId){ D.logs[drillViewDate]=D.logs[drillViewDate].filter(l=>l.id!==it.logId); }
+  const log={ id:now, date:drillViewDate, type:'study', status:'done', subject:(it.subject||'Custom'), chapter:(it.topic||''), topic:(it.topic||''), label:label, hrs:hrs, note:'', priority:'medium', segments:[], time:timeLabel, _drill:true, _drillManual:true };
+  D.logs[drillViewDate].push(log);
+  it.status='done'; it.logId=log.id; it.mins=mins; it.hrs=hrs;
+  drillStamp(); save(); drillRenderCol(col); drillUpdateCounts();
+  try{ if(typeof updateDebt==='function') updateDebt(drillViewDate); }catch(e){}
+  try{ if(typeof updateStreak==='function') updateStreak(); }catch(e){}
+  try{ if(typeof renderHomeTodayLogged==='function') renderHomeTodayLogged(); }catch(e){}
+  try{ if(typeof renderHome==='function') renderHome(); }catch(e){}
+}
+function drillManualRelog(col,id){
+  const it=drillFindRow(col,id); if(!it) return;
+  it.status='todo';   // back to entry mode; keeps it.mins pre-filled, existing log removed on next Log
+  drillStamp(); save(); drillRenderCol(col);
+}
+window.drillManualLog=drillManualLog; window.drillManualRelog=drillManualRelog;
 
 function drillRenderManualRow(col,it){
   if(!(it.subject&&it.topic)){
@@ -17407,7 +17520,7 @@ function drillRenderManualRow(col,it){
       <div class="drill-lecrow-title"><span class="sub" style="color:#fca5a5">✍ ${drillEsc(it.subject)}</span><span class="tp">· ${drillEsc(it.topic)}</span></div>
       <div class="drill-lecrow-tools"><button class="drill-mini del" onclick="drillRemoveRowConfirm('${col}','${it.id}')" title="Remove">✕</button></div>
     </div>
-    ${drillRowTimer(col,it)}
+    ${drillManualTimer(col,it)}
   </div>`;
 }
 
@@ -17476,14 +17589,14 @@ function drillRenderTimeline(){
     return `<div class="drill-tl-row">
       <div class="drill-tl-time">${t||'—'}</div>
       <div class="drill-tl-label">${drillEsc(b.label||b.subject||'Study')}</div>
-      <div class="drill-tl-state" style="color:${pr};font-size:10px">${b.plannedHrs?(Math.round(b.plannedHrs*10)/10+'h'):''}</div>
+      <div class="drill-tl-state" style="color:${pr};font-size:10px">${b.plannedHrs?hDisp(b.plannedHrs):''}</div>
     </div>`;
   }).join('');
   host.style.display='block';
   host.innerHTML=`<div class="card" style="margin-bottom:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <div style="font-size:13px;font-weight:900;color:var(--text)">🕐 Today's Timeline</div>
-      <div style="font-size:11px;font-weight:900;color:var(--accent)">${Math.round(plannedH*10)/10}h planned · ${Math.round(loggedH*10)/10}h logged</div>
+      <div style="font-size:11px;font-weight:900;color:var(--accent)">${hDisp(plannedH)} planned · ${hDisp(loggedH)} logged</div>
     </div>
     ${rows}
   </div>`;
@@ -17521,6 +17634,8 @@ function drillUpdateCounts(){
     const d = rows.filter(drillRowDone).length;
     const el = document.getElementById('drill-count-'+col);
     if(el) el.textContent = rows.length ? `${d}/${rows.length}` : '';
+    const bar = document.getElementById('drill-bar-'+col);
+    if(bar) bar.style.width = rows.length ? Math.round(d/rows.length*100)+'%' : '0%';
     total += rows.length; done += d;
   });
   const prog = document.getElementById('drill-progress');
@@ -17587,7 +17702,7 @@ function drillRollover(){
             it.lecs.forEach(function(l){
               if(!l||!l.logId) return;
               if(l.status==='doing'){
-                if(typeof logDone==='function') logDone(pd,l.logId);
+                if(typeof logSettleSilent==='function') logSettleSilent(pd,l.logId);
                 var lg=(D.logs[pd]||[]).find(function(x){ return x.id===l.logId; });
                 if(lg && lg.status==='done'){ l.status='done'; l.hrs=lg.hrs||0; pdTouched=true; }
                 else if(!lg){ l.status='todo'; l.logId=null; l.hrs=0; pdTouched=true; }
@@ -17599,7 +17714,7 @@ function drillRollover(){
           }
           if(it.type==='lecture' && it.revStatus!==undefined && it.revLogId){    // settle a revision session left running/paused overnight
             if(it.revStatus==='doing'){
-              if(typeof logDone==='function') logDone(pd,it.revLogId);
+              if(typeof logSettleSilent==='function') logSettleSilent(pd,it.revLogId);
               var rlg=(D.logs[pd]||[]).find(function(x){ return x.id===it.revLogId; });
               if(rlg && rlg.status==='done'){ it.revStatus='done'; it.revHrs=rlg.hrs||0; pdTouched=true; }
               else if(!rlg){ it.revStatus='todo'; it.revLogId=null; it.revHrs=0; pdTouched=true; }
