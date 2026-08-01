@@ -1809,7 +1809,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-01 · v25.13';
+    const HUB_BUILD = '2026-08-01 · v26.2';
 
     // ============================================================
     // GLOBAL TOAST (v25.6) — every native alert() popup in the hub
@@ -8268,8 +8268,11 @@ window.generateQuantNotes = () => {
 // Groups by Tag 2 (topic), deduplicates, renders Concept King style;
 ;
 ;
-;    window.exportBackup = () => {
+;    window.exportBackup = async () => {
         let fcCards = []; let fcProgress = {};
+        let activeRecall = null;
+        try { activeRecall = (typeof window.__arForCloud === 'function') ? window.__arForCloud() : null; } catch(e){}
+        if (!activeRecall) { try { activeRecall = await idbKeyval.get('megaQuizAR_v1'); } catch(e){} }
         try { fcCards    = JSON.parse(localStorage.getItem('yogesh_fc_cards_v2') || '[]'); } catch{}
         try { fcProgress = JSON.parse(localStorage.getItem('yogesh_fc_prog_v2')  || '{}'); } catch{}
         const allLocalStorage = {};
@@ -8281,8 +8284,8 @@ window.generateQuantNotes = () => {
         const payload = {
             subjects: SUBJECTS, db: db, history: historyDb, mistakes: mistakesDb,
             notes: notesDb, categories: SUBJECT_CATEGORIES,
-            fcCards, fcProgress, _allLocalStorage: allLocalStorage,
-            savedAt: Date.now(), backupVersion: 'FULL_V1',
+            fcCards, fcProgress, activeRecall, _allLocalStorage: allLocalStorage,
+            savedAt: Date.now(), backupVersion: 'FULL_V2',
             backupDate: new Date().toLocaleString('en-IN')
         };
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -11191,7 +11194,11 @@ window.retryWrong = function() {
         });
         // Re-add under correct date
         if(typeof window._wrAutoLog==='function'){
-          window._wrAutoLog({ type:'mock', title:(_m.type==='full'?'Full Mock':'Sectional: '+_m.subject)+' — '+_m.platform+' #'+_m.mockno, subject:_m.type==='full'?'Mock Test':_m.subject, platform:_m.platform, mockno:_m.mockno, net:_m.net, startTime:_m.startTime||'09:00', endTime:_m.endTime||'10:00', date:_m.date, ts:Date.now() });
+          const _st=_m.startTime||'09:00', _et=_m.endTime||'10:00';
+          let _dur=(parseInt(_et.split(':')[0])*60+parseInt(_et.split(':')[1]))-(parseInt(_st.split(':')[0])*60+parseInt(_st.split(':')[1]));
+          if(_dur<0) _dur+=24*60;   // end past midnight
+          _dur=Math.max(1,Math.round(_dur));
+          window._wrAutoLog({ type:'mock', title:(_m.type==='full'?'Full Mock':'Sectional: '+_m.subject)+' — '+_m.platform+' #'+_m.mockno, subject:_m.type==='full'?'Mock Test':_m.subject, platform:_m.platform, mockno:_m.mockno, net:_m.net, duration:_dur, hrs:Math.round(_dur/60*10)/10, startTime:_st, endTime:_et, date:_m.date, ts:Date.now() });
         }
         if(typeof save==='function') save();
         if(typeof renderHomeTodayLogged==='function') renderHomeTodayLogged();
@@ -15025,14 +15032,13 @@ body.light select.inp option { background:white; }
 
     <div class="card drill-col" data-col="mock">
       <div class="drill-col-head">
-        <div><span style="color:#fbbf24">📝</span> Mock / Analysis <span class="drill-count" id="drill-count-mock"></span></div>
+        <div><span style="color:#7dd3fc">📊</span> Mock Analysis <span class="drill-count" id="drill-count-mock"></span></div>
         <div style="display:flex;align-items:center">
           <button onclick="drillAddRow('mock')" class="drill-add">+ Add</button>
-          <button onclick="drillAddMockMan('mock')" class="drill-add" style="background:rgba(251,191,36,0.14);border-color:rgba(251,191,36,0.34);color:#fcd34d;margin-left:6px">+ 🎯 Mock Log</button>
           <button onclick="mtOpenAnalysisModal()" class="drill-add" style="background:rgba(14,165,233,0.14);border-color:rgba(14,165,233,0.34);color:#7dd3fc;margin-left:6px">+ 📊 Analysis</button>
         </div>
       </div>
-      <div class="drill-colbar"><i id="drill-bar-mock" style="background:linear-gradient(90deg,#fbbf24,#f59e0b)"></i></div>
+      <div class="drill-colbar"><i id="drill-bar-mock" style="background:linear-gradient(90deg,#38bdf8,#0ea5e9)"></i></div>
       <div id="drill-list-mock"></div>
     </div>
   </div>
@@ -15400,7 +15406,31 @@ function save(){
     if(typeof pushFn === 'function') pushFn().catch(function(){});
   }, 2000);
 }
-function load(){ const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);}catch(e){} D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||50; D.checklist=D.checklist||{}; D.sleepLog=D.sleepLog||{}; D.wakeTarget=D.wakeTarget||'05:00'; D.sleepTarget=D.sleepTarget||'23:30'; D.weeklyTasks=D.weeklyTasks||[]; D.wtWeekStart=D.wtWeekStart||''; D.wtArchive=D.wtArchive||[]; D.meta=D.meta||{}; D.dailyItems=D.dailyItems||dcDefaultItems(); D.dailyLog=D.dailyLog||{}; D.drill=D.drill||{}; wtMigrateMockDates(); wtCheckWeekReset(); }
+function load(){ const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);}catch(e){} D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||50; D.checklist=D.checklist||{}; D.sleepLog=D.sleepLog||{}; D.wakeTarget=D.wakeTarget||'05:00'; D.sleepTarget=D.sleepTarget||'23:30'; D.weeklyTasks=D.weeklyTasks||[]; D.wtWeekStart=D.wtWeekStart||''; D.wtArchive=D.wtArchive||[]; D.meta=D.meta||{}; D.dailyItems=D.dailyItems||dcDefaultItems(); D.dailyLog=D.dailyLog||{}; D.drill=D.drill||{}; wtMigrateMockDates(); _backfillMockHrs(); wtCheckWeekReset(); }
+
+// One-time: mocks edited via the old edit-path lost their hours (hrs=0). Recompute from
+// start/end clock times for any mock log that has both times but 0/missing hrs.
+function _backfillMockHrs(){
+  try{
+    D.meta=D.meta||{};
+    if(D.meta._mockHrsBackfill_v1) return;
+    let fixed=0;
+    Object.keys(D.logs||{}).forEach(function(dk){
+      (D.logs[dk]||[]).forEach(function(l){
+        if(l.type!=='mock') return;
+        if(l.hrs&&l.hrs>0) return;
+        const st=l.startTime, et=l.endTime;
+        if(!st||!et||st.indexOf(':')<0||et.indexOf(':')<0) return;
+        let dur=(parseInt(et.split(':')[0])*60+parseInt(et.split(':')[1]))-(parseInt(st.split(':')[0])*60+parseInt(st.split(':')[1]));
+        if(dur<0) dur+=24*60;
+        dur=Math.max(1,Math.round(dur));
+        l.duration=dur; l.hrs=Math.round(dur/60*10)/10; fixed++;
+      });
+    });
+    D.meta._mockHrsBackfill_v1=true;
+    if(fixed>0){ try{ save(); }catch(e){} }
+  }catch(e){}
+}
 
 // Stamp last-edited time on a setting so cloud-sync merge picks the freshest version cross-device.
 // Call this whenever you mutate D.wakeTarget / D.sleepTarget / D.target / D.weeklyTasks / D.wtArchive / D.wtWeekStart
@@ -21439,7 +21469,7 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
 })();
 </script>
 
-<!-- ═══════════════ ACTIVE RECALL (v25.8) ═══════════════ -->
+<!-- ═══════════════ ACTIVE RECALL (v26.2) ═══════════════ -->
 <div id="ar-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(8,11,16,.72);backdrop-filter:blur(3px)">
   <div id="ar-root">
     <div id="ar-head"></div>
@@ -21458,7 +21488,7 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
 #ar-head .bk{font-size:16px;font-weight:700;letter-spacing:-.01em}
 #ar-head .bk em{font-style:normal;color:#86efac}
 #ar-head .sb{font-size:11px;color:#98a3b3;letter-spacing:.05em;text-transform:uppercase}
-#ar-head .rt{margin-left:auto;display:flex;gap:5px}
+#ar-head .rt{margin-left:auto;display:flex;gap:5px;align-items:center}
 #ar-head .rt button{font-size:12.5px;padding:5px 12px;border-radius:99px;background:#222c3a;color:#cfd7e3;font-weight:500}
 #ar-head .rt button.on{background:#fff;color:#0e1116;font-weight:700}
 #ar-head .rt button.x{background:#3a2027;color:#fca5a5}
@@ -21469,56 +21499,18 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
 #ar-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px}
 #ar-body>.wrap{max-width:940px;margin:0 auto}
 #ar-root .panel{background:#fff;border:1px solid #dbe1ea;border-radius:11px;padding:15px 16px;margin-bottom:11px}
-#ar-root .panel.rural{border-left:3px solid #15803d}
-#ar-root .panel.urban{border-left:3px solid #1d4ed8}
-#ar-root .panel.trap{border-left:3px solid #b45309;background:#fdf0dc}
 #ar-root h2.sec{font-size:11.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#8b95a5;
   margin:32px 0 12px;padding-bottom:7px;border-bottom:1px solid #dbe1ea;display:flex;align-items:center;gap:9px}
 #ar-root h2.sec .k{font-size:10px;background:#0e1116;color:#fff;border-radius:4px;padding:2px 6px}
 #ar-root h2.sec:first-of-type{margin-top:2px}
 #ar-root p.lead{font-family:"Source Serif 4",Georgia,serif;font-size:16px;color:#46505f;margin:0 0 16px}
-#ar-root .snap{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:8px}
-#ar-root .chip{background:#fff;border:1px solid #dbe1ea;border-radius:10px;padding:11px 12px}
-#ar-root .chip .v{font-size:23px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
-#ar-root .chip .l{font-size:11.5px;color:#46505f;margin-top:3px;line-height:1.3}
-#ar-root .chip.r .v{color:#15803d} #ar-root .chip.u .v{color:#1d4ed8}
-#ar-root .ladder{display:grid;grid-template-columns:1fr 34px 1fr;background:#fff;border:1px solid #dbe1ea;border-radius:11px;overflow:hidden}
-#ar-root .lhead{padding:10px 13px;font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
-#ar-root .lhead.r{background:#e6f4ea;color:#15803d}
-#ar-root .lhead.u{background:#e8eefc;color:#1d4ed8}
-#ar-root .lhead.m{background:#f4f6fa}
-#ar-root .cellR,#ar-root .cellU,#ar-root .cellM{border-top:1px solid #eef1f6;padding:9px 13px;min-height:46px}
-#ar-root .cellM{border-left:1px solid #eef1f6;border-right:1px solid #eef1f6;background:#f7f9fc;display:flex;align-items:center;justify-content:center;color:#8b95a5;font-size:12px;padding:0}
-#ar-root .cellR .a,#ar-root .cellU .a{font-weight:700;font-size:13.5px}
-#ar-root .cellR .a{color:#15803d} #ar-root .cellU .a{color:#1d4ed8}
-#ar-root .cellR .t,#ar-root .cellU .t{font-size:12.5px;color:#46505f;line-height:1.35}
-#ar-root .cellU.none{background:#fafbfd;color:#8b95a5;font-size:12px;display:flex;align-items:center}
-#ar-root .mirror{color:#0e1116;font-weight:700}
-#ar-root .tl{position:relative;padding-left:26px}
-#ar-root .tl::before{content:"";position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:#dbe1ea}
-#ar-root .ev{position:relative;padding:0 0 15px}
-#ar-root .ev::before{content:"";position:absolute;left:-23px;top:6px;width:9px;height:9px;border-radius:99px;background:#fff;border:2px solid #8b95a5}
-#ar-root .ev.key::before{background:#15803d;border-color:#15803d}
-#ar-root .ev .y{font-size:12px;font-weight:700;color:#15803d}
-#ar-root .ev .b{font-size:13px;color:#46505f;font-family:"Source Serif 4",Georgia,serif;line-height:1.4}
-#ar-root .tw{overflow-x:auto;background:#fff;border:1px solid #dbe1ea;border-radius:11px;position:relative}
+#ar-root .tw{overflow-x:auto;background:#fff;border:1px solid #dbe1ea;border-radius:11px;position:relative;margin-bottom:14px}
 #ar-root table th{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:#8b95a5;text-align:left;padding:9px 13px;border-bottom:1px solid #dbe1ea;font-weight:700;white-space:nowrap}
 #ar-root table td{padding:9px 13px;border-bottom:1px solid #eef1f6;font-size:13.5px;vertical-align:top;line-height:1.4}
 #ar-root table tr:last-child td{border-bottom:0}
 #ar-root td.k{font-weight:700;white-space:nowrap}
-#ar-root td.r{color:#15803d;font-weight:600} #ar-root td.u{color:#1d4ed8;font-weight:600}
-#ar-root .yes{color:#15803d;font-weight:700} #ar-root .no{color:#c2410c;font-weight:700}
-#ar-root .traps{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:9px}
-#ar-root .trapcard{background:#fff;border:1px solid #dbe1ea;border-radius:11px;overflow:hidden}
-#ar-root .trapcard .th{background:#fdf0dc;color:#b45309;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:7px 12px}
-#ar-root .trapcard .row{display:flex;border-top:1px solid #eef1f6}
-#ar-root .trapcard .row>div{flex:1;padding:9px 12px;font-size:13px;line-height:1.35}
-#ar-root .trapcard .row>div:first-child{border-right:1px solid #eef1f6}
-#ar-root .trapcard .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#8b95a5;display:block;margin-bottom:2px}
 #ar-root ul.pts{margin:6px 0 0;padding-left:19px}
 #ar-root ul.pts li{font-size:13.5px;margin-bottom:5px;line-height:1.42}
-#ar-root .foot{font-size:11.5px;color:#8b95a5;text-align:center;padding:24px 16px 0;line-height:1.55}
-/* blank mode */
 #ar-root.blank .h{background:#1c2430;color:transparent;box-shadow:0 0 0 2px #1c2430;border-radius:4px}
 #ar-root.blank .h *{visibility:hidden}
 #ar-root.blank .h.show{background:none;color:inherit;box-shadow:none}
@@ -21529,287 +21521,507 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
 #ar-root .sw{width:44px;height:25px;border-radius:99px;background:#39455a;position:relative;flex:0 0 auto}
 #ar-root .sw::after{content:"";position:absolute;top:3px;left:3px;width:19px;height:19px;border-radius:99px;background:#fff;transition:left .15s}
 #ar-root.blank .sw{background:#86efac} #ar-root.blank .sw::after{left:22px}
-/* table quiz */
 #ar-root .tq{position:absolute;top:7px;right:9px;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;background:#0e1116;color:#fff;border-radius:99px;padding:4px 10px;z-index:3;opacity:.85}
 #ar-root td.qz{cursor:pointer;background:#1c2430;color:transparent;border-radius:4px}
 #ar-root td.qz *{visibility:hidden}
 #ar-root td.qz.show{background:#fff8e1;color:inherit}
 #ar-root td.qz.show *{visibility:visible}
-/* home list */
 #ar-root .subh{font-size:11px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#8b95a5;margin:22px 0 9px;display:flex}
 #ar-root .subh span{margin-left:auto;font-weight:500;letter-spacing:0;text-transform:none}
 #ar-root .chrow{background:#fff;border:1px solid #dbe1ea;border-radius:11px;padding:13px 15px;margin-bottom:8px;cursor:pointer}
 #ar-root .chrow:hover{border-color:#8b95a5}
-#ar-root .chrow .n{font-size:15px;font-weight:700;letter-spacing:-.01em}
+#ar-root .chrow .n{font-size:15px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+#ar-root .chrow .n .ar{margin-left:auto;color:#b6bfcc;font-weight:400}
 #ar-root .chrow .meta{font-size:11.5px;color:#8b95a5;margin-top:3px}
 #ar-root .stack{display:flex;height:8px;border-radius:99px;overflow:hidden;background:#e3e8ef;margin-top:9px}
 #ar-root .stack i{display:block;height:100%}
 #ar-root .stack .a{background:#15803d}#ar-root .stack .b{background:#d97706}#ar-root .stack .c{background:#c2410c}
-#ar-root .addbar{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:6px}
+#ar-root .subcard{background:#fff;border:1px solid #dbe1ea;border-radius:13px;padding:16px 17px;margin-bottom:9px;cursor:pointer;display:flex;align-items:center;gap:14px}
+#ar-root .subcard:hover{border-color:#0e1116}
+#ar-root .subcard .ic{width:44px;height:44px;border-radius:12px;background:#0e1116;color:#86efac;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex:0 0 auto}
+#ar-root .subcard .nm{font-size:17px;font-weight:700;letter-spacing:-.015em}
+#ar-root .subcard .mt{font-size:12px;color:#8b95a5;margin-top:2px}
+#ar-root .subcard .go{margin-left:auto;color:#b6bfcc;font-size:20px}
+#ar-root .addbar{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
 #ar-root .addbar button,#ar-root .addbar label{font-size:12.5px;padding:8px 14px;border-radius:99px;background:#fff;border:1px solid #dbe1ea;color:#46505f;cursor:pointer;font-weight:500}
 #ar-root .addbar button.pri{background:#0e1116;color:#fff;border-color:#0e1116;font-weight:700}
-/* drill */
-#ar-root .state{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:11px}
-#ar-root .state div{background:#fff;border:1px solid #dbe1ea;border-radius:10px;padding:10px 11px}
-#ar-root .state .n{font-size:21px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
-#ar-root .state .l{font-size:10.5px;color:#46505f;margin-top:2px}
-#ar-root .state .c2 .n{color:#15803d}#ar-root .state .c1 .n{color:#d97706}
-#ar-root .state .c0 .n{color:#c2410c}#ar-root .state .c3 .n{color:#9333ea}
-#ar-root .sessbar{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid #dbe1ea;border-radius:10px;padding:9px 13px;margin-bottom:11px;font-size:12.5px;color:#46505f;flex-wrap:wrap}
-#ar-root .sessbar b{color:#0e1116}
-#ar-root .sessbar button{margin-left:auto;font-size:11.5px;padding:5px 11px;border-radius:99px;border:1px solid #dbe1ea;color:#46505f;background:#fff}
+#ar-root .bigbtn{width:100%;background:#0e1116;color:#fff;border-radius:13px;padding:16px 18px;margin-bottom:11px;text-align:left;display:flex;align-items:center;gap:13px}
+#ar-root .bigbtn .ic2{width:38px;height:38px;border-radius:11px;background:#1d2735;color:#86efac;display:flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto}
+#ar-root .bigbtn .t1{font-size:15px;font-weight:700;letter-spacing:-.01em}
+#ar-root .bigbtn .t2{font-size:11.5px;color:#98a3b3;margin-top:2px}
+#ar-root .bigbtn .go{margin-left:auto;color:#5b6779;font-size:19px}
+#ar-root .bigbtn.warn{background:#faf5ff;border:1px solid #e9d5ff;color:#0e1116}
+#ar-root .bigbtn.warn .ic2{background:#f3e8ff;color:#7e22ce}
+#ar-root .bigbtn.warn .t2{color:#8b95a5}
+#ar-root .rbar{display:flex;align-items:center;gap:10px;background:#0e1116;color:#fff;border-radius:11px;padding:12px 15px;margin-bottom:11px;flex-wrap:wrap}
+#ar-root .rbar .rn{font-size:20px;font-weight:700;letter-spacing:-.02em;line-height:1}
+#ar-root .rbar .rl{font-size:10.5px;color:#98a3b3;letter-spacing:.09em;text-transform:uppercase;margin-top:2px}
+#ar-root .rbar .rd{display:flex;flex-direction:column}
+#ar-root .rbar .sep{width:1px;height:26px;background:#2b3746}
+#ar-root .rbar .rt2{margin-left:auto;display:flex;gap:6px}
+#ar-root .rbar .rt2 button{font-size:11.5px;padding:6px 12px;border-radius:99px;background:#222c3a;color:#cfd7e3}
 #ar-root .chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:10px}
 #ar-root .chips::-webkit-scrollbar{display:none}
 #ar-root .chips button{flex:0 0 auto;font-size:12px;padding:5px 12px;border-radius:99px;background:#fff;border:1px solid #dbe1ea;color:#46505f}
 #ar-root .chips button.on{background:#0e1116;color:#fff;border-color:#0e1116;font-weight:600}
 #ar-root .prog{height:4px;background:#dde3ec;border-radius:99px;overflow:hidden;margin-bottom:12px}
 #ar-root .prog i{display:block;height:100%;background:#0d7a5f;transition:width .25s}
-#ar-root .qc{background:#fff;border:1px solid #dbe1ea;border-radius:12px;padding:19px 17px}
-#ar-root .qmeta{display:flex;align-items:center;gap:8px;font-size:11.5px;color:#8b95a5;margin-bottom:12px}
-#ar-root .dot{width:8px;height:8px;border-radius:99px}
-#ar-root .b0{background:#c2410c}#ar-root .b1{background:#d97706}#ar-root .b2{background:#15803d}
-#ar-root .qt{font-family:"Source Serif 4",Georgia,serif;font-size:19px;line-height:1.42;margin:0}
-#ar-root .crutch{margin-top:15px;width:100%;border:1px dashed #dbe1ea;border-radius:9px;padding:10px;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#8b95a5;background:#fafbfd}
-#ar-root .crutch:hover{border-color:#8b95a5;color:#46505f}
-#ar-root .opts{display:grid;gap:7px;margin-top:13px}
-#ar-root .opt{text-align:left;border:1px solid #dbe1ea;border-radius:9px;padding:11px 13px;font-size:14.5px;line-height:1.35;display:flex;gap:9px;background:#fff}
-#ar-root .opt .ol{flex:0 0 17px;font-weight:700;color:#8b95a5}
-#ar-root .opt.good{background:#e3f3ee;border-color:#0d7a5f;color:#0d7a5f;font-weight:600}
-#ar-root .rev{margin-top:15px;display:block;width:100%}
-#ar-root .rev .b{display:block;background:#1c2430;color:#7d8899;border-radius:8px;padding:11px 0;text-align:center;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase}
-#ar-root .rev .a{display:none}
-#ar-root .rev.on .b{display:none}
-#ar-root .rev.on .a{display:block;font-size:20px;font-weight:700;color:#0d7a5f;line-height:1.3}
-#ar-root .sol{margin-top:11px;padding:12px 13px;background:#f7f9fc;border-radius:9px;border-left:2px solid #46505f;font-size:13px;line-height:1.5;color:#46505f}
-#ar-root .sol b{color:#0e1116}
-#ar-root .jump{display:inline-block;margin-top:10px;font-size:12px;background:#fdf0dc;color:#b45309;border-radius:99px;padding:6px 13px;font-weight:600}
+#ar-root .cd{background:#fff;border:1px solid #dbe1ea;border-radius:13px;padding:24px 20px;min-height:210px;display:flex;flex-direction:column}
+#ar-root .cd .tp{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#8b95a5;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+#ar-root .cd .tp .ct{margin-left:auto;color:#b6bfcc;letter-spacing:0;text-transform:none;font-size:11.5px}
+#ar-root .cd .tp .lf{background:#fdeee4;color:#c2410c;border-radius:99px;padding:2px 8px;letter-spacing:.04em}
+#ar-root .cd .fr{font-family:"Source Serif 4",Georgia,serif;font-size:21px;line-height:1.4;color:#0e1116;flex:1}
+#ar-root .cd .bkw{margin-top:18px;border-top:1px dashed #dbe1ea;padding-top:16px}
+#ar-root .cd .bkw .a{font-size:19px;font-weight:700;color:#0d7a5f;line-height:1.42}
+#ar-root .revb{margin-top:18px;width:100%;background:#1c2430;color:#7d8899;border-radius:9px;padding:14px 0;text-align:center;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase}
+#ar-root .revb:hover{background:#232d3b;color:#9aa5b5}
 #ar-root .grade{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
-#ar-root .grade button{padding:13px;border-radius:9px;font-weight:700;font-size:14px}
+#ar-root .grade button{padding:15px;border-radius:10px;font-weight:700;font-size:15px}
 #ar-root .gy{background:#e3f3ee;color:#0d7a5f}#ar-root .gn{background:#fdeee4;color:#c2410c}
-#ar-root .cap{font-size:11.5px;color:#b45309;margin-top:10px}
-#ar-root .done{background:#0e1116;color:#fff;border-radius:12px;padding:22px;text-align:center}
-#ar-root .done .n{font-size:38px;font-weight:700;letter-spacing:-.03em;line-height:1}
-#ar-root .done p{font-size:13px;color:#a9b4c4;margin:9px auto 0;max-width:360px;line-height:1.5}
-#ar-root .done button{margin-top:15px;background:#86efac;color:#06251a;font-weight:700;padding:10px 20px;border-radius:8px;font-size:14px}
-#ar-root .stuckbox{background:#faf5ff;border:1px solid #e9d5ff;border-radius:11px;padding:14px 15px;margin-top:14px}
-#ar-root .stuckbox .hh{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#7e22ce;font-weight:700;margin-bottom:8px}
-#ar-root .stuckbox .it{font-family:"Source Serif 4",Georgia,serif;font-size:13.5px;color:#46505f;padding:6px 0;border-top:1px solid #f0e4fb;line-height:1.35}
+#ar-root .done{background:#0e1116;color:#fff;border-radius:13px;padding:24px;text-align:center}
+#ar-root .done .n{font-size:40px;font-weight:700;letter-spacing:-.03em;line-height:1;color:#86efac}
+#ar-root .done p{font-size:13px;color:#a9b4c4;margin:9px auto 0;max-width:390px;line-height:1.55}
+#ar-root .done button{margin-top:16px;background:#86efac;color:#06251a;font-weight:700;padding:11px 22px;border-radius:9px;font-size:14px}
+#ar-root .done button.sec2{background:#222c3a;color:#cfd7e3;margin-left:7px}
+#ar-root .rep{background:#fff;border:1px solid #dbe1ea;border-radius:12px;padding:16px 17px;margin-top:12px}
+#ar-root .rep .hh{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:#8b95a5;font-weight:700;margin-bottom:11px}
+#ar-root .rep .rr{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid #f1f4f8;font-size:13.5px}
+#ar-root .rep .rr:first-of-type{border-top:0}
+#ar-root .rep .rr .bar{flex:1;height:6px;background:#eef1f6;border-radius:99px;overflow:hidden;max-width:170px}
+#ar-root .rep .rr .bar i{display:block;height:100%;background:#c2410c}
+#ar-root .rep .rr .vv{font-weight:700;font-size:12.5px;color:#c2410c;min-width:52px;text-align:right}
+#ar-root .rep .rr .nm{flex:0 1 auto}
+#ar-root .wrow{background:#fff;border:1px solid #dbe1ea;border-radius:11px;padding:12px 14px;margin-bottom:7px}
+#ar-root .wrow .q{font-family:"Source Serif 4",Georgia,serif;font-size:14.5px;line-height:1.4;color:#0e1116}
+#ar-root .wrow .a2{font-size:13.5px;color:#0d7a5f;font-weight:700;margin-top:5px}
+#ar-root .wrow .m2{font-size:11px;color:#8b95a5;margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#ar-root .wrow .pill{background:#fdeee4;color:#c2410c;border-radius:99px;padding:2px 8px;font-weight:700}
+#ar-root .wrow .pill.q2{background:#f3e8ff;color:#7e22ce}
+#ar-root .wrow button{margin-left:auto;font-size:11.5px;padding:5px 11px;border-radius:99px;border:1px solid #dbe1ea;color:#46505f;background:#fff}
 #ar-root .small{font-size:11.5px;color:#8b95a5;line-height:1.5}
 #ar-root .empty{text-align:center;padding:44px 20px;color:#8b95a5;font-size:14px}
+#ar-root .empty b{color:#0e1116}
+#ar-root .fform{background:#fff;border:1px solid #dbe1ea;border-radius:12px;padding:16px 17px;margin-bottom:12px}
+#ar-root .fform label{display:block;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:#8b95a5;font-weight:700;margin:10px 0 5px}
+#ar-root .fform input{width:100%;padding:10px 12px;border:1px solid #dbe1ea;border-radius:8px;font:inherit;font-size:14px;color:#0e1116;background:#fafbfd}
+#ar-root .fform .rowb{display:flex;gap:8px;margin-top:14px}
+#ar-root .fform .rowb button{flex:1;padding:11px;border-radius:9px;font-weight:700;font-size:14px;background:#0e1116;color:#fff}
+#ar-root .fform .rowb button.can{background:#eef1f6;color:#46505f}
 @media (max-width:700px){
   #ar-root{inset:0;border-radius:0}
-  #ar-root .ladder{grid-template-columns:1fr 26px 1fr}
-  #ar-root .state{grid-template-columns:repeat(2,1fr)}
-  #ar-root .qt{font-size:17px}
   #ar-body{padding:13px}
+  #ar-root .cd .fr{font-size:19px}
+  #ar-root .cd{padding:20px 16px}
 }
 </style>
 <script>
-/* ═══════════════ ACTIVE RECALL ═══════════════
-   Chapters are built from db by tag — questions are referenced, never copied.
-   Notes are optional and imported per chapter.
-   Progress: box 0 cold / 1 learning / 2 parked.
-   Parking needs two clean passes in two separate sittings.
-   Using the options crutch cannot park a question.
-   ═══════════════════════════════════════════ */
+/* ═══════════════ ACTIVE RECALL v26.2 ═══════════════
+   Subject → Chapter → (Notes | Cards), plus whole-subject cascades.
+   Cascade: round 1 = every card. Round 2+ = only the cards missed in the
+   previous round, shuffled, topic header hidden. Repeats to zero wrong.
+   Lifetime stats survive every re-run — total misses, total rights, and the
+   current run of consecutive rounds missed.
+   Quarantine: a card missed in 3 consecutive rounds is pulled out of the
+   cascade. Repetition is not fixing it; it needs re-reading beside whatever
+   fact it is being confused with.
+   Everything here rides the normal cloud sync.
+   ═══════════════════════════════════════════════════ */
 (function(){
   const AR_KEY='megaQuizAR_v1';
-  let A={ chapters:{}, prog:{}, session:1, lastOpen:0 };
-  let view='home', chId=null, filter='all', queue=[], cur=null, doneN=0, targetN=0, crutch=false;
-  let QIDX=null;
+  const QUAR_AT=3;
+  let A={ decks:{}, cprog:{}, life:{}, session:1, lastOpen:0 };
+  let view='subjects', curSub=null, deckId=null, tab='cards', runId=null;
+  let filter='all', pending=null;
 
   const $=id=>document.getElementById(id);
   const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const slug=s=>String(s).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+  const toast=m=>{ if(typeof hubToast==='function') hubToast(m); else alert(m); };
 
   /* ---------- storage ---------- */
   async function arLoad(){
-    try{ const v=await idbKeyval.get(AR_KEY); if(v&&v.chapters) A=v; }catch(e){}
-    A.chapters=A.chapters||{}; A.prog=A.prog||{}; A.session=A.session||1;
-    const now=Date.now();
-    if(A.lastOpen && now-A.lastOpen>3*3600*1000) A.session++;
-    A.lastOpen=now;
+    try{ const v=await idbKeyval.get(AR_KEY); if(v&&typeof v==='object') A=Object.assign(A,v); }catch(e){}
+    A.decks=A.decks||{}; A.cprog=A.cprog||{}; A.life=A.life||{};
+    /* the MCQ drill is gone — its records are dead weight in every sync */
+    if(A.chapters||A.prog){ delete A.chapters; delete A.prog; }
+    A.session=A.session||1; A.lastOpen=Date.now();
+    rebuildAutoNotes();
   }
   async function arSave(push){
     try{ await idbKeyval.set(AR_KEY,A); }catch(e){}
     if(push && typeof saveData==='function') saveData();
   }
-  window.__arForCloud=()=>A;
+  /* auto-generated notes are rebuilt from the cards, so they are stripped before
+     upload — 340 KB of pure duplication saved on every single sync */
+  window.__arForCloud=function(){
+    const slim={}; Object.keys(A.decks).forEach(k=>{
+      const d=A.decks[k];
+      slim[k]= d.autoNotes ? Object.assign({},d,{notesHtml:''}) : d;
+    });
+    return Object.assign({},A,{decks:slim, chapters:undefined, prog:undefined});
+  };
+  function rebuildAutoNotes(){
+    Object.values(A.decks).forEach(d=>{
+      if(d.autoNotes && !d.notesHtml && d.cards && d.cards.length)
+        d.notesHtml=notesFromCards(d.cards, d.colA||'Prompt', d.colB||'Answer');
+    });
+  }
   window.__arFromCloud=function(cloud){
     if(!cloud||typeof cloud!=='object') return;
-    A.chapters=A.chapters||{}; A.prog=A.prog||{};
-    Object.keys(cloud.chapters||{}).forEach(k=>{
-      const c=cloud.chapters[k], l=A.chapters[k];
-      if(!l || (c.updated||0)>(l.updated||0)) A.chapters[k]=c;
+    A.decks=A.decks||{}; A.cprog=A.cprog||{}; A.life=A.life||{};
+    Object.keys(cloud.decks||{}).forEach(k=>{
+      const c=cloud.decks[k], l=A.decks[k];
+      /* never let a stripped cloud copy blank out notes we already hold */
+      if(!l || (c.updated||0)>(l.updated||0))
+        A.decks[k]= (l && !c.notesHtml && l.notesHtml) ? Object.assign({},c,{notesHtml:l.notesHtml}) : c;
     });
-    Object.keys(cloud.prog||{}).forEach(k=>{
-      const c=cloud.prog[k], l=A.prog[k];
-      if(!l) { A.prog[k]=c; return; }
-      /* per question: the more advanced record wins, lapses add up */
-      Object.keys(c).forEach(q=>{
-        const cv=c[q], lv=l[q];
-        if(!lv){ l[q]=cv; return; }
-        if((cv.ls||0)>(lv.ls||0) || (cv.b||0)>(lv.b||0)) l[q]={...lv,...cv,lap:Math.max(lv.lap||0,cv.lap||0)};
-      });
+    Object.keys(cloud.cprog||{}).forEach(k=>{
+      const c=cloud.cprog[k], l=A.cprog[k];
+      if(!l){ A.cprog[k]=c; return; }
+      if((c.lastRun||0)>(l.lastRun||0)) A.cprog[k]=Object.assign({},l,c,{
+        history:(l.history||[]).length>(c.history||[]).length?l.history:c.history });
+    });
+    /* lifetime counters only ever grow — take the max of each side so a stale
+       device can never erase misses recorded elsewhere */
+    Object.keys(cloud.life||{}).forEach(k=>{
+      const c=cloud.life[k], l=A.life[k];
+      if(!l){ A.life[k]=c; return; }
+      A.life[k]={ w:Math.max(l.w||0,c.w||0), r:Math.max(l.r||0,c.r||0), w1:Math.max(l.w1||0,c.w1||0),
+        streak:(c.last||0)>(l.last||0)?(c.streak||0):(l.streak||0),
+        quar:!!(l.quar||c.quar), last:Math.max(l.last||0,c.last||0) };
     });
     A.session=Math.max(A.session||1, cloud.session||1);
+    rebuildAutoNotes();
     try{ idbKeyval.set(AR_KEY,A); }catch(e){}
   };
 
-  /* ---------- question index from db ---------- */
-  function buildIndex(){
-    QIDX={};
-    if(typeof db!=='object'||!db) return;
-    Object.keys(db).forEach(qz=>{
-      const o=db[qz]; if(!o||!Array.isArray(o.questions)) return;
-      o.questions.forEach((q,i)=>{ QIDX[q.id||(qz+'#'+i)]={q,quiz:qz,subject:o.subject}; });
-    });
+  /* ---------- card keys & lifetime ---------- */
+  const key=(d,c)=>d+'::'+c;
+  function resolveCard(k){
+    const i=k.indexOf('::'); if(i<0) return null;
+    const d=A.decks[k.slice(0,i)]; if(!d) return null;
+    const c=d.cards.find(x=>x.id===k.slice(i+2));
+    return c? {card:c, deck:d} : null;
   }
-  const qk=(qz,q,i)=>q.id||(qz+'#'+i);
-  function scanTags(){
-    const out={};
-    if(typeof db!=='object'||!db) return out;
-    Object.keys(db).forEach(qz=>{
-      const o=db[qz]; if(!o||!Array.isArray(o.questions)) return;
-      const subj=o.subject||'Untagged';
-      o.questions.forEach((q,i)=>{
-        const t=q.tags||[]; const ch=t[1]||'(no chapter tag)';
-        out[subj]=out[subj]||{};
-        (out[subj][ch]=out[subj][ch]||[]).push({k:qk(qz,q,i),st:t[2]||'General'});
-      });
-    });
-    return out;
-  }
+  function lf(k){ return A.life[k] || (A.life[k]={w:0,r:0,w1:0,streak:0,quar:false,last:0}); }
+  const isQuar=k=>!!(A.life[k]&&A.life[k].quar);
 
-  /* ---------- chapter ops ---------- */
-  function makeChapter(subject,chapter,items){
-    const id=(subject+'-'+chapter).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
-    A.chapters[id]={id,subject,chapter,q:items,notesHtml:'',sections:[],secMap:{},updated:Date.now()};
-    A.prog[id]=A.prog[id]||{};
-    items.forEach(it=>{ if(!A.prog[id][it.k]) A.prog[id][it.k]={b:0,lap:0,ls:0}; });
-    return id;
+  /* ---------- deck helpers ---------- */
+  const dk=()=>A.decks[deckId];
+  function cp(id){ return A.cprog[id] || (A.cprog[id]={round:0,pool:[],wrong:[],history:[],done:false,idx:0,lastRun:0,quarantined:[]}); }
+  function subjects(){
+    const m={};
+    Object.values(A.decks).forEach(d=>{ (m[d.subject]=m[d.subject]||[]).push(d); });
+    Object.keys(m).forEach(s=>m[s].sort((a,b)=>a.chapter.localeCompare(b.chapter)));
+    return m;
   }
-  const ch=()=>A.chapters[chId];
-  const pr=()=>A.prog[chId]||{};
-  function statOf(c){
-    const p=A.prog[c.id]||{}; const s=[0,0,0]; let stuck=0;
-    c.q.forEach(it=>{ const r=p[it.k]||{b:0,lap:0}; s[r.b||0]++; if((r.lap||0)>=5) stuck++; });
-    return {s,stuck,total:c.q.length};
+  function runStat(id, totalIfNew){
+    const p=A.cprog[id];
+    if(!p||!p.round) return {label:'not started', pct:0, tone:'c'};
+    if(p.done) return {label:'cleared in '+(p.history.length||1)+' round'+((p.history.length||1)>1?'s':''), pct:100, tone:'a'};
+    return {label:'round '+p.round+' · '+Math.max(0,p.pool.length-p.idx)+' left', pct:Math.round(p.idx/Math.max(1,p.pool.length)*100), tone:'b'};
   }
-
-  /* ---------- render: home ---------- */
-  function renderHome(){
-    $('ar-nav').innerHTML='';
-    $('ar-head').querySelector('.bk').innerHTML='Active <em>Recall</em>';
-    $('ar-head').querySelector('.sb').textContent=Object.keys(A.chapters).length+' chapters';
-    $('ar-tabs').style.display='none';
-    const bySub={};
-    Object.values(A.chapters).forEach(c=>{(bySub[c.subject]=bySub[c.subject]||[]).push(c);});
-    const subs=Object.keys(bySub).sort();
-    $('ar-body').innerHTML='<div class="wrap">'+
-      `<div class="addbar">
-         <button class="pri" id="arNew">+ New chapter from your question bank</button>
-         <label>Import notes<input type="file" id="arNotes" accept=".json" hidden></label>
-       </div>
-       <p class="small" style="margin:2px 0 4px">Chapters are built from questions already tagged in your hub — nothing is duplicated. Notes are optional and can be added later.</p>`+
-      (subs.length? subs.map(s=>`
-        <div class="subh">${esc(s)}<span>${bySub[s].length} chapter${bySub[s].length>1?'s':''}</span></div>
-        ${bySub[s].map(c=>{const st=statOf(c);return `
-          <div class="chrow" data-ch="${esc(c.id)}">
-            <div class="n">${esc(c.chapter)}</div>
-            <div class="meta">${st.total} questions · ${st.s[2]} parked · ${st.s[0]} cold${c.notesHtml?' · notes ✓':' · no notes yet'}</div>
-            <div class="stack">
-              <i class="a" style="width:${st.s[2]/st.total*100}%"></i>
-              <i class="b" style="width:${st.s[1]/st.total*100}%"></i>
-              <i class="c" style="width:${st.s[0]/st.total*100}%"></i>
-            </div>
-          </div>`}).join('')}`).join('')
-        : `<div class="empty">No chapters yet.<br><br>Press <b>+ New chapter</b> and pick a tag from your question bank.</div>`)
-      +'</div>';
-    $('arNew').onclick=pickChapter;
-    $('arNotes').onchange=importNotes;
-    $('ar-body').querySelectorAll('[data-ch]').forEach(r=>r.onclick=()=>{chId=r.dataset.ch;view='notes';render();});
-  }
-
-  /* ---------- new chapter picker ---------- */
-  function pickChapter(){
-    buildIndex();
-    const tree=scanTags(); const subs=Object.keys(tree).sort();
-    if(!subs.length){ alert('No tagged questions found in your database.'); return; }
-    $('ar-body').innerHTML='<div class="wrap">'+
-      `<div class="addbar"><button id="arBack2">← Back</button></div>
-       <p class="small" style="margin-bottom:12px">Pick a chapter tag. Every question carrying that tag is included, grouped by its sub-topic tag.</p>`+
-      subs.map(s=>`<div class="subh">${esc(s)}</div>`+
-        Object.keys(tree[s]).sort().map(c=>{
-          const n=tree[s][c].length;
-          const id=(s+'-'+c).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
-          const have=!!A.chapters[id];
-          return `<div class="chrow" data-mk="${esc(s)}|||${esc(c)}">
-            <div class="n">${esc(c)}${have?' <span style="font-size:11px;color:#15803d">· already added</span>':''}</div>
-            <div class="meta">${n} questions · ${new Set(tree[s][c].map(x=>x.st)).size} sub-topics</div></div>`;
-        }).join('')).join('')+'</div>';
-    $('arBack2').onclick=()=>{view='home';render();};
-    $('ar-body').querySelectorAll('[data-mk]').forEach(r=>r.onclick=async()=>{
-      const [s,c]=r.dataset.mk.split('|||');
-      const items=tree[s][c];
-      const id=makeChapter(s,c,items);
-      await arSave(true);
-      chId=id; view='drill'; render();
-      if(typeof hubToast==='function') hubToast('Chapter added — '+items.length+' questions');
+  function quarList(sub){
+    return Object.keys(A.life).filter(k=>A.life[k].quar).filter(k=>{
+      if(!sub) return true; const r=resolveCard(k); return r && r.deck.subject===sub;
     });
   }
 
-  /* ---------- notes import ---------- */
-  function importNotes(e){
+  /* ---------- import (unchanged shapes) ---------- */
+  function readFile(e, cb){
     const f=e.target.files[0]; if(!f) return;
     const r=new FileReader();
-    r.onload=async()=>{
-      try{
-        const p=JSON.parse(r.result);
-        if(!p.notesHtml) throw 0;
-        let id=p.chapterId||null;
-        if(!id){
-          const guess=(p.subject+'-'+p.chapter).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
-          id=A.chapters[guess]?guess:null;
-        }
-        if(!id||!A.chapters[id]){ alert('No matching chapter. Create the chapter first, then import its notes.'); return; }
-        const c=A.chapters[id];
-        c.notesHtml=p.notesHtml; c.sections=p.sections||[]; c.secMap=p.secMap||{}; c.updated=Date.now();
-        await arSave(true);
-        alert('Notes added to '+c.chapter);
-        view='home'; render();
-      }catch(err){ alert('That file is not a notes pack.'); }
-    };
+    r.onload=()=>{ try{ cb(JSON.parse(r.result), f.name); }
+                   catch(err){ toast('That file is not valid JSON.'); } };
     r.readAsText(f); e.target.value='';
   }
+  function normalise(p, fname){
+    if(p && Array.isArray(p.cards)){
+      return { subject:p.subject||'Untitled', chapter:p.chapter||'Untitled chapter',
+               version:p.version||1, notesHtml:p.notesHtml||'',
+               cards:p.cards.map((c,i)=>({ id:c.id||('c'+i), topic:c.topic||'General',
+                        front:String(c.front||''), back:String(c.back||'') }))
+                     .filter(c=>c.front&&c.back) };
+    }
+    if(p && p.notesHtml && !p.cards){
+      return { subject:p.subject||'', chapter:p.chapter||'', notesOnly:true,
+               notesHtml:p.notesHtml, cards:[] };
+    }
+    const arr = Array.isArray(p) ? p : (Array.isArray(p&&p.data)?p.data:null);
+    if(arr && arr.length){
+      const cards=arr.map((o,i)=>{
+        if(Array.isArray(o)) return {id:'c'+i, topic:'General', front:String(o[0]||''), back:String(o[1]||'')};
+        const front = o.d ?? o.front ?? o.q ?? o.definition ?? o.clue ?? o.sentence ?? '';
+        const back  = o.a ?? o.back  ?? o.ans ?? o.answer ?? o.word ?? o.ows ?? '';
+        return { id:o.id||('c'+i), topic:o.t||o.topic||o.cat||'General',
+                 front:String(front), back:String(back) };
+      }).filter(c=>c.front&&c.back);
+      if(cards.length) return { subject:'', chapter:(fname||'').replace(/\.[^.]+$/,'').replace(/[_-]+/g,' '),
+                                cards, needMeta:true };
+    }
+    return null;
+  }
+  function notesFromCards(cards, colA, colB){
+    const by={}; cards.forEach(c=>{ (by[c.topic]=by[c.topic]||[]).push(c); });
+    return `<p class="lead">Every entry below, grouped by topic. Turn on <b>Blank mode</b> to hide a column, `+
+      `or use <b>Quiz this table</b> on any table to blank one column at a time.</p>`+
+      Object.keys(by).sort().map(k=>`<h2 class="sec"><span class="k">${by[k].length}</span>${esc(k)}</h2>
+        <div class="tw"><table><tr><th>${esc(colA)}</th><th>${esc(colB)}</th></tr>`+
+        by[k].map(c=>`<tr><td>${esc(c.front)}</td><td class="k"><span class="h">${esc(c.back)}</span></td></tr>`).join('')+
+        `</table></div>`).join('');
+  }
+  async function commitDeck(meta){
+    const id=slug(meta.subject+'-'+meta.chapter);
+    const prev=A.decks[id];
+    A.decks[id]={ id, subject:meta.subject, chapter:meta.chapter,
+      version:meta.version||1, cards:meta.cards,
+      notesHtml: meta.notesHtml || (prev&&prev.notesHtml) || notesFromCards(meta.cards, meta.colA||'Prompt', meta.colB||'Answer'),
+      autoNotes: !(meta.notesHtml || (prev&&prev.notesHtml&&!prev.autoNotes)),
+      colA: meta.colA||'Prompt', colB: meta.colB||'Answer',
+      updated:Date.now() };
+    if(prev && prev.cards.length!==meta.cards.length){ delete A.cprog[id]; }
+    await arSave(true);
+    toast(meta.chapter+' — '+meta.cards.length+' cards ready');
+    curSub=meta.subject; deckId=id; view='chapter'; tab='cards'; render();
+  }
+  function onImport(p, fname){
+    const n=normalise(p, fname);
+    if(!n){ toast('Unrecognised file. Expected a cards deck or a pair list.'); return; }
+    if(n.notesOnly){
+      const id=slug((n.subject||'')+'-'+(n.chapter||''));
+      const d=A.decks[id];
+      if(!d){ toast('No matching chapter. Add its cards first, then the notes.'); return; }
+      d.notesHtml=n.notesHtml; d.autoNotes=false; d.updated=Date.now();
+      arSave(true); toast('Notes added to '+d.chapter);
+      curSub=d.subject; deckId=id; view='chapter'; tab='notes'; render(); return;
+    }
+    if(n.needMeta || !n.subject){ pending=n; view='meta'; render(); return; }
+    commitDeck(n);
+  }
 
-  /* ---------- render: notes ---------- */
+  /* ---------- cascade core ---------- */
+  function poolForDeck(d){
+    return d.cards.filter(c=>filter==='all'||c.topic===filter)
+                  .map(c=>key(d.id,c.id)).filter(k=>!isQuar(k));
+  }
+  function poolForSubject(sub){
+    const out=[];
+    (subjects()[sub]||[]).forEach(d=>d.cards.forEach(c=>{
+      const k=key(d.id,c.id); if(!isQuar(k)) out.push(k);
+    }));
+    return out.sort(()=>Math.random()-.5);   /* a subject run mixes from round 1 — that is the point */
+  }
+  function startRun(id, pool, fresh){
+    const p=cp(id);
+    if(fresh || !p.round || p.done){
+      Object.assign(p,{round:1,pool:pool,wrong:[],history:[],done:false,idx:0,lastRun:Date.now(),quarantined:[]});
+      /* a fresh run clears the consecutive-miss streaks it is about to re-measure */
+      pool.forEach(k=>{ const L=lf(k); L.streak=0; });
+    }
+    arSave(false);
+  }
+  function nextRound(id){
+    const p=cp(id);
+    /* Round 1 is the only uncontaminated reading — every later round is answered
+       minutes after seeing the answer. So the round-1 miss list is kept whole,
+       and counted separately for life. */
+    if(p.round===1){
+      p.firstWrong=p.wrong.slice();
+      p.firstTotal=p.pool.length;
+      p.wrong.forEach(k=>{ const L=lf(k); L.w1=(L.w1||0)+1; });
+      p.coldRuns=(p.coldRuns||0)+1;
+    }
+    p.history.push({round:p.round, total:p.pool.length, wrong:p.wrong.length});
+    /* quarantine anything that has now missed QUAR_AT rounds in a row */
+    const newQ=p.wrong.filter(k=>(lf(k).streak||0)>=QUAR_AT);
+    newQ.forEach(k=>{ lf(k).quar=true; if(p.quarantined.indexOf(k)<0) p.quarantined.push(k); });
+    const carry=p.wrong.filter(k=>newQ.indexOf(k)<0);
+    if(!carry.length){ p.done=true; p.idx=p.pool.length; p.lastRun=Date.now(); arSave(true);
+      if(newQ.length) toast(newQ.length+' card'+(newQ.length>1?'s':'')+' quarantined — repetition is not working on them');
+      return; }
+    p.round++; p.pool=carry.slice().sort(()=>Math.random()-.5);
+    p.wrong=[]; p.idx=0; p.lastRun=Date.now();
+    arSave(true);
+    if(newQ.length) toast(newQ.length+' card'+(newQ.length>1?'s':'')+' quarantined');
+  }
+  async function grade(id, ok){
+    const p=cp(id), k=p.pool[p.idx], L=lf(k);
+    if(ok){ L.r=(L.r||0)+1; L.streak=0; }
+    else  { L.w=(L.w||0)+1; L.streak=(L.streak||0)+1; if(p.wrong.indexOf(k)<0) p.wrong.push(k); }
+    L.last=Date.now();
+    p.idx++; p.lastRun=Date.now();
+    if(p.idx>=p.pool.length) nextRound(id);
+    await arSave(false);
+    render();
+  }
+
+  /* ---------- render: subjects ---------- */
+  function renderSubjects(){
+    setHead('Active <em>Recall</em>', Object.keys(A.decks).length+' chapter'+(Object.keys(A.decks).length===1?'':'s'), false);
+    $('ar-nav').innerHTML='';
+    const m=subjects(), subs=Object.keys(m).sort();
+    const worst=Object.keys(A.life).filter(k=>(A.life[k].w||0)>0).length;
+    const q=quarList(null).length;
+    $('ar-body').innerHTML='<div class="wrap">'+
+      `<div class="addbar"><label class="pri">+ Add cards JSON<input type="file" id="arImp" accept=".json" hidden></label></div>`+
+      (subs.length ? subs.map(s=>{
+          const ds=m[s], cards=ds.reduce((n,d)=>n+d.cards.length,0);
+          const cleared=ds.filter(d=>(A.cprog[d.id]||{}).done).length;
+          return `<div class="subcard" data-sub="${esc(s)}">
+            <div class="ic">${esc(s.slice(0,2).toUpperCase())}</div>
+            <div><div class="nm">${esc(s)}</div>
+              <div class="mt">${ds.length} chapter${ds.length>1?'s':''} · ${cards} cards${cleared?' · '+cleared+' cleared':''}</div></div>
+            <div class="go">›</div></div>`;
+        }).join('')
+        : `<div class="empty">Nothing here yet.<br><br>Press <b>+ Add cards JSON</b> and pick a deck file.<br>
+           Subjects appear here automatically as you add them.</div>`)+
+      (worst? `<button class="bigbtn" id="arWorst" style="margin-top:14px">
+          <div class="ic2">△</div><div><div class="t1">Worst cards</div>
+          <div class="t2">${worst} card${worst>1?'s':''} you have missed at least once, ranked</div></div>
+          <div class="go">›</div></button>`:'')+
+      (q? `<button class="bigbtn warn" id="arQ"><div class="ic2">⏸</div>
+          <div><div class="t1">Quarantined — ${q}</div>
+          <div class="t2">Missed ${QUAR_AT} rounds running. Read these, don't drill them.</div></div>
+          <div class="go">›</div></button>`:'')
+      +'</div>';
+    $('arImp').onchange=e=>readFile(e,onImport);
+    $('ar-body').querySelectorAll('[data-sub]').forEach(r=>r.onclick=()=>{curSub=r.dataset.sub;view='chapters';render();});
+    if($('arWorst')) $('arWorst').onclick=()=>{view='worst';render();};
+    if($('arQ')) $('arQ').onclick=()=>{view='quar';render();};
+  }
+
+  /* ---------- render: chapters of a subject ---------- */
+  function renderChapters(){
+    const ds=(subjects()[curSub]||[]);
+    const total=ds.reduce((n,d)=>n+d.cards.length,0);
+    const sid='sub::'+slug(curSub);
+    const st=runStat(sid);
+    setHead(esc(curSub), ds.length+' chapter'+(ds.length===1?'':'s'), false);
+    $('ar-nav').innerHTML='';
+    $('ar-body').innerHTML='<div class="wrap">'+
+      `<div class="addbar"><button id="arBack">← All subjects</button>
+         <label>+ Add cards JSON<input type="file" id="arImp2" accept=".json" hidden></label></div>`+
+      `<button class="bigbtn" id="arSubRun"><div class="ic2">⚡</div>
+        <div><div class="t1">Run the whole subject</div>
+        <div class="t2">${total} cards mixed across every chapter · ${st.label}</div></div>
+        <div class="go">›</div></button>`+
+      `<div class="subh">Chapters</div>`+
+      ds.map(d=>{
+        const s=runStat(d.id);
+        return `<div class="chrow" data-d="${esc(d.id)}">
+          <div class="n">${esc(d.chapter)}<span class="ar">›</span></div>
+          <div class="meta">${d.cards.length} cards · ${s.label}${d.notesHtml?' · notes ✓':''}</div>
+          <div class="stack"><i class="${s.tone}" style="width:${s.pct}%"></i></div></div>`;
+      }).join('')+'</div>';
+    $('arBack').onclick=()=>{view='subjects';curSub=null;render();};
+    $('arImp2').onchange=e=>readFile(e,onImport);
+    $('arSubRun').onclick=()=>{ runId=sid; view='subrun'; render(); };
+    $('ar-body').querySelectorAll('[data-d]').forEach(r=>r.onclick=()=>{deckId=r.dataset.d;view='chapter';tab='cards';render();});
+  }
+
+  /* ---------- render: worst cards ---------- */
+  function renderWorst(){
+    const rows=Object.keys(A.life).filter(k=>(A.life[k].w||0)>0)
+      .map(k=>({k, L:A.life[k], R:resolveCard(k)})).filter(x=>x.R)
+      .sort((a,b)=>((b.L.w1||0)-(a.L.w1||0))||(b.L.w-a.L.w));
+    setHead('Worst <em>cards</em>', rows.length+' with at least one miss', false);
+    $('ar-nav').innerHTML='';
+    $('ar-body').innerHTML='<div class="wrap">'+
+      `<div class="addbar"><button id="arBack4">← Subjects</button>
+         <button id="arWipe">Reset all counters</button></div>
+       <p class="small" style="margin:0 0 12px">Lifetime totals, surviving every re-run.
+         Ranked by <b>cold misses</b> — times you got it wrong on a round 1, before having just seen the answer.
+         That is the only honest measurement here; later rounds are half short-term memory.
+         Work top-down in the last week.</p>`+
+      (rows.length? rows.slice(0,200).map(x=>{
+        const acc=Math.round(x.L.r/Math.max(1,x.L.w+x.L.r)*100);
+        return `<div class="wrow">
+          <div class="q">${esc(x.R.card.front)}</div>
+          <div class="a2">${esc(x.R.card.back)}</div>
+          <div class="m2">${(x.L.w1||0)>0?`<span class="pill">${x.L.w1} cold miss${x.L.w1>1?'es':''}</span>`:''}
+            <span class="pill" style="background:#eef1f6;color:#46505f">${x.L.w} total</span>
+            <span>${acc}% right</span><span>·</span><span>${esc(x.R.deck.chapter)} — ${esc(x.R.card.topic)}</span>
+            ${x.L.quar?'<span class="pill q2">quarantined</span>':''}</div></div>`;
+      }).join('') : `<div class="empty">No misses recorded yet.</div>`)+'</div>';
+    $('arBack4').onclick=()=>{view='subjects';render();};
+    $('arWipe').onclick=async()=>{ if(!confirm('Clear every lifetime counter and release all quarantined cards?')) return;
+      A.life={}; await arSave(true); render(); };
+  }
+
+  /* ---------- render: quarantine ---------- */
+  function renderQuar(){
+    const ks=quarList(null).map(k=>({k,R:resolveCard(k),L:A.life[k]})).filter(x=>x.R);
+    setHead('Quarantined', ks.length+' cards', false);
+    $('ar-nav').innerHTML='';
+    $('ar-body').innerHTML='<div class="wrap">'+
+      `<div class="addbar"><button id="arBack5">← Subjects</button>
+         <button id="arRelAll">Release all</button></div>
+       <p class="small" style="margin:0 0 12px">Each of these was missed in ${QUAR_AT} rounds running, so it is out of the
+         cascade. Drilling them again will not help — the fault is interference with a neighbouring fact, not weak memory.
+         Read each one beside whatever it is being confused with, then release it.</p>`+
+      (ks.length? ks.map(x=>`<div class="wrow">
+          <div class="q">${esc(x.R.card.front)}</div>
+          <div class="a2">${esc(x.R.card.back)}</div>
+          <div class="m2"><span class="pill">${x.L.w} lifetime miss${x.L.w>1?'es':''}</span>
+            <span>${esc(x.R.deck.chapter)} — ${esc(x.R.card.topic)}</span>
+            <button data-rel="${esc(x.k)}">Release</button></div></div>`).join('')
+        : `<div class="empty">Nothing quarantined. Good.</div>`)+'</div>';
+    $('arBack5').onclick=()=>{view='subjects';render();};
+    $('arRelAll').onclick=async()=>{ ks.forEach(x=>{A.life[x.k].quar=false;A.life[x.k].streak=0;}); await arSave(true); render(); };
+    $('ar-body').querySelectorAll('[data-rel]').forEach(b=>b.onclick=async()=>{
+      const k=b.dataset.rel; A.life[k].quar=false; A.life[k].streak=0; await arSave(true); render(); });
+  }
+
+  /* ---------- render: metadata form ---------- */
+  function renderMeta(){
+    setHead('Name this deck','import', false);
+    $('ar-nav').innerHTML='';
+    $('ar-body').innerHTML='<div class="wrap"><div class="fform">'+
+      `<p class="small" style="margin:0 0 6px">${pending.cards.length} pairs read from the file. Tell me where they belong.</p>
+       <label>Subject</label><input id="mfS" value="${esc(pending.subject||'English')}" placeholder="English">
+       <label>Chapter</label><input id="mfC" value="${esc(pending.chapter||'')}" placeholder="One Word Substitution">
+       <label>Left column heading</label><input id="mfA" value="Meaning">
+       <label>Right column heading</label><input id="mfB" value="Word">
+       <div class="rowb"><button class="can" id="mfX">Cancel</button><button id="mfOK">Add deck</button></div>`+
+      '</div></div>';
+    $('mfX').onclick=()=>{pending=null;view='subjects';render();};
+    $('mfOK').onclick=()=>{
+      const s=$('mfS').value.trim(), c=$('mfC').value.trim();
+      if(!s||!c){ toast('Subject and chapter are both needed.'); return; }
+      commitDeck(Object.assign({},pending,{subject:s,chapter:c,colA:$('mfA').value.trim()||'Prompt',colB:$('mfB').value.trim()||'Answer'}));
+      pending=null;
+    };
+  }
+
+  /* ---------- render: chapter shell ---------- */
+  function renderChapter(){
+    const d=dk(); if(!d){view='subjects';return render();}
+    setHead(esc(d.chapter)+' <em>·</em> '+esc(d.subject), d.cards.length+' cards', true);
+    $('arTN').classList.toggle('on', tab==='notes');
+    $('arTC').classList.toggle('on', tab==='cards');
+    if(tab==='notes') renderNotes();
+    else cascadeUI(d.id, {chips:true, backTo:'chapters', deck:d});
+  }
   function renderNotes(){
-    const c=ch(); if(!c) {view='home';return render();}
-    $('ar-head').querySelector('.bk').innerHTML=esc(c.chapter)+' <em>·</em> '+esc(c.subject);
-    $('ar-head').querySelector('.sb').textContent=c.q.length+' questions';
-    $('ar-tabs').style.display='flex';
-    $('arTN').classList.add('on'); $('arTD').classList.remove('on');
-    $('ar-nav').innerHTML=(c.sections||[]).map(s=>`<a data-go="${esc(s.id)}">${esc(s.label)}</a>`).join('');
-    if(!c.notesHtml){
+    const d=dk();
+    $('ar-nav').innerHTML='';
+    if(!d.notesHtml){
       $('ar-body').innerHTML='<div class="wrap"><div class="empty">No notes for this chapter yet.<br><br>'+
-        'Use <b>Export questions</b> below, send the file, and import the notes pack you get back.'+
-        '<div class="addbar" style="justify-content:center;margin-top:18px"><button id="arExp">Export questions for notes</button></div></div></div>';
-      $('arExp').onclick=exportQuestions;
-      return;
+        'Import a notes pack, or re-import the deck to auto-build a two-column table.'+
+        '<div class="addbar" style="justify-content:center;margin-top:18px">'+
+        '<label>Import notes<input type="file" id="arNI" accept=".json" hidden></label></div></div></div>';
+      $('arNI').onchange=e=>readFile(e,onImport); return;
     }
     $('ar-body').innerHTML='<div class="wrap">'+
       `<div class="btog" id="arBlank"><div class="t"><b>Blank mode</b> — hides every fact. Tap to reveal.</div><div class="sw"></div></div>`+
-      c.notesHtml+'</div>';
+      d.notesHtml+'</div>';
     $('arBlank').onclick=()=>{
       $('ar-root').classList.toggle('blank');
       if(!$('ar-root').classList.contains('blank'))
         $('ar-body').querySelectorAll('.h.show').forEach(x=>x.classList.remove('show'));
     };
+    $('ar-body').querySelectorAll('.h').forEach(h=>h.onclick=()=>h.classList.toggle('show'));
     wireTables();
-    $('ar-nav').querySelectorAll('[data-go]').forEach(a=>a.onclick=()=>{
-      const t=$('ar-body').querySelector('#'+CSS.escape(a.dataset.go));
-      if(t) t.scrollIntoView({behavior:'smooth',block:'start'});
-    });
   }
   function wireTables(){
     $('ar-body').querySelectorAll('.tw').forEach(w=>{
@@ -21831,151 +22043,172 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     });
   }
 
-  /* ---------- drill ---------- */
-  const eligible=it=>{const r=pr()[it.k]||{b:0,lap:0,ls:0}; return (r.b||0)<2 && r.ls!==A.session && (r.lap||0)<5;};
-  function buildQueue(){
-    const c=ch(); let pool=c.q.filter(eligible);
-    if(filter!=='all') pool=pool.filter(it=>it.st===filter);
-    const p=pr();
-    pool.sort((a,b)=>{const A1=p[a.k]||{},B1=p[b.k]||{};return (A1.b||0)!==(B1.b||0)?(A1.b||0)-(B1.b||0):(B1.lap||0)-(A1.lap||0);});
-    const by={}; pool.forEach(it=>{(by[it.st]=by[it.st]||[]).push(it);});
-    const keys=Object.keys(by),out=[];
-    while(out.length<pool.length){ let add=false;
-      for(const k of keys) if(by[k].length){out.push(by[k].shift());add=true;}
-      if(!add) break; }
-    queue=out; doneN=0; targetN=out.length; nextCard();
-  }
-  function nextCard(){ cur=queue.shift()||null; crutch=false; renderCard(); }
-  async function mark(ok){
-    const p=pr(), r=p[cur.k]||(p[cur.k]={b:0,lap:0,ls:0});
-    if(ok){ if(crutch){ r.b=Math.max(r.b||0,1); } else { r.b=Math.min(2,(r.b||0)+1); } }
-    else { r.b=0; r.lap=(r.lap||0)+1; }
-    r.ls=A.session; doneN++;
-    await arSave(false);
-    nextCard(); renderState();
-  }
-  function renderDrill(){
-    const c=ch(); if(!c){view='home';return render();}
-    $('ar-head').querySelector('.bk').innerHTML=esc(c.chapter)+' <em>·</em> '+esc(c.subject);
-    $('ar-head').querySelector('.sb').textContent=c.q.length+' questions';
-    $('ar-tabs').style.display='flex';
-    $('arTD').classList.add('on'); $('arTN').classList.remove('on');
-    $('ar-nav').innerHTML='';
-    $('ar-body').innerHTML='<div class="wrap">'+
-      '<div class="sessbar" id="arSess"></div><div class="state" id="arState"></div>'+
-      '<div class="chips" id="arChips"></div><div class="prog"><i id="arProg"></i></div>'+
-      '<div id="arCard"></div><div id="arStuck"></div>'+
-      '<div class="addbar" style="margin-top:16px"><button id="arExp2">Export questions for notes</button></div></div>';
-    $('arExp2').onclick=exportQuestions;
-    buildIndex(); renderState(); buildQueue();
-  }
-  function renderState(){
-    const c=ch(); if(!c) return; const st=statOf(c);
-    const due=c.q.filter(eligible).length;
-    $('arState').innerHTML=`
-      <div class="c2"><div class="n">${st.s[2]}</div><div class="l">parked</div></div>
-      <div class="c1"><div class="n">${st.s[1]}</div><div class="l">learning</div></div>
-      <div class="c0"><div class="n">${st.s[0]}</div><div class="l">cold</div></div>
-      <div class="c3"><div class="n">${st.stuck}</div><div class="l">stuck</div></div>`;
-    $('arSess').innerHTML=`<span>Sitting <b>${A.session}</b> · <b>${due}</b> available now · parking needs <b>two clean passes</b></span><button id="arNS">New sitting</button>`;
-    $('arNS').onclick=async()=>{A.session++;await arSave(true);renderState();buildQueue();};
-    const sts=[...new Set(c.q.map(x=>x.st))];
-    $('arChips').innerHTML=[['all','All'],...sts.map(x=>[x,x])].map(([v,l])=>{
-      const n=c.q.filter(it=>(v==='all'||it.st===v)&&eligible(it)).length;
-      return `<button data-f="${esc(v)}" class="${filter===v?'on':''}">${esc(l)} <span style="opacity:.6">${n}</span></button>`;
-    }).join('');
-    $('arChips').querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{filter=b.dataset.f;renderState();buildQueue();});
-    const p=pr();
-    const stuckList=c.q.filter(it=>((p[it.k]||{}).lap||0)>=5);
-    $('arStuck').innerHTML=stuckList.length?`<div class="stuckbox"><div class="hh">Stuck — repetition is not working</div>
-      <p class="small" style="margin:0 0 4px">Missed five times or more. Do not drill these again — read each one beside the fact it is being confused with.</p>
-      ${stuckList.map(it=>{const e=QIDX&&QIDX[it.k];return e?`<div class="it">${esc(String(e.q.question).replace(/<[^>]+>/g,' ').slice(0,120))}…</div>`:'';}).join('')}</div>`:'';
-  }
-  function renderCard(){
-    const box=$('arCard'); if(!box) return;
-    $('arProg').style.width = targetN? (doneN/targetN*100)+'%':'0%';
-    if(!cur){
-      const c=ch(), left=c.q.filter(it=>((pr()[it.k]||{}).b||0)<2).length;
-      box.innerHTML=`<div class="done"><div class="n">${doneN}</div>
-        <p>questions this sitting. ${left} still not parked.</p>
-        <p>Nothing you answered today comes back today — that gap is what makes it stick.</p>
-        <button id="arNS2">New sitting</button></div>`;
-      $('arNS2').onclick=async()=>{A.session++;await arSave(true);renderState();buildQueue();};
-      return;
-    }
-    const e=QIDX&&QIDX[cur.k];
-    if(!e){ doneN++; return nextCard(); }
-    const q=e.q, r=pr()[cur.k]||{b:0,lap:0};
-    const ans=(q.options||[]).find(o=>o.correct); const ansTxt=ans?ans.text:'(no answer key)';
-    const c=ch(); const secId=(c.secMap||{})[cur.st]||'';
-    const sec=(c.sections||[]).find(x=>x.id===secId);
-    box.innerHTML=`<div class="qc">
-      <div class="qmeta"><span class="dot b${r.b||0}"></span>${['cold','learning','parked'][r.b||0]}${r.lap?' · missed '+r.lap+'×':''}
-        <span style="margin-left:auto">${doneN+1} of ${targetN}</span></div>
-      <p class="qt">${q.question}</p>
-      <button class="crutch" id="arCr">Show options — costs you the clean pass</button>
-      <div class="opts" id="arOpt" style="display:none"></div>
-      <button class="rev" id="arRev"><span class="b">Reveal answer</span><span class="a">${esc(ansTxt)}</span></button>
-      <div id="arAfter"></div></div>`;
-    $('arCr').onclick=()=>{
-      crutch=true; $('arCr').style.display='none';
-      const ob=$('arOpt'); ob.style.display='grid';
-      ob.innerHTML=(q.options||[]).map((o,j)=>`<div class="opt"><span class="ol">${'ABCD'[j]||''}</span><span>${o.text}</span></div>`).join('');
-    };
-    $('arRev').onclick=()=>{
-      $('arRev').classList.add('on'); $('arCr').style.display='none';
-      if($('arOpt').style.display==='grid')
-        $('arOpt').querySelectorAll('.opt').forEach((x,j)=>{ if((q.options||[])[j] && q.options[j].correct) x.classList.add('good'); });
-      let h = q.solution? `<div class="sol">${q.solution}</div>`:'';
-      if(sec) h+=`<button class="jump" id="arJump">Read the notes: ${esc(sec.label)} →</button>`;
-      if(crutch) h+=`<div class="cap">You used the options. A correct answer keeps this in <b>learning</b> — it cannot park until you get it clean.</div>`;
-      h+=`<div class="grade"><button class="gy" id="arGY">I had it</button><button class="gn" id="arGN">Missed it</button></div>`;
-      $('arAfter').innerHTML=h;
-      $('arGY').onclick=()=>mark(true); $('arGN').onclick=()=>mark(false);
-      const j=$('arJump'); if(j) j.onclick=()=>{ view='notes'; render();
-        setTimeout(()=>{const t=$('ar-body').querySelector('#'+CSS.escape(secId)); if(t) t.scrollIntoView({behavior:'smooth'});},60); };
-    };
+  /* ---------- render: subject-wide run ---------- */
+  function renderSubRun(){
+    const total=(subjects()[curSub]||[]).reduce((n,d)=>n+d.cards.length,0);
+    setHead(esc(curSub)+' <em>·</em> whole subject', total+' cards', false);
+    cascadeUI(runId, {chips:false, backTo:'chapters', subject:curSub});
   }
 
-  /* ---------- export questions for notes ---------- */
-  function exportQuestions(){
-    buildIndex();
-    const c=ch(); if(!c) return;
-    const out={chapterId:c.id,subject:c.subject,chapter:c.chapter,
-      questions:c.q.map(it=>{const e=QIDX[it.k];if(!e)return null;
-        const q=e.q,a=(q.options||[]).findIndex(o=>o.correct);
-        return {k:it.k,st:it.st,q:q.question,o:(q.options||[]).map(o=>o.text),c:a,s:q.solution||''};}).filter(Boolean)};
-    const b=new Blob([JSON.stringify(out)],{type:'application/json'});
-    const a=document.createElement('a'); a.href=URL.createObjectURL(b);
-    a.download=c.id+'_questions.json'; a.click();
+  /* ---------- the cascade UI, shared by deck runs and subject runs ---------- */
+  function cascadeUI(id, o){
+    const p=A.cprog[id];
+    $('ar-nav').innerHTML='';
+    const freshPool=()=> o.deck? poolForDeck(o.deck) : poolForSubject(o.subject);
+    const backBtn=()=>{ const b=$('arBackR'); if(b) b.onclick=()=>{view=o.backTo;render();}; };
+
+    /* not started */
+    if(!p || !p.round){
+      const pool=freshPool();
+      const tops=o.deck? [...new Set(o.deck.cards.map(c=>c.topic))].length
+                       : (subjects()[o.subject]||[]).length;
+      $('ar-body').innerHTML='<div class="wrap">'+
+        (o.deck?'':`<div class="addbar"><button id="arBackR">← Chapters</button></div>`)+
+        `<div class="empty" style="padding:30px 20px">
+           <div style="font-size:34px;font-weight:700;letter-spacing:-.03em;color:#0e1116">${pool.length}</div>
+           <p class="small" style="max-width:410px;margin:8px auto 0">cards across ${tops} ${o.deck?'topics':'chapters'}.
+             ${o.deck?'Round 1 runs the chapter in topic order.':'Round 1 mixes every chapter together — that is the point of a subject run.'}
+             Every card you miss comes back in round 2, and only those. It repeats until a round ends with nothing wrong.
+             Miss the same card ${QUAR_AT} rounds running and it is pulled out for reading instead.</p>
+           <div class="addbar" style="justify-content:center;margin-top:20px">
+             <button class="pri" id="arGo">Start round 1</button></div></div>`+
+        (o.chips?'<div class="chips" id="arChips"></div>':'')+'</div>';
+      if(o.chips) chips(id,o);
+      backBtn();
+      $('arGo').onclick=()=>{startRun(id, freshPool(), true); render();};
+      return;
+    }
+    /* finished */
+    if(p.done){
+      const q=(p.quarantined||[]).length;
+      $('ar-body').innerHTML='<div class="wrap">'+
+        `<div class="done"><div class="n">${p.history.length}</div>
+          <p>round${p.history.length>1?'s':''} to clear this${o.deck?' chapter':' subject'} — the last one finished with nothing wrong.
+          ${q?'<br><br>'+q+' card'+(q>1?'s were':' was')+' quarantined along the way.':''}</p>
+          <button id="arAgain">Run it again</button><button class="sec2" id="arBackR">Back</button></div>`+
+        (p.firstTotal? `<div class="rep"><div class="hh">Cold recall — round 1 only</div>
+           <div class="rr"><span class="nm">Right first time</span>
+             <span class="bar"><i style="width:${Math.round((p.firstTotal-(p.firstWrong||[]).length)/p.firstTotal*100)}%;background:#15803d"></i></span>
+             <span class="vv" style="color:#15803d">${p.firstTotal-(p.firstWrong||[]).length}/${p.firstTotal}</span></div>
+           <p class="small" style="margin:8px 0 0">This is the number that matters. Later rounds are answered
+             minutes after seeing the answer, so they always look better than you are.</p></div>`:'')+
+        `<div class="rep"><div class="hh">Rounds</div>`+
+          p.history.map(h=>`<div class="rr"><span class="nm">Round ${h.round}</span>
+            <span class="bar"><i style="width:${Math.round(h.wrong/Math.max(1,h.total)*100)}%"></i></span>
+            <span class="vv">${h.wrong}/${h.total}</span></div>`).join('')+
+        `</div>`+ topicReport(id,o) +'</div>';
+      $('arAgain').onclick=()=>{startRun(id, freshPool(), true); render();};
+      backBtn();
+      return;
+    }
+    /* mid-round */
+    const k=p.pool[p.idx];
+    const R=k?resolveCard(k):null;
+    if(!R){ p.idx++; if(p.idx>=p.pool.length) nextRound(id); arSave(false); return render(); }
+    const L=lf(k), showLabel = p.round===1;
+    const label = o.deck ? R.card.topic : R.deck.chapter+' · '+R.card.topic;
+    $('ar-body').innerHTML='<div class="wrap">'+
+      `<div class="rbar">
+         <div class="rd"><div class="rn">${p.round}</div><div class="rl">round</div></div>
+         <div class="sep"></div>
+         <div class="rd"><div class="rn">${p.pool.length-p.idx}</div><div class="rl">left</div></div>
+         <div class="sep"></div>
+         <div class="rd"><div class="rn">${p.wrong.length}</div><div class="rl">wrong so far</div></div>
+         <div class="rt2">${o.deck?'':'<button id="arBackR">Exit</button>'}<button id="arRestart">Restart</button></div>
+       </div>`+
+      (o.chips&&p.round===1?'<div class="chips" id="arChips"></div>':'')+
+      `<div class="prog"><i style="width:${p.idx/p.pool.length*100}%"></i></div>`+
+      `<div class="cd">
+         <div class="tp">${showLabel?esc(label):'round '+p.round+' — misses only'}
+           ${(L.w1||0)>0?`<span class="lf">${L.w1} cold</span>`:((L.w||0)>0?`<span class="lf">${L.w} lifetime</span>`:'')}
+           <span class="ct">${p.idx+1} of ${p.pool.length}</span></div>
+         <div class="fr">${esc(R.card.front)}</div>
+         <div id="arBk"></div>
+       </div>
+       <button class="revb" id="arRev">Reveal</button>
+       <div id="arGr"></div>`+
+      '</div>';
+    if(o.chips&&p.round===1) chips(id,o);
+    backBtn();
+    $('arRestart').onclick=()=>{ if(confirm('Restart from round 1?')){startRun(id, freshPool(), true); render();} };
+    $('arRev').onclick=()=>{
+      $('arBk').innerHTML=`<div class="bkw"><div class="a">${esc(R.card.back)}</div></div>`;
+      $('arRev').style.display='none';
+      $('arGr').innerHTML=`<div class="grade"><button class="gy" id="arGY">Right</button><button class="gn" id="arGN">Wrong</button></div>`;
+      $('arGY').onclick=()=>grade(id,true); $('arGN').onclick=()=>grade(id,false);
+    };
+  }
+  /* per-topic (or per-chapter) miss report for a finished run */
+  function topicReport(id,o){
+    const p=A.cprog[id]; if(!p||!p.history.length) return '';
+    const miss={};
+    (p.pool||[]).concat(p.quarantined||[]).forEach(()=>{});
+    Object.keys(A.life).forEach(k=>{
+      const R=resolveCard(k); if(!R) return;
+      if(o.deck && R.deck.id!==o.deck.id) return;
+      if(o.subject && R.deck.subject!==o.subject) return;
+      if(!(A.life[k].w>0)) return;
+      const g=o.deck? R.card.topic : R.deck.chapter;
+      miss[g]=(miss[g]||0)+A.life[k].w;
+    });
+    const keys=Object.keys(miss).sort((a,b)=>miss[b]-miss[a]);
+    if(!keys.length) return '';
+    const max=miss[keys[0]];
+    return `<div class="rep"><div class="hh">Lifetime misses by ${o.deck?'topic':'chapter'}</div>`+
+      keys.map(k=>`<div class="rr"><span class="nm">${esc(k)}</span>
+        <span class="bar"><i style="width:${Math.round(miss[k]/max*100)}%"></i></span>
+        <span class="vv">${miss[k]}</span></div>`).join('')+`</div>`;
+  }
+  function chips(id,o){
+    const box=$('arChips'); if(!box||!o.deck) return;
+    const d=o.deck, tops=[...new Set(d.cards.map(c=>c.topic))];
+    box.innerHTML=[['all','Whole chapter'],...tops.map(t=>[t,t])].map(([v,l])=>{
+      const n=(v==='all'?d.cards.length:d.cards.filter(c=>c.topic===v).length);
+      return `<button data-f="${esc(v)}" class="${filter===v?'on':''}">${esc(l)} <span style="opacity:.55">${n}</span></button>`;
+    }).join('');
+    box.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{
+      if(filter===b.dataset.f) return;
+      const p=A.cprog[id];
+      if(p&&p.round&&!p.done&&!confirm('Changing the filter restarts from round 1. Continue?')) return;
+      filter=b.dataset.f;
+      startRun(id, poolForDeck(d), true); render();
+    });
   }
 
   /* ---------- shell ---------- */
+  function setHead(title, sub, tabs){
+    $('ar-head').querySelector('.bk').innerHTML=title;
+    $('ar-head').querySelector('.sb').textContent=sub;
+    $('ar-tabs').style.display=tabs?'flex':'none';
+  }
   function render(){
-    if(view==='home') renderHome();
-    else if(view==='notes') renderNotes();
-    else renderDrill();
+    if(view==='subjects') renderSubjects();
+    else if(view==='chapters') renderChapters();
+    else if(view==='meta') renderMeta();
+    else if(view==='worst') renderWorst();
+    else if(view==='quar') renderQuar();
+    else if(view==='subrun') renderSubRun();
+    else renderChapter();
     $('ar-body').scrollTop=0;
   }
   window.arOpen=async function(){
-    await arLoad(); buildIndex();
+    await arLoad();
     $('ar-modal').style.display='block';
     document.body.style.overflow='hidden';
-    {
-      $('ar-head').innerHTML=`<div class="r1">
-        <div><div class="bk">Active <em>Recall</em></div><div class="sb"></div></div>
-        <div class="rt" id="ar-tabs2">
-          <button id="arHomeB">All chapters</button>
-          <span id="ar-tabs" style="display:none;gap:5px">
-            <button id="arTN" class="on">Notes</button><button id="arTD">Drill</button></span>
-          <button class="x" id="arClose">Close</button>
-        </div></div><nav id="ar-nav"></nav>`;
-      $('arHomeB').onclick=()=>{view='home';chId=null;render();};
-      $('arTN').onclick=()=>{view='notes';render();};
-      $('arTD').onclick=()=>{view='drill';render();};
-      $('arClose').onclick=window.arClose;
-    }
-    view=chId?view:'home'; render();
+    $('ar-head').innerHTML=`<div class="r1">
+      <div><div class="bk">Active <em>Recall</em></div><div class="sb"></div></div>
+      <div class="rt">
+        <button id="arHomeB">Subjects</button>
+        <span id="ar-tabs" style="display:none;gap:5px">
+          <button id="arTN">Notes</button><button id="arTC" class="on">Cards</button></span>
+        <button class="x" id="arClose">Close</button>
+      </div></div><nav id="ar-nav"></nav>`;
+    $('arHomeB').onclick=()=>{view='subjects';curSub=null;deckId=null;runId=null;render();};
+    $('arTN').onclick=()=>{tab='notes';render();};
+    $('arTC').onclick=()=>{tab='cards';render();};
+    $('arClose').onclick=window.arClose;
+    if(!deckId && view!=='subrun') view= curSub?'chapters':'subjects';
+    render();
   };
   window.arClose=async function(){
     $('ar-modal').style.display='none';
