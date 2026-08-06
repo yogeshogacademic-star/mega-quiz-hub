@@ -1122,6 +1122,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                     <button onclick="showScreen('mock-tracker')" class="hub-nav-btn" style="--acc:#0ea5e9">📝 Mock Tracker</button>
                     <button onclick="arOpen()" class="hub-nav-btn" style="--acc:#f97316">⚡ Active Recall</button>
                     <button onclick="csOpen()" class="hub-nav-btn" style="--acc:#8b5cf6">📄 Concept Sheet</button>
+                    <button onclick="sqOpen()" class="hub-nav-btn" style="--acc:#10b981">⭐ Saved<span id="sq-hub-count"></span></button>
                     <button onclick="openSyllabusCommand()" class="hub-nav-btn" style="--acc:#a855f7">📚 Syllabus</button>
                     <!-- Planner in-row for mobile/tablet (desktop uses the top-right command button) -->
                     <button onclick="showScreen('planner')" class="hub-nav-btn lg:hidden ml-auto" style="--acc:#f43f5e">🗓️ Planner</button>
@@ -1809,7 +1810,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-06 · v26.3';
+    const HUB_BUILD = '2026-08-07 · v26.4';
 
     // ============================================================
     // GLOBAL TOAST (v25.6) — every native alert() popup in the hub
@@ -3166,6 +3167,9 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
         // v25.2 — CONCEPT SHEETS: merged per-subject by generatedAt (newer wins),
         // so a stale device pushing an old db can never wipe a newer sheet.
         const _localCS = db && db['__conceptSheets'];
+        // v26.4 — hold the local ⭐ Saved store across the db swap so it can be merged,
+        // never overwritten, by whatever the cloud copy happens to contain.
+        const _localSQ = db && db['__savedQs'];
         db = data.db;
         try {
             const _cloudCS = db['__conceptSheets'];
@@ -3188,6 +3192,33 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                 }
             }
         } catch (e) { console.warn('[Sync] concept-sheet merge skipped', e); }
+        // v26.4 — SAVED QUESTIONS: union merge. A save on any device is kept; an unsave
+        // is kept too, via its tombstone timestamp. Newer action wins per question.
+        try {
+            const _cloudSQ = db['__savedQs'];
+            if ((_localSQ && _localSQ.isSavedStore) || (_cloudSQ && _cloudSQ.isSavedStore)) {
+                const _mk = { isSavedStore: true, items: {}, rm: {} };
+                const _srcs = [_cloudSQ, _localSQ].filter(function (s) { return s && s.isSavedStore; });
+                _srcs.forEach(function (s) {
+                    Object.keys(s.items || {}).forEach(function (k) {
+                        const it = s.items[k];
+                        if (!it) return;
+                        if (!_mk.items[k] || (it.ts || 0) > (_mk.items[k].ts || 0)) _mk.items[k] = it;
+                    });
+                    Object.keys(s.rm || {}).forEach(function (k) {
+                        const t = s.rm[k] || 0;
+                        if (!_mk.rm[k] || t > _mk.rm[k]) _mk.rm[k] = t;
+                    });
+                });
+                // A delete only wins if it happened after the save it removes.
+                Object.keys(_mk.rm).forEach(function (k) {
+                    if (_mk.items[k] && (_mk.items[k].ts || 0) < _mk.rm[k]) delete _mk.items[k];
+                    else if (_mk.items[k]) delete _mk.rm[k];
+                });
+                db['__savedQs'] = _mk;
+                console.log('[Sync] Saved questions merged — ' + Object.keys(_mk.items).length + ' saved.');
+            }
+        } catch (e) { console.warn('[Sync] saved-questions merge skipped', e); }
         // PERMANENT DELETE: strip any question the user hard-deleted, so it can never
         // come back through a cloud copy made on another (not-yet-updated) device.
         try {
@@ -3760,6 +3791,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
         } catch(e) {}
 
         await tryCloudSync(0);
+        try { if (typeof window._sqUpdateHubBadge === 'function') window._sqUpdateHubBadge(); } catch (e) {}
 
         // ── UNIVERSAL TAG MIGRATION RUNNER ──────────────────────────────
         // Runs AFTER sync so clean data overwrites stale cloud data
@@ -5205,7 +5237,7 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
 
             const card = document.createElement('div'); card.id = `qcard-${qIndex}`;
             card.className = `bg-white dark:bg-slate-900 p-6 sm:p-10 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-lg ${lobbySettings.perQTimer ? 'hidden' : ''}`;
-            card.innerHTML = `<div class="flex justify-between items-center mb-8 border-b border-slate-100 dark:border-slate-800 pb-4"><span class="text-xs font-black text-emerald-500 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/30 px-4 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-800/30">Question ${qIndex + 1}</span><div class="flex items-center gap-2"><button onclick="quizEditQ(${qIndex})" class="text-sm font-black text-slate-400 hover:text-amber-500 transition-colors px-3 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg" title="Edit this question — updates everywhere in the Hub">✏️</button><button onclick="quizDeleteQ(${qIndex})" class="text-sm font-black text-slate-400 hover:text-red-500 transition-colors px-3 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg" title="Delete this question from everywhere — permanent">🗑️</button><button onclick="toggleMark(${qIndex})" id="markBtn-${qIndex}" class="text-xs font-black text-slate-400 hover:text-purple-500 flex items-center gap-2 transition-colors uppercase px-4 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg"><span class="text-lg leading-none">📌</span> Mark (M)</button></div></div><div class="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6 leading-relaxed question-img-wrap">${window.formatQuestionHTML ? window.formatQuestionHTML(q.question) : q.question}</div>${imageHTML}<div class="relative"><div id="opts-cont-${qIndex}" class="space-y-2 transition-all duration-300 ${isBlind ? 'blur-xl opacity-20 pointer-events-none select-none' : ''}">${optsHTML}</div>${blindOverlay}</div>${tagHtml}`;
+            card.innerHTML = `<div class="flex justify-between items-center mb-8 border-b border-slate-100 dark:border-slate-800 pb-4"><span class="text-xs font-black text-emerald-500 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/30 px-4 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-800/30">Question ${qIndex + 1}</span><div class="flex items-center gap-2"><button onclick="quizEditQ(${qIndex})" class="text-sm font-black text-slate-400 hover:text-amber-500 transition-colors px-3 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg" title="Edit this question — updates everywhere in the Hub">✏️</button><button onclick="quizDeleteQ(${qIndex})" class="text-sm font-black text-slate-400 hover:text-red-500 transition-colors px-3 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg" title="Delete this question from everywhere — permanent">🗑️</button><button onclick="toggleMark(${qIndex})" id="markBtn-${qIndex}" class="text-xs font-black text-slate-400 hover:text-purple-500 flex items-center gap-2 transition-colors uppercase px-4 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg"><span class="text-lg leading-none">📌</span> Mark (M)</button>${(window._sqBtnHtml && window.isQSaved) ? window._sqBtnHtml(qIndex, window.isQSaved(q.question)) : ''}</div></div><div class="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6 leading-relaxed question-img-wrap">${window.formatQuestionHTML ? window.formatQuestionHTML(q.question) : q.question}</div>${imageHTML}<div class="relative"><div id="opts-cont-${qIndex}" class="space-y-2 transition-all duration-300 ${isBlind ? 'blur-xl opacity-20 pointer-events-none select-none' : ''}">${optsHTML}</div>${blindOverlay}</div>${tagHtml}`;
             fragment.appendChild(card);
         });
         
@@ -8341,6 +8373,297 @@ window.generateQuantNotes = () => {
         } catch(e){}
     };
 
+    /* ══════════════════════════════════════════════════════════════════════
+       ⭐ SAVED QUESTIONS  (v26.4)
+       A permanent, cross-session bookmark for any question you like the look
+       of while SOLVING it. Completely independent of 📌 Mark (which is
+       session-only, for "come back before submitting").
+
+       LIVE POINTER, not a copy: only the question's fingerprint is stored.
+       Edit the question anywhere and the saved one shows the edit. Delete the
+       question from the Hub and the saved entry disappears with it — the
+       resolver drops any fingerprint that no longer exists in db.
+
+       Storage: db['__savedQs'] — rides the existing cloud sync exactly like
+       __conceptSheets, so no Apps Script change is needed. Items are kept as
+       an object map (never an array) so they can't inflate the question count
+       that the save-guard checks.
+       ══════════════════════════════════════════════════════════════════════ */
+    function _sqStore() {
+        if (!db || typeof db !== 'object') return { isSavedStore: true, items: {}, rm: {} };
+        if (!db['__savedQs'] || db['__savedQs'].isSavedStore !== true) {
+            db['__savedQs'] = { isSavedStore: true, items: {}, rm: {} };
+        }
+        const s = db['__savedQs'];
+        s.items = s.items || {}; s.rm = s.rm || {};
+        return s;
+    }
+    window._sqStore = _sqStore;
+
+    let _sqSaveTimer = null;
+    function _sqPersist() {
+        clearTimeout(_sqSaveTimer);
+        _sqSaveTimer = setTimeout(function () {
+            try { if (typeof saveData === 'function') saveData(); } catch (e) { console.warn('saved-qs persist failed', e); }
+        }, 900);
+    }
+
+    // Fingerprint → live question, scanning every real quiz file in db.
+    function _sqLiveIndex() {
+        const idx = new Map();
+        try {
+            Object.keys(db).forEach(function (qid) {
+                if (qid.indexOf('__') === 0) return;                 // system blobs
+                if (qid.indexOf('quiz_srs') === 0 || qid.indexOf('quiz_master_mock') === 0 ||
+                    qid.indexOf('quiz_topic_practice') === 0 || qid.indexOf('quiz_weak_bank') === 0 ||
+                    qid === 'quiz_retry') return;                    // transient quizzes
+                const f = db[qid];
+                if (!f || !Array.isArray(f.questions)) return;
+                f.questions.forEach(function (q) {
+                    if (!q || !q.question) return;
+                    const k = window.__srsKey(q.question);
+                    if (!idx.has(k)) idx.set(k, { q: q, quizId: qid, file: f });
+                });
+            });
+        } catch (e) { console.warn('saved-qs index failed', e); }
+        return idx;
+    }
+
+    function _sqSubjTopic(q, file) {
+        const tags = Array.isArray(q && q.tags) ? q.tags : [];
+        const subject = (tags[0] && String(tags[0]).trim()) || (q && q.subject) || (file && file.subject) || 'Miscellaneous';
+        const topic = (tags[1] && String(tags[1]).trim()) || 'General';
+        return { subject: subject, topic: topic };
+    }
+
+    window.isQSaved = function (text) {
+        try { return !!_sqStore().items[window.__srsKey(text)]; } catch (e) { return false; }
+    };
+
+    // Toggle from inside a running quiz (R1/R2/R3/R4, SRS sprint, any quiz).
+    window.toggleSaveQ = function (qIndex) {
+        try {
+            const q = activeQuestions[qIndex];
+            if (!q || !q.question) return;
+            const s = _sqStore();
+            const k = window.__srsKey(q.question);
+            if (s.items[k]) {
+                delete s.items[k];
+                s.rm[k] = Date.now();
+                _sqPaintBtn(qIndex, false);
+                _sqToast('Removed from Saved');
+            } else {
+                const file = db[currentQuizId] || null;
+                const st = _sqSubjTopic(q, file);
+                delete s.rm[k];
+                s.items[k] = {
+                    k: k,
+                    subject: st.subject,
+                    topic: st.topic,
+                    t: String(q.question).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140),
+                    src: (file && file.title) ? String(file.title).slice(0, 60) : (currentQuizId === 'quiz_srs' ? 'SRS Sprint' : 'Quiz'),
+                    ts: Date.now()
+                };
+                _sqPaintBtn(qIndex, true);
+                _sqToast('⭐ Saved · ' + st.subject + ' › ' + st.topic);
+            }
+            _sqPersist();
+            try { _sqUpdateHubBadge(); } catch (e) {}
+        } catch (e) { console.warn('toggleSaveQ failed', e); }
+    };
+
+    window._sqBtnHtml = function (qIndex, saved) {
+        const base = 'text-xs font-black flex items-center gap-1.5 transition-colors uppercase px-3 py-1.5 rounded-lg border';
+        const cls = saved
+            ? base + ' bg-emerald-500/15 text-emerald-500 border-emerald-500/40'
+            : base + ' bg-slate-50 dark:bg-slate-800 text-slate-400 border-transparent hover:text-emerald-500';
+        return '<button onclick="toggleSaveQ(' + qIndex + ')" id="saveBtn-' + qIndex + '" class="' + cls + '" ' +
+               'title="' + (saved ? 'Saved — tap to remove' : 'Save this question to revise later') + '">' +
+               '<span class="text-base leading-none">' + (saved ? '★' : '☆') + '</span> ' + (saved ? 'Saved' : 'Save') + '</button>';
+    };
+
+    function _sqPaintBtn(qIndex, saved) {
+        const el = document.getElementById('saveBtn-' + qIndex);
+        if (el) el.outerHTML = window._sqBtnHtml(qIndex, saved);
+    }
+
+    function _sqToast(msg) {
+        try {
+            const d = document.createElement('div');
+            d.textContent = msg;
+            d.style.cssText = 'position:fixed;bottom:26px;left:50%;transform:translateX(-50%);z-index:100000;background:#0f172a;color:#fff;font-weight:900;font-size:13px;padding:11px 20px;border-radius:14px;border:1px solid #334155;box-shadow:0 10px 30px rgba(0,0,0,0.45);max-width:88vw;text-align:center';
+            document.body.appendChild(d);
+            setTimeout(function () { d.style.transition = 'opacity .35s'; d.style.opacity = '0'; setTimeout(function () { d.remove(); }, 380); }, 1500);
+        } catch (e) {}
+    }
+
+    /* Resolve every saved fingerprint against the live db.
+       Anything that no longer exists is dropped — that's the delete cascade. */
+    window.sqResolve = function () {
+        const s = _sqStore();
+        const idx = _sqLiveIndex();
+        const out = [];
+        let purged = 0;
+        const dbLoaded = idx.size > 0;
+        Object.keys(s.items).forEach(function (k) {
+            const hit = idx.get(k);
+            if (!hit) {
+                // Only purge when the db is actually loaded, otherwise a slow
+                // cloud load would silently wipe the whole saved list.
+                if (dbLoaded) { delete s.items[k]; s.rm[k] = Date.now(); purged++; }
+                return;
+            }
+            const st = _sqSubjTopic(hit.q, hit.file);
+            out.push({
+                k: k, q: hit.q, quizId: hit.quizId,
+                subject: st.subject, topic: st.topic,
+                src: s.items[k].src || '', ts: s.items[k].ts || 0
+            });
+        });
+        if (purged > 0) { console.log('[Saved] ' + purged + ' saved question(s) removed — deleted from Hub.'); _sqPersist(); }
+        out.sort(function (a, b) { return b.ts - a.ts; });
+        return out;
+    };
+
+    window.sqUnsave = function (key) {
+        const s = _sqStore();
+        if (s.items[key]) { delete s.items[key]; s.rm[key] = Date.now(); _sqPersist(); }
+        if (typeof window.sqRender === 'function') window.sqRender();
+        try { _sqUpdateHubBadge(); } catch (e) {}
+    };
+
+    // Launch a quiz from saved questions. 'quiz_topic_practice_saved' keeps the
+    // existing prefix so it stays out of the cloud payload.
+    window.sqPractice = function (subject, topic) {
+        const all = window.sqResolve();
+        const pool = all.filter(function (r) {
+            if (subject && r.subject !== subject) return false;
+            if (topic && r.topic !== topic) return false;
+            return true;
+        }).map(function (r) { return r.q; });
+        if (!pool.length) { alert('Nothing saved here yet.'); return; }
+        const label = topic ? (subject + ' › ' + topic) : (subject || 'All Subjects');
+        db['quiz_topic_practice_saved'] = {
+            title: '⭐ Saved — ' + label,
+            subject: subject || 'Mixed',
+            timeInMinutes: Math.ceil(pool.length * 1.5),
+            questions: window.shuffleArray ? window.shuffleArray(pool.slice()) : pool.slice()
+        };
+        try { window.sqClose(); } catch (e) {}
+        openLobby('quiz_topic_practice_saved');
+    };
+
+    function _sqUpdateHubBadge() {
+        const el = document.getElementById('sq-hub-count');
+        if (!el) return;
+        let n = 0;
+        try { n = Object.keys(_sqStore().items).length; } catch (e) {}
+        el.textContent = n > 0 ? (' ' + n) : '';
+    }
+    window._sqUpdateHubBadge = _sqUpdateHubBadge;
+
+    /* ───────── Saved Questions screen (Subject → Topic → questions) ───────── */
+    window.sqOpen = function () {
+        let ov = document.getElementById('sq-overlay');
+        if (!ov) {
+            ov = document.createElement('div');
+            ov.id = 'sq-overlay';
+            ov.style.cssText = 'position:fixed;inset:0;z-index:99990;background:rgba(2,6,23,0.86);backdrop-filter:blur(6px);overflow-y:auto;padding:20px 12px 60px';
+            ov.innerHTML = '<div id="sq-panel" style="max-width:880px;margin:0 auto"></div>';
+            ov.addEventListener('click', function (e) { if (e.target === ov) window.sqClose(); });
+            document.body.appendChild(ov);
+        }
+        ov.style.display = 'block';
+        window._sqOpenGroups = window._sqOpenGroups || {};
+        window.sqRender();
+    };
+    window.sqClose = function () {
+        const ov = document.getElementById('sq-overlay');
+        if (ov) ov.style.display = 'none';
+    };
+    window.sqToggleGroup = function (id) {
+        window._sqOpenGroups = window._sqOpenGroups || {};
+        window._sqOpenGroups[id] = !window._sqOpenGroups[id];
+        window.sqRender();
+    };
+
+    window.sqRender = function () {
+        const panel = document.getElementById('sq-panel');
+        if (!panel) return;
+        const rows = window.sqResolve();
+        const esc = function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+        const plain = function (s) { return String(s || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim(); };
+
+        // group: subject → topic → [rows]
+        const tree = {};
+        rows.forEach(function (r) {
+            tree[r.subject] = tree[r.subject] || {};
+            tree[r.subject][r.topic] = tree[r.subject][r.topic] || [];
+            tree[r.subject][r.topic].push(r);
+        });
+        const subjects = Object.keys(tree).sort();
+
+        let html = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;position:sticky;top:0;background:rgba(2,6,23,0.95);padding:12px 4px;border-bottom:1px solid #1e293b;z-index:2">' +
+            '<div style="font-size:20px;font-weight:900;color:#fff;flex:1">⭐ Saved Questions <span style="font-size:13px;color:#64748b;font-weight:800">' + rows.length + ' saved</span></div>' +
+            (rows.length ? '<button onclick="sqPractice(\'\',\'\')" style="background:#059669;border:none;color:#fff;font-weight:900;font-size:12px;padding:9px 14px;border-radius:11px;cursor:pointer">▶ Practice All</button>' : '') +
+            '<button onclick="sqClose()" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;font-weight:900;font-size:16px;padding:7px 13px;border-radius:11px;cursor:pointer">✕</button></div>';
+
+        if (!rows.length) {
+            html += '<div style="text-align:center;padding:60px 20px;color:#64748b;font-weight:700;font-size:14px;line-height:1.9">Nothing saved yet.<br>' +
+                'While solving any quiz — R1, R2, SRS, anything — tap <span style="color:#10b981;font-weight:900">☆ Save</span> in the question header.<br>' +
+                '<span style="font-size:12px;color:#475569">Saved questions collect here, grouped by subject and topic.</span></div>';
+            panel.innerHTML = html;
+            return;
+        }
+
+        subjects.forEach(function (subj) {
+            const topics = Object.keys(tree[subj]).sort();
+            const subjCount = topics.reduce(function (a, t) { return a + tree[subj][t].length; }, 0);
+            const sid = 'S:' + subj;
+            const open = !!window._sqOpenGroups[sid];
+            html += '<div style="background:#0f172a;border:1px solid #1e293b;border-radius:16px;margin-bottom:12px;overflow:hidden">' +
+                '<div style="display:flex;align-items:center;gap:10px;padding:14px 16px;cursor:pointer" onclick="sqToggleGroup(\'' + esc(sid).replace(/'/g, "\\'") + '\')">' +
+                '<span style="color:#64748b;font-size:13px;width:14px">' + (open ? '▾' : '▸') + '</span>' +
+                '<div style="flex:1;font-size:15px;font-weight:900;color:#e2e8f0">' + esc(subj) + '</div>' +
+                '<span style="font-size:11px;font-weight:900;color:#818cf8;background:rgba(99,102,241,0.15);padding:3px 9px;border-radius:999px">' + subjCount + '</span>' +
+                '<button onclick="event.stopPropagation();sqPractice(' + JSON.stringify(subj).replace(/"/g, '&quot;') + ',\'\')" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.35);color:#34d399;font-weight:900;font-size:11px;padding:5px 10px;border-radius:9px;cursor:pointer">▶ Practice</button>' +
+                '</div>';
+            if (open) {
+                topics.forEach(function (tp) {
+                    const list = tree[subj][tp];
+                    const tid = 'T:' + subj + '::' + tp;
+                    const topen = !!window._sqOpenGroups[tid];
+                    html += '<div style="border-top:1px solid #1e293b;background:#0b1220">' +
+                        '<div style="display:flex;align-items:center;gap:10px;padding:11px 16px 11px 32px;cursor:pointer" onclick="sqToggleGroup(' + JSON.stringify(tid).replace(/"/g, '&quot;') + ')">' +
+                        '<span style="color:#475569;font-size:12px;width:12px">' + (topen ? '▾' : '▸') + '</span>' +
+                        '<div style="flex:1;font-size:13px;font-weight:800;color:#94a3b8">' + esc(tp) + '</div>' +
+                        '<span style="font-size:10px;font-weight:900;color:#64748b">' + list.length + '</span>' +
+                        '<button onclick="event.stopPropagation();sqPractice(' + JSON.stringify(subj).replace(/"/g, '&quot;') + ',' + JSON.stringify(tp).replace(/"/g, '&quot;') + ')" style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);color:#34d399;font-weight:900;font-size:10px;padding:4px 9px;border-radius:8px;cursor:pointer">▶</button>' +
+                        '</div>';
+                    if (topen) {
+                        list.forEach(function (r, i) {
+                            const ans = (r.q.type === 'typing')
+                                ? (r.q.exactAnswer || '')
+                                : ((r.q.options || []).find(function (o) { return o && o.correct; }) || {}).text || '';
+                            html += '<div style="padding:12px 16px 12px 46px;border-top:1px solid #111c33;display:flex;gap:10px;align-items:flex-start">' +
+                                '<div style="flex:1;min-width:0">' +
+                                '<div style="font-size:13px;font-weight:700;color:#e2e8f0;line-height:1.6">' + (i + 1) + '. ' + esc(plain(r.q.question)) + '</div>' +
+                                (ans ? '<div style="font-size:12px;font-weight:900;color:#34d399;margin-top:5px">✓ ' + esc(plain(ans)) + '</div>' : '') +
+                                (r.q.solution ? '<div style="font-size:11px;color:#94a3b8;margin-top:5px;line-height:1.7">' + esc(plain(r.q.solution)).slice(0, 400) + '</div>' : '') +
+                                (r.src ? '<div style="font-size:10px;color:#475569;margin-top:5px;font-weight:700">from ' + esc(r.src) + '</div>' : '') +
+                                '</div>' +
+                                '<button onclick="sqUnsave(' + JSON.stringify(r.k).replace(/"/g, '&quot;') + ')" title="Remove from Saved" style="background:none;border:none;color:#475569;font-size:16px;cursor:pointer;padding:2px 4px">★</button>' +
+                                '</div>';
+                        });
+                    }
+                    html += '</div>';
+                });
+            }
+            html += '</div>';
+        });
+        panel.innerHTML = html;
+    };
+
     initializeSystem();
 </script>
 
@@ -10281,6 +10604,18 @@ window.retryWrong = function() {
     if(mtCurrentType==='sectional'&&!mtCurrentSubject){ mtToast('Select a subject!'); return; }
     const platform=document.getElementById('mt-platform').value.trim();
     if(!platform){ mtToast('Enter platform / series!'); return; }
+    // v26.4 sanity check — catches 12:30 typed as noon when 12:30 AM was meant.
+    // Only fires above 6 hr, which no real mock ever is.
+    try{
+      const _cs=document.getElementById('mt-start-time')?.value||'09:00';
+      const _ce=document.getElementById('mt-end-time')?.value||'10:00';
+      let _cd=(parseInt(_ce.split(':')[0])*60+parseInt(_ce.split(':')[1]))-(parseInt(_cs.split(':')[0])*60+parseInt(_cs.split(':')[1]));
+      if(_cd<0) _cd+=24*60;
+      if(_cd>6*60){
+        const _h=Math.floor(_cd/60), _m=_cd%60;
+        if(!confirm('These times work out to '+_h+' hr '+(_m?_m+' min':'')+' ('+to12hr(_cs)+' – '+to12hr(_ce)+').\n\nIf you meant 12:30 AM, pick 00:30 instead of 12:30.\n\nSave anyway?')) return;
+      }
+    }catch(e){}
     // Auto mock number — sequential per type (+subject for sectionals), assigned at save so it never shifts
     const _grpFn = mtCurrentType==='full' ? (x=>x.type!=='sectional') : (x=>x.type==='sectional' && x.subject===mtCurrentSubject);
     const _maxNo = mtMocks.filter(_grpFn).reduce((mx,x)=>{ const n=parseInt(String(x.mockno).replace(/\D/g,''))||0; return n>mx?n:mx; }, 0);
@@ -10313,8 +10648,15 @@ window.retryWrong = function() {
     try {
       if(typeof window._wrAutoLog === 'function') {
         const _st = mock.startTime||'09:00', _et = mock.endTime||'10:00';
-        const _dur = Math.max(1, Math.round(((parseInt(_et.split(':')[0])*60+parseInt(_et.split(':')[1]))-(parseInt(_st.split(':')[0])*60+parseInt(_st.split(':')[1])))));
-        window._wrAutoLog({ type:'mock', title:(mock.type==='full'?'Full Mock':'Sectional: '+mock.subject)+' — '+mock.platform+' #'+mock.mockno, subject:mock.type==='full'?'Mock Test':mock.subject, platform:mock.platform, mockno:mock.mockno, net:mock.net, duration:_dur, hrs:Math.round(_dur/60*10)/10, startTime:_st, endTime:_et, date:mock.date, ts:Date.now() });
+        // v26.4 FIX: sessions that cross midnight (e.g. 11:30 PM → 12:30 AM) used to go
+        // negative here and clamp to 1 min, which then rendered as "0 min". Wrap +24h.
+        let _dur = (parseInt(_et.split(':')[0])*60+parseInt(_et.split(':')[1]))-(parseInt(_st.split(':')[0])*60+parseInt(_st.split(':')[1]));
+        if(_dur<0) _dur += 24*60;
+        _dur = Math.max(1, Math.round(_dur));
+        // v26.4 FIX: EVERY mock — full or sectional — logs under the "Mock Test" subject.
+        // The section's own subject is kept separately so the row still reads "Sectional: Quant"
+        // without stealing hours from that subject in the Stats breakdown.
+        window._wrAutoLog({ type:'mock', title:(mock.type==='full'?'Full Mock':'Sectional: '+mock.subject)+' — '+mock.platform+' #'+mock.mockno, subject:'Mock Test', sectionSubject:(mock.type==='sectional'?mock.subject:''), platform:mock.platform, mockno:mock.mockno, net:mock.net, duration:_dur, hrs:Math.round(_dur/60*10)/10, startTime:_st, endTime:_et, date:mock.date, ts:Date.now() });
       }
     } catch(e) {}
     mtResetToStep1();
@@ -11198,7 +11540,7 @@ window.retryWrong = function() {
           let _dur=(parseInt(_et.split(':')[0])*60+parseInt(_et.split(':')[1]))-(parseInt(_st.split(':')[0])*60+parseInt(_st.split(':')[1]));
           if(_dur<0) _dur+=24*60;   // end past midnight
           _dur=Math.max(1,Math.round(_dur));
-          window._wrAutoLog({ type:'mock', title:(_m.type==='full'?'Full Mock':'Sectional: '+_m.subject)+' — '+_m.platform+' #'+_m.mockno, subject:_m.type==='full'?'Mock Test':_m.subject, platform:_m.platform, mockno:_m.mockno, net:_m.net, duration:_dur, hrs:Math.round(_dur/60*10)/10, startTime:_st, endTime:_et, date:_m.date, ts:Date.now() });
+          window._wrAutoLog({ type:'mock', title:(_m.type==='full'?'Full Mock':'Sectional: '+_m.subject)+' — '+_m.platform+' #'+_m.mockno, subject:'Mock Test', sectionSubject:(_m.type==='sectional'?_m.subject:''), platform:_m.platform, mockno:_m.mockno, net:_m.net, duration:_dur, hrs:Math.round(_dur/60*10)/10, startTime:_st, endTime:_et, date:_m.date, ts:Date.now() });
         }
         if(typeof save==='function') save();
         if(typeof renderHomeTodayLogged==='function') renderHomeTodayLogged();
@@ -15380,6 +15722,16 @@ function subColor(s){ return SUB_COLORS[s]||'#94a3b8'; }
 function t2m(t){ if(!t) return 0; const[h,m]=t.split(':').map(Number); return h*60+m; }
 function to12hr(t){ if(!t)return ''; if(t.includes('AM')||t.includes('PM')) return t; const [h,m]=t.split(':').map(Number); if(isNaN(h)||isNaN(m)) return t; const ap=h>=12?'PM':'AM'; const hr=h%12||12; return hr+':'+(m<10?'0'+m:m)+' '+ap; }
 // Spelled-out duration: under 1hr -> "45 min"; 1hr+ -> "1 hr 50 min" / "2 hr". Never decimals.
+// v26.4: log rows print from the exact minute count when the entry has one.
+// hDisp() rounds hours to 1 decimal, so anything under ~3 min collapsed to "0 min".
+function logDisp(l){
+  if(l && typeof l.duration === 'number' && l.duration > 0){
+    const m = Math.round(l.duration), hh = Math.floor(m/60), mm = m%60;
+    if(hh <= 0) return mm + ' min';
+    return mm > 0 ? (hh + ' hr ' + mm + ' min') : (hh + ' hr');
+  }
+  return hDisp(l ? l.hrs : 0);
+}
 function hDisp(h){
   if(!h||h<=0) return '0 min';
   let totalMin=Math.round(h*60);            // work in whole minutes (kills 1.69h style)
@@ -15419,7 +15771,7 @@ function save(){
     if(typeof pushFn === 'function') pushFn().catch(function(){});
   }, 2000);
 }
-function load(){ const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);}catch(e){} D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||50; D.checklist=D.checklist||{}; D.sleepLog=D.sleepLog||{}; D.wakeTarget=D.wakeTarget||'05:00'; D.sleepTarget=D.sleepTarget||'23:30'; D.weeklyTasks=D.weeklyTasks||[]; D.wtWeekStart=D.wtWeekStart||''; D.wtArchive=D.wtArchive||[]; D.meta=D.meta||{}; D.dailyItems=D.dailyItems||dcDefaultItems(); D.dailyLog=D.dailyLog||{}; D.drill=D.drill||{}; wtMigrateMockDates(); _backfillMockHrs(); wtCheckWeekReset(); }
+function load(){ const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);}catch(e){} D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||50; D.checklist=D.checklist||{}; D.sleepLog=D.sleepLog||{}; D.wakeTarget=D.wakeTarget||'05:00'; D.sleepTarget=D.sleepTarget||'23:30'; D.weeklyTasks=D.weeklyTasks||[]; D.wtWeekStart=D.wtWeekStart||''; D.wtArchive=D.wtArchive||[]; D.meta=D.meta||{}; D.dailyItems=D.dailyItems||dcDefaultItems(); D.dailyLog=D.dailyLog||{}; D.drill=D.drill||{}; wtMigrateMockDates(); _backfillMockHrs(); _repairMockLogs_v264(); wtCheckWeekReset(); }
 
 // One-time: mocks edited via the old edit-path lost their hours (hrs=0). Recompute from
 // start/end clock times for any mock log that has both times but 0/missing hrs.
@@ -15443,6 +15795,62 @@ function _backfillMockHrs(){
     D.meta._mockHrsBackfill_v1=true;
     if(fixed>0){ try{ save(); }catch(e){} }
   }catch(e){}
+}
+
+// v26.4 ONE-TIME REPAIR — two things the old sectional auto-log got wrong:
+//  1) Sectionals were filed under their section's subject (Quant/English/GS/Reasoning),
+//     so they stole hours from that subject in the Stats breakdown. EVERY mock belongs
+//     to "Mock Test". The section name moves to l.sectionSubject and still shows in the row.
+//  2) A late-night mock whose end time was typed as 12:30 (noon) instead of 00:30 wrapped
+//     to a ~13 hr session. Narrow fix: only when start is evening/night, end is the 12 o'clock
+//     hour, and the wrapped duration is absurd (>6 hr) — then read the end as after midnight.
+function _repairMockLogs_v264(){
+  try{
+    D.meta = D.meta || {};
+    if(D.meta._mockRepair_v264) return;
+    const SECT_SUBJ = ['Quant','English','GS','Reasoning','General Awareness','Maths','Math'];
+    let fixed = 0;
+    const _mins = t => { const p = String(t||'').split(':'); return (parseInt(p[0])||0)*60 + (parseInt(p[1])||0); };
+    Object.keys(D.logs||{}).forEach(function(dk){
+      (D.logs[dk]||[]).forEach(function(l){
+        if(l.type !== 'mock') return;
+        // 1 — subject
+        if(l.subject && l.subject !== 'Mock Test'){
+          if(!l.sectionSubject && SECT_SUBJ.indexOf(l.subject) >= 0) l.sectionSubject = l.subject;
+          l.subject = 'Mock Test'; fixed++;
+        }
+        // 2 — noon/midnight end-time typo on an overnight mock
+        const st = l.startTime, et = l.endTime;
+        if(st && et && st.indexOf(':')>=0 && et.indexOf(':')>=0){
+          const sM = _mins(st), eM = _mins(et);
+          let dur = eM - sM; if(dur < 0) dur += 24*60;
+          const endHr = parseInt(et.split(':')[0]);
+          const startHr = parseInt(st.split(':')[0]);
+          if(dur > 6*60 && endHr === 12 && startHr >= 18){
+            const fixedEnd = '00:' + et.split(':')[1];
+            let d2 = _mins(fixedEnd) - sM; if(d2 < 0) d2 += 24*60;
+            l.endTime = fixedEnd;
+            l.endTime12 = (typeof to12hr === 'function') ? to12hr(fixedEnd) : l.endTime12;
+            l.time = l.endTime12 || l.time;
+            l.duration = d2; l.hrs = Math.round(d2/60*10)/10; fixed++;
+            // keep the mock tracker record in step so a later edit doesn't reintroduce it
+            try{
+              const _mt = JSON.parse(localStorage.getItem('ssc_mock_tracker')||'[]');
+              let _t = false;
+              _mt.forEach(function(m){
+                if(String(m.mockno) === String(l.mockNo) && m.platform === l.mockPlatform && m.endTime === et){ m.endTime = fixedEnd; _t = true; }
+              });
+              if(_t) localStorage.setItem('ssc_mock_tracker', JSON.stringify(_mt));
+            }catch(e){}
+          } else if((!l.duration || l.duration < 1) && dur > 0){
+            l.duration = dur; l.hrs = Math.round(dur/60*10)/10; fixed++;
+          }
+        }
+      });
+    });
+    D.meta._mockRepair_v264 = true;
+    if(fixed > 0){ try{ save(); }catch(e){} console.log('[v26.4] Repaired ' + fixed + ' mock log field(s).'); }
+  }catch(e){ console.warn('mock repair failed', e); }
 }
 
 // Stamp last-edited time on a setting so cloud-sync merge picks the freshest version cross-device.
@@ -16044,7 +16452,7 @@ function renderTodayLogList(){
     const totalMin=Math.floor((pastMs+currMs)/60000);
     const hh=Math.floor(totalMin/60), mm=totalMin%60;
     const liveStr=(hh>0?hh+'h ':'')+mm+'m';
-    const detail=l.type==='srs'?(()=>{const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;let sj='';if(l.topicMap&&Object.keys(l.topicMap).length){const parts=[];Object.entries(l.topicMap).forEach(([subj,topics])=>{Object.entries(topics).forEach(([tp,v])=>{parts.push(subj+' › '+tp+' ('+v.count+')');});});sj='<br><span style="font-size:9px;color:var(--muted)">'+parts.join(' · ')+'</span>';}else if(l.subjects&&Object.keys(l.subjects).length){sj='<br><span style="font-size:9px;color:var(--muted)">'+Object.entries(l.subjects).map(([s,n])=>s+': '+n).join(' · ')+'</span>';}return l.cards+'cards\xb7'+l.correct+'/'+l.cards+'\xb7'+acc+'%'+sj;})():l.type==='quiz'?(l.questions+'q\xb7'+Math.round((l.correct||0)/(l.questions||1)*100)+'%'+((l.topic||l.subtopic)?'<br><span style="font-size:9px;color:var(--muted)">'+[l.subject,l.topic,l.subtopic].filter(Boolean).join(' › ')+'</span>':'')):l.type==='mock'?'Net: '+l.net:l.type==='lecture'?(l._continuationOf?'cont\xb7'+(l.chapter||''):(l.isRevision?'Rev\xb7'+l.chapter:'Lec#'+l.lectureNo+'\xb7'+l.chapter))+'\xb7'+l.subject:(l.subject+(l.chapter?'\xb7'+l.chapter:''));
+    const detail=l.type==='srs'?(()=>{const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;let sj='';if(l.topicMap&&Object.keys(l.topicMap).length){const parts=[];Object.entries(l.topicMap).forEach(([subj,topics])=>{Object.entries(topics).forEach(([tp,v])=>{parts.push(subj+' › '+tp+' ('+v.count+')');});});sj='<br><span style="font-size:9px;color:var(--muted)">'+parts.join(' · ')+'</span>';}else if(l.subjects&&Object.keys(l.subjects).length){sj='<br><span style="font-size:9px;color:var(--muted)">'+Object.entries(l.subjects).map(([s,n])=>s+': '+n).join(' · ')+'</span>';}return l.cards+'cards\xb7'+l.correct+'/'+l.cards+'\xb7'+acc+'%'+sj;})():l.type==='quiz'?(l.questions+'q\xb7'+Math.round((l.correct||0)/(l.questions||1)*100)+'%'+((l.topic||l.subtopic)?'<br><span style="font-size:9px;color:var(--muted)">'+[l.subject,l.topic,l.subtopic].filter(Boolean).join(' › ')+'</span>':'')):l.type==='mock'?('Net: '+l.net+(l.sectionSubject?'\xb7'+l.sectionSubject:'')):l.type==='lecture'?(l._continuationOf?'cont\xb7'+(l.chapter||''):(l.isRevision?'Rev\xb7'+l.chapter:'Lec#'+l.lectureNo+'\xb7'+l.chapter))+'\xb7'+l.subject:(l.subject+(l.chapter?'\xb7'+l.chapter:''));
     const isCan=status==='cancelled';
     const borderC=isAuto?'rgba(99,102,241,0.2)':status==='doing'?'rgba(245,158,11,0.25)':status==='paused'?'rgba(99,102,241,0.25)':isCan?'rgba(239,68,68,0.15)':'var(--border)';
     const bgC=isAuto?'rgba(99,102,241,0.05)':status==='doing'?'rgba(245,158,11,0.04)':status==='paused'?'rgba(99,102,241,0.04)':isCan?'rgba(239,68,68,0.03)':'var(--bg3)';
@@ -16054,7 +16462,7 @@ function renderTodayLogList(){
       else if(status==='paused') actionBtns=`<button onclick="logResume('${l.date}',${l.id})" style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);color:#fbbf24;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Resume</button><button onclick="logDone('${l.date}',${l.id})" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#4ade80;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Done</button><button onclick="logCancel('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px">x</button>`;
       else actionBtns=`<button onclick="confirmDeleteLog('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 4px">x</button><button onclick="editLog('${l.date}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:2px">edit</button>`;
     }
-    const hrsDisp=(status==='doing'||status==='paused')?`<span data-liveid="${l.id}" data-livedate="${l.date}" style="font-size:12px;font-weight:900;color:#fbbf24;flex-shrink:0">${liveStr||'0m'}</span>`:`<span style="font-size:12px;font-weight:900;color:${isCan?'var(--muted)':subColor(l.subject||'Other')};flex-shrink:0;${isCan?'text-decoration:line-through':''}">${hDisp(l.hrs)}</span>`;
+    const hrsDisp=(status==='doing'||status==='paused')?`<span data-liveid="${l.id}" data-livedate="${l.date}" style="font-size:12px;font-weight:900;color:#fbbf24;flex-shrink:0">${liveStr||'0m'}</span>`:`<span style="font-size:12px;font-weight:900;color:${isCan?'var(--muted)':subColor(l.subject||'Other')};flex-shrink:0;${isCan?'text-decoration:line-through':''}">${logDisp(l)}</span>`;
     return `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;border:1px solid ${borderC};background:${bgC};margin-bottom:7px;${isCan?'opacity:0.5':''}">
       <div style="font-size:15px;flex-shrink:0">${icon}</div>
       <div style="flex:1;min-width:0">
@@ -16364,7 +16772,7 @@ function renderHomeTodayLogged(){
     let detail='';
     if(l.type==='srs'){const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;let sj='';if(l.topicMap&&Object.keys(l.topicMap).length){const parts=[];Object.entries(l.topicMap).forEach(([subj,topics])=>{Object.entries(topics).forEach(([tp,v])=>{parts.push(subj+' › '+tp+' ('+v.count+')');});});sj=parts.join(' · ');}else if(l.subjects&&Object.keys(l.subjects).length){sj=Object.entries(l.subjects).map(([s,n])=>s+':'+n).join(' · ');}detail=l.cards+' cards · '+l.correct+'/'+l.cards+' · '+acc+'%'+(sj?'<br><span style="font-size:9px;color:var(--muted)">'+sj+'</span>':'');}
     else if(l.type==='quiz') detail=l.questions+'q · '+l.correct+' correct · '+Math.round((l.correct||0)/(l.questions||1)*100)+'%'+((l.topic||l.subtopic)?'<br><span style="font-size:9px;color:var(--muted)">'+[l.subject,l.topic,l.subtopic].filter(Boolean).join(' › ')+'</span>':'');
-    else if(l.type==='mock') detail='Net: '+l.net;
+    else if(l.type==='mock') detail='Net: '+l.net+(l.sectionSubject?' · Section: '+l.sectionSubject:'');
     else if(l.type==='lecture') detail=(l.isRevision?'Rev':'Lec #'+l.lectureNo)+' · '+l.chapter+' · '+l.subject;
     else if(l.type==='revision') detail=l.subject+(l.chapter?' · '+l.chapter:'');
     else detail=l.subject+(l.chapter?' · '+l.chapter:'');
@@ -16377,7 +16785,7 @@ function renderHomeTodayLogged(){
       else if(status==='paused') actionBtns=`<button onclick="logResume('${_logDate}',${l.id})" style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);color:#fbbf24;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Resume</button> <button onclick="logDone('${_logDate}',${l.id})" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#4ade80;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Done</button> <button onclick="logCancel('${_logDate}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px">x</button>`;
       else actionBtns=`<button onclick="confirmDeleteLog('${_logDate}',${l.id},()=>{renderHomeTodayLogged();renderHome()})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 4px">×</button>`;
     }
-    const hrsDisp=(status==='doing'||status==='paused')?`<span data-liveid="${l.id}" data-livedate="${l.date}" style="font-size:12px;font-weight:900;color:#fbbf24;flex-shrink:0;white-space:nowrap">${liveStr||'0m'}</span>`:`<span style="font-size:12px;font-weight:900;color:${isCan?'var(--muted)':subColor(l.subject||'Other')};flex-shrink:0;white-space:nowrap;${isCan?'text-decoration:line-through':''}">${hDisp(l.hrs)}</span>`;
+    const hrsDisp=(status==='doing'||status==='paused')?`<span data-liveid="${l.id}" data-livedate="${l.date}" style="font-size:12px;font-weight:900;color:#fbbf24;flex-shrink:0;white-space:nowrap">${liveStr||'0m'}</span>`:`<span style="font-size:12px;font-weight:900;color:${isCan?'var(--muted)':subColor(l.subject||'Other')};flex-shrink:0;white-space:nowrap;${isCan?'text-decoration:line-through':''}">${logDisp(l)}</span>`;
     return `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:11px;border:1px solid ${borderC};background:${bgC};margin-bottom:7px;${isCan?'opacity:0.5':''}">
       <div style="font-size:15px;flex-shrink:0">${icon}</div>
       <div style="flex:1;min-width:0">
@@ -19021,6 +19429,7 @@ window._wrAutoLog = function(entry) {
       topicMap: entry.topicMap || {},
       mockPlatform: entry.platform || '',
       mockNo: entry.mockno || '',
+      sectionSubject: entry.sectionSubject || '',
       net: entry.net || 0,
       auto: true,
       ts: entry.ts || Date.now(),
