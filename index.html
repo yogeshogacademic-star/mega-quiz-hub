@@ -1810,7 +1810,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-07 · v26.4';
+    const HUB_BUILD = '2026-08-08 · v26.5';
 
     // ============================================================
     // GLOBAL TOAST (v25.6) — every native alert() popup in the hub
@@ -19587,6 +19587,24 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
       slug: 'reasoning'
     }
   };
+
+  /* ══ v26.5 — MIXED-SUBJECT ROUTING ══
+     tag[0] alone identifies the subject, so a single mixed JSON can be split
+     into the four week buckets with no extra field in the schema. */
+  const ALL_PARENTS = Object.keys(SUBJECT_CONFIG)
+    .reduce((acc, s) => acc.concat(SUBJECT_CONFIG[s].parents), []);
+  const PARENT_TO_SUBJECT = (function(){
+    const m = {};
+    Object.keys(SUBJECT_CONFIG).forEach(subj => {
+      SUBJECT_CONFIG[subj].parents.forEach(p => { m[p.toLowerCase()] = subj; });
+    });
+    return m;
+  })();
+  function subjectForTag0(t0) { return PARENT_TO_SUBJECT[String(t0 || '').trim().toLowerCase()] || null; }
+  const ALL_CONFIG = { icon: '🎯', container: 'MIXED — routed by tag[0]', parents: ALL_PARENTS, slug: 'all' };
+  function activeCfg() { return SUBJECT_CONFIG[MWQ.activeSubject] || ALL_CONFIG; }
+  function isAllMode() { return MWQ.activeSubject === '__ALL__'; }
+  try { window.__mwqSubjectForTag0 = subjectForTag0; } catch(e){}
   
   const MWQ = { activeSubject: null, parsedQuestions: [], taxonomyTree: null };
 
@@ -19646,6 +19664,79 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     for (let i = 0; i < s.length; i++) { h = ((h << 5) - h) + s.charCodeAt(i); h |= 0; }
     return 'h' + Math.abs(h).toString(36) + '_' + s.length;
   }
+
+  /* ══ v26.5 — DUPLICATE ENGINE ══
+     qHash (legacy) is an exact hash of whitespace-normalised text: one OCR
+     difference (₹ vs Rs., a stray comma, a different line break) made a
+     re-scanned question look brand new. Two stronger keys are added:
+
+       qFp  — alphanumerics only (DIGITS KEPT). Punctuation/spacing/case/HTML
+              noise collapses away, so the same question scanned twice matches.
+              Digits are kept on purpose: in Quant two questions are often
+              word-for-word identical with different numbers, and those are
+              genuinely two questions. qFp match ⇒ exact duplicate ⇒ skipped.
+
+       qFpA — letters only (digits stripped). Catches exactly the case above:
+              same wording, different numbers. That is NOT auto-skipped — it is
+              flagged amber in review so the call is yours. */
+  function mwStripHtml(t) {
+    return String(t == null ? '' : t)
+      .replace(/<br\s*\/?>/gi, ' ')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&');
+  }
+  function mwFp(text) {
+    const s = mwStripHtml(stripMW(text)).toLowerCase().replace(/[^a-z0-9]/g, '');
+    return s ? 'f' + s.length + '_' + s : '';
+  }
+  function mwFpA(text) {
+    const s = mwStripHtml(stripMW(text)).toLowerCase().replace(/[^a-z]/g, '');
+    return s.length >= 25 ? 'a' + s : '';   // too short = too noisy to compare
+  }
+  try { window.__mwFp = mwFp; window.__mwFpA = mwFpA; } catch(e){}
+
+  // One-time (idempotent) backfill so the restart is checked against real history.
+  function mwBackfillFingerprints(dbRef) {
+    dbRef = dbRef || getDb();
+    if (!dbRef) return 0;
+    let touched = 0;
+    Object.keys(dbRef).forEach(k => {
+      if (!k.startsWith('quiz_mock_wrong_')) return;
+      const quiz = dbRef[k];
+      if (!quiz || !Array.isArray(quiz.questions)) return;
+      quiz.questions.forEach(q => {
+        if (!q || !q.question) return;
+        if (!q.qFp)  { q.qFp  = mwFp(q.question);  touched++; }
+        if (q.qFpA === undefined) { q.qFpA = mwFpA(q.question); }
+        if (!q.qHash) { q.qHash = qHash(stripMW(q.question)); }
+      });
+    });
+    return touched;
+  }
+
+  /* Index across EVERY quiz_mock_wrong_* bucket — all weeks, all four subjects.
+     The main question bank is deliberately NOT scanned: the hub has its own
+     duplicate scanner for that, and a mock-wrong copy is meant to co-exist. */
+  function buildPoolIndex(dbRef) {
+    dbRef = dbRef || getDb() || {};
+    const exact = new Map(), near = new Map();
+    Object.keys(dbRef).forEach(k => {
+      if (!k.startsWith('quiz_mock_wrong_')) return;
+      const quiz = dbRef[k];
+      if (!quiz || !Array.isArray(quiz.questions)) return;
+      const label = quiz.title || k;
+      quiz.questions.forEach(q => {
+        if (!q || !q.question) return;
+        const fp = q.qFp || mwFp(q.question);
+        const fa = (q.qFpA !== undefined) ? q.qFpA : mwFpA(q.question);
+        if (fp && !exact.has(fp)) exact.set(fp, { bucket: k, title: label });
+        if (fa && !near.has(fa))  near.set(fa,  { bucket: k, title: label });
+      });
+    });
+    return { exact, near };
+  }
+  try { window.__mwqBuildPoolIndex = buildPoolIndex; } catch(e){}
   function toast(msg, type) {
     if (callMtToast(msg)) return;
     const t = document.createElement('div');
@@ -19858,6 +19949,59 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     p += `Ready — process the screenshots and return JSON.\n`;
     return p;
   }
+
+  /* ══ v26.5 — FULL MOCK PROMPT (all four subjects in one pass) ══ */
+  function generatePromptAll() {
+    const wk = weekRange();
+    let p = `# SSC CGL Full-Mock Wrong-Answer Parser — ALL SUBJECTS | Week ${wk.displayLong}\n\n`;
+    p += `I'm sharing screenshots of WRONG questions from a full SSC CGL mock. They are MIXED — Maths, English, Reasoning and GS all jumbled together, in no particular order. Do NOT ask me to sort them. Read every visible question in every screenshot and work out its subject yourself from the content.\n\n`;
+    p += `Each screenshot may contain ONE or MULTIPLE questions.\n\n`;
+    p += `For each question, produce a JSON object using this EXACT schema:\n\n`;
+    p += '```json\n';
+    p += `{\n  "question": "<full question text exactly as in screenshot>",\n  "options": [\n    {"text": "<A>", "correct": false},\n    {"text": "<B>", "correct": false},\n    {"text": "<C>", "correct": true},\n    {"text": "<D>", "correct": false}\n  ],\n  "tags": ["<tag[0]>", "<tag[1]>", "<tag[2]>", "<tag[3]>"],\n  "solution": "<solution — smartest/fastest method, no label prefix>",\n  "mockSource": "Week ${wk.display} · <Quant|GS|English|Reasoning> Pool"\n}\n`;
+    p += '```\n\n';
+    p += `## HOW SUBJECT ROUTING WORKS (READ THIS FIRST)\n\n`;
+    p += `There is no "subject" field. **tag[0] IS the subject router.** My hub reads tag[0] and files each question into the right subject bucket automatically. So tag[0] must come from the correct block below:\n\n`;
+    Object.keys(SUBJECT_CONFIG).forEach(subj => {
+      p += `- **${subj}** ${SUBJECT_CONFIG[subj].icon} → tag[0] must be one of: ${SUBJECT_CONFIG[subj].parents.map(x => `"${x}"`).join(', ')}\n`;
+    });
+    p += `\nA wrong tag[0] sends the question to the wrong subject, so decide it deliberately for every single question.\n\n`;
+    p += `Ambiguous cases — decide like this:\n`;
+    p += `- Data Interpretation / caselet with numbers → **Quant** (tag[0] = "Arithmetic", tag[1] = "Data Interpretation")\n`;
+    p += `- Statement + Conclusion / Assumption / Course of Action → **Reasoning**, NOT GS, even when the content sounds like Polity or Economics\n`;
+    p += `- Vocabulary, idioms, spotting errors, cloze, para-jumble, active/passive, narration → **English**\n`;
+    p += `- Anything factual about polity, economy, history, geography, science, schemes, awards, sports, current affairs → **GS**, with the right GS parent as tag[0]\n`;
+    p += `- Coding-decoding, series, blood relation, syllogism, direction, dice, paper folding, mirror image, Venn → **Reasoning**\n`;
+    p += `- If a question is genuinely borderline, pick your best subject anyway and add "needsReview": true. Never drop a question and never ask me — I'll fix routing in one tap on my side.\n\n`;
+    p += `## SOLUTION STYLE — SWITCH BY SUBJECT\n\n`;
+    p += `- **Quant**: the fastest working method, with the actual steps. No long theory.\n`;
+    p += `- **Reasoning**: the logic chain that produces the answer, in order.\n`;
+    p += `- **English**: the rule being tested, then why each wrong option fails.\n`;
+    p += `- **GS**: full revision-ready explanation — the concept, why the wrong options fail, plus the adjacent facts I'd be asked next on the same topic.\n\n`;
+    p += `## TAG RULES (CRITICAL — DO NOT INVENT WHERE A MENU ENTRY EXISTS)\n\n`;
+    p += `**tag[1] / tag[2] / tag[3]** — the menu below IS my hub's real, live tag list, covering all four subjects. ALWAYS prefer an EXACT copy (same spelling, spacing, punctuation, &) from it.\n`;
+    p += `\`\`\`\n${window.__hubBuildTagMenu(ALL_PARENTS)}\`\`\`\n\n`;
+    p += `⚠️ Shapes are NEVER tag[1]. Triangle/Circle/Quadrilateral/Rectangle/Square/Trapezium/Rhombus/Polygon/Hexagon → tag[2]; tag[1]="2D-Mensuration" (use "Geometry" only for angle/property questions). Cube/Cuboid/Cylinder/Cone/Sphere/Hemisphere/Prism/Pyramid/Frustum → tag[2]; tag[1]="3D-Mensuration".\n\n`;
+    p += `## WHEN A QUESTION DOES NOT MATCH THE MENU — SUGGEST, DON'T LEAVE BLANK\n\n`;
+    p += `The menu is the FIRST choice. If a slot has no exact match, do NOT leave it "" — instead put YOUR single best-guess tag there (concise, standard SSC terminology, styled exactly like the existing menu names) AND add "needsReview": true to that question object. I confirm or fix it in one tap — your guess is a suggestion, never a silent commit.\n`;
+    p += `Rules for the guess:\n`;
+    p += `1. tag[0] is NEVER guessed — it must be one of the parents listed in the routing block above.\n`;
+    p += `2. tag[1] no menu match → best-guess the standard chapter/topic name + "needsReview": true.\n`;
+    p += `3. tag[2] no menu match → best-guess the sub-topic/shape + "needsReview": true.\n`;
+    p += `4. tag[3] is the question-specific concept — always fill your best specific label (no review flag needed for tag[3] alone).\n`;
+    p += `5. Match my naming STYLE: "&" not "and", Title Case, singular where my menu is singular (e.g. "Profit & Loss", "Boat & Stream").\n`;
+    p += `6. If you used the menu exactly for tag[1] AND tag[2], do NOT add needsReview.\n`;
+    p += `7. Extract the FULL question text verbatim — include tables, data, conditions, line breaks. Never reword, abbreviate or shorten it. My duplicate scanner fingerprints the text, so a reworded question looks like a new one.\n`;
+    p += `8. Mark exactly ONE option as "correct": true (the right answer per the mock solution).\n`;
+    p += `9. Write the solution as the method directly — NO "Shortcut:" or any label prefix.\n`;
+    p += `10. "mockSource" MUST be exactly "Week ${wk.display} · <Subject> Pool" where <Subject> is the routed subject — Quant, GS, English or Reasoning.\n\n`;
+    p += `## OUTPUT\n\n`;
+    p += `Return ONE JSON array containing ALL questions from ALL subjects mixed together — do NOT split it per subject, my hub does the splitting. No commentary, no markdown fences, no preamble:\n\n`;
+    p += `[\n  { ...question1... },\n  { ...question2... }\n]\n\n`;
+    p += `If I share more screenshots in follow-up messages, return a fresh JSON array each time — I'll merge them.\n\n`;
+    p += `Ready — process the screenshots and return JSON.\n`;
+    return p;
+  }
   
   // ── CSS injection ──
   function injectCSS() {
@@ -19948,6 +20092,14 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
       .dark .mwq-stats-bar{background:#1e1b4b}
       .mwq-stat-item{color:#4338ca}
       .dark .mwq-stat-item{color:#a5b4fc}
+      .mwq-q-subj{font-size:10px;font-weight:900;color:#0f766e;letter-spacing:0.03em}
+      .dark .mwq-q-subj{color:#5eead4}
+      .mwq-q-subj-bad{color:#dc2626}
+      .mwq-q-near{padding:3px 8px;background:#fee2e2;color:#991b1b;border-radius:6px;font-size:10px;font-weight:900;text-transform:uppercase}
+      .dark .mwq-q-near{background:#7f1d1d;color:#fecaca}
+      .mwq-fullmock-btn{width:100%;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);border-color:#4f46e5;color:#fff}
+      .dark .mwq-fullmock-btn{background:linear-gradient(135deg,#4338ca 0%,#6d28d9 100%);border-color:#6366f1;color:#fff}
+      .mwq-fullmock-btn .cnt{color:#e0e7ff}
       .mwq-stat-retag{color:#92400e}
       .dark .mwq-stat-retag{color:#fbbf24}
     `;
@@ -19981,6 +20133,18 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
             <div class="mwq-week-range" id="mwq-week-range">—</div>
             <div class="mwq-week-sub">Process wrong-question screenshots into weekly quizzes. They appear in your main dashboard under the existing mock-question containers and flow to syllabus via tags.</div>
             <div class="mwq-subj-grid" id="mwq-subj-grid"></div>
+            <div id="mwq-fullmock-wrap" style="margin-top:10px"></div>
+          </div>
+          <div class="mwq-section-card">
+            <div class="mwq-section-title">🧹 Duplicate Guard</div>
+            <div style="font-size:12px;color:#64748b;font-weight:700;line-height:1.6;margin-bottom:10px">
+              Every commit is checked against <b>all</b> mock-wrong buckets — all weeks, all subjects. Exact repeats are skipped automatically; same-wording-different-numbers questions are flagged for you instead of being dropped.
+              Use the scan below to clean duplicates that were committed before this guard existed.
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="mwq-btn mwq-btn-secondary" onclick="window.mwq_dupScan()" style="flex:1;min-width:150px">🔎 Scan pool for duplicates</button>
+            </div>
+            <div id="mwq-dup-report" style="margin-top:10px;font-size:12px;font-weight:700;color:#64748b"></div>
           </div>
           <div class="mwq-section-card">
             <div class="mwq-section-title">📚 Past Weekly Quizzes</div>
@@ -20068,7 +20232,7 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
           </div>
           <div class="mwq-modal-footer">
             <button class="mwq-btn mwq-btn-secondary" onclick="window.mwq_closeReview()">Cancel</button>
-            <button class="mwq-btn mwq-btn-success" id="mwq-commit-btn" onclick="window.mwq_commit()">✅ Commit to Week Bucket</button>
+            <button class="mwq-btn mwq-btn-success" id="mwq-commit-btn" onclick="window.mwq_commit()">✅ Commit to Week Bucket(s)</button>
           </div>
         </div>`;
       document.body.appendChild(m);
@@ -20084,6 +20248,17 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
         btn.onclick = function() { processSubject(subj); };
         grid.appendChild(btn);
       });
+    }
+
+    // v26.5 — Full Mock (mixed subjects) + duplicate cleanup
+    const fullWrap = document.getElementById('mwq-fullmock-wrap');
+    if (fullWrap && !fullWrap.children.length) {
+      const b = document.createElement('button');
+      b.className = 'mwq-subj-btn mwq-fullmock-btn';
+      b.innerHTML = '<span class="icon">🎯</span><span class="lbl">Process FULL MOCK — all subjects</span>' +
+                    '<span class="cnt">Mixed screenshots · one JSON · auto-routed by tag[0]</span>';
+      b.onclick = function() { processAllSubjects(); };
+      fullWrap.appendChild(b);
     }
     
     return true;
@@ -20164,6 +20339,18 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     const titleEl = document.getElementById('mwq-prompt-title');
     const textEl = document.getElementById('mwq-prompt-text');
     if (titleEl) titleEl.textContent = `Process ${subject} — ${SUBJECT_CONFIG[subject].icon}`;
+    if (textEl) textEl.value = prompt;
+    document.getElementById('mwq-prompt-modal').classList.add('mwq-open');
+  }
+
+  function processAllSubjects() {
+    MWQ.activeSubject = '__ALL__';
+    MWQ.parsedQuestions = [];
+    MWQ.taxonomyTree = buildTaxonomy();
+    const prompt = generatePromptAll();
+    const titleEl = document.getElementById('mwq-prompt-title');
+    const textEl = document.getElementById('mwq-prompt-text');
+    if (titleEl) titleEl.textContent = '🎯 Full Mock — all subjects in one pass';
     if (textEl) textEl.value = prompt;
     document.getElementById('mwq-prompt-modal').classList.add('mwq-open');
   }
@@ -20250,14 +20437,46 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
         needsRetag: flagged
       };
     });
+    // ══ v26.5 duplicate guard — runs BEFORE review so the list stays clean ══
+    const dbRef0 = getDb();
+    if (dbRef0) { try { mwBackfillFingerprints(dbRef0); } catch(e) { console.warn('[MWQ] backfill:', e); } }
+    const pool = buildPoolIndex(dbRef0);
+    // questions already sitting in this un-committed batch count too
+    MWQ.parsedQuestions.forEach(q => {
+      const f = mwFp(q.question); if (f) pool.exact.set(f, { bucket: '', title: 'this batch (already pasted above)' });
+      const a = mwFpA(q.question); if (a && !pool.near.has(a)) pool.near.set(a, { bucket: '', title: 'this batch (already pasted above)' });
+    });
+    let dupSkipped = 0; let nearFlagged = 0;
+    const kept = [];
+    normalized.forEach(q => {
+      const f = mwFp(q.question);
+      if (f && pool.exact.has(f)) { dupSkipped++; return; }        // exact repeat → silent skip
+      const a = mwFpA(q.question);
+      if (a && pool.near.has(a)) {                                  // same words, different numbers → flag, keep
+        const hit = pool.near.get(a);
+        q.__near = 'Similar question already in: ' + (hit.title || hit.bucket);
+        nearFlagged++;
+      }
+      if (f) pool.exact.set(f, { bucket: '', title: 'this batch' });
+      if (a) pool.near.set(a, { bucket: '', title: 'this batch' });
+      kept.push(q);
+    });
+
+    const notes = [];
+    if (dupSkipped)  notes.push(`🚫 ${dupSkipped} duplicate${dupSkipped > 1 ? 's' : ''} skipped (already in your mock-wrong pool)`);
+    if (nearFlagged) notes.push(`⚠️ ${nearFlagged} flagged as similar-but-not-identical — check them in review`);
     if (issues.length) {
-      fb.innerHTML = '⚠️ ' + issues.slice(0, 5).join('<br>') + (issues.length > 5 ? `<br>...and ${issues.length - 5} more` : '');
+      fb.innerHTML = '⚠️ ' + issues.slice(0, 5).join('<br>') + (issues.length > 5 ? `<br>...and ${issues.length - 5} more` : '') +
+                     (notes.length ? '<br>' + notes.join('<br>') : '');
       fb.style.color = '#f59e0b';
+    } else if (notes.length) {
+      fb.innerHTML = `✅ Parsed ${kept.length} new question${kept.length === 1 ? '' : 's'}<br>` + notes.join('<br>');
+      fb.style.color = dupSkipped && !kept.length ? '#f59e0b' : '#10b981';
     } else {
-      fb.textContent = `✅ Parsed ${normalized.length} questions`;
+      fb.textContent = `✅ Parsed ${kept.length} questions`;
       fb.style.color = '#10b981';
     }
-    MWQ.parsedQuestions = MWQ.parsedQuestions.concat(normalized);
+    MWQ.parsedQuestions = MWQ.parsedQuestions.concat(kept);
     setTimeout(() => {
       document.getElementById('mwq-paste-modal').classList.remove('mwq-open');
       openReview();
@@ -20269,7 +20488,9 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     const subj = MWQ.activeSubject;
     const wk = weekRange();
     const t = document.getElementById('mwq-review-title');
-    if (t) t.textContent = `Review — ${SUBJECT_CONFIG[subj].icon} ${subj} Week ${wk.display}`;
+    if (t) t.textContent = isAllMode()
+      ? `Review — 🎯 Full Mock (all subjects) Week ${wk.display}`
+      : `Review — ${SUBJECT_CONFIG[subj].icon} ${subj} Week ${wk.display}`;
     renderReview();
     document.getElementById('mwq-review-modal').classList.add('mwq-open');
   }
@@ -20294,7 +20515,7 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
   }
   
   function renderQuestionCard(q, i) {
-    const cfg = SUBJECT_CONFIG[MWQ.activeSubject];
+    const cfg = activeCfg();
     const tree = MWQ.taxonomyTree;
     const t0 = q.tags[0] || '', t1 = q.tags[1] || '', t2 = q.tags[2] || '', t3 = q.tags[3] || '';
     const tag0Opts = cfg.parents.map(p => `<option value="${esc(p)}" ${p === t0 ? 'selected' : ''}>${esc(p)}</option>`).join('') +
@@ -20318,8 +20539,9 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     return `
       <div class="mwq-q-card" data-retag="${q.needsRetag ? 'true' : 'false'}" data-idx="${i}">
         <div class="mwq-q-head">
-          <span class="mwq-q-num">Question ${i+1}</span>
+          <span class="mwq-q-num">Question ${i+1}${(function(){ const sj = subjectForTag0(q.tags[0]); return sj ? ` · <span class="mwq-q-subj">${SUBJECT_CONFIG[sj].icon} ${esc(sj)}</span>` : ' · <span class="mwq-q-subj mwq-q-subj-bad">⚠️ no subject</span>'; })()}</span>
           <div style="display:flex;gap:8px;align-items:center">
+            ${q.__near ? `<span class="mwq-q-near" title="${esc(q.__near)}">⚠️ Similar already in pool</span>` : ''}
             ${q.needsRetag ? '<span class="mwq-q-retag">⚠️ Retag this</span>' : ''}
             <button class="mwq-q-del" data-q="${i}">🗑 Remove</button>
           </div>
@@ -20412,10 +20634,18 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     if (!stats) return;
     const qs = MWQ.parsedQuestions;
     const retagCount = qs.filter(q => q.needsRetag).length;
+    const nearCount = qs.filter(q => q.__near).length;
+    const bySubj = {};
+    qs.forEach(q => { const sj = subjectForTag0(q.tags[0]) || '⚠️ unrouted'; bySubj[sj] = (bySubj[sj] || 0) + 1; });
+    const routing = Object.keys(bySubj).sort().map(sj => {
+      const ic = SUBJECT_CONFIG[sj] ? SUBJECT_CONFIG[sj].icon : '⚠️';
+      return `<span class="mwq-stat-item">${ic} ${esc(sj)}: <b>${bySubj[sj]}</b></span>`;
+    }).join('');
     stats.innerHTML = `
       <span class="mwq-stat-item">📦 Total: <b>${qs.length}</b></span>
       ${retagCount ? `<span class="mwq-stat-retag">⚠️ Needs retag: <b>${retagCount}</b></span>` : '<span class="mwq-stat-item">✅ All tagged</span>'}
-      <span class="mwq-stat-item">Container: <b>${SUBJECT_CONFIG[MWQ.activeSubject].container}</b></span>`;
+      ${nearCount ? `<span class="mwq-stat-retag">⚠️ Similar to existing: <b>${nearCount}</b></span>` : ''}
+      ${routing}`;
   }
   
   // ── Commit ──
@@ -20428,33 +20658,42 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     }
     const invalid = qs.filter(q => !q.tags[0] || !q.tags[1]);
     if (invalid.length) { toast(`${invalid.length} questions have missing tag[0] or tag[1] — fix before commit`, 'error'); return; }
+    const unrouted = qs.filter(q => !subjectForTag0(q.tags[0]));
+    if (unrouted.length) { toast(`${unrouted.length} questions have a tag[0] that maps to no subject — fix tag[0] before commit`, 'error'); return; }
     
-    const subject = MWQ.activeSubject;
-    const cfg = SUBJECT_CONFIG[subject];
     const wk = weekRange();
-    const key = bucketKey(subject, wk.start);
-    
     const dbRef = getDb();
     if (!dbRef) { toast('DB not loaded — refresh and retry', 'error'); return; }
     
-    let bucket = dbRef[key];
-    if (!bucket) {
-      bucket = {
-        title: `Mock Wrongs — ${subject} — ${wk.display}`,
-        subject: cfg.container,
-        timeInMinutes: 0,
-        isMockWrongQuiz: true,
-        weekStart: wk.start,
-        weekEnd: wk.end,
-        questions: []
-      };
-    }
-    bucket.questions = Array.isArray(bucket.questions) ? bucket.questions : [];
-    const existingHashes = new Set(bucket.questions.map(q => q.qHash).filter(Boolean));
+    // v26.5 — dedup against EVERY mock-wrong bucket, all weeks, all subjects
+    try { mwBackfillFingerprints(dbRef); } catch(e) { console.warn('[MWQ] backfill:', e); }
+    const pool = buildPoolIndex(dbRef);
+    
+    const perSubject = {};
+    const touchedKeys = new Set();
     let added = 0, skipped = 0;
     qs.forEach(q => {
-      const h = qHash(stripMW(q.question));
-      if (existingHashes.has(h)) { skipped++; return; }
+      const subject = subjectForTag0(q.tags[0]);
+      const cfg = SUBJECT_CONFIG[subject];
+      const key = bucketKey(subject, wk.start);
+      let bucket = dbRef[key];
+      if (!bucket) {
+        bucket = {
+          title: `Mock Wrongs — ${subject} — ${wk.display}`,
+          subject: cfg.container,
+          timeInMinutes: 0,
+          isMockWrongQuiz: true,
+          weekStart: wk.start,
+          weekEnd: wk.end,
+          questions: []
+        };
+        dbRef[key] = bucket;
+      }
+      bucket.questions = Array.isArray(bucket.questions) ? bucket.questions : [];
+      const clean = stripMW(q.question);
+      const fp = mwFp(clean);
+      if (fp && pool.exact.has(fp)) { skipped++; return; }
+      const fa = mwFpA(clean);
       bucket.questions.push({
         question: stampMW(q.question),
         options: q.options,
@@ -20462,13 +20701,20 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
         solution: q.solution,
         mockSource: q.mockSource || `Week ${wk.display} · ${subject} Pool`,
         needsRetag: !!q.needsRetag,
-        qHash: h
+        qHash: qHash(clean),
+        qFp: fp,
+        qFpA: fa
       });
-      existingHashes.add(h);
+      if (fp) pool.exact.set(fp, { bucket: key, title: bucket.title });
+      if (fa && !pool.near.has(fa)) pool.near.set(fa, { bucket: key, title: bucket.title });
+      touchedKeys.add(key);
+      perSubject[subject] = (perSubject[subject] || 0) + 1;
       added++;
     });
-    bucket.timeInMinutes = Math.max(1, Math.ceil(bucket.questions.length * 1.5));
-    dbRef[key] = bucket;
+    touchedKeys.forEach(k => {
+      const b = dbRef[k];
+      if (b) b.timeInMinutes = Math.max(1, Math.ceil(b.questions.length * 1.5));
+    });
     try { if (typeof window.csEnsureMockSubjects === 'function') window.csEnsureMockSubjects(); } catch(e){}
     
     try {
@@ -20480,13 +20726,75 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
       return;
     }
     
-    toast(`✅ Committed: ${added} added, ${skipped} duplicates skipped → ${bucket.questions.length} total in week bucket`);
+    const breakdown = Object.keys(perSubject).sort()
+      .map(sj => `${SUBJECT_CONFIG[sj].icon} ${sj} ${perSubject[sj]}`).join(' · ');
+    toast(`✅ ${added} added${breakdown ? ' — ' + breakdown : ''}${skipped ? ` · ${skipped} duplicate${skipped > 1 ? 's' : ''} skipped` : ''}`);
     MWQ.parsedQuestions = [];
     document.getElementById('mwq-review-modal').classList.remove('mwq-open');
     refreshTab();
     callRenderDash();
   };
   
+  /* ══ v26.5 — CLEANUP SCAN ══
+     Finds questions that are ALREADY duplicated inside the mock-wrong pool
+     (committed before this guard existed) and removes the later copies.
+     The FIRST occurrence is always kept. Nothing outside quiz_mock_wrong_* is
+     ever touched — the main bank has its own scanner. */
+  window.mwq_dupScan = async function() {
+    const out = document.getElementById('mwq-dup-report');
+    const dbRef = getDb();
+    if (!dbRef) { if (out) out.textContent = 'DB not loaded — refresh and retry.'; return; }
+    try { mwBackfillFingerprints(dbRef); } catch(e){}
+    const seen = new Map();
+    const dups = [];
+    Object.keys(dbRef).sort().forEach(k => {
+      if (!k.startsWith('quiz_mock_wrong_')) return;
+      const quiz = dbRef[k];
+      if (!quiz || !Array.isArray(quiz.questions)) return;
+      quiz.questions.forEach((q, i) => {
+        if (!q || !q.question) return;
+        const fp = q.qFp || mwFp(q.question);
+        if (!fp) return;
+        if (seen.has(fp)) {
+          dups.push({ key: k, idx: i, title: quiz.title || k, firstIn: seen.get(fp) });
+        } else {
+          seen.set(fp, quiz.title || k);
+        }
+      });
+    });
+    if (!dups.length) {
+      if (out) { out.innerHTML = '✅ Clean — no duplicate questions anywhere in your mock-wrong pool (' + seen.size + ' unique questions checked).'; out.style.color = '#10b981'; }
+      return;
+    }
+    const byBucket = {};
+    dups.forEach(d => { byBucket[d.title] = (byBucket[d.title] || 0) + 1; });
+    const lines = Object.keys(byBucket).map(t => `• ${t}: ${byBucket[t]}`).join('\n');
+    if (!confirm(`Found ${dups.length} duplicate question(s) already sitting in your mock-wrong pool:\n\n${lines}\n\nRemove the later copies? The first occurrence of each question is always kept.`)) {
+      if (out) { out.innerHTML = `⚠️ Found <b>${dups.length}</b> duplicates — nothing removed.`; out.style.color = '#f59e0b'; }
+      return;
+    }
+    // remove from the end so earlier indices stay valid
+    const grouped = {};
+    dups.forEach(d => { (grouped[d.key] = grouped[d.key] || []).push(d.idx); });
+    let removed = 0;
+    Object.keys(grouped).forEach(k => {
+      grouped[k].sort((a, b) => b - a).forEach(i => { dbRef[k].questions.splice(i, 1); removed++; });
+      dbRef[k].timeInMinutes = Math.max(1, Math.ceil(dbRef[k].questions.length * 1.5));
+    });
+    try {
+      await callSaveData();
+      callRebuildCache();
+    } catch(e) {
+      console.error('[MWQ] dupScan save:', e);
+      if (out) { out.textContent = 'Save failed — check console.'; out.style.color = '#dc2626'; }
+      return;
+    }
+    if (out) { out.innerHTML = `✅ Removed <b>${removed}</b> duplicate question(s). ${seen.size} unique questions remain in the pool.`; out.style.color = '#10b981'; }
+    toast(`🧹 Removed ${removed} duplicates from the mock-wrong pool`);
+    refreshTab();
+    callRenderDash();
+  };
+
   // ── Launch quiz from history ──
   window.mwq_launchQuiz = function(quizId) {
     if (callOpenLobby(quizId)) return;
@@ -20513,12 +20821,15 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
       };
     }
     bucket.questions = Array.isArray(bucket.questions) ? bucket.questions : [];
-    const existing = new Set(bucket.questions.map(q => q.qHash).filter(Boolean));
+    // v26.5 — fingerprint-based, scoped to the whole mock-wrong pool
+    try { mwBackfillFingerprints(dbRef); } catch(e){}
+    const poolIdx = buildPoolIndex(dbRef);
     let added = 0, skipped = 0;
     (questions || []).forEach(q => {
       if (!q || !q.question || !Array.isArray(q.options)) { return; }
-      const h = qHash(stripMW(q.question));
-      if (existing.has(h)) { skipped++; return; }
+      const clean = stripMW(q.question);
+      const fp = mwFp(clean);
+      if (fp && poolIdx.exact.has(fp)) { skipped++; return; }
       const t = Array.isArray(q.tags) ? q.tags : [];
       bucket.questions.push({
         question: stampMW(q.question),
@@ -20527,9 +20838,12 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
         solution: q.solution || '',
         mockSource: q.mockSource || q.spottedSource || `Week ${wk.display} · ${subject} Pool`,
         needsRetag: !!q.needsRetag,
-        qHash: h
+        qHash: qHash(clean),
+        qFp: fp,
+        qFpA: mwFpA(clean)
       });
-      existing.add(h); added++;
+      if (fp) poolIdx.exact.set(fp, { bucket: key, title: bucket.title });
+      added++;
     });
     bucket.timeInMinutes = Math.max(1, Math.ceil(bucket.questions.length * 1.5));
     dbRef[key] = bucket;
