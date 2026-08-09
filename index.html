@@ -1810,7 +1810,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-09 · v26.6';
+    const HUB_BUILD = '2026-08-09 · v26.7';
 
     // ============================================================
     // GLOBAL TOAST (v25.6) — every native alert() popup in the hub
@@ -21016,7 +21016,7 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
   const KIND_LABEL = { formula:'Formula / Concept', theory:'Theory / Key Points', rule:'Rule / Explanation', concept:'Concept / Trick' };
   const STORE_KEY = '__conceptSheets';
 
-  const CS = { subject:null };
+  const CS = { subject:null, batch:50 };   // v26.7 — questions sent per prompt run
 
   function getDb(){ try { return (typeof db !== 'undefined') ? db : null; } catch(e){ return null; } }
   function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -21256,6 +21256,77 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     return n;
   }
 
+  // ── v26.7 batch engine ───────────────────────────────────────────────────
+  // A full backlog (200+ questions) can't be turned into complete chapters in one
+  // AI response — it truncates or silently thins the later chapters. So each run
+  // takes a slice. Slices break on WHOLE tag1 buckets, never mid-bucket, so two
+  // questions on the same topic can't land in different runs and produce two
+  // near-duplicate chapters.
+  //   returns { groups, count, remaining, total, batched }
+  //   groups[t0][t1] = [ {q, h, n}, ... ]   n = global question number for this run
+  function selectBatch(subject, mode, limit){
+    const pool = collectPool(subject);
+    const processed = (mode === 'incremental') ? processedSet(subject) : new Set();
+    limit = (limit === 0 || limit === 'all') ? Infinity : (limit || CS.batch || 50);
+
+    // flatten to bucket list, preserving the display order used everywhere else
+    const buckets = [];
+    let total = 0;
+    Object.keys(pool.groups).sort().forEach(t0 => {
+      Object.keys(pool.groups[t0]).sort().forEach(t1 => {
+        const list = pool.groups[t0][t1].filter(it => !processed.has(it.h));
+        if(list.length){ buckets.push({ t0: t0, t1: t1, list: list }); total += list.length; }
+      });
+    });
+
+    const groups = {}; let count = 0, n = 0;
+    for(let i = 0; i < buckets.length; i++){
+      const b = buckets[i];
+      // always take the first bucket even if it alone exceeds the limit
+      if(count && (count + b.list.length) > limit) break;
+      groups[b.t0] = groups[b.t0] || {};
+      groups[b.t0][b.t1] = b.list.map(it => ({ q: it.q, h: it.h, n: ++n }));
+      count += b.list.length;
+    }
+    return { groups: groups, count: count, remaining: total - count, total: total,
+             batched: count < total };
+  }
+
+  // Which pool questions are already written into the book. Derived from the BOOK
+  // ITSELF (every question text sitting in some entry's q array) rather than from
+  // "everything that was in the pool when I last saved" — the old approach marked
+  // the entire pool processed after the very first batch, which made batching
+  // impossible and silently hid questions that never made it into a chapter.
+  function computeProcessedHashes(subject){
+    const s = store(); const slug = CS_SUBJECTS[subject].slug;
+    const sheet = (s && s.sheets[slug]) || {};
+    const inBook = new Set();
+    Object.keys(sheet).forEach(t0 => Object.keys(sheet[t0]).forEach(t1 => {
+      (sheet[t0][t1] || []).forEach(it => {
+        (it && Array.isArray(it.q) ? it.q : []).forEach(q => {
+          inBook.add(String(q||'').toLowerCase().replace(/\s+/g,' ').trim());
+        });
+      });
+    }));
+    const pool = collectPool(subject);
+    const out = [];
+    Object.keys(pool.groups).forEach(t0 => Object.keys(pool.groups[t0]).forEach(t1 =>
+      pool.groups[t0][t1].forEach(it => {
+        if(inBook.has(String(it.q||'').toLowerCase().replace(/\s+/g,' ').trim())) out.push(it.h);
+      })));
+    return out;
+  }
+  window.csRecountProcessed = function(subject){
+    subject = subject || CS.subject;
+    const s = store(); if(!s || !subject) return;
+    const slug = CS_SUBJECTS[subject].slug;
+    s.meta[slug] = s.meta[slug] || {};
+    s.meta[slug].processedHashes = computeProcessedHashes(subject);
+    if(typeof saveData === 'function') saveData();
+    console.log('[CS] recounted:', s.meta[slug].processedHashes.length, 'questions already in the', subject, 'book');
+    return s.meta[slug].processedHashes.length;
+  };
+
   // ── Prompt builder ──  mode: 'full' (default) | 'incremental'
   // v25.2 — Quant uses the CONCEPT-FAMILY schema (standard heading, setup line,
   // LaTeX result boxes, optional SVG figure, verbatim source questions).
@@ -21263,21 +21334,18 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
   function buildPrompt(subject, mode){
     mode = mode || 'full';
     const cfg = CS_SUBJECTS[subject];
-    const pool = collectPool(subject);
-    const processed = (mode === 'incremental') ? processedSet(subject) : new Set();
-
-    const useGroups = {};
-    Object.keys(pool.groups).forEach(t0 => {
-      Object.keys(pool.groups[t0]).forEach(t1 => {
-        const list = pool.groups[t0][t1].filter(it => mode !== 'incremental' || !processed.has(it.h));
-        if(list.length){ useGroups[t0] = useGroups[t0] || {}; useGroups[t0][t1] = list; }
-      });
-    });
+    // v26.7 — one run = one batch (whole tag1 buckets, never split mid-bucket)
+    const batch = selectBatch(subject, mode, CS.batch);
+    const useGroups = batch.groups;
 
     const L = [];
     if(cfg.kind === 'gsbook'){
-      L.push('You are writing entries for a PREMIUM GS REVISION BOOK — complete, textbook-style');
-      L.push('topic chapters (like Vision IAS / Vajiram GS notes), NOT a quick-fact recall card.');
+      L.push('You are writing chapters for a PREMIUM GS REVISION BOOK for the SSC CGL exam.');
+      L.push('Each chapter is a COMPLETE, SELF-CONTAINED textbook treatment of ONE topic —');
+      L.push('reading it alone must be enough to revise that whole topic. Not an answer key,');
+      L.push('not a fact card.');
+      L.push('');
+      L.push('Write in ENGLISH ONLY. No Hindi, no transliterated Hindi, nowhere in the output.');
     } else {
       L.push('You are writing entries for a PREMIUM EXAM FORMULA & CONCEPT REFERENCE BOOK');
       L.push('(like Gagan Pratap Sir\'s "Maths Concept King" — Champion Publication).');
@@ -21300,16 +21368,24 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     L.push('');
     L.push('════════════════════════════════════════════════════════');
     if(cfg.kind === 'gsbook'){
-      L.push('YOUR JOB: For each question, identify the STANDARD, COMPLETE TOPIC it belongs to —');
-      L.push('not just the narrow fact the question tested — and write a FULL revision chapter for');
-      L.push('that ENTIRE topic, the way a coaching book covers it end-to-end, going beyond what any');
-      L.push('single question asked. Include EVERY sub-feature, term, and detail a standard source');
-      L.push('gives for this topic — do NOT condense or drop any of them for brevity. Completeness');
-      L.push('is the entire point of this book.');
+      L.push('YOUR JOB: For each question, identify the STANDARD TOPIC it belongs to and write');
+      L.push('the full chapter for that topic — going well beyond the single fact tested.');
       L.push('');
-      L.push('Example: a question about the Third Anglo-Maratha War → don\'t just explain the Third');
-      L.push('War. Write the WHOLE "Anglo-Maratha Wars" topic — First War (1775–82), Second War');
-      L.push('(1803–05), Third War (1817–18) — causes, key battles, treaties, generals, outcome.');
+      L.push('SCOPE RULE — expand to the CHAPTER BOUNDARY, not past it. Expand to the unit a');
+      L.push('textbook would title as one chapter, then stop widening:');
+      L.push('  Third Anglo-Maratha War  → "Anglo-Maratha Wars" (all three wars)');
+      L.push('                            NOT just the third war · NOT the whole Maratha Empire');
+      L.push('  Article 21               → "Right to Life — Article 21" with its expansions');
+      L.push('                            NOT the one clause asked · NOT all of Part III');
+      L.push('  Khajuraho temple         → "Nagara Style Temple Architecture"');
+      L.push('                            NOT only Khajuraho · NOT all Indian architecture');
+      L.push('');
+      L.push('MERGING: two or more questions on the same topic → ONE chapter with ALL of those');
+      L.push('questions attached. Never two near-duplicate chapters.');
+      L.push('');
+      L.push('DEPTH TARGET = SSC CGL, not UPSC. Prioritise what SSC actually asks: firsts, exact');
+      L.push('years, article/section numbers, named people, founders, book–author, scheme–ministry,');
+      L.push('causes and outcomes. Skip UPSC-style analytical commentary.');
     } else {
       L.push('YOUR JOB: For each question, identify the STANDARD CONCEPT it tests and');
       L.push('write it as a clean textbook entry — the way a coaching book states it,');
@@ -21362,57 +21438,76 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
       L.push('✅ Questions testing the SAME setup go into ONE family (multiple result boxes / shared q list) — never near-duplicate families.');
       L.push('✅ Every question below MUST appear VERBATIM in exactly one family\'s q array.');
     } else if(cfg.kind === 'gsbook'){
-      L.push('Each entry is a full TOPIC CHAPTER with these fields:');
-      L.push('  title     → standard chapter/topic name, the way a book would title it.');
-      L.push('  sections  → array of {heading, features:[{term,detail}], examples:[{term,detail}]}.');
-      L.push('              Break the topic into its natural sub-parts (sub-events / sub-types /');
-      L.push('              sub-articles), each its own heading.');
-      L.push('              features  → the DEFINING facts of that sub-part, each as one');
-      L.push('                          {"term":"<short label>","detail":"<the fact>"} pair —');
-      L.push('                          e.g. {"term":"Shikhara","detail":"Curvilinear tower ..."}.');
-      L.push('                          Include EVERY feature a standard source lists — do not cut any.');
-      L.push('              examples  → historical examples / named instances for that sub-part, same');
-      L.push('                          {term,detail} shape — e.g. {"term":"Khajuraho","detail":"..."}.');
-      L.push('                          Leave [] if a sub-part genuinely has none.');
-      L.push('  keyPoints → (optional) flat array of high-yield, trap-prone one-liners specific to');
-      L.push('              THIS topic (commonly confused pairs, exceptions, "NOT" facts).');
-      L.push('  compare   → (optional) ONLY when the topic has natural parallel categories (e.g. 3');
-      L.push('              temple styles, 2 laws being contrasted): {"header":["Aspect","<cat1>",');
-      L.push('              "<cat2>",...], "rows":[["<aspect>","<val1>","<val2>",...], ...]}. Omit');
-      L.push('              entirely if the topic has no natural side-by-side comparison.');
-      L.push('  caNote    → (optional, ONLY for recent/current events — a scheme, appointment, report,');
-      L.push('              award, agreement) → 2–4 sentences of background + why it\'s topical + closely');
-      L.push('              related current facts worth knowing alongside it. Leave "" otherwise.');
-      L.push('  q         → array of the source questions VERBATIM (exact text, keep any <br> tags');
-      L.push('              exactly as given, NO options). Include EVERY question below that belongs');
-      L.push('              to this topic. Do NOT cap or trim this list — attach ALL of them.');
+      L.push('Each entry is one CHAPTER OBJECT with exactly these keys, in this order:');
+      L.push('  title       string   Standard textbook name of the topic.');
+      L.push('  snapshot    string   REQUIRED. 2-3 sentences of orientation: what this is,');
+      L.push('                       when, who. Read before the detail.');
+      L.push('  sections    array    REQUIRED. The body. Minimum 2 sections (1 only if the');
+      L.push('                       topic is genuinely atomic). Minimum 4 features each.');
+      L.push('  timeline    array    Chronological topics only, else [].');
+      L.push('  compare     object   Only for real parallel categories, else null.');
+      L.push('  highYield   array    REQUIRED, minimum 3. Firsts, exact numbers, article');
+      L.push('                       numbers, named people — the facts SSC asks directly.');
+      L.push('  trapPoints  array    REQUIRED, minimum 3. Confusable pairs, exceptions,');
+      L.push('                       "NOT" facts, things routinely swapped.');
+      L.push('  caNote      string   Current-affairs topics only, else "".');
+      L.push('  q           array    Verbatim question texts.');
+      L.push('  qmeta       array    One object per q, same order, same length.');
       L.push('');
-      L.push('GOLD-STANDARD EXAMPLE (match this shape):');
-      L.push('{"title":"Temple Architecture — Nagara, Dravida & Vesara Styles",');
+      L.push('FIELD SHAPES:');
+      L.push('  sections:   [{"heading":"<sub-part>",');
+      L.push('               "features":[{"term":"<short label>","detail":"<the fact>"}],');
+      L.push('               "examples":[{"term":"<named instance>","detail":"<about it>"}]}]');
+      L.push('  timeline:   [{"year":"1775-82","event":"<what happened>"}]');
+      L.push('  compare:    {"header":["Aspect","<A>","<B>"],"rows":[["<aspect>","<a>","<b>"]]}');
+      L.push('  highYield:  [{"label":"<what kind of fact>","value":"<the fact>"}]');
+      L.push('  trapPoints: ["<one line, stated as a contrast>"]');
+      L.push('  qmeta:      [{"n":<question number from the list below>,');
+      L.push('               "type":"fact" | "statement",');
+      L.push('               "statements":[{"text":"<statement I>","verdict":"Right"|"Wrong"}]}]');
+      L.push('');
+      L.push('QMETA RULES:');
+      L.push('  qmeta[i] describes q[i]. Same length, same order, always.');
+      L.push('  "fact"      → normal single-fact question. "statements": [].');
+      L.push('  "statement" → question listing statements (I/II/III or 1/2/3 or a/b/c). Split');
+      L.push('                it: one entry per statement, each marked Right or Wrong.');
+      L.push('  DO NOT write the answer. The correct option and full solution are attached');
+      L.push('  automatically from my question bank at print time. Your job here is only the');
+      L.push('  statement split.');
+      L.push('');
+      L.push('WORKED EXAMPLE (match this shape exactly):');
+      L.push('{"title":"Anglo-Maratha Wars (1775-1818)",');
+      L.push(' "snapshot":"Three wars between the East India Company and the Maratha Confederacy across four decades. They ended Maratha power and left the Company paramount in India. The office of the Peshwa was abolished after the third war.",');
       L.push(' "sections":[');
-      L.push('   {"heading":"Nagara Style",');
+      L.push('   {"heading":"First Anglo-Maratha War (1775-1782)",');
       L.push('    "features":[');
-      L.push('      {"term":"Shikhara","detail":"Curvilinear tower; sub-types Latina/Rekha-Prasad, Phamsana, Valabhi"},');
-      L.push('      {"term":"Garbhagriha","detail":"Always located directly under the tallest tower"},');
-      L.push('      {"term":"Jagati","detail":"High platform the temple rests on, itself over a smaller pitha"}],');
-      L.push('    "examples":[');
-      L.push('      {"term":"Khajuraho","detail":"Chandelas, 900-1130 CE — panchayatana plan, chhajja sunshades"}]}');
-      L.push(' ],');
-      L.push(' "keyPoints":["Curvilinear shikhara = Nagara, pyramidal stepped vimana = Dravida — classic swap trap"],');
-      L.push(' "compare":{"header":["Aspect","Nagara","Dravida"],"rows":[["Superstructure","Curvilinear shikhara","Pyramidal stepped vimana"]]},');
+      L.push('      {"term":"Cause","detail":"Company backed Raghunath Rao against the infant Madhav Rao II"},');
+      L.push('      {"term":"Treaty of Surat","detail":"1775 - Raghunath Rao promised Salsette and Bassein for troops"},');
+      L.push('      {"term":"Convention of Wadgaon","detail":"1779 - British force surrendered near Pune"},');
+      L.push('      {"term":"Treaty of Salbai","detail":"1782 - ended the war on the pre-war position; Company retained Salsette"}],');
+      L.push('    "examples":[{"term":"Mahadji Scindia","detail":"Mediated Salbai; strongest chief in the confederacy"}]}],');
+      L.push(' "timeline":[{"year":"1782","event":"Treaty of Salbai ends the First War"},');
+      L.push('             {"year":"1802","event":"Treaty of Bassein - Peshwa accepts the Subsidiary Alliance"}],');
+      L.push(' "compare":null,');
+      L.push(' "highYield":[{"label":"Ends the First War","value":"Treaty of Salbai, 1782"},');
+      L.push('              {"label":"Last Peshwa","value":"Baji Rao II, pensioned to Bithur"},');
+      L.push('              {"label":"Island retained by the British","value":"Salsette"}],');
+      L.push(' "trapPoints":["Surat (1775) was with Raghunath Rao; Bassein (1802) with Baji Rao II - routinely swapped",');
+      L.push('               "Salbai ended the FIRST war; the Second ended in separate treaties with each chief",');
+      L.push('               "The Peshwaship was abolished in the Third war, not the Second"],');
       L.push(' "caNote":"",');
-      L.push(' "q":["<verbatim q1>","<verbatim q2>"]}');
+      L.push(' "q":["<verbatim question text>"],');
+      L.push(' "qmeta":[{"n":12,"type":"statement","statements":[');
+      L.push('    {"text":"Statement 1 - the treaty ended the First Anglo-Maratha War.","verdict":"Right"},');
+      L.push('    {"text":"Statement 2 - Salsette was ceded to the Marathas.","verdict":"Wrong"}]}]}');
       L.push('');
-      L.push('✅ Cover the FULL standard topic — go beyond what the question asked, so revision is');
-      L.push('   complete, not question-shaped.');
-      L.push('✅ Multiple questions on the same broader topic go into ONE entry, not separate ones.');
-      L.push('❌ NEVER invent facts. If unsure of an exact number/date, state it in general terms instead.');
-      L.push('❌ NEVER write elimination/solving language ("Option A is wrong because...") — this is a');
-      L.push('   teaching chapter, not an answer key.');
-      L.push('❌ Do NOT cap or trim the q array — every question below must appear VERBATIM in exactly');
-      L.push('   one entry\'s q array.');
-      L.push('✅ Stay within the tag[1] bucket a question is given in below — do not move it to a');
-      L.push('   different tag[1] key.');
+      L.push('❌ NEVER invent a fact. Unsure of an exact date/number/name → state it in general');
+      L.push('   terms instead of guessing.');
+      L.push('❌ NEVER write elimination or answer-key language ("option A is wrong because...").');
+      L.push('✅ Two questions on the same topic → ONE chapter, both questions attached.');
+      L.push('✅ Keep a chapter under the tag0 → tag1 bucket its questions came from. If the same');
+      L.push('   topic is reached from two different tag1 buckets, place the single merged chapter');
+      L.push('   under the bucket holding MORE of its questions.');
     } else {
       L.push('Each entry has 5 fields (title, formula, ex, cue, q):');
       L.push('  title   → the exact CASE/SITUATION or standard name');
@@ -21446,11 +21541,14 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     L.push('STRICT RULES:');
     L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     if(cfg.kind === 'gsbook'){
-      L.push('❌ NEVER write elimination/solving language ("the correct option is...", "this rules out...").');
-      L.push('❌ NEVER reword the questions in q — copy them EXACTLY as given, <br> tags intact.');
-      L.push('✅ Real dates, names, numbers and terms belonging to the TOPIC ITSELF are wanted — this is');
-      L.push('   a factual reference chapter. What to avoid is treating one question\'s specific answer');
-      L.push('   as the whole topic instead of covering the standard topic in full.');
+      L.push('❌ NEVER reword a question in q — copy it EXACTLY as given, <br> tags intact,');
+      L.push('   options removed. Do not shorten or fix it.');
+      L.push('❌ NEVER write elimination or answer-key language.');
+      L.push('✅ Every question number below must appear in exactly one qmeta entry.');
+      L.push('✅ Real dates, names, numbers and terms belonging to the TOPIC ITSELF are wanted —');
+      L.push('   this is a factual reference chapter.');
+      L.push('✅ Keep chapters in the same order the tags appear below.');
+      L.push('✅ ENGLISH ONLY.');
     } else {
       L.push('❌ NEVER use the question\'s actual numbers, names, or its answer in title/setup/results/note.');
       L.push('❌ NEVER write solving steps: "set up", "equate", "solve for", "let CP=", "find x".');
@@ -21475,7 +21573,8 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
       L.push('');
       L.push('If a NEW question tests a concept ALREADY in the book list above, do NOT create a');
       L.push('new entry. Instead put it in a top-level "_attach" array:');
-      L.push('  "_attach": [{"tag0":"<tag0>","tag1":"<tag1>","title":"<EXACT title from the book list>","q":"<verbatim question>"}]');
+      L.push('  "_attach": [{"tag0":"<tag0>","tag1":"<tag1>","title":"<EXACT title from the book');
+      L.push('               list>","q":"<verbatim question>"' + (cfg.kind === 'gsbook' ? ',"qmeta":{"n":0,"type":"fact","statements":[]}' : '') + '}]');
       L.push('Only genuinely NEW concepts go into the normal structure.');
     }
 
@@ -21487,7 +21586,11 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     if(cfg.kind === 'formula'){
       L.push('      {"title":"...","setup":"...","results":[{"case":"","latex":""}],"note":"","cue":"","ex":"","fig":"","q":["..."]}');
     } else if(cfg.kind === 'gsbook'){
-      L.push('      {"title":"...","sections":[{"heading":"...","features":[{"term":"","detail":""}],"examples":[{"term":"","detail":""}]}],"keyPoints":["..."],"compare":{"header":[],"rows":[]},"caNote":"","q":["..."]}');
+      L.push('      {"title":"...","snapshot":"...",');
+      L.push('       "sections":[{"heading":"...","features":[{"term":"","detail":""}],"examples":[{"term":"","detail":""}]}],');
+      L.push('       "timeline":[{"year":"","event":""}],"compare":null,');
+      L.push('       "highYield":[{"label":"","value":""}],"trapPoints":["..."],"caNote":"",');
+      L.push('       "q":["..."],"qmeta":[{"n":0,"type":"fact","statements":[]}]}');
     } else {
       L.push('      {"title":"...","formula":"...","ex":"","cue":"","q":["..."]}');
     }
@@ -21497,9 +21600,24 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     L.push('}');
     L.push('');
     L.push('Use the EXACT same tag[0] and tag[1] names as below. No extras.');
+    if(cfg.kind === 'gsbook'){
+      L.push('');
+      L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      L.push('OUTPUT CONTRACT:');
+      L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      L.push('1. Return the JSON as a DOWNLOADABLE FILE, not pasted into the chat body.');
+      L.push('2. If you cannot finish, STOP AT THE END OF A COMPLETE CHAPTER — never mid-chapter,');
+      L.push('   never with broken JSON.');
+      L.push('3. After the file, write a short coverage report in the chat (not in the file):');
+      L.push('      COVERED: 1-18, 20, 22-27');
+      L.push('      NOT COVERED: 19, 21, 28-' + Math.max(batch.count,1));
+      L.push('      STATUS: partial — say "continue" for the rest');
+      L.push('   If everything is covered, write: COVERED: all');
+    }
     L.push('');
     L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    L.push(mode === 'incremental' ? 'NEW QUESTIONS TO PROCESS (grouped by tag):' : 'QUESTIONS (grouped by tag):');
+    L.push('QUESTIONS — ' + batch.count + ' in this run' +
+           (batch.remaining ? (' · ' + batch.remaining + ' more waiting for the next run') : ' · this is the last run') + ':');
     L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     const t0s = Object.keys(useGroups).sort();
     t0s.forEach(t0 => {
@@ -21508,8 +21626,8 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
       const t1s = Object.keys(useGroups[t0]).sort();
       t1s.forEach(t1 => {
         L.push('  ── ' + t1 + ' (' + useGroups[t0][t1].length + ' questions):');
-        useGroups[t0][t1].forEach((it, i) => {
-          L.push('    ' + (i+1) + '. ' + it.q.replace(/\s+/g,' ').trim());
+        useGroups[t0][t1].forEach(it => {
+          L.push('    Q' + it.n + '. ' + it.q.replace(/\s+/g,' ').trim());
         });
       });
     });
@@ -21560,18 +21678,27 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     let metaLine = (built && meta) ? ('<div style="font-size:10px;color:#34d399;font-weight:800;margin-bottom:4px">✅ Sheet built ' + (meta.generatedAt ? new Date(meta.generatedAt).toLocaleDateString('en-IN') : '') + ' · covers ' + (meta.qCount||'?') + ' questions</div>') : '';
     let newLine = built ? ('<div style="font-size:10px;color:' + (nNew?'#fbbf24':'#64748b') + ';font-weight:800;margin-bottom:10px">' + (nNew ? ('🆕 ' + nNew + ' new question(s) not yet in the sheet') : 'No new questions — sheet is up to date') + '</div>') : '';
 
-    // Button row: first-time = single full Copy Prompt. After built = Add-New (incremental) + Rebuild-All.
+    // Button row. v26.7 — the prompt now sends ONE BATCH per run, so the label says
+    // how many go out this time and how many are still queued behind them.
+    const bPrev = selectBatch(subject, built ? 'incremental' : 'full', CS.batch);
+    const sizes = [25, 50, 0].map(n => '<button onclick="csSetBatch(' + n + ')" style="flex:1;padding:7px;background:' +
+      ((CS.batch === n) ? '#7c3aed' : '#1e293b') + ';border:1px solid #334155;border-radius:8px;color:#f1f5f9;font-weight:800;font-size:11px;cursor:pointer">' +
+      (n ? (n + ' / run') : 'All') + '</button>').join('');
+    const batchRow = '<div style="font-size:9.5px;color:#64748b;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Questions per prompt run</div>' +
+      '<div style="display:flex;gap:6px;margin-bottom:10px">' + sizes + '</div>' +
+      '<div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:10px">This run sends <b style="color:#f1f5f9">' + bPrev.count + '</b> question(s)' +
+      (bPrev.remaining ? (' \u00b7 ' + bPrev.remaining + ' still queued after it') : ' \u00b7 nothing left after this') + '</div>';
     let btns;
     if(!built){
-      btns = '<button onclick="csCopyPrompt(\'full\')" style="flex:1;min-width:130px;padding:11px;background:#6366f1;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">📋 Copy Prompt</button>';
+      btns = '<button onclick="csCopyPrompt(\'full\')" style="flex:1;min-width:130px;padding:11px;background:#6366f1;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">📋 Copy Prompt (' + bPrev.count + ')</button>';
     } else {
-      btns = '<button onclick="csCopyPrompt(\'incremental\')" style="flex:1;min-width:130px;padding:11px;background:' + (nNew?'#16a34a':'#475569') + ';border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">➕ Add New' + (nNew?(' ('+nNew+')'):'') + '</button>' +
+      btns = '<button onclick="csCopyPrompt(\'incremental\')" style="flex:1;min-width:130px;padding:11px;background:' + (nNew?'#16a34a':'#475569') + ';border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">➕ Next Batch' + (bPrev.count?(' ('+bPrev.count+')'):'') + '</button>' +
              '<button onclick="csCopyPrompt(\'full\')" style="flex:1;min-width:130px;padding:11px;background:#475569;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer" title="Regenerate the whole sheet from scratch">🔄 Rebuild All</button>';
     }
 
     flow.innerHTML =
       '<div style="border-top:1px solid #334155;padding-top:12px;margin-bottom:6px;font-size:13px;font-weight:900;color:#f1f5f9">' + cfg.icon + ' ' + subject + ' — ' + esc(info) + '</div>' +
-      metaLine + newLine +
+      metaLine + newLine + batchRow +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">' + btns +
         '<button onclick="window.open(\'https://claude.ai\',\'_blank\')" style="flex:1;min-width:130px;padding:11px;background:#6366f1;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">🚀 Open Claude.ai</button>' +
       '</div>' +
@@ -21580,6 +21707,7 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
       (built ? ('<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
         '<button onclick="csView()" style="flex:1;min-width:130px;padding:11px;background:#0e7490;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">👁️ View Sheet</button>' +
         '<button onclick="csPrint()" style="flex:1;min-width:130px;padding:11px;background:#b45309;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">🖨️ Print PDF</button>' +
+        '<button onclick="csDownloadHTML()" style="flex:1;min-width:130px;padding:11px;background:#7c3aed;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">⬇️ Download HTML</button>' +
       '</div>') : '') +
       '<button onclick="csQBank()" style="width:100%;padding:11px;background:#1E3A5F;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">🗒️ Wrong Question Bank (chapter-wise practice)</button>';
   }
@@ -21632,6 +21760,30 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     const normFeat = arr => Array.isArray(arr)
       ? arr.map(f => ({ term: String((f&&f.term)||''), detail: String((f&&f.detail)||'') })).filter(f => f.term || f.detail)
       : [];
+    // v26.7 gsbook additions
+    const normPairs = arr => Array.isArray(arr)
+      ? arr.map(x => ({ label: String((x&&(x.label||x.term))||''), value: String((x&&(x.value||x.detail))||'') })).filter(x => x.label || x.value)
+      : [];
+    const normTimeline = arr => Array.isArray(arr)
+      ? arr.map(x => ({ year: String((x&&(x.year||x.date))||''), event: String((x&&(x.event||x.detail))||'') })).filter(x => x.year || x.event)
+      : [];
+    const qKey = t => String(t||'').toLowerCase().replace(/\s+/g,' ').trim();
+    // qmeta arrives as an array parallel to q[]. Store it as a MAP keyed by the
+    // question's own text instead — q arrays get de-duplicated and merged across
+    // batches, so a parallel array would drift out of alignment; a map can't.
+    const normQmeta = (meta, qs) => {
+      const out = {};
+      if(!Array.isArray(meta) || !Array.isArray(qs)) return out;
+      meta.forEach((m, i) => {
+        const q = qs[i]; if(!m || !q) return;
+        const st = Array.isArray(m.statements) ? m.statements.map(x => ({
+          text: String((x&&x.text)||''),
+          right: /^r/i.test(String((x&&(x.verdict||x.value))||''))
+        })).filter(x => x.text) : [];
+        out[qKey(q)] = { type: (String(m.type||'').toLowerCase() === 'statement' ? 'statement' : 'fact'), statements: st };
+      });
+      return out;
+    };
     const normCompare = c => {
       if(!c || typeof c !== 'object') return null;
       const header = Array.isArray(c.header) ? c.header.map(String).filter(Boolean) : [];
@@ -21652,17 +21804,24 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
           if(!it || typeof it !== 'object') return null;
 
           if(Array.isArray(it.sections) && it.sections.length){
+            const qs = normQAll(it.q);
             return {
-              title: String(it.title||''),
+              title:      String(it.title||''),
+              snapshot:   String(it.snapshot || it.intro || ''),
               sections: it.sections.map(s => ({
                 heading:  String((s && s.heading) || ''),
                 features: normFeat(s && s.features),
                 examples: normFeat(s && s.examples)
               })).filter(s => s.heading || s.features.length || s.examples.length),
-              keyPoints: Array.isArray(it.keyPoints) ? it.keyPoints.map(String).filter(Boolean) : [],
-              compare:   normCompare(it.compare),
-              caNote:    String(it.caNote || ''),
-              q:         normQAll(it.q)
+              timeline:   normTimeline(it.timeline),
+              highYield:  normPairs(it.highYield),
+              // trapPoints is the v26.7 name; keyPoints is the pre-v26.7 name — keep both
+              trapPoints: Array.isArray(it.trapPoints) ? it.trapPoints.map(String).filter(Boolean)
+                        : (Array.isArray(it.keyPoints) ? it.keyPoints.map(String).filter(Boolean) : []),
+              compare:    normCompare(it.compare),
+              caNote:     String(it.caNote || ''),
+              q:          qs,
+              qm:         normQmeta(it.qmeta, qs)
             };
           }
 
@@ -21719,6 +21878,7 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
               if(tgt && it.q && it.q.length){
                 tgt.q = dedupQ((tgt.q||[]).concat(it.q));
                 if(!tgt.sections) tgt.q = tgt.q.slice(-3);   // cap stays for formula/legacy entries only
+                if(it.qm) tgt.qm = Object.assign({}, tgt.qm || {}, it.qm);
                 attached += it.q.length;
               }
               skipped++; return;
@@ -21756,6 +21916,14 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
         }
         if(best && bestSim >= CS_SIM_THRESHOLD){
           best.q = dedupQ((best.q||[]).concat([qtxt]));
+          if(a.qmeta && typeof a.qmeta === 'object'){
+            const k = qtxt.toLowerCase().replace(/\s+/g,' ').trim();
+            const st = Array.isArray(a.qmeta.statements) ? a.qmeta.statements.map(x => ({
+              text: String((x&&x.text)||''), right: /^r/i.test(String((x&&x.verdict)||''))
+            })).filter(x => x.text) : [];
+            best.qm = Object.assign({}, best.qm || {});
+            best.qm[k] = { type: (String(a.qmeta.type||'').toLowerCase() === 'statement' ? 'statement' : 'fact'), statements: st };
+          }
           if(!best.sections) best.q = best.q.slice(-3);   // cap stays for formula/legacy entries only
           attached++;
         } else {
@@ -21768,7 +21936,10 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     s.meta[slug] = {
       generatedAt: Date.now(),
       qCount: pool.total,
-      processedHashes: pool.allHashes,
+      // v26.7 — was pool.allHashes, which marked EVERY question processed after the
+      // first batch and made batching impossible. Now derived from what actually
+      // made it into the book.
+      processedHashes: computeProcessedHashes(CS.subject),
       lastMode: mode
     };
     try{
@@ -21884,7 +22055,18 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     ".gsc-cmp th{background:var(--navy);color:#F5F1E6;padding:5px 7px;font-weight:700;text-align:left}",
     ".gsc-cmp td{padding:5px 7px;border-bottom:1px solid var(--rule)}",
     ".gsc-cmp td:first-child{color:var(--gold);font-weight:700}",
+    ".gsc-snap{font-size:11.5px;line-height:1.7;color:#4A4E58;font-style:italic;border-left:3px solid var(--gold);padding:2px 0 2px 10px;margin:0 0 12px}",
     ".gsc-sec{margin-bottom:12px}",
+    ".gsc-ex b{color:var(--gold)}",
+    ".gsc-box{margin:10px 0}",
+    ".gsc-tl{width:100%;border-collapse:collapse;font-size:11px}",
+    ".gsc-tl td{padding:4px 7px;border-bottom:1px dotted var(--rule);vertical-align:top}",
+    ".gsc-tl td:first-child{width:78px;color:var(--gold);font-weight:700;white-space:nowrap}",
+    ".gsc-hy{background:#F4F7FA;border:1px solid #D8E3EC;border-radius:4px;padding:8px 12px;margin:10px 0}",
+    ".gsc-hy table{width:100%;border-collapse:collapse;font-size:11.5px}",
+    ".gsc-hy td{padding:3px 0;vertical-align:top}",
+    ".gsc-hy td:first-child{width:38%;color:#7A7E88;padding-right:10px}",
+    ".gsc-hy td:last-child{font-weight:700;color:var(--navyd)}",
     ".gsc-h{font-family:'Bitter',serif;font-weight:700;font-size:12.5px;color:var(--gold);margin-bottom:5px}",
     ".gsc-lbl{font-size:9.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#7A7E88;margin:0 0 3px}",
     ".gsc-list{margin:0 0 8px;padding-left:16px;font-size:11.5px;line-height:1.65;color:#3A3E47}",
@@ -21947,18 +22129,27 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
   // (never regenerated by Claude). Statement-type questions ("I. ... II. ...") are
   // split into individual Right/Wrong lines when parseStatements() can confidently
   // parse them; anything it can't parse falls back to a plain question + answer line.
-  function csRenderQA(subject, qtext){
+  function csRenderQA(subject, qtext, meta){
     const info = answerFor(subject, qtext);
     const ans = info ? info.ans : '';
     const sol = info ? info.sol : '';
-    const stmts = ans ? parseStatements(qtext, ans) : null;
+    // v26.7 — if the generated chapter supplied a statement breakdown, use it: the
+    // text parser below is best-effort and gives up on unusual phrasing. The ANSWER
+    // still comes from the mock-wrong bank either way, so it can never be invented.
+    let stmts = null;
+    if(meta && meta.type === 'statement' && meta.statements && meta.statements.length){
+      stmts = meta.statements.map((s, i) => ({ label: String(i+1), text: s.text, isTrue: !!s.right, plain: true }));
+    } else if(ans){
+      stmts = parseStatements(qtext, ans);
+    }
     let h = '<div class="gsc-qa">';
     if(stmts){
       const flat = csFlatten(qtext);
       const hits = csFindMarkers(flat);
-      const stem = hits.length ? flat.slice(0, hits[0].start).trim() : '';
+      const stem = (stmts[0] && stmts[0].plain) ? csFlatten(qtext).replace(/\s+/g,' ').trim()
+                 : (hits.length ? flat.slice(0, hits[0].start).trim() : '');
       h += '<div class="gsc-qtxt">' + esc(stem) +
-        stmts.map(s => '<br>' + esc(s.label) + '. ' + esc(s.text) + ' — <span class="' +
+        stmts.map(s => '<br>' + (s.plain ? '' : esc(s.label) + '. ') + esc(s.text) + ' — <span class="' +
           (s.isTrue ? 'gsc-right">Right' : 'gsc-wrong">Wrong') + '</span>').join('') +
         '</div>';
       h += '<div class="gsc-ans">Correct answer: ' + esc(ans) + '</div>';
@@ -21978,37 +22169,50 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     let h = '<div class="fam"><div class="fhead"><span class="fn">' + num + '</span><span>' + head + '</span></div><div class="fb">';
 
     if(Array.isArray(it.sections)){
-      if(it.compare && it.compare.header && it.compare.header.length){
-        h += '<table class="gsc-cmp"><tr>' + it.compare.header.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr>' +
-             it.compare.rows.map(r => '<tr>' + r.map(v => '<td>' + esc(v) + '</td>').join('') + '</tr>').join('') +
-             '</table>';
-      }
+      if(it.snapshot) h += '<div class="gsc-snap">' + esc(it.snapshot) + '</div>';
       (it.sections || []).forEach(s => {
         h += '<div class="gsc-sec">';
         if(s.heading) h += '<div class="gsc-h">' + esc(s.heading) + '</div>';
         if(s.features && s.features.length){
-          h += '<div class="gsc-lbl">Features</div><ul class="gsc-list">' +
+          h += '<ul class="gsc-list">' +
                s.features.map(f => '<li>' + (f.term ? '<b>' + esc(f.term) + ':</b> ' : '') + esc(f.detail) + '</li>').join('') +
                '</ul>';
         }
         if(s.examples && s.examples.length){
-          h += '<div class="gsc-lbl">Examples &amp; history</div><ul class="gsc-list">' +
+          h += '<div class="gsc-lbl">Examples</div><ul class="gsc-list gsc-ex">' +
                s.examples.map(f => '<li>' + (f.term ? '<b>' + esc(f.term) + ':</b> ' : '') + esc(f.detail) + '</li>').join('') +
                '</ul>';
         }
         h += '</div>';
       });
-      if(it.keyPoints && it.keyPoints.length){
-        h += '<div class="gsc-kp"><div class="gsc-lbl">Key points to remember</div><ul>' +
-             it.keyPoints.map(k => '<li>' + esc(k) + '</li>').join('') + '</ul></div>';
+      if(it.timeline && it.timeline.length){
+        h += '<div class="gsc-box"><div class="gsc-lbl">Sequence</div><table class="gsc-tl">' +
+             it.timeline.map(t => '<tr><td>' + esc(t.year) + '</td><td>' + esc(t.event) + '</td></tr>').join('') +
+             '</table></div>';
+      }
+      if(it.compare && it.compare.header && it.compare.header.length){
+        h += '<table class="gsc-cmp"><tr>' + it.compare.header.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr>' +
+             it.compare.rows.map(r => '<tr>' + r.map(v => '<td>' + esc(v) + '</td>').join('') + '</tr>').join('') +
+             '</table>';
+      }
+      if(it.highYield && it.highYield.length){
+        h += '<div class="gsc-hy"><div class="gsc-lbl">High yield</div><table>' +
+             it.highYield.map(x => '<tr><td>' + esc(x.label) + '</td><td>' + esc(x.value) + '</td></tr>').join('') +
+             '</table></div>';
+      }
+      const traps = it.trapPoints || it.keyPoints;
+      if(traps && traps.length){
+        h += '<div class="gsc-kp"><div class="gsc-lbl">Trap points</div><ul>' +
+             traps.map(k => '<li>' + esc(k) + '</li>').join('') + '</ul></div>';
       }
       if(it.caNote){
         h += '<div class="gsc-ca"><b>Current affairs context:</b> ' + esc(it.caNote) + '</div>';
       }
       const qs = Array.isArray(it.q) ? it.q.filter(Boolean) : [];
       if(qs.length){
-        h += '<div class="qbk"><div class="qlb">Where this came from \u00b7 ' + qs.length + (qs.length === 1 ? ' Q' : ' Qs') + '</div>' +
-             qs.map(q => csRenderQA(subject, q)).join('') + '</div>';
+        const qm = it.qm || {};
+        h += '<div class="qbk"><div class="qlb">Questions from this topic \u00b7 ' + qs.length + (qs.length === 1 ? ' Q' : ' Qs') + '</div>' +
+             qs.map(q => csRenderQA(subject, q, qm[String(q||'').toLowerCase().replace(/\s+/g,' ').trim()])).join('') + '</div>';
       }
       h += '</div></div>';
       return h;
@@ -22139,6 +22343,31 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
 
   window.csView  = function(){ openBook(CS.subject, false); };
   window.csPrint = function(){ openBook(CS.subject, true);  };
+
+  // v26.7 — save the book as a standalone .html file. Same document the View tab
+  // shows, so it keeps every style; open it on any device, no hub needed. Print to
+  // PDF from there whenever paper is wanted.
+  window.csDownloadHTML = function(){
+    const subject = CS.subject;
+    if(!subject){ toast('Pick a subject first'); return; }
+    const html = buildBookDoc(subject, false);
+    if(!html){ toast('No concept sheet yet \u2014 Copy Prompt \u2192 Claude \u2192 Save.'); return; }
+    try{
+      const stamp = new Date().toISOString().slice(0,10);
+      const name  = 'concept-king-' + CS_SUBJECTS[subject].slug + '-' + stamp + '.html';
+      const blob  = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url   = URL.createObjectURL(blob);
+      const a2 = document.createElement('a');
+      a2.href = url; a2.download = name;
+      document.body.appendChild(a2); a2.click(); a2.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      toast('\u2b07\ufe0f ' + name);
+    }catch(e){ console.error('[CS] download failed', e); toast('Download failed \u2014 use View + Save Page instead'); }
+  };
+
+  // Batch size for the prompt: 25 / 50 / All (0). Kept in memory only \u2014 the
+  // right size depends on how big the backlog is that day.
+  window.csSetBatch = function(n){ CS.batch = n; csRenderFlow(); };
 
   // ══════════════════════════════════════════════════════════════════════════
   //  WRONG QUESTION BANK — tag-wise practice sheet (Option A: question + answer
