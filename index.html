@@ -1885,6 +1885,22 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
     };
     document.addEventListener('DOMContentLoaded', function(){ try{ renderHubSnapshot(); }catch(e){} });
     // Features in this build:
+    //   v26.7 — GS Revision Book rebuilt (Concept King module):
+    //           · batch engine — 25/50/All questions per prompt run, slices break on
+    //             whole tag1 buckets so one topic never splits across two runs
+    //           · prompt questions numbered Q1..Qn across the whole run (they used to
+    //             restart at 1 inside every chapter, so coverage couldn't be reported)
+    //           · new chapter schema: snapshot / sections / timeline / compare /
+    //             highYield / trapPoints / caNote / q[] / qmeta[] (statement splits)
+    //           · computeProcessedHashes() reads the BOOK to decide what's done —
+    //             the old code marked the whole pool processed after one save
+    //           · pre-v26.7 GS chapters are cleared on open (csPurgeLegacy) so old
+    //             and new format pages never mix
+    //           · "Rebuild All"/"Add New" pair replaced by one Copy Prompt button +
+    //             an explicit Delete-book action; honest "N of M in the book" line
+    //           · csDownloadHTML() saves the book as a standalone .html file
+    //           · Wrong Question Bank re-laid out as a question book: lettered option
+    //             grid, answer + solution below every question, hide-answers toggle
     //   v23.1 — Concept Sheet INCREMENTAL mode:
     //           · "➕ Add New (N)" sends only unprocessed questions + a
     //             "do-not-repeat" list of existing concept titles
@@ -21316,6 +21332,37 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
       })));
     return out;
   }
+  // Keep meta.processedHashes honest. Called every time the modal renders, so the
+  // counts on screen always describe the book as it actually is — no stale
+  // "covers N questions" label left over from an older save.
+  function csSyncProcessed(subject){
+    const s = store(); if(!s) return 0;
+    const slug = CS_SUBJECTS[subject].slug;
+    if(!s.sheets[slug] || !Object.keys(s.sheets[slug]).length){
+      if(s.meta[slug]) delete s.meta[slug];
+      return 0;
+    }
+    const h = computeProcessedHashes(subject);
+    const prev = ((s.meta[slug] || {}).processedHashes || []).length;
+    s.meta[slug] = s.meta[slug] || {};
+    s.meta[slug].processedHashes = h;
+    if(prev !== h.length && typeof saveData === 'function'){ try{ saveData(); }catch(e){} }
+    return h.length;
+  }
+
+  // Wipe one subject's book and start over. Only the generated chapters go — the
+  // mock-wrong questions they were built from are untouched.
+  window.csResetSubject = function(){
+    const subject = CS.subject; if(!subject) return;
+    if(!confirm('Delete the whole ' + subject + ' book?\n\nEvery chapter goes and you start from question 1. Your mock-wrong questions are NOT touched.')) return;
+    const s = store(); if(!s) return;
+    const slug = CS_SUBJECTS[subject].slug;
+    delete s.sheets[slug]; delete s.meta[slug];
+    if(typeof saveData === 'function'){ try{ saveData(); }catch(e){} }
+    toast('\ud83d\uddd1\ufe0f ' + subject + ' book deleted \u2014 starting fresh');
+    csRenderFlow();
+  };
+
   window.csRecountProcessed = function(subject){
     subject = subject || CS.subject;
     const s = store(); if(!s || !subject) return;
@@ -21649,17 +21696,43 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     m.innerHTML =
       '<div style="background:#0f172a;border:1px solid #334155;border-radius:18px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;padding:20px">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
-          '<div style="font-size:18px;font-weight:900;color:#f1f5f9">📄 Missing Concept Sheet</div>' +
+          '<div style="font-size:18px;font-weight:900;color:#f1f5f9">' +
+            ((CS.subject && CS_SUBJECTS[CS.subject].kind === 'gsbook') ? '\ud83c\udf0d GS Revision Book' : '\ud83d\udcd8 Concept King') + '</div>' +
           '<button onclick="document.getElementById(\'cs-modal\').remove()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer">×</button>' +
         '</div>' +
-        '<div style="font-size:12px;color:#94a3b8;font-weight:700;margin-bottom:16px">Builds a study sheet from ALL your Mock-Wrong weekly questions — grouped by tag[1] inside each subject. Pick a subject → Copy Prompt → Claude.ai → paste JSON → Save. Then view or print as PDF.</div>' +
+        '<div style="font-size:12px;color:#94a3b8;font-weight:700;margin-bottom:16px">Turns your Mock-Wrong questions into a full revision book, one batch per run. Pick a subject \u2192 Copy Prompt \u2192 run it in Claude or Gemini \u2192 paste the JSON \u2192 Save. Repeat until nothing is left.</div>' +
         '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px">' + subjBtns + '</div>' +
         '<div id="cs-flow" style="display:' + (CS.subject?'block':'none') + '"></div>' +
       '</div>';
-    if(CS.subject) csRenderFlow();
+    if(CS.subject){ csPurgeLegacy(CS.subject); csRenderFlow(); }
   };
 
   window.csPick = function(s){ CS.subject = s; csOpen(); };
+
+  // A GS book written before v26.7 has none of the new blocks (no snapshot, no
+  // high-yield, no trap points, no statement splits). Those chapters can't be
+  // upgraded in place — they'd have to be regenerated anyway — and leaving them
+  // beside new ones gives a book where half the pages look different. So they go.
+  function csPurgeLegacy(subject){
+    if(CS_SUBJECTS[subject].kind !== 'gsbook') return false;
+    const s = store(); if(!s) return false;
+    const slug = CS_SUBJECTS[subject].slug;
+    const sheet = s.sheets[slug]; if(!sheet || !Object.keys(sheet).length) return false;
+    let total = 0, legacy = 0;
+    Object.keys(sheet).forEach(t0 => Object.keys(sheet[t0]).forEach(t1 =>
+      (sheet[t0][t1] || []).forEach(it => {
+        if(!it || !Array.isArray(it.sections)) return;
+        total++;
+        const isNew = it.snapshot || (it.highYield && it.highYield.length) || (it.trapPoints && it.trapPoints.length);
+        if(!isNew) legacy++;
+      })));
+    if(!total || legacy < total) return false;   // mixed or already new — leave it alone
+    delete s.sheets[slug]; delete s.meta[slug];
+    if(typeof saveData === 'function'){ try{ saveData(); }catch(e){} }
+    console.log('[CS] cleared ' + legacy + ' pre-v26.7 ' + subject + ' chapters — rebuild from batch 1');
+    toast('\ud83e\uddf9 Old ' + subject + ' book cleared \u2014 it was built by the previous prompt. Start from batch 1.');
+    return true;
+  }
 
   function hasSheet(subject){
     const s = store(); if(!s) return false;
@@ -21672,11 +21745,14 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     const subject = CS.subject; const cfg = CS_SUBJECTS[subject];
     const pool = collectPool(subject);
     const built = hasSheet(subject);
-    const s = store(); const meta = (s && s.meta[cfg.slug]) || null;
-    const nNew = built ? newCount(subject) : pool.total;
-    let info = pool.total ? (pool.total + ' questions across ' + pool.weeks + ' weekly bucket(s)') : 'No questions in this pool yet — capture some Mock-Wrong questions first.';
-    let metaLine = (built && meta) ? ('<div style="font-size:10px;color:#34d399;font-weight:800;margin-bottom:4px">✅ Sheet built ' + (meta.generatedAt ? new Date(meta.generatedAt).toLocaleDateString('en-IN') : '') + ' · covers ' + (meta.qCount||'?') + ' questions</div>') : '';
-    let newLine = built ? ('<div style="font-size:10px;color:' + (nNew?'#fbbf24':'#64748b') + ';font-weight:800;margin-bottom:10px">' + (nNew ? ('🆕 ' + nNew + ' new question(s) not yet in the sheet') : 'No new questions — sheet is up to date') + '</div>') : '';
+    const inBook = built ? csSyncProcessed(subject) : 0;
+    const left = Math.max(pool.total - inBook, 0);
+    let info = pool.total ? (pool.total + ' questions in the pool') : 'No questions in this pool yet — capture some Mock-Wrong questions first.';
+    const nNew = left;
+    let metaLine = pool.total ? ('<div style="font-size:11px;font-weight:800;margin-bottom:4px;color:' + (left ? '#fbbf24' : '#34d399') + '">' +
+      (built ? ('\ud83d\udcd6 ' + inBook + ' of ' + pool.total + ' questions are in the book' + (left ? (' \u00b7 ' + left + ' still to write') : ' \u00b7 book is complete'))
+             : ('\ud83d\udcd6 No book yet \u2014 ' + pool.total + ' questions waiting')) + '</div>') : '';
+    let newLine = '';
 
     // Button row. v26.7 — the prompt now sends ONE BATCH per run, so the label says
     // how many go out this time and how many are still queued behind them.
@@ -21688,13 +21764,12 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
       '<div style="display:flex;gap:6px;margin-bottom:10px">' + sizes + '</div>' +
       '<div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:10px">This run sends <b style="color:#f1f5f9">' + bPrev.count + '</b> question(s)' +
       (bPrev.remaining ? (' \u00b7 ' + bPrev.remaining + ' still queued after it') : ' \u00b7 nothing left after this') + '</div>';
-    let btns;
-    if(!built){
-      btns = '<button onclick="csCopyPrompt(\'full\')" style="flex:1;min-width:130px;padding:11px;background:#6366f1;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">📋 Copy Prompt (' + bPrev.count + ')</button>';
-    } else {
-      btns = '<button onclick="csCopyPrompt(\'incremental\')" style="flex:1;min-width:130px;padding:11px;background:' + (nNew?'#16a34a':'#475569') + ';border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">➕ Next Batch' + (bPrev.count?(' ('+bPrev.count+')'):'') + '</button>' +
-             '<button onclick="csCopyPrompt(\'full\')" style="flex:1;min-width:130px;padding:11px;background:#475569;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer" title="Regenerate the whole sheet from scratch">🔄 Rebuild All</button>';
-    }
+    // One action, not two. The old "Rebuild All vs Add New" pair was the confusing
+    // part: rebuild silently threw the book away. Starting over is now an explicit
+    // Delete, and the normal button just sends the next batch.
+    const btns = '<button onclick="csCopyPrompt(\'' + (built ? 'incremental' : 'full') + '\')" style="flex:1;min-width:160px;padding:12px;background:' +
+      (bPrev.count ? '#16a34a' : '#475569') + ';border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">' +
+      (bPrev.count ? ('\ud83d\udccb Copy Prompt (' + bPrev.count + ' questions)') : '\u2705 Nothing left to write') + '</button>';
 
     flow.innerHTML =
       '<div style="border-top:1px solid #334155;padding-top:12px;margin-bottom:6px;font-size:13px;font-weight:900;color:#f1f5f9">' + cfg.icon + ' ' + subject + ' — ' + esc(info) + '</div>' +
@@ -21708,7 +21783,8 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
         '<button onclick="csView()" style="flex:1;min-width:130px;padding:11px;background:#0e7490;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">👁️ View Sheet</button>' +
         '<button onclick="csPrint()" style="flex:1;min-width:130px;padding:11px;background:#b45309;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">🖨️ Print PDF</button>' +
         '<button onclick="csDownloadHTML()" style="flex:1;min-width:130px;padding:11px;background:#7c3aed;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">⬇️ Download HTML</button>' +
-      '</div>') : '') +
+      '</div>' +
+      '<button onclick="csResetSubject()" style="width:100%;padding:10px;background:transparent;border:1px solid #7f1d1d;border-radius:10px;color:#f87171;font-weight:800;font-size:11px;cursor:pointer;margin-bottom:10px">🗑️ Delete ' + subject + ' book and start fresh</button>') : '') +
       '<button onclick="csQBank()" style="width:100%;padding:11px;background:#1E3A5F;border:none;border-radius:10px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">🗒️ Wrong Question Bank (chapter-wise practice)</button>';
   }
 
@@ -22200,7 +22276,7 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
              it.highYield.map(x => '<tr><td>' + esc(x.label) + '</td><td>' + esc(x.value) + '</td></tr>').join('') +
              '</table></div>';
       }
-      const traps = it.trapPoints || it.keyPoints;
+      const traps = it.trapPoints || [];
       if(traps && traps.length){
         h += '<div class="gsc-kp"><div class="gsc-lbl">Trap points</div><ul>' +
              traps.map(k => '<li>' + esc(k) + '</li>').join('') + '</ul></div>';
@@ -22411,7 +22487,8 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
         const t1 = (t[1]||'').trim() || '(no topic)';
         groups[t0] = groups[t0] || {};
         groups[t0][t1] = groups[t0][t1] || [];
-        groups[t0][t1].push({ q: cleanQ, options: q.options, ans: qbAnswerOf(q) });
+        groups[t0][t1].push({ q: cleanQ, options: q.options, ans: qbAnswerOf(q),
+                              sol: String(q.solution || ''), correctIdx: (q.options||[]).findIndex(o => o && o.correct) });
         total++;
       });
     });
@@ -22439,23 +22516,29 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     ".chd{display:flex;align-items:baseline;justify-content:space-between;border-bottom:3px solid var(--navy);margin-bottom:12px;padding-bottom:5px}",
     ".chd h2{font-family:'Bitter',serif;font-size:19px;color:var(--navyd)}",
     ".chd .m{font-size:11px;color:#7A7E88;font-weight:600}",
-    ".cols{column-count:2;column-gap:26px}",
-    "@media(max-width:780px){.cols{column-count:1}}",
-    ".qc{break-inside:avoid;page-break-inside:avoid;margin-bottom:11px;display:flex;gap:8px;align-items:baseline}",
-    ".qc .n{font-family:'Bitter',serif;font-weight:800;font-size:12px;color:var(--gold);min-width:22px;flex:0 0 auto}",
-    ".qc .body{flex:1;min-width:0}",
-    ".qc .qt{font-size:12.5px;color:var(--ink);line-height:1.5}",
-    ".qc .opts{font-size:11.5px;color:#4A4D55;margin-top:3px;line-height:1.6}",
-    ".qc .ans{display:inline-block;font-size:11px;font-weight:600;color:var(--anstx);background:var(--ansbg);border:1px solid #CFE3D2;border-radius:5px;padding:1px 8px;margin-top:4px}",
-    ".ansML{color:#7A7E88;font-style:italic}",
+    ".qlist{display:block}",
+    ".qc{break-inside:avoid;page-break-inside:avoid;background:#fff;border:1px solid var(--rule);border-left:3px solid var(--navy);padding:12px 14px 11px;margin-bottom:11px}",
+    ".qc .qhead{display:flex;gap:9px;align-items:baseline}",
+    ".qc .n{font-family:'Bitter',serif;font-weight:800;font-size:13px;color:var(--gold);min-width:26px;flex:0 0 auto}",
+    ".qc .qt{flex:1;font-size:13px;color:var(--ink);line-height:1.55;font-weight:500}",
+    ".opts{display:grid;grid-template-columns:1fr 1fr;gap:3px 18px;margin:8px 0 0 35px}",
+    "@media(max-width:620px){.opts{grid-template-columns:1fr}}",
+    ".opt{font-size:12px;color:#3A3E47;line-height:1.5;display:flex;gap:6px;align-items:baseline}",
+    ".opt .ol{font-weight:700;color:#7A7E88;flex:0 0 auto}",
+    ".opt.ok .ol{color:var(--anstx)}",
+    ".ansrow{margin:9px 0 0 35px;padding-top:7px;border-top:1px dashed var(--rule)}",
+    ".ans{display:inline-block;font-size:12px;font-weight:700;color:var(--anstx);background:var(--ansbg);border:1px solid #CFE3D2;border-radius:4px;padding:2px 10px}",
+    ".sol{font-size:11.5px;color:#5A5E68;line-height:1.6;margin-top:6px}",
+    ".ansML{color:#7A7E88;font-style:italic;background:#F4F4F2;border-color:var(--rule)}",
     ".empty{color:#64748b;padding:40px;text-align:center;font-size:14px}",
     "@media print{",
     " .printbar{display:none}",
     " body{background:#fff;font-size:11.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}",
     " .wrap{max-width:none;padding:0}",
-    " .cols{column-count:2;column-gap:7mm}",
+    " .qc{border-left-width:2px;padding:9px 11px 8px;margin-bottom:8px}",
     " .pban,.chd{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;break-after:avoid}",
-    " body.hideAns .ans{display:none!important}",
+    " body.hideAns .ansrow{display:none!important}",
+    " body.hideAns .opt.ok .ol{color:#7A7E88}",
     " @page{size:A4;margin:10mm}",
     "}"
   ].join('');
@@ -22474,18 +22557,27 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
         chapters++; total += items.length;
         let cards = '';
         items.forEach((it, i) => {
+          // Options on their own lettered lines (a 2-up grid, 1-up on narrow screens)
+          // instead of running together in a paragraph — this has to read like a
+          // question book, not a transcript.
           let opts = '';
           if(Array.isArray(it.options) && it.options.length){
-            opts = '<div class="opts">' + it.options.map((o,oi) =>
-              '(' + String.fromCharCode(65+oi) + ') ' + esc(String(o.text||''))).join('&nbsp;&nbsp; ') + '</div>';
+            opts = '<div class="opts">' + it.options.map((o, oi) =>
+              '<div class="opt' + (oi === it.correctIdx ? ' ok' : '') + '"><span class="ol">(' +
+              String.fromCharCode(65+oi) + ')</span><span>' + esc(String(o.text||'')) + '</span></div>').join('') + '</div>';
           }
-          const ans = it.ans ? ('<div class="ans">Ans: ' + esc(it.ans) + '</div>')
-                             : '<div class="ans ansML">Ans: (check hub)</div>';
-          cards += '<div class="qc"><span class="n">' + (i+1) + '.</span><div class="body">' +
-                   '<div class="qt">' + esc(it.q) + '</div>' + opts + ans + '</div></div>';
+          // qbAnswerOf() already returns "B \u2014 Ratha"; re-letter it as "(B) Ratha" so the
+          // answer reads in the same style as the option labels above it.
+          const bare = String(it.ans || '').replace(/^[A-Z]\s*\u2014\s*/, '');
+          const letter = (it.correctIdx > -1) ? ('(' + String.fromCharCode(65+it.correctIdx) + ') ') : '';
+          const ansTxt = it.ans ? ('Answer: ' + letter + esc(bare)) : 'Answer: (check hub)';
+          const ans = '<div class="ansrow"><span class="ans' + (it.ans ? '' : ' ansML') + '">' + ansTxt + '</span>' +
+                      (it.sol ? ('<div class="sol">' + csEscBr(it.sol) + '</div>') : '') + '</div>';
+          cards += '<div class="qc"><div class="qhead"><span class="n">' + (i+1) + '.</span>' +
+                   '<div class="qt">' + csEscBr(it.q) + '</div></div>' + opts + ans + '</div>';
         });
         inner += '<div class="chd"><h2>' + esc(t1) + '</h2><div class="m">' + items.length + ' Qs</div></div>' +
-                 '<div class="cols">' + cards + '</div>';
+                 '<div class="qlist">' + cards + '</div>';
       });
       if(!inner) return;
       const icon = SEC_ICON[t0] || '';
@@ -22526,7 +22618,7 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
       '<body data-auto="' + (auto?'1':'0') + '">' +
       '<div class="printbar"><button data-pt="">\ud83d\udda8\ufe0f Print / Save as PDF</button>' + secBtns +
       '<label><input type="checkbox" id="hideAns"> hide answers when printing</label>' +
-      '<span>A4 \u00b7 2-column \u00b7 answer shown in green after each question \u00b7 tick \u201chide answers\u201d for a blank practice sheet</span></div>' +
+      '<span>A4 \u00b7 answer and solution below every question \u00b7 tick \u201chide answers\u201d for a blank practice sheet</span></div>' +
       '<div class="wrap">' + cover + body.html + '</div>' +
       '<script>' + script + '<\/script></body></html>';
   }
