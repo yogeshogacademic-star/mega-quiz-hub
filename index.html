@@ -1810,7 +1810,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-08 · v26.5';
+    const HUB_BUILD = '2026-08-09 · v26.6';
 
     // ============================================================
     // GLOBAL TOAST (v25.6) — every native alert() popup in the hub
@@ -4878,6 +4878,17 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
     // the original string unchanged for normal questions (proven zero content loss across the bank).
     window.formatQuestionHTML = function(raw){
         if(!raw || typeof raw!=='string') return raw;
+        // v26.6 — detect the mock-wrong marker, strip it from the visible text, and
+        // render it as an amber badge instead. This is the ONE shared formatter used
+        // by every question render path (quiz view + review cards → Syllabus, SRS,
+        // blitzes, mistake review all funnel through here), so the badge shows
+        // everywhere automatically with no per-screen wiring.
+        const MWQ_BADGE_RE = /\s*#mock wrong question\s*$/i;
+        let mwBadge = '';
+        if (MWQ_BADGE_RE.test(raw)) {
+            raw = raw.replace(MWQ_BADGE_RE, '').replace(/\s+$/,'');
+            mwBadge = '<div class="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800/50 mb-2">📸 MOCK WRONG QUESTION</div>';
+        }
         const stripTags = s => s.replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').trim();
         const startsWithMarker = s => /^(\(?\s*(?:\d{1,2}|[ivxIVX]{1,4}|[a-eA-E])\s*[\.\)])\s/.test(stripTags(s)+' ');
         const hasBr=/<br\s*\/?>/i.test(raw);
@@ -4886,16 +4897,16 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
         else {
             const plain=raw.replace(/<[^>]*>/g,' ');
             if(/(^|\s)1\.\s\S.*?\s2\.\s/.test(plain)){ lines=raw.split(/\s+(?=\d{1,2}\.\s)/); }
-            else return raw;
+            else return mwBadge + raw;
         }
-        if(lines.length<2) return raw;
+        if(lines.length<2) return mwBadge + raw;
         let out=''; let inList=false; let anyStmt=false;
         lines.forEach(ln=>{ const t=ln.trim(); if(!t) return;
             if(startsWithMarker(t)){ anyStmt=true; if(!inList){out+='<div class="q-stmts">';inList=true;} out+=`<div class="q-stmt">${t}</div>`; }
             else { if(inList){out+='</div>';inList=false;} out+=`<div class="q-line">${t}</div>`; }
         });
         if(inList) out+='</div>';
-        return anyStmt ? out : raw;
+        return mwBadge + (anyStmt ? out : raw);
     };
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -6987,6 +6998,11 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
     // collapse two different geometry figures).
     window.__qFingerprint = function(text) {
         let s = String(text || '').toLowerCase();
+        // v26.6 — strip the mock-wrong badge marker BEFORE hashing so a question's
+        // identity never shifts when it gets stamped/backfilled (mwq_stampAll) —
+        // otherwise every SRS card, saved star, and dedup key tied to that question
+        // would orphan the moment the marker is added.
+        s = s.replace(/\s*#mock wrong question\s*$/i, '');
         s = s.replace(/₹/g, 'rs').replace(/²/g, '2').replace(/³/g, '3')
              .replace(/√/g, 'sqrt').replace(/×/g, '*').replace(/÷/g, '/').replace(/[–—]/g, '-');
         s = s.replace(/(\d),(\d)/g, '$1$2');   // 1,540 -> 1540
@@ -20147,6 +20163,16 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
             <div id="mwq-dup-report" style="margin-top:10px;font-size:12px;font-weight:700;color:#64748b"></div>
           </div>
           <div class="mwq-section-card">
+            <div class="mwq-section-title">📸 Badge Backfill</div>
+            <div style="font-size:12px;color:#64748b;font-weight:700;line-height:1.6;margin-bottom:10px">
+              New commits are auto-badged. Run this once to badge older mock-wrong questions (and their SRS cards) that were added before the badge existed.
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="mwq-btn mwq-btn-secondary" onclick="window.mwq_stampAll()" style="flex:1;min-width:150px">📸 Backfill badges</button>
+            </div>
+            <div id="mwq-stamp-report" style="margin-top:10px;font-size:12px;font-weight:700;color:#64748b"></div>
+          </div>
+          <div class="mwq-section-card">
             <div class="mwq-section-title">📚 Past Weekly Quizzes</div>
             <div id="mwq-history-list" style="font-size:12px;color:#94a3b8;font-weight:700">Loading...</div>
           </div>
@@ -20791,6 +20817,67 @@ setTimeout(function() { clearInterval(_hookInterval); }, 10000);
     }
     if (out) { out.innerHTML = `✅ Removed <b>${removed}</b> duplicate question(s). ${seen.size} unique questions remain in the pool.`; out.style.color = '#10b981'; }
     toast(`🧹 Removed ${removed} duplicates from the mock-wrong pool`);
+    refreshTab();
+    callRenderDash();
+  };
+
+  /* ══ v26.6 — BADGE BACKFILL ══
+     Older mock-wrong questions (committed before the #mock wrong question marker
+     existed, or dropped straight into a bucket via a direct JSON import that skipped
+     mwq_commit) never got stamped, so they render with no badge. This walks every
+     isMockWrongQuiz bucket, stamps any question missing the marker, then syncs the
+     matching mistakesDb (SRS) copy so the badge shows in SRS/review too — not just
+     when the question is opened from its original quiz. Safe to run repeatedly:
+     already-stamped questions are skipped, and __qFingerprint is marker-neutral so
+     no SRS card, saved star, or dedup key is ever disturbed by this. */
+  window.mwq_stampAll = async function() {
+    const out = document.getElementById('mwq-stamp-report');
+    const dbRef = getDb();
+    if (!dbRef) { if (out) out.textContent = 'DB not loaded — refresh and retry.'; return; }
+    const MWQ_MARKER_RE = /\s*#mock wrong question\s*$/i;
+
+    const mockFpSet = new Set();
+    let stampedInBuckets = 0;
+    Object.keys(dbRef).forEach(k => {
+      const bucket = dbRef[k];
+      if (!bucket || !bucket.isMockWrongQuiz || !Array.isArray(bucket.questions)) return;
+      bucket.questions.forEach(q => {
+        if (!q || !q.question) return;
+        if (!MWQ_MARKER_RE.test(q.question)) {
+          q.question = stampMW(q.question);
+          stampedInBuckets++;
+        }
+        mockFpSet.add(window.__srsKey(q.question));
+      });
+    });
+
+    let stampedInMistakes = 0;
+    if (typeof mistakesDb !== 'undefined' && Array.isArray(mistakesDb)) {
+      mistakesDb.forEach(m => {
+        if (!m || !m.question) return;
+        const k = window.__srsKey(m.question);
+        if (mockFpSet.has(k) && !MWQ_MARKER_RE.test(m.question)) {
+          m.question = stampMW(m.question);
+          stampedInMistakes++;
+        }
+      });
+    }
+
+    if (!stampedInBuckets && !stampedInMistakes) {
+      if (out) { out.innerHTML = '✅ Nothing to backfill — every mock-wrong question is already badged.'; out.style.color = '#10b981'; }
+      return;
+    }
+
+    try {
+      await callSaveData();
+      callRebuildCache();
+    } catch(e) {
+      console.error('[MWQ] stampAll save:', e);
+      if (out) { out.textContent = 'Save failed — check console.'; out.style.color = '#dc2626'; }
+      return;
+    }
+    if (out) { out.innerHTML = `✅ Badged <b>${stampedInBuckets}</b> bank question(s) and synced <b>${stampedInMistakes}</b> SRS card(s).`; out.style.color = '#10b981'; }
+    toast(`📸 Backfilled ${stampedInBuckets} question(s), ${stampedInMistakes} SRS card(s)`);
     refreshTab();
     callRenderDash();
   };
