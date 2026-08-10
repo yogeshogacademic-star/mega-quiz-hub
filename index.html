@@ -1810,7 +1810,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-10 · v27.0';
+    const HUB_BUILD = '2026-08-10 · v27.1';
 
     // ============================================================
     // GLOBAL TOAST (v25.6) — every native alert() popup in the hub
@@ -4618,10 +4618,15 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
         document.getElementById('attempt-info').innerHTML = `<div class="text-xl font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tight">Attempt #${currentAttemptNum}</div><div class="text-[11px] font-black uppercase tracking-widest text-slate-500 mt-1">${lastScoreText}</div>`;
         
         lobbyQuizMode = 'full'; let wrongQs = [];
+        // v27.1 — practice runs are one-off: no attempt counter, no "revision run" mode
+        if (q.isMwqPractice) {
+            currentAttemptNum = 1;
+            document.getElementById('attempt-info').innerHTML = `<div class="text-xl font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tight">Practice Run</div><div class="text-[11px] font-black uppercase tracking-widest text-slate-500 mt-1">No SRS · No mock stats · Logs to War Zone</div>`;
+        }
         // Pull wrong Qs from last real attempt (not a revision run)
         if(fullAttempts.length > 0) { let lastAttempt = fullAttempts[0]; if(lastAttempt.reviewData && Array.isArray(lastAttempt.reviewData)) wrongQs = lastAttempt.reviewData.filter(r => r.status === 'wrong' || r.status === 'skipped').map(r => r.question); }
         window.currentQuizWrongQs = wrongQs;
-        if(fullAttempts.length > 0 && wrongQs.length > 0 && !q.title.includes("🎯") && !q.title.includes("SRS")) {
+        if(!q.isMwqPractice && fullAttempts.length > 0 && wrongQs.length > 0 && !q.title.includes("🎯") && !q.title.includes("SRS")) {
             document.getElementById('lobby-mode-selection').classList.remove('hidden'); document.getElementById('wrong-count-badge').textContent = wrongQs.length; setQuizMode('full');
         } else { document.getElementById('lobby-mode-selection').classList.add('hidden'); }
         
@@ -4646,6 +4651,10 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
 
         setLobbyTime('default'); showScreen('lobby');
     }
+    // v27.1 — Weak Bank calls openQuizLobby(), which is defined nowhere in this
+    // file, so both of its launch buttons silently threw. Alias it to openLobby.
+    try { window.openQuizLobby = openLobby; window.openLobby = openLobby; } catch(e) {}
+
  function setLobbyTime(mode) {
         lobbySettings.timeMode = mode;
         document.querySelectorAll('.time-btn-main').forEach(btn => btn.className = 'time-btn-main flex-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent font-black uppercase text-xs tracking-widest py-3 rounded-xl border-2 transition-all shadow-sm hover:border-slate-300 dark:hover:border-slate-600');
@@ -5298,6 +5307,56 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
 
           setTimeout(() => { delete db['quiz_weak_bank_current']; }, 5000);
           return; // nothing saved to historyDb/SRS
+        }
+
+        // ── v27.1 MOCK WRONG PRACTICE: pure practice — no historyDb, no SRS, no Mock stats.
+        //    Still auto-logs the session (subject, topic, start/end, duration) to War Zone.
+        if (db[currentQuizId] && db[currentQuizId].isMwqPractice) {
+            const _mpSubj  = db[currentQuizId]._mwqSubject || 'Mock Wrong Practice';
+            const _mpLabel = db[currentQuizId]._mwqLabel || '';
+            const _mpEndTs = Date.now();
+            const _mpDur   = window._quizStartTime ? Math.round((_mpEndTs - window._quizStartTime) / 60000) : 0;
+            const _mpFmt   = (ts) => new Date(ts).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true });
+            const _mpStart = window._quizStartTime ? _mpFmt(window._quizStartTime) : '';
+            const _mpEnd   = _mpFmt(_mpEndTs);
+
+            updateSRSBadge(); showScreen('results'); window.scrollTo(0, 0); filterReview('all');
+
+            try {
+                if (typeof window._wrAutoLog === 'function') {
+                    // Derive topic/subtopic from the questions themselves, same as the normal quiz log
+                    let _mpTopic = '', _mpSub = '';
+                    try {
+                        const _c = { t: {}, sub: {} };
+                        activeQuestions.forEach(function(q) {
+                            if (!q.tags) return;
+                            if (q.tags[1]) _c.t[q.tags[1]] = (_c.t[q.tags[1]] || 0) + 1;
+                            if (q.tags[2]) _c.sub[q.tags[2]] = (_c.sub[q.tags[2]] || 0) + 1;
+                        });
+                        const _top = function(o) { const k = Object.keys(o); return k.length ? k.sort((a, b) => o[b] - o[a])[0] : ''; };
+                        _mpTopic = _top(_c.t); _mpSub = _top(_c.sub);
+                    } catch (e) {}
+                    window._wrAutoLog({
+                        type: 'quiz',
+                        title: 'Mock Wrong Practice — ' + _mpLabel,
+                        subject: _mpSubj,
+                        topic: _mpTopic,
+                        subtopic: _mpSub,
+                        questions: activeQuestions.length,
+                        correct: correct,
+                        score: parseFloat(score.toFixed(2)),
+                        duration: _mpDur,
+                        startTime: _mpStart,
+                        endTime: _mpEnd,
+                        startTs: window._quizStartTime || 0,
+                        ts: Date.now()
+                    });
+                }
+            } catch (e) { console.warn('[MWQ Practice] auto-log failed', e); }
+
+            // Drop the temp quiz once the results screen has rendered — never persisted.
+            setTimeout(function() { try { delete db['quiz_mwq_practice_current']; } catch (e) {} }, 5000);
+            return; // nothing saved to historyDb / mistakesDb / scDb
         }
 
         historyDb.unshift({ ts: Date.now(), date: new Date().toLocaleDateString(), title: displayTitle, subject: db[currentQuizId] ? db[currentQuizId].subject : "Mixed", score: parseFloat(score.toFixed(2)), accuracy: Math.round((correct / activeQuestions.length) * 100) || 0, candidateName: candName, attemptNumber: currentAttemptNum, totalCorrect: correct, totalWrong: wrong, totalSkipped: skipped, reviewData: historicalReviewData });
@@ -20394,6 +20453,13 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
             <div id="mwq-fullmock-wrap" style="margin-top:10px"></div>
           </div>
           <div class="mwq-section-card">
+            <div class="mwq-section-title">🎯 Practice Wrong Questions</div>
+            <div style="font-size:12px;color:#64748b;font-weight:700;line-height:1.6;margin-bottom:10px">
+              Pure practice run over your whole mock-wrong pool (all weeks merged). Pick a subject, then attempt the <b>full pool</b> or a single <b>topic</b>. Timed like a normal quiz, auto-logged to War Zone. Does <b>not</b> touch SRS or Mock Tracker stats.
+            </div>
+            <div class="mwq-subj-grid" id="mwq-practice-grid"></div>
+          </div>
+          <div class="mwq-section-card">
             <div class="mwq-section-title">🧹 Duplicate Guard</div>
             <div style="font-size:12px;color:#64748b;font-weight:700;line-height:1.6;margin-bottom:10px">
               Every commit is checked against <b>all</b> mock-wrong buckets — all weeks, all subjects. Exact repeats are skipped automatically; same-wording-different-numbers questions are flagged for you instead of being dropped.
@@ -20505,6 +20571,27 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
         </div>`;
       document.body.appendChild(m);
     }
+
+    // v27.1 — practice picker modal
+    if (!document.getElementById('mwq-practice-modal')) {
+      const pm = document.createElement('div');
+      pm.id = 'mwq-practice-modal';
+      pm.className = 'mwq-modal';
+      pm.innerHTML = `
+        <div class="mwq-modal-card" style="max-width:760px">
+          <div class="mwq-modal-header">
+            <div class="mwq-modal-title" id="mwq-practice-title">Practice</div>
+            <button class="mwq-modal-close" onclick="window.mwq_closePractice()">✕</button>
+          </div>
+          <div class="mwq-modal-body">
+            <div id="mwq-practice-body"></div>
+          </div>
+          <div class="mwq-modal-footer">
+            <button class="mwq-btn mwq-btn-secondary" onclick="window.mwq_closePractice()">Close</button>
+          </div>
+        </div>`;
+      document.body.appendChild(pm);
+    }
     
     const grid = document.getElementById('mwq-subj-grid');
     if (grid && !grid.children.length) {
@@ -20528,7 +20615,20 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       b.onclick = function() { processAllSubjects(); };
       fullWrap.appendChild(b);
     }
-    
+
+    // v27.1 — Practice subject buttons
+    const pGrid = document.getElementById('mwq-practice-grid');
+    if (pGrid && !pGrid.children.length) {
+      Object.keys(SUBJECT_CONFIG).forEach(subj => {
+        const cfg = SUBJECT_CONFIG[subj];
+        const btn = document.createElement('button');
+        btn.className = 'mwq-subj-btn';
+        btn.innerHTML = `<span class="icon">${cfg.icon}</span><span class="lbl">Practice ${subj}</span><span class="cnt" id="mwq-pcnt-${cfg.slug}">—</span>`;
+        btn.onclick = function() { window.mwq_openPractice(subj); };
+        pGrid.appendChild(btn);
+      });
+    }
+
     return true;
   }
   
@@ -20568,6 +20668,13 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       const cnt = q && Array.isArray(q.questions) ? q.questions.length : 0;
       const el = document.getElementById('mwq-cnt-' + SUBJECT_CONFIG[subj].slug);
       if (el) el.textContent = cnt ? `${cnt} Qs this week` : 'No Qs yet';
+      // v27.1 — practice button shows the WHOLE pool (all weeks), not just this week
+      const pEl = document.getElementById('mwq-pcnt-' + SUBJECT_CONFIG[subj].slug);
+      if (pEl) {
+        let total = 0;
+        try { total = practicePool(subj).length; } catch(e) { total = 0; }
+        pEl.textContent = total ? `${total} Qs in pool` : 'Pool empty';
+      }
     });
     renderHistory();
   }
@@ -21128,6 +21235,157 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
   window.mwq_launchQuiz = function(quizId) {
     if (callOpenLobby(quizId)) return;
     toast('Could not auto-launch — open from main dashboard: ' + quizId, 'warn');
+  };
+
+  /* ══════════════════════════════════════════════════════════════
+     v27.1 — PRACTICE MODE (pure practice, no SRS, no Mock stats)
+     Merges every quiz_mock_wrong_<slug>_wk_* bucket for a subject
+     into one pool, groups by tag[0] → tag[1], and launches a temp
+     quiz through the normal lobby. Order is preserved (no shuffle).
+     ══════════════════════════════════════════════════════════════ */
+  const MWQ_PRACTICE_ID = 'quiz_mwq_practice_current';
+
+  // Merge all weekly buckets of one subject → deduped question array (order kept)
+  function practicePool(subject) {
+    const cfg = SUBJECT_CONFIG[subject];
+    if (!cfg) return [];
+    const dbRef = getDb() || {};
+    const prefix = `quiz_mock_wrong_${cfg.slug}_wk_`;
+    const seen = new Set();
+    const out = [];
+    Object.keys(dbRef)
+      .filter(k => k.indexOf(prefix) === 0)
+      .sort()                                  // oldest week first — stable, never shuffled
+      .forEach(k => {
+        const bucket = dbRef[k];
+        if (!bucket || !Array.isArray(bucket.questions)) return;
+        bucket.questions.forEach(q => {
+          if (!q || !q.question || !Array.isArray(q.options)) return;
+          let fp = '';
+          try { fp = mwFp(stripMW(q.question)); } catch(e) { fp = String(q.question).trim(); }
+          if (fp && seen.has(fp)) return;
+          if (fp) seen.add(fp);
+          out.push(q);
+        });
+      });
+    return out;
+  }
+
+  // Group a pool by tag[0] (category) → tag[1] (topic)
+  function practiceGroups(pool) {
+    const tree = {};
+    pool.forEach(q => {
+      const t = Array.isArray(q.tags) ? q.tags : [];
+      const cat   = (t[0] && String(t[0]).trim()) || 'Untagged';
+      const topic = (t[1] && String(t[1]).trim()) || 'General';
+      if (!tree[cat]) tree[cat] = {};
+      if (!tree[cat][topic]) tree[cat][topic] = 0;
+      tree[cat][topic]++;
+    });
+    return tree;
+  }
+
+  window.mwq_closePractice = function() {
+    const m = document.getElementById('mwq-practice-modal');
+    if (m) m.classList.remove('mwq-open');
+  };
+
+  window.mwq_openPractice = function(subject) {
+    const cfg = SUBJECT_CONFIG[subject];
+    const pool = practicePool(subject);
+    const titleEl = document.getElementById('mwq-practice-title');
+    const bodyEl  = document.getElementById('mwq-practice-body');
+    if (titleEl) titleEl.textContent = `${cfg ? cfg.icon : '🎯'} Practice ${subject}`;
+
+    if (!pool.length) {
+      if (bodyEl) bodyEl.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:12px;font-weight:700">No questions in this subject\'s mock-wrong pool yet.</div>';
+      document.getElementById('mwq-practice-modal').classList.add('mwq-open');
+      return;
+    }
+
+    const sEnc = encodeURIComponent(subject);
+    let html = `<button class="mwq-subj-btn mwq-fullmock-btn" style="width:100%;margin-bottom:14px"
+        onclick="window.mwq_startPractice('${sEnc}','','')">
+        <span class="icon">🔥</span>
+        <span class="lbl">Full Pool — all ${pool.length} questions</span>
+        <span class="cnt">every week merged · ${Math.max(1, Math.round(pool.length * 1.2))} min</span>
+      </button>`;
+
+    const tree = practiceGroups(pool);
+    html += '<div style="font-size:11px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;margin:4px 0 8px">Or pick a topic</div>';
+
+    Object.keys(tree).sort().forEach(cat => {
+      const topics = tree[cat];
+      const catTotal = Object.keys(topics).reduce((a, t) => a + topics[t], 0);
+      const cEnc = encodeURIComponent(cat);
+      html += `<div style="margin-bottom:12px">
+        <div class="mwq-history-row" style="background:#eef2ff;border-color:#c7d2fe"
+             onclick="window.mwq_startPractice('${sEnc}','${cEnc}','')">
+          <div>
+            <div class="mwq-history-title">${esc(cat)}</div>
+            <div class="mwq-history-sub">whole category · click to practice</div>
+          </div>
+          <span class="mwq-history-count">${catTotal}</span>
+        </div>`;
+      Object.keys(topics).sort().forEach(topic => {
+        const tEnc = encodeURIComponent(topic);
+        html += `<div class="mwq-history-row" style="margin-left:14px"
+             onclick="window.mwq_startPractice('${sEnc}','${cEnc}','${tEnc}')">
+          <div>
+            <div class="mwq-history-title" style="font-size:12px">${esc(topic)}</div>
+            <div class="mwq-history-sub">${esc(cat)}</div>
+          </div>
+          <span class="mwq-history-count">${topics[topic]}</span>
+        </div>`;
+      });
+      html += '</div>';
+    });
+
+    if (bodyEl) bodyEl.innerHTML = html;
+    document.getElementById('mwq-practice-modal').classList.add('mwq-open');
+  };
+
+  window.mwq_startPractice = function(sEnc, cEnc, tEnc) {
+    const subject = decodeURIComponent(sEnc || '');
+    const cat     = decodeURIComponent(cEnc || '');
+    const topic   = decodeURIComponent(tEnc || '');
+    let pool = practicePool(subject);
+
+    if (cat) {
+      pool = pool.filter(q => {
+        const t = Array.isArray(q.tags) ? q.tags : [];
+        return ((t[0] && String(t[0]).trim()) || 'Untagged') === cat;
+      });
+    }
+    if (topic) {
+      pool = pool.filter(q => {
+        const t = Array.isArray(q.tags) ? q.tags : [];
+        return ((t[1] && String(t[1]).trim()) || 'General') === topic;
+      });
+    }
+
+    if (!pool.length) { toast('No questions found for that selection.', 'warn'); return; }
+
+    const label = topic ? `${cat} · ${topic}` : (cat ? cat : `${subject} · Full Pool`);
+    const dbRef = getDb();
+    if (!dbRef) { toast('Question DB not ready.', 'warn'); return; }
+
+    // Temp quiz. `subject` is deliberately NOT a core subject, so it never
+    // renders on the dashboard. isMwqPractice makes submitQuiz skip history+SRS.
+    dbRef[MWQ_PRACTICE_ID] = {
+      title: `Mock Wrong Practice — ${label}`,
+      subject: 'Mock Wrong Practice',
+      timeInMinutes: Math.max(1, Math.round(pool.length * 1.2)),
+      questions: pool.map(q => JSON.parse(JSON.stringify(q))),
+      isMwqPractice: true,
+      _mwqSubject: subject,
+      _mwqLabel: label
+    };
+
+    window.mwq_closePractice();
+    if (!callOpenLobby(MWQ_PRACTICE_ID)) {
+      toast('Could not open the quiz lobby.', 'warn');
+    }
   };
 
   // ── Reusable: append an array of questions into THIS WEEK's mock-wrong bucket ──
