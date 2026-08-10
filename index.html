@@ -1810,7 +1810,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-09 · v26.7';
+    const HUB_BUILD = '2026-08-10 · v27.0';
 
     // ============================================================
     // GLOBAL TOAST (v25.6) — every native alert() popup in the hub
@@ -3010,8 +3010,10 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
             return base;
         });
         const payload = { subjects: SUBJECTS, db: cleanDb, syllabusData: scDataCloud, syllabusLastSave: parseInt(localStorage.getItem('sc_syllabus_lastSave')||'0'), history: historyForCloud, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, mockTracker: mockTrackerCloud, plannerData: plannerCloud, srsAuditLog: (window.srsAuditLog||[]), dupIgnore: dupIgnoreCloud, activeRecall: (typeof window.__arForCloud==="function" ? window.__arForCloud() : null), savedAt: nowTs };
-        // Expose saveData globally for syllabus functions in other script blocks
-        window._saveDataGlobal = saveData;
+        // v27: the line that used to re-assign window._saveDataGlobal here has been
+        // removed. It ran on EVERY push and silently un-wrapped any hook another
+        // module had installed, which is why the planner's sync hook only ever
+        // fired once per page load.
         try {
             // Use no-cors for POST to avoid CORS block on Google's redirect
             await fetch(CLOUD_URL, {
@@ -3053,6 +3055,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
     // Expose saveData globally immediately after definition
     window._saveDataGlobal = saveData;
     async function fetchFromCloud(timeoutMs) {
+        window._wrCloudFetch = fetchFromCloud;   // v27: planner sync engine pulls through this
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
         try {
@@ -3073,6 +3076,8 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
             throw e;
         }
     }
+
+    window._wrCloudFetch = fetchFromCloud;   // v27: available before the first pull
 
     // ── AUTO TAG REPAIR ──────────────────────────────────────────────────────
     // Fixes tags corrupted by edit modal bug: ["Cone","Frustum"] → "Cone, Frustum"
@@ -3497,222 +3502,21 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
             } catch(e){ console.warn('dupIgnore merge error', e); }
         }
 
-        if(data.plannerData && typeof data.plannerData === 'object'){ try {
-            const _lp = JSON.parse(localStorage.getItem('warroom_v1') || '{}');
-            const cloud = data.plannerData;
-            const merged = JSON.parse(JSON.stringify(cloud));
-            merged.logs = merged.logs || {};
-            merged.blocks = merged.blocks || {};
-            merged.debt = merged.debt || {};
-            merged.streak = merged.streak || { count:0, last:'' };
-            merged.checklist = merged.checklist || {};
-
-            // LOGS: merge day-by-day, id-by-id, latest ts wins, auto-log dedup
-            // DRILL: per-day, per-COLUMN, per-ROW union by id. A row added on EITHER
-            // device is always kept — nothing is dropped. Same-id conflicts (the rare
-            // case two devices edited the identical row) resolve to the "further-along /
-            // richer" copy. This replaces the old whole-day last-writer-wins merge, which
-            // silently wiped the other device's rows — most visibly the Revision column,
-            // which (unlike New-Topic/Mock) has no separate synced backing to recover from.
-            merged.drill = merged.drill || {};
-            merged.meta = merged.meta || {};
-            merged.meta.drillAt = merged.meta.drillAt || {};
-            const _localDrill = _lp.drill || {};
-            const _localDrillAt = (_lp.meta && _lp.meta.drillAt) || {};
-            const _cloudDrillAt = (cloud.meta && cloud.meta.drillAt) || {};
-            const _DRILL_COLS = ['newTopic','revision','mock'];
-            const _drillRowScore = (it) => {
-                if (!it) return -1;
-                let s = 0;
-                if (it.done) s += 2;
-                if (it.status === 'done') s += 3;
-                else if (it.status === 'paused' || it.status === 'doing') s += 1;
-                // One-tap Revision rows track done-state in revStatus/revLogId, NOT
-                // status/logId — score them the same way so a "done" revision out-scores
-                // a "doing"/"todo" copy and wins the merge (otherwise a done-on-phone
-                // revision keeps losing the tie to a still-running laptop copy).
-                if (it.revStatus === 'done') s += 3;
-                else if (it.revStatus === 'paused' || it.revStatus === 'doing') s += 1;
-                if (it.revLogId) s += 1;
-                if (Array.isArray(it.lecs)) s += it.lecs.filter(l => l && l.status === 'done').length;
-                if (it.subject) s += 1;
-                if (it.topic) s += 1;
-                if (it.name) s += 1;
-                if ((it.text || '').trim()) s += 1;
-                if (it.logId) s += 1;
-                return s;
-            };
-            const _mergeDrillCol = (localArr, cloudArr) => {
-                const byId = {}; const order = [];
-                (Array.isArray(cloudArr) ? cloudArr : []).forEach(it => {
-                    if (it && it.id != null && !(it.id in byId)) { byId[it.id] = it; order.push(it.id); }
-                });
-                (Array.isArray(localArr) ? localArr : []).forEach(it => {
-                    if (!it || it.id == null) return;
-                    if (!(it.id in byId)) { byId[it.id] = it; order.push(it.id); }
-                    else if (_drillRowScore(it) >= _drillRowScore(byId[it.id])) { byId[it.id] = it; }
-                });
-                return order.map(id => byId[id]);
-            };
-            const _allDrillDays = new Set([...Object.keys(merged.drill || {}), ...Object.keys(_localDrill)]);
-            _allDrillDays.forEach(d => {
-                const localDay = (_localDrill[d] && typeof _localDrill[d] === 'object') ? _localDrill[d] : {};
-                const cloudDay = (merged.drill[d] && typeof merged.drill[d] === 'object') ? merged.drill[d] : {};
-                const outDay = {};
-                _DRILL_COLS.forEach(c => { outDay[c] = _mergeDrillCol(localDay[c], cloudDay[c]); });
-                merged.drill[d] = outDay;
-                merged.meta.drillAt[d] = Math.max(_localDrillAt[d] || 0, _cloudDrillAt[d] || 0);
-            });
-
-            const localLogs = _lp.logs || {};
-            Object.keys(localLogs).forEach(d => {
-                if (!merged.logs[d]) {
-                    merged.logs[d] = localLogs[d];
+        // ── PLANNER DATA ──────────────────────────────────────────────────
+        // v27: the old 210-line union merge lived here. It has been deleted
+        // whole. All planner merging now happens in ONE place — the War Room
+        // sync engine's __wrMergeCloud() — so there is a single set of rules
+        // instead of six inconsistent ones.
+        if(data.plannerData && typeof data.plannerData === 'object'){
+            try {
+                if(typeof window.__wrMergeCloud === 'function'){
+                    window.__wrMergeCloud(data.plannerData);
+                    if(typeof window.__wrRepaint === 'function') window.__wrRepaint();
                 } else {
-                    const dayMap = {};
-                    merged.logs[d].forEach(e => { dayMap[e.id] = e; });
-                    localLogs[d].forEach(e => {
-                        if (!dayMap[e.id]) {
-                            merged.logs[d].push(e);
-                        } else {
-                            // Latest ts wins - most recently updated entry takes precedence
-                            const localTs = e.ts || e.id || 0;
-                            const cloudTs = (dayMap[e.id].ts || dayMap[e.id].id || 0);
-                            if (localTs > cloudTs) {
-                                const idx = merged.logs[d].findIndex(x => x.id === e.id);
-                                if (idx !== -1) merged.logs[d][idx] = e;
-                            }
-                        }
-                    });
-                    // Dedup auto-logs: same sprint on both devices has same ts
-                    const seenAutoTs = new Set();
-                    merged.logs[d] = merged.logs[d].filter(e => {
-                        if (!e.auto) return true;
-                        const key = e.type + '|' + (e.ts || e.id);
-                        if (seenAutoTs.has(key)) return false;
-                        seenAutoTs.add(key);
-                        return true;
-                    });
+                    window.__wrPendingCloud = data.plannerData;   // engine not parsed yet — drained on boot
                 }
-            });
-
-            // BLOCKS: same merge logic
-            const localBlocks = _lp.blocks || {};
-            Object.keys(localBlocks).forEach(d => {
-                if (!merged.blocks[d]) {
-                    merged.blocks[d] = localBlocks[d];
-                } else {
-                    const dayMap = {};
-                    merged.blocks[d].forEach(b => { dayMap[b.id] = b; });
-                    localBlocks[d].forEach(b => {
-                        if (!dayMap[b.id]) {
-                            merged.blocks[d].push(b);
-                        }
-                        // blocks: cloud wins on conflict (last-writer-wins via cloud)
-                    });
-                }
-            });
-
-            // STREAK: keep higher count, or same count with more recent date
-            const localStreak = _lp.streak || { count:0, last:'' };
-            if ((localStreak.count || 0) > (merged.streak.count || 0)) {
-                merged.streak = localStreak;
-            } else if ((localStreak.count || 0) === (merged.streak.count || 0)) {
-                if ((localStreak.last || '') > (merged.streak.last || '')) {
-                    merged.streak.last = localStreak.last;
-                }
-            }
-
-            // TARGET: keep non-default value, local wins if both non-default
-            const localTarget = _lp.target || 50;
-            if (localTarget !== 50 && (merged.target === 50 || !merged.target)) {
-                merged.target = localTarget;
-            }
-
-            // DEBT: keep higher debt per day
-            const localDebt = _lp.debt || {};
-            Object.keys(localDebt).forEach(d => {
-                if (!merged.debt[d] || localDebt[d] > merged.debt[d]) {
-                    merged.debt[d] = localDebt[d];
-                }
-            });
-
-            // CHECKLIST: merge week-by-week, done=true always wins
-            const localCL = _lp.checklist || {};
-            Object.keys(localCL).forEach(wk => {
-                if (!merged.checklist[wk]) {
-                    merged.checklist[wk] = localCL[wk];
-                } else {
-                    const ckMap = {};
-                    merged.checklist[wk].forEach(item => { ckMap[item.id] = item; });
-                    localCL[wk].forEach(item => {
-                        if (!ckMap[item.id]) {
-                            merged.checklist[wk].push(item);
-                        } else if (item.done && !ckMap[item.id].done) {
-                            const idx = merged.checklist[wk].findIndex(x => x.id === item.id);
-                            if (idx !== -1) merged.checklist[wk][idx] = item;
-                        }
-                    });
-                }
-            });
-
-            // ── EXTENDED SYNC (Jun 12 fix): cover sleepLog / wake & sleep targets / weeklyTasks / wtArchive / wtWeekStart / target ──
-            // All driven by D.meta[field+'At'] timestamps so most-recent-edit wins cross-device.
-            const localMeta = _lp.meta || {};
-            const cloudMeta = merged.meta || {};
-            merged.meta = merged.meta || {};
-
-            // Per-day sleepLog: each day has its own updatedAt, latest wins
-            const localSL = _lp.sleepLog || {};
-            merged.sleepLog = merged.sleepLog || {};
-            Object.keys(localSL).forEach(d => {
-                const local = localSL[d] || {};
-                const cloud = merged.sleepLog[d] || {};
-                if (!merged.sleepLog[d]) { merged.sleepLog[d] = local; return; }
-                const lTs = local.updatedAt || 0;
-                const cTs = cloud.updatedAt || 0;
-                if (lTs > cTs) merged.sleepLog[d] = local;
-                // If neither has updatedAt but they differ, take the one with MORE data (both wake+sleep > just one)
-                else if (lTs === 0 && cTs === 0) {
-                    const lScore = (local.wake?1:0)+(local.sleep?1:0);
-                    const cScore = (cloud.wake?1:0)+(cloud.sleep?1:0);
-                    if (lScore > cScore) merged.sleepLog[d] = local;
-                }
-            });
-
-            // Last-write-wins fields driven by D.meta timestamps
-            ['wakeTarget','sleepTarget','target','wtWeekStart','weeklyTasks','wtArchive'].forEach(field => {
-                const lTs = localMeta[field+'At'] || 0;
-                const cTs = cloudMeta[field+'At'] || 0;
-                if (lTs > cTs && _lp[field] !== undefined) {
-                    merged[field] = _lp[field];
-                    merged.meta[field+'At'] = lTs;
-                } else if (cTs > 0) {
-                    merged.meta[field+'At'] = cTs;
-                }
-            });
-
-            localStorage.setItem('warroom_v1', JSON.stringify(merged));
-
-            // Hot-reload if War Room is open
-            if (window._plannerLoaded && typeof load === 'function') {
-                load();
-                if (typeof renderHome === 'function') renderHome();
-                // If the Daily Drill tab is currently open, re-render it too so freshly
-                // merged rows (e.g. Revision) show immediately without switching tabs.
-                try {
-                    const _ds = document.getElementById('screen-drill');
-                    if (_ds && _ds.classList.contains('active') && typeof drillRender === 'function') {
-                        if (typeof todayStr === 'function') drillViewDate = todayStr();
-                        drillRender();
-                        // A start/end done on another device is now merged in — repaint above
-                        // reflects it, and this kicks the live clock so a session started
-                        // elsewhere ticks here too.
-                        if (typeof drillAnyDoing === 'function' && drillAnyDoing() && typeof drillStartTicker === 'function') drillStartTicker();
-                    }
-                } catch(_e) {}
-            }
-        } catch(e) { console.warn('[War Room Sync] Merge error:', e); }}
+            } catch(e){ console.warn('[War Room Sync] handoff error:', e); }
+        }
         const cloudQCount = Object.values(db).reduce((a,subj) => {
             if(!subj || typeof subj !== 'object') return a;
             return a + Object.values(subj).reduce((b,topic)=>b+(Array.isArray(topic)?topic.length:0),0);
@@ -3967,11 +3771,12 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 document.addEventListener('visibilitychange', function() {
   if(document.visibilityState === 'visible') {
     setTimeout(function() {
-      if(typeof window._saveDataGlobal === 'function') {
-        // Always push on return to foreground — ensures mobile sprint reaches cloud
-        // even if the post-sprint push was lost due to weak signal or app suspension
-        window._saveDataGlobal().catch(function(){});
-      }
+      // v27: PULL-THEN-PUSH. The old code pushed blindly on every foreground,
+      // so a device that had been sitting in the background for hours uploaded
+      // its stale planner state straight over the good copy. wrCloudSync pulls
+      // and merges first, then pushes the merged result.
+      if(typeof window.wrCloudSync === 'function') { window.wrCloudSync({push:true}); return; }
+      if(typeof window._saveDataGlobal === 'function') window._saveDataGlobal().catch(function(){});
     }, 2000);
   }
 });
@@ -15805,12 +15610,437 @@ function hDisp(h){
 function getWeekStart(s){ const d=new Date(s+'T00:00:00'); const day=d.getDay(); const diff=day===0?-6:1-day; d.setDate(d.getDate()+diff); return dateStr(d); }
 function getWeekDates(ws){ return Array.from({length:7},(_,i)=>{ const d=new Date(ws+'T00:00:00'); d.setDate(d.getDate()+i); return dateStr(d); }); }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   WAR ROOM CLOUD SYNC ENGINE — v27.0
+   Replaces every previous planner sync path (old union merge, score-based
+   drill merge, _plannerSave wrapper, 2s blind push). Nothing of the old
+   sync survives.
+
+   MODEL
+     • Every record carries _u = last-edited timestamp (ms).
+     • Deletes are TOMBSTONES in D.tomb { recordKey: deletedAt }.
+       A delete on one device can never be resurrected by another device.
+     • Merge = newest _u wins, per record. Tombstone newer than the record
+       kills the record. Nothing is decided by "which copy looks richer".
+     • Derived values (debt) are recomputed after merge, never merged.
+
+   FLOW
+     • Every cloud write is PULL → MERGE → PUSH. Never a blind push.
+     • Pull-only poll every 20s while the Planner is open (so a timer
+       started on the phone ticks on the laptop), 90s otherwise.
+     • Pull+push on foreground, on background, on reconnect, and 3s after
+       any edit.
+     • Push is verified by echoing meta.pushId back from cloud; one retry.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const WR_DRILL_COLS = ['newTopic','revision','mock'];
+const WR_SCALARS    = ['target','wakeTarget','sleepTarget','wtWeekStart','wtArchive','streak'];
+const WR_TOMB_TTL   = 120*24*3600*1000;   // keep tombstones 120 days
+
+/* ── monotonic clock ─────────────────────────────────────────────────
+   Phones and laptops disagree about the time. A device whose clock runs a
+   few minutes slow would otherwise ALWAYS lose the merge and could never
+   push an edit through. Every stamp we mint is therefore at least one tick
+   past the newest stamp we have ever seen from any device. */
+let _wrClock = 0;
+function wrTick(){ const t = Math.max(Date.now(), _wrClock + 1); _wrClock = t; return t; }
+function wrObserve(obj){
+  try {
+    const savedD = D; D = obj;
+    try { wrEachRecord((k,r) => { const t = wrStampOf(r); if(t > _wrClock) _wrClock = t; }); } catch(e){}
+    D = savedD;
+    const tb = obj && obj.tomb; if(tb) Object.keys(tb).forEach(k => { if(tb[k] > _wrClock) _wrClock = tb[k]; });
+    const st = obj && obj.meta && obj.meta.stamps; if(st) Object.keys(st).forEach(k => { if(st[k] > _wrClock) _wrClock = st[k]; });
+  } catch(e){}
+}
+
+/* ── record stamping helpers ─────────────────────────────────────────── */
+
+// Deterministic baseline for records created before stamping existed.
+// Derived from the record's own id/ts, so every device computes the SAME
+// number for the same record — no false "mine is newer" fights.
+function wrStampOf(rec){
+  if(!rec || typeof rec !== 'object') return 1;
+  let t = rec._u || 0;
+  if(t) return t;
+  t = rec.ts || rec.updatedAt || 0;
+  if(!t && typeof rec.id === 'number' && rec.id > 1000000000000) t = rec.id;
+  if(!t && typeof rec.id === 'string'){ const m = rec.id.match(/(\d{13})/); if(m) t = parseInt(m[1],10); }
+  return t || 1;
+}
+function wrSig(rec){
+  try { return JSON.stringify(rec, function(k,v){ return k === '_u' ? undefined : v; }); }
+  catch(e){ return String(Math.random()); }
+}
+
+// Walks every syncable record in D and hands (key, record) to fn.
+function wrEachRecord(fn){
+  const d = D || {};
+  Object.keys(d.logs||{}).forEach(dk => (d.logs[dk]||[]).forEach(r => { if(r && r.id != null) fn('L|'+dk+'|'+r.id, r); }));
+  Object.keys(d.blocks||{}).forEach(dk => (d.blocks[dk]||[]).forEach(r => { if(r && r.id != null) fn('B|'+dk+'|'+r.id, r); }));
+  Object.keys(d.drill||{}).forEach(dk => {
+    const e = d.drill[dk] || {};
+    WR_DRILL_COLS.forEach(c => (e[c]||[]).forEach(r => { if(r && r.id != null) fn('D|'+dk+'|'+c+'|'+r.id, r); }));
+  });
+  Object.keys(d.checklist||{}).forEach(wk => (d.checklist[wk]||[]).forEach(r => { if(r && r.id != null) fn('C|'+wk+'|'+r.id, r); }));
+  (d.dailyItems||[]).forEach(r => { if(r && r.id != null) fn('I|'+r.id, r); });
+  Object.keys(d.dailyLog||{}).forEach(dk => {
+    const e = d.dailyLog[dk] || {};
+    Object.keys(e).forEach(i => { if(e[i] && typeof e[i] === 'object') fn('E|'+dk+'|'+i, e[i]); });
+  });
+  Object.keys(d.sleepLog||{}).forEach(dk => { if(d.sleepLog[dk] && typeof d.sleepLog[dk] === 'object') fn('S|'+dk, d.sleepLog[dk]); });
+  (d.weeklyTasks||[]).forEach(s => {
+    if(!s || !s.subject) return;
+    fn('WS|'+s.subject, s);
+    (s.tasks||[]).forEach(t => { if(t && t.id != null) fn('W|'+s.subject+'|'+t.id, t); });
+  });
+}
+function wrBuildIdx(){ const idx = {}; wrEachRecord((k,r) => { idx[k] = wrSig(r); }); return idx; }
+function wrSnapScalars(){ const s = {}; WR_SCALARS.forEach(f => { try{ s[f] = JSON.stringify(D[f]); }catch(e){ s[f] = ''; } }); window.__wrPrevScalars = s; }
+
+// One-time: give every pre-v27 record a deterministic _u so the first
+// cross-device merge doesn't treat every record as brand new.
+function wrMigrateStamps(){
+  D.meta = D.meta || {};
+  if(D.meta._syncEngine === 27) return;
+  wrEachRecord((k,r) => { if(!r._u) r._u = wrStampOf(r); });
+  delete D.meta.drillAt;                 // dead field from the old score-based merge
+  D.meta.stamps = D.meta.stamps || {};
+  WR_SCALARS.forEach(f => {
+    if(D.meta.stamps[f]) return;
+    const legacy = D.meta[f+'At'];       // old _dStamp() values
+    D.meta.stamps[f] = legacy || 1;
+  });
+  D.meta._syncEngine = 27;
+}
+
+/* ── the diff pass: stamp what changed, tombstone what vanished ───────── */
+// Called on EVERY save(). Because it works by diffing against the last
+// snapshot, no delete function anywhere in the planner had to be modified —
+// a row that disappears from D is detected here and tombstoned.
+function wrStampChanges(){
+  const now = wrTick();
+  const idx = wrBuildIdx();
+  const prev = window.__wrPrevIdx;
+  D.tomb = D.tomb || {};
+  if(prev){
+    wrEachRecord((k,r) => {
+      if(prev[k] !== idx[k]) r._u = now;
+      // a key that exists again with a newer edit clears its old tombstone
+      if(D.tomb[k] && (r._u || 0) > D.tomb[k]) delete D.tomb[k];
+    });
+    Object.keys(prev).forEach(k => { if(!(k in idx)) D.tomb[k] = now; });
+  }
+  // scalars: stamp only the ones that actually changed
+  const ps = window.__wrPrevScalars;
+  D.meta = D.meta || {}; D.meta.stamps = D.meta.stamps || {};
+  if(ps){
+    WR_SCALARS.forEach(f => {
+      let cur = ''; try{ cur = JSON.stringify(D[f]); }catch(e){}
+      if(ps[f] !== cur) D.meta.stamps[f] = now;
+    });
+  }
+  window.__wrPrevIdx = idx;
+  wrSnapScalars();
+}
+
+/* ── generic mergers ─────────────────────────────────────────────────── */
+// Equal timestamps (two edits in the same millisecond) must not leave the two
+// devices holding different copies forever — both sides pick the same winner.
+function wrPick(a, b){
+  if(!a) return b; if(!b) return a;
+  const ta = wrStampOf(a), tb = wrStampOf(b);
+  if(tb > ta) return b;
+  if(ta > tb) return a;
+  return wrSig(b) > wrSig(a) ? b : a;
+}
+// Local order is preserved; records only the other device has are appended.
+function wrMergeList(local, cloud, prefix, tomb){
+  const L = {}, C = {}, order = [];
+  (Array.isArray(local) ? local : []).forEach(r => { if(r && r.id != null){ const k = prefix+'|'+r.id; if(!(k in L)){ L[k] = r; order.push(k); } } });
+  (Array.isArray(cloud) ? cloud : []).forEach(r => { if(r && r.id != null){ const k = prefix+'|'+r.id; if(!(k in C)){ C[k] = r; if(!(k in L)) order.push(k); } } });
+  const out = [];
+  order.forEach(k => {
+    const win = wrPick(L[k], C[k]);
+    if(!win) return;
+    if((tomb[k] || 0) >= wrStampOf(win)) return;   // deleted after its last edit → stays deleted
+    out.push(win);
+  });
+  return out;
+}
+function wrMergeMap(local, cloud, prefix, tomb){
+  const out = {}, keys = {};
+  Object.keys(local||{}).forEach(k => keys[k] = 1);
+  Object.keys(cloud||{}).forEach(k => keys[k] = 1);
+  Object.keys(keys).forEach(k => {
+    const win = wrPick((local||{})[k], (cloud||{})[k]);
+    if(win == null) return;
+    if((tomb[prefix+'|'+k] || 0) >= wrStampOf(win)) return;
+    out[k] = win;
+  });
+  return out;
+}
+// Same shape as wrMergeList but the two sides are keyed by DATE (or week),
+// so a day only one device has is carried over untouched.
+function wrMergeByDay(local, cloud, keyFor, tomb){
+  const out = {}, days = {};
+  Object.keys(local||{}).forEach(d => days[d] = 1);
+  Object.keys(cloud||{}).forEach(d => days[d] = 1);
+  Object.keys(days).forEach(d => {
+    const merged = wrMergeList((local||{})[d], (cloud||{})[d], keyFor(d), tomb);
+    if(merged.length) out[d] = merged;
+  });
+  return out;
+}
+
+/* ── the one merge entry point ───────────────────────────────────────── */
+window.__wrMergeCloud = function(cloudRaw){
+  if(!cloudRaw || typeof cloudRaw !== 'object') return false;
+  try {
+    wrEnsureLoaded();
+    wrStampChanges();                      // freeze local edits before touching anything
+    const cloud = cloudRaw;
+    wrObserve(cloud);                      // never mint a stamp older than one we've seen
+    (function(){ // give cloud records their baseline stamps too
+      const savedD = D; D = cloud;
+      try { wrEachRecord((k,r) => { if(!r._u) r._u = wrStampOf(r); }); } catch(e){}
+      D = savedD;
+    })();
+
+    // ── tombstones: union, newest deletion wins, prune ancient ones ──
+    const tomb = {}, cutoff = Date.now() - WR_TOMB_TTL;
+    [D.tomb || {}, cloud.tomb || {}].forEach(src => {
+      Object.keys(src).forEach(k => { const t = src[k] || 0; if(t > cutoff && t > (tomb[k]||0)) tomb[k] = t; });
+    });
+
+    // ── collections ──
+    D.logs      = wrMergeByDay(D.logs,      cloud.logs,      d => 'L|'+d, tomb);
+    D.blocks    = wrMergeByDay(D.blocks,    cloud.blocks,    d => 'B|'+d, tomb);
+    D.checklist = wrMergeByDay(D.checklist, cloud.checklist, w => 'C|'+w, tomb);
+
+    // drill: per day, per column
+    const drillOut = {}, drillDays = {};
+    Object.keys(D.drill||{}).forEach(d => drillDays[d] = 1);
+    Object.keys(cloud.drill||{}).forEach(d => drillDays[d] = 1);
+    Object.keys(drillDays).forEach(d => {
+      const ld = (D.drill||{})[d] || {}, cd = (cloud.drill||{})[d] || {};
+      const day = {}; let any = 0;
+      WR_DRILL_COLS.forEach(c => { day[c] = wrMergeList(ld[c], cd[c], 'D|'+d+'|'+c, tomb); any += day[c].length; });
+      if(any) drillOut[d] = day;
+    });
+    D.drill = drillOut;
+
+    // daily checklist — items AND ticks, both properly merged (neither was
+    // synced at all before v27, which is why ticks vanished and removed
+    // tasks came back)
+    D.dailyItems = wrMergeList(D.dailyItems, cloud.dailyItems, 'I', tomb);
+    if(!D.dailyItems.length) D.dailyItems = dcDefaultItems();
+    const dlOut = {}, dlDays = {};
+    Object.keys(D.dailyLog||{}).forEach(d => dlDays[d] = 1);
+    Object.keys(cloud.dailyLog||{}).forEach(d => dlDays[d] = 1);
+    Object.keys(dlDays).forEach(d => {
+      const m = wrMergeMap((D.dailyLog||{})[d], (cloud.dailyLog||{})[d], 'E|'+d, tomb);
+      if(Object.keys(m).length) dlOut[d] = m;
+    });
+    D.dailyLog = dlOut;
+
+    D.sleepLog = wrMergeMap(D.sleepLog, cloud.sleepLog, 'S', tomb);
+
+    // weekly tasks — subject groups merged by name, tasks inside merged by id
+    (function(){
+      const groups = {}, order = [];
+      const take = (src, isCloud) => (src||[]).forEach(g => {
+        if(!g || !g.subject) return;
+        if(!(g.subject in groups)){ groups[g.subject] = { local:null, cloud:null }; order.push(g.subject); }
+        groups[g.subject][isCloud ? 'cloud' : 'local'] = g;
+      });
+      take(D.weeklyTasks, false); take(cloud.weeklyTasks, true);
+      const out = [];
+      order.forEach(sub => {
+        const g = groups[sub];
+        if((tomb['WS|'+sub] || 0) >= Math.max(wrStampOf(g.local), wrStampOf(g.cloud))) return;
+        const base = g.local || g.cloud;
+        const tasks = wrMergeList((g.local||{}).tasks, (g.cloud||{}).tasks, 'W|'+sub, tomb);
+        out.push(Object.assign({}, base, { subject: sub, tasks: tasks }));
+      });
+      D.weeklyTasks = out;
+    })();
+
+    // ── scalars: last edit wins, by stamp ──
+    const lStamps = (D.meta && D.meta.stamps) || {};
+    const cStamps = (cloud.meta && cloud.meta.stamps) || {};
+    const newStamps = {};
+    WR_SCALARS.forEach(f => {
+      const a = lStamps[f] || 0, b = cStamps[f] || 0;
+      if(b > a && cloud[f] !== undefined){ D[f] = cloud[f]; newStamps[f] = b; }
+      else newStamps[f] = Math.max(a, b);
+    });
+
+    // ── meta: union. One-time repair flags are sticky (true wins) so a
+    //    migration can never re-run and re-mangle data after a sync. ──
+    const outMeta = {};
+    Object.keys(cloud.meta || {}).forEach(k => { if(k !== 'stamps' && k !== 'drillAt') outMeta[k] = cloud.meta[k]; });
+    Object.keys(D.meta || {}).forEach(k => {
+      if(k === 'stamps' || k === 'drillAt') return;
+      if(D.meta[k] === true || !(k in outMeta)) outMeta[k] = D.meta[k];
+    });
+    outMeta.stamps = newStamps;
+    outMeta._syncEngine = 27;
+    D.meta = outMeta;
+    D.tomb = tomb;
+
+    // ── derived values are RECOMPUTED, never merged ──
+    // (the old code kept max debt and max streak, so debt could never be
+    //  cleared and a broken streak could never go down)
+    D.debt = {};
+    const debtDays = {};
+    Object.keys(D.blocks||{}).forEach(d => debtDays[d] = 1);
+    Object.keys(D.logs||{}).forEach(d => debtDays[d] = 1);
+    Object.keys(debtDays).forEach(d => { try{ updateDebt(d); }catch(e){} });
+
+    wrPersist();
+    return true;
+  } catch(e){
+    console.warn('[War Room Sync] merge failed — local data untouched:', e);
+    return false;
+  }
+};
+
+function wrPersist(){
+  try { localStorage.setItem(STORE, JSON.stringify(D)); } catch(e){ console.warn('[War Room] localStorage write failed', e); }
+  window.__wrPrevIdx = wrBuildIdx();
+  wrSnapScalars();
+}
+function wrEnsureLoaded(){ if(!window.__wrDLoaded){ try{ load(); }catch(e){} } }
+
+/* ── repaint after a merge ───────────────────────────────────────────── */
+// Never yanks a field the user is typing in — the repaint waits for blur.
+window.__wrRepaint = function(){
+  try {
+    const ae = document.activeElement;
+    if(ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName||'') && ae.closest && ae.closest('#screen-planner')){
+      window.__wrRepaintPending = true; return;
+    }
+    window.__wrRepaintPending = false;
+    const scr = document.getElementById('screen-planner');
+    if(!scr || scr.classList.contains('hidden')) return;
+    const safe = fn => { try{ if(typeof fn === 'function') fn(); }catch(e){} };
+    safe(typeof renderHome === 'function' ? renderHome : null);
+    safe(typeof renderTodayLogList === 'function' ? renderTodayLogList : null);
+    safe(typeof renderWeeklyPlanner === 'function' ? renderWeeklyPlanner : null);
+    safe(typeof renderDailyChecklist === 'function' ? renderDailyChecklist : null);
+    const ds = document.getElementById('screen-drill');
+    if(ds && ds.classList.contains('active')) safe(typeof drillRender === 'function' ? drillRender : null);
+    // a session started on another device is now merged in — start the clock here too
+    if(typeof drillAnyDoing === 'function' && drillAnyDoing() && typeof drillStartTicker === 'function') drillStartTicker();
+  } catch(e){}
+};
+document.addEventListener('focusout', function(){
+  if(window.__wrRepaintPending) setTimeout(function(){ if(window.__wrRepaintPending) window.__wrRepaint(); }, 150);
+}, true);
+
+/* ── sync driver: PULL → MERGE → PUSH, never a blind push ─────────────── */
+let _wrBusy = false, _wrQueued = false, _wrLastPull = 0, _wrEditTimer = null, _wrVerifyTimer = null;
+
+function wrSetBadge(state){
+  const el = document.getElementById('wr-sync-dot'); if(!el) return;
+  el.textContent = state === 'sync' ? '⟳ syncing' : state === 'ok' ? '☁︎ synced' : '⚠︎ offline';
+  el.style.color = state === 'sync' ? '#fbbf24' : state === 'ok' ? '#4ade80' : '#f87171';
+}
+
+window.wrCloudSync = async function(opts){
+  opts = opts || {};
+  if(_wrBusy){ if(opts.push !== false) _wrQueued = true; return; }
+  _wrBusy = true;
+  if(opts.push !== false) wrSetBadge('sync');
+  try {
+    // 1 — PULL first. A device that has been sitting in the background can
+    //     no longer overwrite fresher work from another device.
+    let cloud = null;
+    try {
+      if(typeof window._wrCloudFetch === 'function') cloud = await window._wrCloudFetch(15000);
+    } catch(e){ cloud = null; }
+    if(cloud && cloud.plannerData){
+      window.__wrMergeCloud(cloud.plannerData);
+      window.__wrRepaint();
+      // did our last push actually land?
+      const echoed = cloud.plannerData.meta && cloud.plannerData.meta.pushId;
+      if(window.__wrLastPushId && echoed !== window.__wrLastPushId && !window.__wrRetried){
+        window.__wrRetried = true; opts.push = true;
+      } else if(echoed === window.__wrLastPushId){ window.__wrRetried = false; }
+    }
+    _wrLastPull = Date.now();
+
+    // 2 — PUSH the merged result
+    if(opts.push !== false){
+      wrEnsureLoaded();
+      D.meta = D.meta || {};
+      D.meta.pushId = 'p' + wrTick() + '-' + Math.floor(Math.random()*100000);
+      window.__wrLastPushId = D.meta.pushId;
+      wrPersist();
+      const fn = window._wrHubSave || window._saveDataGlobal;
+      if(typeof fn === 'function') await fn();
+      wrSetBadge('ok');
+      // verify delivery — no-cors POSTs return an opaque response, so a lost
+      // push looks exactly like a successful one until we read it back
+      clearTimeout(_wrVerifyTimer);
+      _wrVerifyTimer = setTimeout(function(){ if(!document.hidden) window.wrCloudSync({ push:false }); }, 9000);
+    } else {
+      wrSetBadge('ok');
+    }
+  } catch(e){
+    console.warn('[War Room Sync] cycle failed:', e);
+    wrSetBadge('off');
+  } finally {
+    _wrBusy = false;
+    if(_wrQueued){ _wrQueued = false; setTimeout(function(){ window.wrCloudSync({ push:true }); }, 600); }
+  }
+};
+
+// every planner edit schedules one coalesced sync
+function wrScheduleSync(delay){
+  clearTimeout(_wrEditTimer);
+  _wrEditTimer = setTimeout(function(){ window.wrCloudSync({ push:true }); }, delay || 3000);
+}
+window.wrFlushSync = function(){ clearTimeout(_wrEditTimer); window.wrCloudSync({ push:true }); };
+
+// pull-only heartbeat — this is what makes a timer started on the phone
+// appear on the laptop without touching anything
+setInterval(function(){
+  if(document.hidden || _wrBusy) return;
+  const scr = document.getElementById('screen-planner');
+  const open = scr && !scr.classList.contains('hidden');
+  const gap = open ? 20000 : 90000;
+  if(Date.now() - _wrLastPull < gap) return;
+  window.wrCloudSync({ push:false });
+}, 5000);
+
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'visible') setTimeout(function(){ window.wrCloudSync({ push:true }); }, 600);
+  else window.wrCloudSync({ push:true });   // flush before the OS suspends us
+});
+window.addEventListener('online', function(){ window.wrCloudSync({ push:true }); });
+window.addEventListener('pagehide', function(){ try{ wrEnsureLoaded(); wrStampChanges(); localStorage.setItem(STORE, JSON.stringify(D)); }catch(e){} });
+
+// grab the hub's push + fetch once they exist, then drain anything the hub
+// pulled before this engine was ready
+(function wrBoot(){
+  let tries = 0;
+  const iv = setInterval(function(){
+    tries++;
+    if(typeof window._saveDataGlobal === 'function' && !window._wrHubSave) window._wrHubSave = window._saveDataGlobal;
+    if(window.__wrPendingCloud){
+      const p = window.__wrPendingCloud; window.__wrPendingCloud = null;
+      try { window.__wrMergeCloud(p); window.__wrRepaint(); } catch(e){}
+    }
+    if((window._wrHubSave && typeof window._wrCloudFetch === 'function') || tries > 120) clearInterval(iv);
+  }, 500);
+})();
+
 // ════════════════ STORAGE ════════════════
 function save(){
-  // SAFETY GUARD: never let an empty in-memory D overwrite a non-empty stored copy.
-  // (This is what caused a data wipe: a script mutated/replaced D to empty, then save()
-  //  flushed that emptiness over good localStorage AND pushed it to cloud.) If D looks
-  // empty but storage has real data, abort the write and warn instead of destroying it.
+  // SAFETY GUARD (kept from v26): never let an empty in-memory D overwrite a
+  // non-empty stored copy. This is what caused the June data wipe.
   try {
     const dHasData = (Object.keys(D.logs||{}).length>0) || (Object.keys(D.blocks||{}).length>0) || (Object.keys(D.checklist||{}).length>0) || (Object.keys(D.dailyLog||{}).length>0) || (Object.keys(D.drill||{}).length>0) || ((D.streak&&D.streak.count>0)) || ((D.weeklyTasks||[]).length>0);
     if(!dHasData){
@@ -15818,22 +16048,33 @@ function save(){
       const prevHasData = (Object.keys(prev.logs||{}).length>0) || (Object.keys(prev.blocks||{}).length>0) || (Object.keys(prev.checklist||{}).length>0) || (Object.keys(prev.dailyLog||{}).length>0) || (Object.keys(prev.drill||{}).length>0) || ((prev.streak&&prev.streak.count>0)) || ((prev.weeklyTasks||[]).length>0);
       if(prevHasData){
         console.warn('[War Room] save() BLOCKED — in-memory D is empty but stored data exists. Refusing to overwrite. Reload the page to restore.');
-        return; // abort: do NOT overwrite good data, do NOT push empty to cloud
+        return;
       }
     }
-  } catch(e){ /* if guard itself errors, fall through to normal save */ }
-  localStorage.setItem(STORE, JSON.stringify(D));
-  // Debounced cloud push — every War Room change reaches cloud within 2s
-  // Uses _hubSave directly (not _saveDataGlobal) to avoid infinite loop:
-  // save() → _saveDataGlobal → _plannerSave → save() → loop
-  clearTimeout(window._wrCloudTimer);
-  window._wrCloudTimer = setTimeout(function(){
-    // _hubSave is the original hub saveData, stored before _plannerSave wraps it
-    const pushFn = window._wrHubSave || window._saveDataGlobal;
-    if(typeof pushFn === 'function') pushFn().catch(function(){});
-  }, 2000);
+  } catch(e){ /* if the guard itself errors, fall through to a normal save */ }
+
+  // v27: stamp what changed and tombstone what was deleted, BEFORE writing.
+  // This is why no delete function in the planner had to be touched — a row
+  // that vanishes from D is detected here and recorded as a real deletion, so
+  // another device can never resurrect it.
+  try { wrStampChanges(); } catch(e){ console.warn('[War Room] stamp pass failed', e); }
+  try { localStorage.setItem(STORE, JSON.stringify(D)); } catch(e){ console.warn('[War Room] localStorage write failed', e); }
+
+  // One coalesced PULL→MERGE→PUSH cycle 3s after you stop editing.
+  // (The old code fired a blind full-payload push 2s after every keystroke.)
+  if(!window.__wrQuiet && typeof wrScheduleSync === 'function') wrScheduleSync(3000);
 }
-function load(){ const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);}catch(e){} D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||50; D.checklist=D.checklist||{}; D.sleepLog=D.sleepLog||{}; D.wakeTarget=D.wakeTarget||'05:00'; D.sleepTarget=D.sleepTarget||'23:30'; D.weeklyTasks=D.weeklyTasks||[]; D.wtWeekStart=D.wtWeekStart||''; D.wtArchive=D.wtArchive||[]; D.meta=D.meta||{}; D.dailyItems=D.dailyItems||dcDefaultItems(); D.dailyLog=D.dailyLog||{}; D.drill=D.drill||{}; wtMigrateMockDates(); _backfillMockHrs(); _repairMockLogs_v264(); wtCheckWeekReset(); }
+function load(){
+  window.__wrQuiet = true;   // migrations below call save(); don't fire a sync per repair
+  try{
+    const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);}catch(e){}
+    D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||50; D.checklist=D.checklist||{}; D.sleepLog=D.sleepLog||{}; D.wakeTarget=D.wakeTarget||'05:00'; D.sleepTarget=D.sleepTarget||'23:30'; D.weeklyTasks=D.weeklyTasks||[]; D.wtWeekStart=D.wtWeekStart||''; D.wtArchive=D.wtArchive||[]; D.meta=D.meta||{}; D.dailyItems=D.dailyItems||dcDefaultItems(); D.dailyLog=D.dailyLog||{}; D.drill=D.drill||{}; D.tomb=D.tomb||{};
+    wrMigrateStamps();
+    window.__wrPrevIdx = wrBuildIdx(); wrSnapScalars();
+    window.__wrDLoaded = true;
+    wtMigrateMockDates(); _backfillMockHrs(); _repairMockLogs_v264(); wtCheckWeekReset();
+  } finally { window.__wrQuiet = false; }
+}
 
 // One-time: mocks edited via the old edit-path lost their hours (hrs=0). Recompute from
 // start/end clock times for any mock log that has both times but 0/missing hrs.
@@ -15928,7 +16169,13 @@ function wtMigrateMockDates(){
     if(!mocks.length){ return; } // no mock tracker data — nothing to rebuild
     // Bump this version string to force a one-time rebuild after deploy
     const REBUILD_VERSION = 'v5';
-    if(localStorage.getItem('wtMockRebuildVer') === REBUILD_VERSION) return;
+    // v27: ALSO gated on a synced flag in D.meta. The old gate was a
+    // device-local localStorage key, so every new or cleared device re-ran this
+    // wipe-and-rebuild against whatever mock tracker rows it happened to have,
+    // then pushed the thinner result over good cloud data.
+    D.meta = D.meta || {};
+    if(D.meta._mockRebuild_v5 === true){ try{ localStorage.setItem('wtMockRebuildVer', REBUILD_VERSION); }catch(e){} return; }
+    if(localStorage.getItem('wtMockRebuildVer') === REBUILD_VERSION){ D.meta._mockRebuild_v5 = true; return; }
 
     // STEP 1: remove ALL existing mock-type logs from every date (they may be mis-dated)
     Object.keys(D.logs).forEach(function(dateKey){
@@ -15948,7 +16195,10 @@ function wtMigrateMockDates(){
       const title = (m.type==='full'?'Full Mock':'Sectional: '+(m.subject||''))+' — '+(m.platform||'')+' #'+(m.mockno||'');
       D.logs[m.date] = D.logs[m.date] || [];
       D.logs[m.date].push({
-        id: m.id || (Date.now()+rebuilt),
+        // v27: deterministic id. Date.now()+rebuilt produced a DIFFERENT id for
+        // the same mock on each device, so the merge saw two records and kept
+        // both — that was the duplicate-mock-row bug.
+        id: m.id || ('mk-'+(m.platform||'')+'-'+(m.mockno||'')+'-'+m.date),
         date: m.date,
         type: 'mock',
         title: title,
@@ -15970,6 +16220,7 @@ function wtMigrateMockDates(){
     });
 
     localStorage.setItem('wtMockRebuildVer', REBUILD_VERSION);
+    D.meta._mockRebuild_v5 = true;
     save();
     console.log('[Mock Rebuild] Rebuilt '+rebuilt+' mock logs from tracker, each on its true date');
   } catch(e){ console.warn('Mock rebuild error', e); }
@@ -17381,7 +17632,9 @@ function drillEntry(dateKey){
   return e;
 }
 
-function drillStamp(){ D.meta=D.meta||{}; D.meta.drillAt=D.meta.drillAt||{}; D.meta.drillAt[drillViewDate]=Date.now(); }
+// v27: no-op. Per-day drill timestamps existed only for the old score-based
+// merge. Every row now carries its own _u stamp, applied automatically in save().
+function drillStamp(){}
 
 function drillDayNav(offset){
   if(offset===0){ drillViewDate = todayStr(); }
@@ -18166,7 +18419,7 @@ function drillUpdateCounts(){
 // carrying its progress, and keeps moving each day until it's complete.
 // Finished rows stay on the day they were finished. One row per chapter — if a
 // duplicate lands on today, they merge and the higher count wins (nothing dropped).
-function _drillStampDate(d){ D.meta=D.meta||{}; D.meta.drillAt=D.meta.drillAt||{}; D.meta.drillAt[d]=Date.now(); }
+function _drillStampDate(d){}   // v27: no-op, see drillStamp()
 
 function drillMergeLecRows(target, extra){
   var total=Math.max(target.total||0, extra.total||0, (target.lecs||[]).length, (extra.lecs||[]).length);
@@ -18349,7 +18602,7 @@ let _dcTimers={}; // itemId -> intervalId
 function dcStartTimer(id){
   if(_dcTimers[id]) return; // already running
   const item=D.dailyItems.find(x=>x.id===id); if(!item) return;
-  const v=prompt('Kitne minute ka timer?','30');
+  const v=prompt('Timer for how many minutes?','30');
   if(v===null) return;
   const mins=parseInt(v);
   if(!mins||mins<=0){ alert('Enter a valid number of minutes'); return; }
@@ -19535,39 +19788,12 @@ window.plannerInit = function(){
   try{ if(typeof renderHubSnapshot==='function') renderHubSnapshot(); }catch(e){}
 };
 
-// Expose planner save globally so hub cloud sync picks it up
-window._plannerSave = function() {
-  try {
-    // Only save if D has actual data — prevents overwriting with empty D
-    // before plannerInit has run load()
-    if(typeof save === 'function' && typeof D !== 'undefined') {
-      const hasData = Object.keys(D.blocks||{}).length > 0 || Object.keys(D.logs||{}).length > 0 || Object.keys(D.checklist||{}).length > 0 || Object.keys(D.dailyLog||{}).length > 0 || (D.streak&&D.streak.count>0);
-      if(hasData) save();
-    }
-  } catch(e) {}
-};
-
-// Poll until _saveDataGlobal exists then wrap it once
-var _plannerHookDone = false;
-function _hookPlannerSync() {
-  if (_plannerHookDone) return;
-  if (typeof window._saveDataGlobal === 'function') {
-    _plannerHookDone = true;
-    var _hubSave = window._saveDataGlobal;
-    window._wrHubSave = _hubSave; // store original for save() debounce (avoids infinite loop)
-    window._saveDataGlobal = async function() {
-      window._plannerSave();
-      return _hubSave();
-    };
-    console.log('[War Room] Cloud sync hooked ✅');
-  }
-}
-// Try every 500ms for up to 10 seconds
-var _hookInterval = setInterval(function() {
-  _hookPlannerSync();
-  if (_plannerHookDone) clearInterval(_hookInterval);
-}, 500);
-setTimeout(function() { clearInterval(_hookInterval); }, 10000);
+// v27: the old _plannerSave() + _hookPlannerSync() pair is gone.
+// It wrapped window._saveDataGlobal to flush D before a push, but saveData
+// re-assigned that global on every call, so the wrapper survived exactly one
+// push and then silently disappeared. It is no longer needed: save() writes
+// localStorage synchronously on every change, and wrCloudSync() owns the push.
+window._plannerSave = function(){ try{ if(typeof save === 'function' && window.__wrDLoaded) save(); }catch(e){} };
 </script>
 <!-- ===== END WAR ROOM PLANNER ===== -->
 
