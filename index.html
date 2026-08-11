@@ -1810,7 +1810,26 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-10 · v27.1';
+    const HUB_BUILD = '2026-08-11 · v27.2';
+
+    // v27.2 — scAttr(): HTML-attribute-safe escaper for any name/key that gets
+    // interpolated into an inline onclick="fn('...')" handler.
+    // Chapter/topic names can legitimately contain BOTH a double quote and an
+    // apostrophe (e.g.  The "Who's Who" Master Lists ). The raw " terminated the
+    // onclick attribute early, so the whole handler was destroyed and that row
+    // became completely unclickable (threw "Invalid or unexpected token").
+    // Escapes backslash + apostrophe for the JS string layer, then HTML-encodes
+    // & " < > for the attribute layer. Order matters — do not reshuffle.
+    function scAttr(s){
+      return String(s === null || s === undefined ? '' : s)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+    try { window.scAttr = scAttr; } catch(e) {}
 
     // ============================================================
     // GLOBAL TOAST (v25.6) — every native alert() popup in the hub
@@ -12597,12 +12616,12 @@ function scRenderTracker() {
 
     html += `
     <div class="mb-3">
-      <div class="flex items-center gap-3 px-4 py-2 bg-slate-100 dark:bg-slate-800/60 rounded-xl mb-1 cursor-pointer select-none" onclick="scToggleChapter('${chapter.replace(/'/g,"\'")}')">
+      <div class="flex items-center gap-3 px-4 py-2 bg-slate-100 dark:bg-slate-800/60 rounded-xl mb-1 cursor-pointer select-none" onclick="scToggleChapter('${scAttr(chapter)}')">
         <span class="text-[9px] font-black uppercase tracking-widest text-slate-500 flex-1">${chapter}</span>
         <div class="h-1.5 w-20 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden"><div class="h-full bg-violet-500 rounded-full transition-all" style="width:${pct}%"></div></div>
         <span class="text-[9px] font-bold text-slate-400">${done}/${topics.length}</span>
-        <button onclick="event.stopPropagation();scAddTopic('${chapter.replace(/'/g,"\'")}','${chapter.split(' — ')[0]}')" class="text-violet-500 text-[9px] font-black border border-violet-200 dark:border-violet-800 px-2 py-0.5 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-900/20">+ Topic</button>
-        <button onclick="event.stopPropagation();scEditChapter('${chapter.replace(/'/g,"\'")}','${chapter.split(' — ')[0]}')" class="text-slate-400 text-[9px] font-black border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">⋮</button>
+        <button onclick="event.stopPropagation();scAddTopic('${scAttr(chapter)}','${scAttr(chapter.split(' — ')[0])}')" class="text-violet-500 text-[9px] font-black border border-violet-200 dark:border-violet-800 px-2 py-0.5 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-900/20">+ Topic</button>
+        <button onclick="event.stopPropagation();scEditChapter('${scAttr(chapter)}','${scAttr(chapter.split(' — ')[0])}')" class="text-slate-400 text-[9px] font-black border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">⋮</button>
       </div>
       <div class="sc-chapter-body" id="sc-ch-${chapter.replace(/[^a-zA-Z0-9]/g,'-')}">`;
 
@@ -12675,13 +12694,13 @@ function scRenderTracker() {
       
       // For Maths subjects with subtopics, don't show the expand button - subtopics render inline
       const subTopicBtn = (isMathsSubject && !hasSubTopics)
-        ? `<button onclick="event.stopPropagation();scRenderSubTopics('${t.name.replace(/'/g,"\\'")}','sc-sub-${t.key.replace(/[^a-zA-Z0-9]/g,'-')}')" class="text-[9px] text-slate-300 hover:text-violet-500 transition-colors ml-1" title="Show concepts">▾</button>`
+        ? `<button onclick="event.stopPropagation();scRenderSubTopics('${scAttr(t.name)}','sc-sub-${t.key.replace(/[^a-zA-Z0-9]/g,'-')}')" class="text-[9px] text-slate-300 hover:text-violet-500 transition-colors ml-1" title="Show concepts">▾</button>`
         : '';
 
       // Lec tick with date
       const lecDate = t.lecDate ? t.lecDate.slice(5).replace('-','/') : '';
       const lecTick = `<div class="flex flex-col items-center gap-0.5">
-        <div onclick="scTickLec('${t.key}')" class="w-[22px] h-[22px] rounded-[5px] border flex items-center justify-center text-[11px] transition-all ${t.lec ? 'bg-violet-500 border-violet-500 text-white' : 'border-slate-200 dark:border-slate-700 hover:border-violet-400 cursor-pointer'}">${t.lec ? '✓' : ''}</div>
+        <div onclick="scTickLec('${scAttr(t.key)}')" class="w-[22px] h-[22px] rounded-[5px] border flex items-center justify-center text-[11px] transition-all ${t.lec ? 'bg-violet-500 border-violet-500 text-white' : 'border-slate-200 dark:border-slate-700 hover:border-violet-400 cursor-pointer'}">${t.lec ? '✓' : ''}</div>
         ${lecDate ? `<div class="text-[8px] text-violet-400 font-bold leading-none">${lecDate}</div>` : ''}
       </div>`;
 
@@ -12701,7 +12720,7 @@ function scRenderTracker() {
           <div class="flex items-center justify-center">${_colTotal}</div>
           <div class="flex items-center justify-center">${_colSRS}</div>
           <div class="flex items-center justify-center">${_colNew}</div>
-          <div class="flex justify-center"><button onclick="scOpenTopicMenu('${t.key}')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg font-black w-6 h-6 flex items-center justify-center rounded transition-colors">⋮</button></div>
+          <div class="flex justify-center"><button onclick="scOpenTopicMenu('${scAttr(t.key)}')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg font-black w-6 h-6 flex items-center justify-center rounded transition-colors">⋮</button></div>
         </div>`;
       
       // Render subtopic rows inline if hasSubTopics (auto-detected from tag3)
@@ -12774,7 +12793,7 @@ function scRenderTracker() {
           
           const subLecDate = st.lecDate ? st.lecDate.slice(5).replace('-','/') : '';
           const subLecTick = `<div class="flex flex-col items-center gap-0.5">
-            <div onclick="scTickLec('${subKey.replace(/'/g,"\\'")}', event)" class="w-[22px] h-[22px] rounded-[5px] border flex items-center justify-center text-[11px] transition-all ${st.lec ? 'bg-violet-500 border-violet-500 text-white' : 'border-slate-200 dark:border-slate-700 hover:border-violet-400 cursor-pointer'}">${st.lec ? '✓' : ''}</div>
+            <div onclick="scTickLec('${scAttr(subKey)}', event)" class="w-[22px] h-[22px] rounded-[5px] border flex items-center justify-center text-[11px] transition-all ${st.lec ? 'bg-violet-500 border-violet-500 text-white' : 'border-slate-200 dark:border-slate-700 hover:border-violet-400 cursor-pointer'}">${st.lec ? '✓' : ''}</div>
             ${subLecDate ? `<div class="text-[8px] text-violet-400 font-bold leading-none">${subLecDate}</div>` : ''}
           </div>`;
           
@@ -12849,7 +12868,7 @@ function scRevTick(t, rev, checked, daysUntil, revLabel) {
         <div class="flex flex-col items-center gap-0.5">
           <div class="relative">
             <div class="w-[22px] h-[22px] rounded-[5px] bg-${color}-500 border-${color}-500 border flex items-center justify-center text-white text-[11px]">✓</div>
-            <div onclick="scStartRevision('${t.key}','${rev}')" class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 flex items-center justify-center text-white text-[8px] font-black cursor-pointer animate-pulse" title="${badgeText}">🔴</div>
+            <div onclick="scStartRevision('${scAttr(t.key)}','${rev}')" class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 flex items-center justify-center text-white text-[8px] font-black cursor-pointer animate-pulse" title="${badgeText}">🔴</div>
           </div>
           ${dateStr ? `<div class="text-[8px] text-${color}-400 font-bold leading-none">${dateStr}</div>` : ''}
         </div>`;
@@ -12865,7 +12884,7 @@ function scRevTick(t, rev, checked, daysUntil, revLabel) {
   if (isInProgress) {
     return `
       <div class="flex flex-col items-center gap-0.5">
-        <div onclick="scStartRevision('${t.key}','${rev}')" class="w-[22px] h-[22px] rounded-[5px] bg-amber-400 border-amber-400 border flex items-center justify-center text-white text-[11px] cursor-pointer">⏳</div>
+        <div onclick="scStartRevision('${scAttr(t.key)}','${rev}')" class="w-[22px] h-[22px] rounded-[5px] bg-amber-400 border-amber-400 border flex items-center justify-center text-white text-[11px] cursor-pointer">⏳</div>
         <div class="text-[8px] text-amber-500 font-bold leading-none">${prog}/${roundTotal}</div>
       </div>`;
   }
@@ -12873,11 +12892,11 @@ function scRevTick(t, rev, checked, daysUntil, revLabel) {
   if (disabled) return `<div class="w-[22px] h-[22px] rounded-[5px] border border-slate-200 dark:border-slate-700 opacity-20"></div>`;
   if (isDue) return `
     <div class="flex flex-col items-center gap-0.5">
-      <div onclick="scStartRevision('${t.key}','${rev}')" class="w-[22px] h-[22px] rounded-[5px] border-2 border-red-500 flex items-center justify-center text-red-500 text-[10px] font-black cursor-pointer animate-pulse">!</div>
+      <div onclick="scStartRevision('${scAttr(t.key)}','${rev}')" class="w-[22px] h-[22px] rounded-[5px] border-2 border-red-500 flex items-center justify-center text-red-500 text-[10px] font-black cursor-pointer animate-pulse">!</div>
     </div>`;
   if (isNext) return `
     <div class="flex flex-col items-center gap-0.5">
-      <div onclick="scStartRevision('${t.key}','${rev}')" class="w-[22px] h-[22px] rounded-[5px] border border-${color}-300 dark:border-${color}-700 flex items-center justify-center text-${color}-400 text-[10px] cursor-pointer hover:bg-${color}-50 dark:hover:bg-${color}-900/20 transition-all">›</div>
+      <div onclick="scStartRevision('${scAttr(t.key)}','${rev}')" class="w-[22px] h-[22px] rounded-[5px] border border-${color}-300 dark:border-${color}-700 flex items-center justify-center text-${color}-400 text-[10px] cursor-pointer hover:bg-${color}-50 dark:hover:bg-${color}-900/20 transition-all">›</div>
     </div>`;
   return `<div class="w-[22px] h-[22px] rounded-[5px] border border-slate-100 dark:border-slate-800 opacity-30"></div>`;
 }
@@ -12977,11 +12996,11 @@ function scShowTrackingModeModal(key, subTopics) {
       <div class="text-lg font-black text-slate-800 dark:text-slate-100 mb-1">${t.name}</div>
       <div class="text-xs text-slate-500 mb-5">How do you want to track this topic?</div>
       <div class="space-y-3 mb-5">
-        <div onclick="scSetTrackingMode('${key}','unit')" class="cursor-pointer p-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-violet-500 transition-all">
+        <div onclick="scSetTrackingMode('${scAttr(key)}','unit')" class="cursor-pointer p-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-violet-500 transition-all">
           <div class="font-black text-sm text-slate-800 dark:text-slate-100">📦 As one unit</div>
           <div class="text-[11px] text-slate-500 mt-1">All ${total} questions together in R1→R4</div>
         </div>
-        <div onclick="scSetTrackingMode('${key}','subtopics')" class="cursor-pointer p-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-violet-500 transition-all">
+        <div onclick="scSetTrackingMode('${scAttr(key)}','subtopics')" class="cursor-pointer p-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-violet-500 transition-all">
           <div class="font-black text-sm text-slate-800 dark:text-slate-100">🔀 By sub-topics</div>
           <div class="text-[11px] text-slate-500 mt-1 mb-2">Each tracked separately with own Lec→R4</div>
           <div class="flex flex-wrap gap-1">${subList} ${more}</div>
@@ -13033,7 +13052,7 @@ function scShowManualRevModal(key, rev) {
       <div class="text-lg font-black text-slate-800 dark:text-slate-100 mb-1">${t.name} — ${rev.toUpperCase()}</div>
       <div class="text-sm text-slate-500 mb-6">No questions found for this topic yet.<br>Have you revised from notes or flashcards?</div>
       <div class="flex flex-col gap-3">
-        <button onclick="scMarkRevDone('${key}','${rev}','manual');scCloseModal()" class="bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm">✅ Yes — Mark ${rev.toUpperCase()} Done</button>
+        <button onclick="scMarkRevDone('${scAttr(key)}','${rev}','manual');scCloseModal()" class="bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm">✅ Yes — Mark ${rev.toUpperCase()} Done</button>
         <button onclick="scCloseModal()" class="bg-slate-100 dark:bg-slate-800 text-slate-600 font-black py-2.5 rounded-xl text-sm">Not yet</button>
       </div>
       <div class="mt-3 text-[10px] text-slate-400">Upload JSON with tags[2]="${t.name}" to enable quiz-based revision</div>
@@ -13348,8 +13367,8 @@ function scShowContinueModal(key, rev, done, total, questions, isBooster) {
         <div class="h-full bg-violet-500 rounded-full" style="width:${Math.round(done/total*100)}%"></div>
       </div>
       <div class="flex gap-3">
-        <button onclick="scLaunchRevQuiz('${key}','${rev}',null,${rev==='r1'?0:done},${isBooster || false});scCloseModal()" class="flex-1 bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">▶ Continue (${total-done} Qs)</button>
-        <button onclick="scLaunchRevQuiz('${key}','${rev}',null,0,${isBooster || false});scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-black py-3 rounded-xl text-sm transition-colors">↺ Start Fresh</button>
+        <button onclick="scLaunchRevQuiz('${scAttr(key)}','${rev}',null,${rev==='r1'?0:done},${isBooster || false});scCloseModal()" class="flex-1 bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">▶ Continue (${total-done} Qs)</button>
+        <button onclick="scLaunchRevQuiz('${scAttr(key)}','${rev}',null,0,${isBooster || false});scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-black py-3 rounded-xl text-sm transition-colors">↺ Start Fresh</button>
       </div>
       <button onclick="scCloseModal()" class="mt-3 text-xs text-slate-400 hover:text-slate-600 font-bold">Cancel</button>
     </div>`;
@@ -13385,7 +13404,7 @@ function scShowRoundStatsModal(key, rev, questions, autoFixedCount) {
         <div class="text-xs text-slate-500 mb-6 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
           ${rev.toUpperCase()} will show questions you got wrong in ${prevRev.toUpperCase()}
         </div>
-        <button onclick="scLaunchRevQuiz('${key}','${rev}',null,0);scCloseModal()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">Start ${rev.toUpperCase()} (${wrongCount} Qs)</button>
+        <button onclick="scLaunchRevQuiz('${scAttr(key)}','${rev}',null,0);scCloseModal()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">Start ${rev.toUpperCase()} (${wrongCount} Qs)</button>
         <button onclick="scCloseModal()" class="mt-3 text-xs text-slate-400 hover:text-slate-600 font-bold">Cancel</button>
       </div>`;
     document.getElementById('sc-modal').classList.remove('hidden');
@@ -13412,7 +13431,7 @@ function scShowRoundStatsModal(key, rev, questions, autoFixedCount) {
       <div class="text-xs text-slate-500 mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
         ${rev.toUpperCase()} will show <span class="font-black text-blue-600 dark:text-blue-400">${wrongCount} question${wrongCount !== 1 ? 's' : ''}</span> you got wrong in ${prevRev.toUpperCase()}
       </div>
-      <button onclick="scLaunchRevQuiz('${key}','${rev}',null,0);scCloseModal()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">Start ${rev.toUpperCase()} (${wrongCount} Qs)</button>
+      <button onclick="scLaunchRevQuiz('${scAttr(key)}','${rev}',null,0);scCloseModal()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">Start ${rev.toUpperCase()} (${wrongCount} Qs)</button>
       <button onclick="scCloseModal()" class="mt-3 text-xs text-slate-400 hover:text-slate-600 font-bold">Cancel</button>
     </div>`;
   document.getElementById('sc-modal').classList.remove('hidden');
@@ -13426,9 +13445,9 @@ function scShowPerfectModal(key, rev) {
       <div class="text-xl font-black text-slate-800 dark:text-slate-100 mb-2">Perfect ${rev.toUpperCase()}!</div>
       <div class="text-sm text-slate-500 mb-6">${t.name} — No wrong or skipped questions</div>
       <div class="flex flex-col gap-3">
-        <button onclick="scMarkRevDone('${key}','${rev}','light');scCloseModal()" class="bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 text-blue-700 dark:text-blue-400 border border-blue-200 font-black py-3 rounded-xl text-sm transition-colors">📖 Light Review</button>
-        <button onclick="scOpenFlashcards('${t.name}');scCloseModal()" class="bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 text-violet-700 dark:text-violet-400 border border-violet-200 font-black py-3 rounded-xl text-sm transition-colors">📐 Check Formulas</button>
-        <button onclick="scMarkRevDone('${key}','${rev}','skip');scCloseModal()" class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-400 font-black py-3 rounded-xl text-sm transition-colors">✅ Skip to Next</button>
+        <button onclick="scMarkRevDone('${scAttr(key)}','${rev}','light');scCloseModal()" class="bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 text-blue-700 dark:text-blue-400 border border-blue-200 font-black py-3 rounded-xl text-sm transition-colors">📖 Light Review</button>
+        <button onclick="scOpenFlashcards('${scAttr(t.name)}');scCloseModal()" class="bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 text-violet-700 dark:text-violet-400 border border-violet-200 font-black py-3 rounded-xl text-sm transition-colors">📐 Check Formulas</button>
+        <button onclick="scMarkRevDone('${scAttr(key)}','${rev}','skip');scCloseModal()" class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-400 font-black py-3 rounded-xl text-sm transition-colors">✅ Skip to Next</button>
       </div>
     </div>`;
   document.getElementById('sc-modal').classList.remove('hidden');
@@ -13617,11 +13636,11 @@ window.scOpenTopicMenu = (key) => {
         <button onclick="scCloseModal()" class="text-slate-400 hover:text-red-500 font-black text-xl">×</button>
       </div>
       <div class="space-y-2">
-        <button onclick="scTogglePriority('${key}')" class="w-full text-left px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 hover:bg-amber-100 text-amber-700 dark:text-amber-400 font-bold text-sm transition-colors">${t.priority ? '☆ Remove Priority' : '⭐ Mark as Priority'}</button>
-        <button onclick="scEditNotes('${key}')" class="w-full text-left px-4 py-3 rounded-xl bg-blue-50 dark:bg-blue-900/10 hover:bg-blue-100 text-blue-700 dark:text-blue-400 font-bold text-sm transition-colors">📝 ${t.notes ? 'Edit Notes' : 'Add Notes'}</button>
-        <button onclick="scRenameTopic('${key}')" class="w-full text-left px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-sm transition-colors">✏️ Rename Topic</button>
-        ${(SC_MATHS_SUBJECTS.includes(t.subject) && scGetAvailableSubTopics(t.name,t.subject).length>1) ? `<button onclick="scReorderModal('subtopics','${key}','')" class="w-full text-left px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 hover:bg-amber-100 text-amber-700 dark:text-amber-400 font-bold text-sm transition-colors">↕️ Reorder Sub-topics</button>` : ''}
-        <button onclick="scDeleteTopic('${key}')" class="w-full text-left px-4 py-3 rounded-xl bg-red-50 dark:bg-red-900/10 hover:bg-red-100 text-red-600 dark:text-red-400 font-bold text-sm transition-colors">🗑️ Delete Topic</button>
+        <button onclick="scTogglePriority('${scAttr(key)}')" class="w-full text-left px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 hover:bg-amber-100 text-amber-700 dark:text-amber-400 font-bold text-sm transition-colors">${t.priority ? '☆ Remove Priority' : '⭐ Mark as Priority'}</button>
+        <button onclick="scEditNotes('${scAttr(key)}')" class="w-full text-left px-4 py-3 rounded-xl bg-blue-50 dark:bg-blue-900/10 hover:bg-blue-100 text-blue-700 dark:text-blue-400 font-bold text-sm transition-colors">📝 ${t.notes ? 'Edit Notes' : 'Add Notes'}</button>
+        <button onclick="scRenameTopic('${scAttr(key)}')" class="w-full text-left px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-sm transition-colors">✏️ Rename Topic</button>
+        ${(SC_MATHS_SUBJECTS.includes(t.subject) && scGetAvailableSubTopics(t.name,t.subject).length>1) ? `<button onclick="scReorderModal('subtopics','${scAttr(key)}','')" class="w-full text-left px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 hover:bg-amber-100 text-amber-700 dark:text-amber-400 font-bold text-sm transition-colors">↕️ Reorder Sub-topics</button>` : ''}
+        <button onclick="scDeleteTopic('${scAttr(key)}')" class="w-full text-left px-4 py-3 rounded-xl bg-red-50 dark:bg-red-900/10 hover:bg-red-100 text-red-600 dark:text-red-400 font-bold text-sm transition-colors">🗑️ Delete Topic</button>
       </div>
       ${t.notes ? '<div class="mt-4 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-xs text-slate-600 dark:text-slate-400">' + t.notes + '</div>' : ''}
     </div>`;
@@ -13637,7 +13656,7 @@ window.scEditNotes = (key) => {
       <div class="font-black text-slate-800 dark:text-slate-100 mb-4">${t.name} — Notes</div>
       <textarea id="sc-notes-input" rows="4" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-400 resize-none" placeholder="Add your notes...">${t.notes || ''}</textarea>
       <div class="flex gap-3 mt-4">
-        <button onclick="scDb['${key}'].notes=document.getElementById('sc-notes-input').value;scSave();scCloseModal();" class="flex-1 bg-violet-600 text-white font-black py-2.5 rounded-xl text-sm">Save</button>
+        <button onclick="scDb['${scAttr(key)}'].notes=document.getElementById('sc-notes-input').value;scSave();scCloseModal();" class="flex-1 bg-violet-600 text-white font-black py-2.5 rounded-xl text-sm">Save</button>
         <button onclick="scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black py-2.5 rounded-xl text-sm">Cancel</button>
       </div>
     </div>`;
@@ -13650,7 +13669,7 @@ window.scRenameTopic = (key) => {
       <div class="font-black text-slate-800 dark:text-slate-100 mb-4">Rename Topic</div>
       <input id="sc-rename-input" type="text" value="${t.name}" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-400 mb-4">
       <div class="flex gap-3">
-        <button onclick="const v=document.getElementById('sc-rename-input').value.trim();if(v){scDb['${key}'].name=v;scSave();scCloseModal();scRender();}" class="flex-1 bg-violet-600 text-white font-black py-2.5 rounded-xl text-sm">Rename</button>
+        <button onclick="const v=document.getElementById('sc-rename-input').value.trim();if(v){scDb['${scAttr(key)}'].name=v;scSave();scCloseModal();scRender();}" class="flex-1 bg-violet-600 text-white font-black py-2.5 rounded-xl text-sm">Rename</button>
         <button onclick="scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black py-2.5 rounded-xl text-sm">Cancel</button>
       </div>
     </div>`;
@@ -13685,7 +13704,7 @@ window.scAddTopic = (chapter, subject) => {
       <div class="text-xs text-slate-400 mb-4">${chapter}</div>
       <input id="sc-new-topic" type="text" placeholder="Topic name" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 mb-4">
       <div class="flex gap-3">
-        <button onclick="const n=document.getElementById('sc-new-topic').value.trim();if(n){const k='${chapter.replace(/'/g,"\'")}|||'+n;scDb[k]={subject:'${subject}',chapter:'${chapter.replace(/'/g,"\'")}',name:n,priority:false,notes:'',lec:false,r1:false,r2:false,r3:false,r4:false,lecDate:'',r1Date:'',r2Date:'',r3Date:'',r4Date:'',r1Wrong:[],r2Wrong:[],r3Wrong:[],r4Wrong:[],r1Progress:0,r2Progress:0,r3Progress:0,r4Progress:0,confidence:''};scSave();scCloseModal();scRender();}" class="flex-1 bg-violet-600 text-white font-black py-2.5 rounded-xl text-sm">Add Topic</button>
+        <button onclick="const n=document.getElementById('sc-new-topic').value.trim();if(n){const k='${scAttr(chapter)}|||'+n;scDb[k]={subject:'${scAttr(subject)}',chapter:'${scAttr(chapter)}',name:n,priority:false,notes:'',lec:false,r1:false,r2:false,r3:false,r4:false,lecDate:'',r1Date:'',r2Date:'',r3Date:'',r4Date:'',r1Wrong:[],r2Wrong:[],r3Wrong:[],r4Wrong:[],r1Progress:0,r2Progress:0,r3Progress:0,r4Progress:0,confidence:''};scSave();scCloseModal();scRender();}" class="flex-1 bg-violet-600 text-white font-black py-2.5 rounded-xl text-sm">Add Topic</button>
         <button onclick="scCloseModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black py-2.5 rounded-xl text-sm">Cancel</button>
       </div>
     </div>`;
@@ -13693,15 +13712,15 @@ window.scAddTopic = (chapter, subject) => {
 };
 
 window.scEditChapter = (chapter, subject) => {
-  const safeChapter = chapter.replace(/'/g,"\'");
+  const safeChapter = scAttr(chapter);
   document.getElementById('sc-modal-content').innerHTML = `
     <div>
       <div class="font-black text-slate-800 dark:text-slate-100 mb-4">${chapter}</div>
       <div class="space-y-2">
-        <button onclick="scAddTopic('${safeChapter}','${subject}')" class="w-full text-left px-4 py-3 rounded-xl bg-violet-50 dark:bg-violet-900/10 hover:bg-violet-100 text-violet-700 dark:text-violet-400 font-bold text-sm">+ Add Topic</button>
-        <button onclick="scReorderModal('topics','${safeChapter}','${subject}')" class="w-full text-left px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 hover:bg-amber-100 text-amber-700 dark:text-amber-400 font-bold text-sm">↕️ Reorder Topics</button>
-        <button onclick="scRenameChapter('${safeChapter}','${subject}')" class="w-full text-left px-4 py-3 rounded-xl bg-blue-50 dark:bg-blue-900/10 hover:bg-blue-100 text-blue-700 dark:text-blue-400 font-bold text-sm">✏️ Rename Chapter</button>
-        <button onclick="if(confirm('Delete entire chapter \'${chapter}\'?')){Object.keys(scDb).filter(k=>k.startsWith('${safeChapter}|||')).forEach(k=>delete scDb[k]);scSave();scCloseModal();scRender();}" class="w-full text-left px-4 py-3 rounded-xl bg-red-50 dark:bg-red-900/10 hover:bg-red-100 text-red-600 dark:text-red-400 font-bold text-sm">🗑️ Delete Chapter</button>
+        <button onclick="scAddTopic('${safeChapter}','${scAttr(subject)}')" class="w-full text-left px-4 py-3 rounded-xl bg-violet-50 dark:bg-violet-900/10 hover:bg-violet-100 text-violet-700 dark:text-violet-400 font-bold text-sm">+ Add Topic</button>
+        <button onclick="scReorderModal('topics','${safeChapter}','${scAttr(subject)}')" class="w-full text-left px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 hover:bg-amber-100 text-amber-700 dark:text-amber-400 font-bold text-sm">↕️ Reorder Topics</button>
+        <button onclick="scRenameChapter('${safeChapter}','${scAttr(subject)}')" class="w-full text-left px-4 py-3 rounded-xl bg-blue-50 dark:bg-blue-900/10 hover:bg-blue-100 text-blue-700 dark:text-blue-400 font-bold text-sm">✏️ Rename Chapter</button>
+        <button onclick="if(confirm('Delete entire chapter \'${safeChapter}\'?')){Object.keys(scDb).filter(k=>k.startsWith('${safeChapter}|||')).forEach(k=>delete scDb[k]);scSave();scCloseModal();scRender();}" class="w-full text-left px-4 py-3 rounded-xl bg-red-50 dark:bg-red-900/10 hover:bg-red-100 text-red-600 dark:text-red-400 font-bold text-sm">🗑️ Delete Chapter</button>
         <button onclick="scCloseModal()" class="w-full text-left px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 text-slate-600 dark:text-slate-400 font-bold text-sm">Cancel</button>
       </div>
     </div>`;
@@ -14472,12 +14491,12 @@ function scShowBatchModal(key, rev, done, total, wrongCount) {
         </div>
         <div class="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">${pct}% of ${rev.toUpperCase()} complete</div>
         <div class="grid grid-cols-2 gap-3">
-          <button onclick="scDoMoreBatch('${key}','${rev}',${done})" class="py-4 rounded-2xl bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/40 border border-violet-200 dark:border-violet-700 transition-colors">
+          <button onclick="scDoMoreBatch('${scAttr(key)}','${rev}',${done})" class="py-4 rounded-2xl bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/40 border border-violet-200 dark:border-violet-700 transition-colors">
             <div class="text-2xl mb-1">▶</div>
             <div class="text-xs font-black text-violet-600 dark:text-violet-400">Do More</div>
             <div class="text-[10px] text-slate-400 mt-0.5">${remaining} questions left</div>
           </button>
-          <button onclick="scEndRevEarly('${key}','${rev}')" class="py-4 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-700 transition-colors">
+          <button onclick="scEndRevEarly('${scAttr(key)}','${rev}')" class="py-4 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-700 transition-colors">
             <div class="text-2xl mb-1">✅</div>
             <div class="text-xs font-black text-emerald-600 dark:text-emerald-400">Done for Today</div>
             <div class="text-[10px] text-slate-400 mt-0.5">Move on, continue later</div>
@@ -14538,7 +14557,7 @@ function scShowConfidenceModal(key, rev) {
             ${wrongCount > 0 ? '⚠️ R2 will show ' + wrongCount + ' wrong questions for follow-up' : '🎉 Perfect score! R2 skipped ✨'}
           </div>
 
-          <button onclick="scMarkR1Done('${key}')" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">Continue → Mark R1 Done</button>
+          <button onclick="scMarkR1Done('${scAttr(key)}')" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">Continue → Mark R1 Done</button>
         </div>`;
       document.getElementById('sc-modal').classList.remove('hidden');
     }, 500);
@@ -14567,7 +14586,7 @@ function scShowConfidenceModal(key, rev) {
           <div class="text-xs text-slate-500 mb-5 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
             ${wrongCnt > 0 ? (nextRev ? '⚠️ ' + nextRev + ' will show ' + wrongCnt + ' questions' : '⚠️ ' + wrongCnt + ' remaining questions enter SRS') : '🎉 Perfect round! All correct.'}
           </div>
-          <button onclick="scMarkRevDoneAuto('${key}','${rev}');scCloseModal()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">Continue → Mark ${rev.toUpperCase()} Done</button>
+          <button onclick="scMarkRevDoneAuto('${scAttr(key)}','${rev}');scCloseModal()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-black py-3 rounded-xl text-sm transition-colors">Continue → Mark ${rev.toUpperCase()} Done</button>
         </div>`;
       document.getElementById('sc-modal').classList.remove('hidden');
     }, 400);
