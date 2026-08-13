@@ -1810,7 +1810,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-13 · v27.3';
+    const HUB_BUILD = '2026-08-14 · v27.4';
 
     // v27.3 — SRS schedule retune (less time left before exam):
     //   MA (Maths/Arithmetic R1-correct) now masters INSTANTLY, no review at all.
@@ -1859,11 +1859,11 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
     // ============================================================
     // EXAM COUNTDOWN (v25.6) — date stored per-device in
     // localStorage (examDate_v1). Tap the pill to change it.
-    // Default 2026-08-15 (Tier-1 window Aug–Sep, exact TBA by SSC).
+    // Default 2026-09-28 (SSC-announced Tier-1 date).
     // ============================================================
     window.__examDateKey = 'examDate_v1';
     window.setExamDate = function(){
-        const cur = localStorage.getItem(window.__examDateKey) || '2026-08-15';
+        const cur = localStorage.getItem(window.__examDateKey) || '2026-09-28';
         const d = prompt('Tier-1 exam date (YYYY-MM-DD):', cur);
         if(d === null) return;
         if(!/^\d{4}-\d{2}-\d{2}$/.test(d.trim()) || isNaN(new Date(d.trim() + 'T00:00:00').getTime())){ hubToast('❌ Use YYYY-MM-DD format'); return; }
@@ -1873,7 +1873,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
     };
     window.renderExamCountdown = function(){
         const el = document.getElementById('exam-countdown'); if(!el) return;
-        const d = localStorage.getItem(window.__examDateKey) || '2026-08-15';
+        const d = localStorage.getItem(window.__examDateKey) || '2026-09-28';
         const today = new Date(); today.setHours(0,0,0,0);
         const days = Math.round((new Date(d + 'T00:00:00') - today) / 86400000);
         el.textContent = days > 0 ? ('🎯 CGL TIER-1 · ' + days + ' DAYS') : (days === 0 ? '🎯 EXAM DAY — GO KILL IT' : ('🎯 TIER-1 DONE · +' + (-days) + 'd'));
@@ -15257,6 +15257,16 @@ body.light select.inp option { background:white; }
     <div id="h-week-perf" style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-around"></div>
   </div>
 
+  <!-- ══════════ TODAY'S 5 — the only list that matters today ══════════ -->
+  <div class="card" style="margin-bottom:14px;border:1px solid rgba(79,110,247,.35)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;flex-wrap:wrap;gap:8px">
+      <div style="font-size:14px;font-weight:900;color:var(--text)">✋ Today's 5</div>
+      <div id="t5-timeleft" style="font-size:11px;font-weight:900;color:var(--yellow)"></div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:12px">Five things. Not ten. Tick ✓ done, ✗ if it didn't happen.</div>
+    <div id="t5-list"></div>
+  </div>
+
   <!-- (Daily Checklist removed — replaced by the 🎯 Daily Drill tab) -->
 
   <!-- (Weekly Checklist removed — replaced by 🎯 This Week's Tasks) -->
@@ -15680,7 +15690,7 @@ body.light select.inp option { background:white; }
 function noteHtml(note){ return note ? '<div style="font-size:10px;color:#64748b;margin-top:3px;font-style:italic">&quot;'+note+'&quot;</div>' : ''; }
 // ════════════════ DATA ════════════════
 const STORE = 'warroom_v1';
-let D = { blocks:{}, logs:{}, debt:{}, streak:{count:0,last:''}, target:50, sleepLog:{}, wakeTarget:'05:00', sleepTarget:'23:30', weeklyTasks:[], wtWeekStart:'', wtArchive:[], meta:{} };
+let D = { blocks:{}, logs:{}, debt:{}, streak:{count:0,last:''}, target:50, sleepLog:{}, wakeTarget:'05:00', sleepTarget:'23:30', weeklyTasks:[], wtWeekStart:'', wtArchive:[], top5:{}, meta:{} };
 
 const SUB_COLORS = {
   'Arithmetic':'#8b5cf6','Advanced Maths':'#6366f1','Reasoning':'#3b82f6',
@@ -15810,6 +15820,7 @@ function wrEachRecord(fn){
     Object.keys(e).forEach(i => { if(e[i] && typeof e[i] === 'object') fn('E|'+dk+'|'+i, e[i]); });
   });
   Object.keys(d.sleepLog||{}).forEach(dk => { if(d.sleepLog[dk] && typeof d.sleepLog[dk] === 'object') fn('S|'+dk, d.sleepLog[dk]); });
+  Object.keys(d.top5||{}).forEach(dk => (d.top5[dk]||[]).forEach(r => { if(r && r.id != null) fn('T5|'+dk+'|'+r.id, r); }));
   (d.weeklyTasks||[]).forEach(s => {
     if(!s || !s.subject) return;
     fn('WS|'+s.subject, s);
@@ -15966,6 +15977,9 @@ window.__wrMergeCloud = function(cloudRaw){
     D.dailyLog = dlOut;
 
     D.sleepLog = wrMergeMap(D.sleepLog, cloud.sleepLog, 'S', tomb);
+
+    // Daily Top-5 — per-day list, same merge shape as logs/blocks
+    D.top5 = wrMergeByDay(D.top5, cloud.top5, d => 'T5|'+d, tomb);
 
     // weekly tasks — subject groups merged by name, tasks inside merged by id
     (function(){
@@ -16189,7 +16203,7 @@ function load(){
   window.__wrQuiet = true;   // migrations below call save(); don't fire a sync per repair
   try{
     const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);}catch(e){}
-    D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||50; D.checklist=D.checklist||{}; D.sleepLog=D.sleepLog||{}; D.wakeTarget=D.wakeTarget||'05:00'; D.sleepTarget=D.sleepTarget||'23:30'; D.weeklyTasks=D.weeklyTasks||[]; D.wtWeekStart=D.wtWeekStart||''; D.wtArchive=D.wtArchive||[]; D.meta=D.meta||{}; D.dailyItems=D.dailyItems||dcDefaultItems(); D.dailyLog=D.dailyLog||{}; D.drill=D.drill||{}; D.tomb=D.tomb||{};
+    D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||50; D.checklist=D.checklist||{}; D.sleepLog=D.sleepLog||{}; D.wakeTarget=D.wakeTarget||'05:00'; D.sleepTarget=D.sleepTarget||'23:30'; D.weeklyTasks=D.weeklyTasks||[]; D.wtWeekStart=D.wtWeekStart||''; D.wtArchive=D.wtArchive||[]; D.meta=D.meta||{}; D.dailyItems=D.dailyItems||dcDefaultItems(); D.dailyLog=D.dailyLog||{}; D.drill=D.drill||{}; D.top5=D.top5||{}; D.tomb=D.tomb||{};
     wrMigrateStamps();
     window.__wrPrevIdx = wrBuildIdx(); wrSnapScalars();
     window.__wrDLoaded = true;
@@ -17019,6 +17033,7 @@ function renderHome(){
   renderSleep();
   renderWeeklyTasks();
   renderDailyChecklist();
+  try{ renderTop5(); }catch(e){}
 
   // Alerts
   renderAlerts(today);
@@ -18351,10 +18366,18 @@ function drillRowTimer(col,it){
   }
   if(st==='done'){
     return `<div class="drill-leccurrent" style="border-color:var(--green)"><div style="flex:1"><span class="drill-lec-hrs">✓ Logged ${hDisp(it.hrs||0)}</span></div>
-      <button class="drill-lecbtn start" onclick="drillRowStart('${col}','${it.id}')" title="Log another session">▶ Again</button></div>`;
+      <div style="display:flex;gap:5px;align-items:center">
+        <button class="drill-lecbtn start" onclick="drillRowStart('${col}','${it.id}')" title="Log another session">▶ Again</button>
+        <button class="drill-lecbtn start" onclick="drillRowStartPomo('${col}','${it.id}',25)" title="Pomodoro 25 min" style="background:rgba(79,70,229,.15);border-color:rgba(129,140,248,.45);color:#a5b4fc">🍅25</button>
+        <button class="drill-lecbtn start" onclick="drillRowStartPomo('${col}','${it.id}',50)" title="Pomodoro 50 min" style="background:rgba(79,70,229,.15);border-color:rgba(129,140,248,.45);color:#a5b4fc">🍅50</button>
+      </div></div>`;
   }
   return `<div class="drill-leccurrent"><div style="flex:1"><div class="lecsub">Ready to log</div></div>
-    <button class="drill-lecbtn start" onclick="drillRowStart('${col}','${it.id}')">▶ Start</button></div>`;
+    <div style="display:flex;gap:5px;align-items:center">
+      <button class="drill-lecbtn start" onclick="drillRowStart('${col}','${it.id}')" title="Continuous timer — runs till you stop it">▶ Start</button>
+      <button class="drill-lecbtn start" onclick="drillRowStartPomo('${col}','${it.id}',25)" title="Pomodoro 25 min" style="background:rgba(79,70,229,.15);border-color:rgba(129,140,248,.45);color:#a5b4fc">🍅25</button>
+      <button class="drill-lecbtn start" onclick="drillRowStartPomo('${col}','${it.id}',50)" title="Pomodoro 50 min" style="background:rgba(79,70,229,.15);border-color:rgba(129,140,248,.45);color:#a5b4fc">🍅50</button>
+    </div></div>`;
 }
 
 // Manual rows: DIRECT minutes entry — no Start/End timer. Type minutes, hit Log,
@@ -19886,6 +19909,272 @@ window._wrAutoLog = function(entry) {
   } catch(e) { console.warn('War Room auto-log error:', e); }
 };
 
+/* ══════════════════════════════════════════════════════════════════════════
+   TODAY'S 5  (v27.4)
+   Five tasks a day, ticked ✓ or crossed ✗. Stored per-date in D.top5 so it
+   cloud-syncs across devices via the same per-day merge the logs use.
+   A gate pops when you enter the Planner and keeps popping until all five
+   have been decided (done or crossed off). No carryover — each day is blank.
+   ══════════════════════════════════════════════════════════════════════════ */
+const T5_COUNT = 5;
+
+function t5Today(){
+  const key = todayStr();
+  if(!D.top5) D.top5 = {};
+  if(!Array.isArray(D.top5[key]) || !D.top5[key].length){
+    D.top5[key] = [];
+    for(let i=0;i<T5_COUNT;i++) D.top5[key].push({ id:'t5-'+key+'-'+i, text:'', status:'' });
+  }
+  // pad if an older/partial day came in from cloud
+  while(D.top5[key].length < T5_COUNT){
+    D.top5[key].push({ id:'t5-'+key+'-'+D.top5[key].length, text:'', status:'' });
+  }
+  return D.top5[key];
+}
+
+function t5SetText(id, val){
+  const row = t5Today().find(r=>r.id===id); if(!row) return;
+  row.text = val; row.updatedAt = Date.now();
+  save();
+  t5RenderTimeLeft();
+}
+window.t5SetText = t5SetText;
+
+function t5Mark(id, status){
+  const row = t5Today().find(r=>r.id===id); if(!row) return;
+  if(!row.text || !row.text.trim()){ alert('Write the task first'); return; }
+  row.status = (row.status===status) ? '' : status;   // tap again to undo
+  row.updatedAt = Date.now();
+  save(); renderTop5();
+  try{ if(document.getElementById('t5-gate')) t5RenderGate(); }catch(e){}
+  if(t5AllDecided()) t5CloseGate();
+}
+window.t5Mark = t5Mark;
+
+// "Decided" = every one of the five has text AND a ✓/✗ verdict.
+function t5AllDecided(){
+  const rows = t5Today();
+  return rows.every(r => r.text && r.text.trim() && (r.status==='done' || r.status==='miss'));
+}
+
+// Hours:minutes remaining in the day (IST), so the clock stays visible.
+function t5TimeLeftStr(){
+  try{
+    const n = istNow();
+    const mins = (24*60) - (n.getHours()*60 + n.getMinutes());
+    const h = Math.floor(mins/60), m = mins%60;
+    return h+'h '+m+'m left today';
+  }catch(e){ return ''; }
+}
+
+function t5RenderTimeLeft(){
+  const el = document.getElementById('t5-timeleft');
+  if(!el) return;
+  const rows = t5Today();
+  const done = rows.filter(r=>r.status==='done').length;
+  el.textContent = '⏳ ' + t5TimeLeftStr() + ' · ' + done + '/' + T5_COUNT + ' done';
+}
+
+function t5RowHtml(r, big){
+  const fs = big ? 13 : 12;
+  const doneOn = r.status==='done', missOn = r.status==='miss';
+  const txtStyle = doneOn ? 'text-decoration:line-through;color:var(--muted)'
+                 : missOn ? 'color:#f87171' : 'color:var(--text)';
+  return `<div style="display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--border)">
+      <input type="text" placeholder="task ${(r.id.split('-').pop()*1)+1}…"
+        value="${(r.text||'').replace(/"/g,'&quot;')}"
+        oninput="t5SetText('${r.id}',this.value)"
+        style="flex:1;background:var(--bg3);border:1px solid var(--border);padding:7px 9px;border-radius:8px;font-size:${fs}px;font-weight:700;${txtStyle}">
+      <button onclick="t5Mark('${r.id}','done')" title="Done"
+        style="background:${doneOn?'#10b981':'transparent'};border:1px solid ${doneOn?'#10b981':'var(--border2)'};color:${doneOn?'#fff':'var(--muted)'};width:30px;height:30px;border-radius:8px;font-size:13px;font-weight:900;cursor:pointer;flex-shrink:0">✓</button>
+      <button onclick="t5Mark('${r.id}','miss')" title="Didn't happen"
+        style="background:${missOn?'#ef4444':'transparent'};border:1px solid ${missOn?'#ef4444':'var(--border2)'};color:${missOn?'#fff':'var(--muted)'};width:30px;height:30px;border-radius:8px;font-size:13px;font-weight:900;cursor:pointer;flex-shrink:0">✗</button>
+    </div>`;
+}
+
+function renderTop5(){
+  const el = document.getElementById('t5-list');
+  if(!el) return;
+  el.innerHTML = t5Today().map(r=>t5RowHtml(r,false)).join('');
+  t5RenderTimeLeft();
+}
+window.renderTop5 = renderTop5;
+
+/* ── the gate ───────────────────────────────────────────────────────────
+   Fires on entering the Planner. Stays available until all five are
+   decided. Dismissible so it never traps you mid-task — but it comes back
+   on the next visit until the list is settled. */
+function t5RenderGate(){
+  const box = document.getElementById('t5-gate-rows');
+  if(box) box.innerHTML = t5Today().map(r=>t5RowHtml(r,true)).join('');
+  const tl = document.getElementById('t5-gate-timeleft');
+  if(tl){
+    const done = t5Today().filter(r=>r.status==='done').length;
+    tl.textContent = '⏳ ' + t5TimeLeftStr() + ' · ' + done + '/' + T5_COUNT + ' done';
+  }
+}
+
+function t5CloseGate(){
+  const ov = document.getElementById('t5-gate');
+  if(ov) ov.remove();
+  try{ renderTop5(); }catch(e){}
+}
+window.t5CloseGate = t5CloseGate;
+
+function t5ShowGate(){
+  if(document.getElementById('t5-gate')) return;
+  const ov = document.createElement('div');
+  ov.id = 't5-gate';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:2147483645;background:linear-gradient(160deg,#0b1120,#111827 60%,#020617);display:flex;align-items:center;justify-content:center;padding:20px;font-family:inherit;overflow-y:auto';
+  ov.innerHTML = `
+    <div style="max-width:470px;width:100%;color:#e2e8f0">
+      <div style="text-align:center;margin-bottom:14px">
+        <div style="font-size:40px;margin-bottom:4px">✋</div>
+        <div style="font-size:21px;font-weight:900;color:#fff">TODAY'S 5</div>
+        <div style="font-size:12px;font-weight:700;color:#94a3b8;line-height:1.5;margin-top:5px">
+          Not the whole syllabus. Five things you will actually finish today.
+        </div>
+        <div id="t5-gate-timeleft" style="font-size:12px;font-weight:900;color:#fbbf24;margin-top:7px"></div>
+      </div>
+      <div id="t5-gate-rows" style="background:rgba(2,6,23,.55);border:1px solid #1e293b;border-radius:14px;padding:10px 13px;margin-bottom:14px"></div>
+      <button id="t5-gate-close" style="width:100%;background:#4f46e5;color:#fff;font-weight:900;font-size:15px;padding:13px;border:none;border-radius:12px;cursor:pointer;box-shadow:0 6px 20px rgba(79,70,229,.45)">Start the day →</button>
+      <div style="text-align:center;font-size:10px;color:#64748b;font-weight:700;margin-top:9px">Comes back each time you open the Planner until all 5 are ticked or crossed.</div>
+    </div>`;
+  document.body.appendChild(ov);
+  t5RenderGate();
+  document.getElementById('t5-gate-close').onclick = t5CloseGate;
+}
+window.t5ShowGate = t5ShowGate;
+
+// keep the "time left" figure honest while the planner sits open
+setInterval(()=>{
+  try{
+    t5RenderTimeLeft();
+    if(document.getElementById('t5-gate')) t5RenderGate();
+  }catch(e){}
+}, 60000);
+
+/* ══════════════════════════════════════════════════════════════════════════
+   POMODORO (v27.4) — rides on top of the existing Daily Drill row timer.
+   The continuous ▶ Start timer is untouched; 🍅25 / 🍅50 start the SAME
+   session and just add a target end. When the target lands you get one
+   question: studied, or wasted?
+     • studied → the session is logged normally + a 10 min break starts
+     • wasted  → the log is deleted, nothing counts toward study hours
+   ══════════════════════════════════════════════════════════════════════════ */
+let _pomo = null;          // { col, id, logId, mins, endTs }
+let _pomoTick = null;
+let _breakEnd = 0;
+let _breakTick = null;
+
+function pomoFmt(ms){
+  if(ms<0) ms=0;
+  const s = Math.floor(ms/1000);
+  return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+}
+
+window.drillRowStartPomo = function(col, id, mins){
+  if(_pomo){ alert('A Pomodoro is already running — end it first'); return; }
+  const it = (typeof drillFindRow==='function') ? drillFindRow(col,id) : null;
+  if(!it) return;
+  if(it.status !== 'doing') drillRowStart(col, id);       // reuse the normal timer
+  const row = drillFindRow(col,id);
+  _pomo = { col, id, logId: (row&&row.logId)||null, mins, endTs: Date.now() + mins*60000 };
+  pomoStartTick();
+  try{ hubToast('🍅 '+mins+' min started — phone face down'); }catch(e){}
+};
+
+function pomoStartTick(){
+  if(_pomoTick) return;
+  _pomoTick = setInterval(()=>{
+    if(!_pomo){ clearInterval(_pomoTick); _pomoTick=null; pomoBadge(''); return; }
+    const left = _pomo.endTs - Date.now();
+    pomoBadge('🍅 '+pomoFmt(left));
+    if(left <= 0){
+      clearInterval(_pomoTick); _pomoTick = null;
+      pomoAsk();
+    }
+  }, 1000);
+}
+
+// Small floating readout so you can see the countdown from anywhere in the hub.
+function pomoBadge(txt){
+  let b = document.getElementById('pomo-badge');
+  if(!txt){ if(b) b.remove(); return; }
+  if(!b){
+    b = document.createElement('div');
+    b.id = 'pomo-badge';
+    b.style.cssText = 'position:fixed;top:64px;right:14px;z-index:2147483644;background:#4f46e5;color:#fff;padding:7px 13px;border-radius:999px;font-size:13px;font-weight:900;box-shadow:0 6px 18px rgba(0,0,0,.35);font-family:inherit';
+    document.body.appendChild(b);
+  }
+  b.textContent = txt;
+}
+
+function pomoAsk(){
+  const p = _pomo; if(!p) return;
+  try{ if(navigator.vibrate) navigator.vibrate([200,100,200,100,200]); }catch(e){}
+  pomoBadge('');
+  if(document.getElementById('pomo-ask')) return;
+  const ov = document.createElement('div');
+  ov.id = 'pomo-ask';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:linear-gradient(160deg,#0f172a,#1e1b4b 60%,#020617);display:flex;align-items:center;justify-content:center;padding:24px;font-family:inherit';
+  ov.innerHTML = `
+    <div style="max-width:400px;width:100%;text-align:center;color:#e2e8f0">
+      <div style="font-size:48px;margin-bottom:6px">🍅</div>
+      <div style="font-size:22px;font-weight:900;color:#fff;margin-bottom:4px">${p.mins} MINUTES DONE</div>
+      <div style="font-size:14px;font-weight:700;color:#a5b4fc;line-height:1.5;margin-bottom:18px">
+        Be honest — nobody else sees this. Wasted time that gets logged as study is a lie you'll believe at mock time.
+      </div>
+      <button id="pomo-studied" style="width:100%;background:#10b981;color:#fff;font-weight:900;font-size:16px;padding:14px;border:none;border-radius:12px;cursor:pointer;margin-bottom:10px;box-shadow:0 6px 20px rgba(16,185,129,.4)">✅ I STUDIED — log it + 10 min break</button>
+      <button id="pomo-wasted" style="width:100%;background:transparent;color:#fca5a5;font-weight:800;font-size:14px;padding:12px;border:1px solid #7f1d1d;border-radius:11px;cursor:pointer">✗ Wasted it — don't count this</button>
+    </div>`;
+  document.body.appendChild(ov);
+
+  document.getElementById('pomo-studied').onclick = ()=>{
+    ov.remove();
+    try{ drillRowEnd(p.col, p.id); }catch(e){}
+    _pomo = null;
+    breakStart(10);
+  };
+  document.getElementById('pomo-wasted').onclick = ()=>{
+    ov.remove();
+    // bin the log entirely — wasted minutes never reach the study total
+    try{
+      const it = drillFindRow(p.col, p.id);
+      const logId = (it && it.logId) || p.logId;
+      if(logId) deleteLog(drillViewDate, logId);
+      if(it){ it.status='todo'; it.logId=null; it.hrs=0; }
+      drillStamp(); save();
+      if(typeof drillRenderCol==='function') drillRenderCol(p.col);
+      if(typeof drillUpdateCounts==='function') drillUpdateCounts();
+    }catch(e){}
+    _pomo = null;
+    try{ hubToast('Not counted. Next block — start clean.'); }catch(e){}
+  };
+}
+
+function breakStart(mins){
+  _breakEnd = Date.now() + mins*60000;
+  if(_breakTick) clearInterval(_breakTick);
+  _breakTick = setInterval(()=>{
+    const left = _breakEnd - Date.now();
+    if(left <= 0){
+      clearInterval(_breakTick); _breakTick = null;
+      pomoBadge('');
+      try{ if(navigator.vibrate) navigator.vibrate([200,100,200]); }catch(e){}
+      try{ hubToast('☕ Break over — back to it'); }catch(e){}
+      return;
+    }
+    pomoBadge('☕ '+pomoFmt(left));
+  }, 1000);
+  try{ hubToast('☕ 10 min break — stand up, water, no phone scroll'); }catch(e){}
+}
+
+window.pomoCancel = function(){
+  if(_pomoTick){ clearInterval(_pomoTick); _pomoTick=null; }
+  _pomo = null; pomoBadge('');
+};
+
 window.plannerInit = function(){
   load(); loadHub(); viewingBlockDate=todayStr();
   window._plannerLoaded = true;
@@ -19907,6 +20196,8 @@ window.plannerInit = function(){
   });
   renderHome();
   try{ if(typeof renderHubSnapshot==='function') renderHubSnapshot(); }catch(e){}
+  // Today's 5 gate — keeps appearing until all five are ticked or crossed
+  try{ if(!t5AllDecided()) setTimeout(t5ShowGate, 350); }catch(e){}
 };
 
 // v27: the old _plannerSave() + _hookPlannerSync() pair is gone.
