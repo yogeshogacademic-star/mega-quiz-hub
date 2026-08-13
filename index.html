@@ -1810,7 +1810,15 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-11 · v27.2';
+    const HUB_BUILD = '2026-08-13 · v27.3';
+
+    // v27.3 — SRS schedule retune (less time left before exam):
+    //   MA (Maths/Arithmetic R1-correct) now masters INSTANTLY, no review at all.
+    //   MW (Maths/Arithmetic R1-wrong) is now an open-ended ladder: 1st review day 4,
+    //     then +1 day per repeat wrong (5, 6, 7…) until correct → MASTERED on that correct.
+    //   EA (English right) tightened from 3 reviews to 2: cumulative day 4, day 10.
+    //   EW (English wrong) tightened from 4 reviews to 3: cumulative day 2, day 6, day 12.
+    //   OA/OW (everything else) unchanged. See window.SRS_TRACKS and __srsMove.
 
     // v27.2 — scAttr(): HTML-attribute-safe escaper for any name/key that gets
     // interpolated into an inline onclick="fn('...')" handler.
@@ -4759,23 +4767,28 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
     };
 
     // ─────────────────────────────────────────────────────────────────────────
-    // SRS TWO-TRACK SCHEDULE (new model)
-    //   Track A = R1-CORRECT  → reviews at ~day 7, ~day 14, then MASTERED  (2 steps)
-    //   Track B = R1-WRONG    → reviews at day 3, ~day 10, ~day 21, then MASTERED (3 steps)
+    // SRS SCHEDULE (v27.2 — Aug 2026 retune, less time left before exam)
+    //   MA = R1-CORRECT Maths/Arithmetic → INSTANT MASTER, no review at all.
+    //   MW = R1-WRONG Maths/Arithmetic   → 1st review day 4; if still wrong,
+    //        review again +1 day later each time (5, 6, 7…) until correct →
+    //        MASTERED on that correct (open-ended ladder, no fixed step count).
+    //   EA/EW = English tightened for exam runway: EA 2 reviews (day 4, day 10
+    //        cumulative), EW 3 reviews (day 2, day 6, day 12 cumulative).
+    //   OA/OW = everything else — UNCHANGED.
     //   Intervals are deltas to the NEXT review; fuzz lands them in each other's gaps.
     //   Fuzz is applied ONCE at scheduling time and baked into nextReview, so every
     //   device agrees on the date (no per-render recompute = no cross-device drift).
     // ─────────────────────────────────────────────────────────────────────────
     window.SRS_TRACKS = {
         // ── MATHS (Advanced Maths + Arithmetic) — procedural, pre-filtered in R1 ──
-        MA: [ { base: 8, fuzz: 1 } ],                                                      // right: 1 review (7-9d)
-        MW: [ { base: 4, fuzz: 1 }, { base: 11, fuzz: 1 } ],                               // wrong: 2 reviews (3-5d, 10-12d)
-        // ── OTHERS (Polity/GS/Reasoning/History/etc) — recall ──
+        MA: [ { base: 8, fuzz: 1 } ],                                                      // unused: R1-correct masters instantly, see creation + __srsMove
+        MW: [ { base: 4, fuzz: 0 } ],                                                      // wrong: review at day 4, then +1 day per repeat wrong until correct
+        // ── OTHERS (Polity/GS/Reasoning/History/etc) — recall — UNCHANGED ──
         OA: [ { base: 6, fuzz: 1 }, { base: 14, fuzz: 2 } ],                               // right: 2 reviews (5-7d, 12-16d)
         OW: [ { base: 3, fuzz: 1 }, { base: 9, fuzz: 1 }, { base: 18, fuzz: 2 } ],         // wrong: 3 reviews (2-4d, 8-10d, 16-20d)
-        // ── ENGLISH — most fade-prone ──
-        EA: [ { base: 5, fuzz: 1 }, { base: 12, fuzz: 2 }, { base: 21, fuzz: 2 } ],        // right: 3 reviews (4-6d, 10-14d, 19-23d)
-        EW: [ { base: 3, fuzz: 1 }, { base: 7, fuzz: 1 }, { base: 13, fuzz: 2 }, { base: 21, fuzz: 2 } ], // wrong: 4 reviews
+        // ── ENGLISH — tightened for exam runway ──
+        EA: [ { base: 4, fuzz: 0 }, { base: 6, fuzz: 0 } ],                                // right: 2 reviews, cumulative day 4, day 10
+        EW: [ { base: 2, fuzz: 0 }, { base: 4, fuzz: 0 }, { base: 6, fuzz: 0 } ],          // wrong: 3 reviews, cumulative day 2, day 6, day 12
         // ── LEGACY (old cards still carry track 'A'/'B'; map to maths schedule — all existing A/B are Adv Maths) ──
         A: [ { base: 8, fuzz: 1 } ],
         B: [ { base: 4, fuzz: 1 }, { base: 11, fuzz: 1 } ]
@@ -4866,6 +4879,30 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
         const sched = window.SRS_TRACKS[m.srs.track] || window.SRS_TRACKS.OW;
         const SRS_DAY_MS = 24 * 60 * 60 * 1000;
         const top = sched.length - 1;
+
+        // MW (Maths/Arithmetic wrong-track) — open-ended ladder, no fixed step
+        // count: any CORRECT masters instantly; any WRONG/SKIP just pushes
+        // nextReview one day further than its last interval and tries again.
+        if (m.srs.track === 'MW' && !m.isMastered) {
+            if (status === 'correct') {
+                m.srs.step = 1;
+                m.srs.reps = 1;
+                m.srs.interval = 999;
+                m.srs.nextReview = Date.now() + (365 * SRS_DAY_MS);
+                m.isMastered = true;
+                m.srs.failStreak = 0;
+            } else {
+                const curIv = (typeof m.srs.interval === 'number' && m.srs.interval >= 4) ? m.srs.interval : 4;
+                m.srs.interval = curIv + 1;
+                m.srs.nextReview = Date.now() + (m.srs.interval * SRS_DAY_MS);
+                m.srs.step = 0;
+                m.srs.reps = 0;
+                m.srs.failStreak = (m.srs.failStreak || 0) + 1;
+                m.srs.struggling = (m.srs.failStreak >= 5);
+            }
+            m.srs.updatedAt = Date.now();
+            return m;
+        }
 
         if (status === 'correct') {
             if (m.isMastered) { m.srs.failStreak = 0; m.srs.updatedAt = Date.now(); return m; } // stay mastered
@@ -5199,9 +5236,15 @@ window.closeNotePractice = () => { const ov=document.getElementById('np-overlay'
                         let newCard = JSON.parse(JSON.stringify(q));
                         newCard.subject = assignedSubject;
                         const _trk = window.pickSRSTrack(newCard.tags, true);
-                        const _d = window.srsFuzz(window.SRS_TRACKS[_trk][0].base, window.SRS_TRACKS[_trk][0].fuzz);
-                        newCard.srs = { track: _trk, step: 0, reps: 0, ease: 2.5, interval: _d, nextReview: Date.now() + (_d * SRS_DAY), updatedAt: Date.now() };
-                        newCard.isMastered = false;
+                        if (_trk === 'MA') {
+                            // Maths/Arithmetic R1-correct → instant MASTER, no review at all.
+                            newCard.srs = { track: 'MA', step: 1, reps: 1, ease: 2.5, interval: 999, nextReview: Date.now() + (365 * SRS_DAY), updatedAt: Date.now() };
+                            newCard.isMastered = true;
+                        } else {
+                            const _d = window.srsFuzz(window.SRS_TRACKS[_trk][0].base, window.SRS_TRACKS[_trk][0].fuzz);
+                            newCard.srs = { track: _trk, step: 0, reps: 0, ease: 2.5, interval: _d, nextReview: Date.now() + (_d * SRS_DAY), updatedAt: Date.now() };
+                            newCard.isMastered = false;
+                        }
                         mistakesDb.push(newCard);
                     } else {
                         // R1 WRONG → enter SRS on subject-aware WRONG track
