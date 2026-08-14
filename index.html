@@ -1810,7 +1810,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-14 · v27.4';
+    const HUB_BUILD = '2026-08-14 · v27.5';
 
     // v27.3 — SRS schedule retune (less time left before exam):
     //   MA (Maths/Arithmetic R1-correct) now masters INSTANTLY, no review at all.
@@ -23480,7 +23480,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
 })();
 </script>
 
-<!-- ═══════════════ ACTIVE RECALL (v26.2) ═══════════════ -->
+<!-- ═══════════════ ACTIVE RECALL (v27.5) ═══════════════ -->
 <div id="ar-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(8,11,16,.72);backdrop-filter:blur(3px)">
   <div id="ar-root">
     <div id="ar-head"></div>
@@ -23519,7 +23519,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
 #ar-root table th{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:#8b95a5;text-align:left;padding:9px 13px;border-bottom:1px solid #dbe1ea;font-weight:700;white-space:nowrap}
 #ar-root table td{padding:9px 13px;border-bottom:1px solid #eef1f6;font-size:13.5px;vertical-align:top;line-height:1.4}
 #ar-root table tr:last-child td{border-bottom:0}
-#ar-root td.k{font-weight:700;white-space:nowrap}
+#ar-root td.k{font-weight:700;white-space:normal;word-break:break-word}
 #ar-root ul.pts{margin:6px 0 0;padding-left:19px}
 #ar-root ul.pts li{font-size:13.5px;margin-bottom:5px;line-height:1.42}
 #ar-root.blank .h{background:#1c2430;color:transparent;box-shadow:0 0 0 2px #1c2430;border-radius:4px}
@@ -23581,14 +23581,34 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
 #ar-root .cd .tp{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#8b95a5;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 #ar-root .cd .tp .ct{margin-left:auto;color:#b6bfcc;letter-spacing:0;text-transform:none;font-size:11.5px}
 #ar-root .cd .tp .lf{background:#fdeee4;color:#c2410c;border-radius:99px;padding:2px 8px;letter-spacing:.04em}
-#ar-root .cd .fr{font-family:"Source Serif 4",Georgia,serif;font-size:21px;line-height:1.4;color:#0e1116;flex:1}
+#ar-root .cd .fr{font-family:"Source Serif 4",Georgia,serif;font-size:21px;line-height:1.4;color:#0e1116;flex:1;white-space:pre-wrap}
 #ar-root .cd .bkw{margin-top:18px;border-top:1px dashed #dbe1ea;padding-top:16px}
-#ar-root .cd .bkw .a{font-size:19px;font-weight:700;color:#0d7a5f;line-height:1.42}
+#ar-root .cd .bkw .a{font-size:19px;font-weight:700;color:#0d7a5f;line-height:1.42;white-space:pre-wrap}
 #ar-root .revb{margin-top:18px;width:100%;background:#1c2430;color:#7d8899;border-radius:9px;padding:14px 0;text-align:center;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase}
 #ar-root .revb:hover{background:#232d3b;color:#9aa5b5}
-#ar-root .grade{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
-#ar-root .grade button{padding:15px;border-radius:10px;font-weight:700;font-size:15px}
+#ar-root .grade{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+#ar-root .grade button{padding:13px 6px;border-radius:10px;font-weight:700;font-size:15px;display:flex;flex-direction:column;align-items:center;gap:3px}
+#ar-root .grade button span{font-size:10.5px;font-weight:600;opacity:.62;letter-spacing:.04em}
 #ar-root .gy{background:#e3f3ee;color:#0d7a5f}#ar-root .gn{background:#fdeee4;color:#c2410c}
+#ar-root .gh{background:#fdf4e3;color:#a16207}
+#ar-root .grow2{display:flex;gap:8px;margin-top:8px}
+#ar-root .grow2 button{flex:1;padding:10px;border-radius:9px;background:#fff;border:1px solid #dbe1ea;color:#46505f;font-size:12.5px;font-weight:600}
+#ar-root .tin{width:100%;margin-top:12px;padding:14px 15px;border:1px solid #dbe1ea;border-radius:10px;font:inherit;font-size:17px;background:#fff;color:#0e1116}
+#ar-root .tin:focus{outline:none;border-color:#0e1116}
+#ar-root .tin:disabled{background:#f4f6f9;color:#8b95a5}
+#ar-root .tv{font-size:12.5px;font-weight:700;margin-bottom:9px;letter-spacing:.02em}
+#ar-root .tv.ok{color:#0d7a5f} #ar-root .tv.no{color:#c2410c}
+#ar-root .modebar{display:flex;gap:7px;margin-bottom:11px;flex-wrap:wrap}
+#ar-root .modebar button{flex:1;min-width:150px;font-size:12.5px;padding:10px 13px;border-radius:10px;background:#fff;border:1px solid #dbe1ea;color:#46505f;font-weight:600}
+#ar-root .modebar button.on{background:#0e1116;border-color:#0e1116;color:#86efac}
+#ar-root .cd .tp .lf.rev{background:#eef2ff;color:#4338ca}
+#ar-root .bigbtn.flat{background:#fff;border:1px solid #dbe1ea;color:#0e1116}
+#ar-root .bigbtn.flat .ic2{background:#eef1f6;color:#46505f}
+#ar-root .bigbtn.flat .t2{color:#8b95a5}
+#ar-root .bigbtn.flat .go{color:#b6bfcc}
+#ar-root .stale{background:#fdf4e3;border:1px solid #f0dcae;color:#8a6108;border-radius:10px;padding:11px 13px;font-size:12.5px;margin-bottom:11px}
+#ar-root .stale b{cursor:pointer;text-decoration:underline}
+#ar-root .fform textarea{width:100%;padding:10px 12px;border:1px solid #dbe1ea;border-radius:8px;font:inherit;font-size:14px;color:#0e1116;background:#fafbfd;resize:vertical;line-height:1.45}
 #ar-root .done{background:#0e1116;color:#fff;border-radius:13px;padding:24px;text-align:center}
 #ar-root .done .n{font-size:40px;font-weight:700;letter-spacing:-.03em;line-height:1;color:#86efac}
 #ar-root .done p{font-size:13px;color:#a9b4c4;margin:9px auto 0;max-width:390px;line-height:1.55}
@@ -23626,33 +23646,60 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
 }
 </style>
 <script>
-/* ═══════════════ ACTIVE RECALL v26.2 ═══════════════
-   Subject → Chapter → (Notes | Cards), plus whole-subject cascades.
-   Cascade: round 1 = every card. Round 2+ = only the cards missed in the
-   previous round, shuffled, topic header hidden. Repeats to zero wrong.
-   Lifetime stats survive every re-run — total misses, total rights, and the
-   current run of consecutive rounds missed.
-   Quarantine: a card missed in 3 consecutive rounds is pulled out of the
-   cascade. Repetition is not fixing it; it needs re-reading beside whatever
-   fact it is being confused with.
+/* ═══════════════ ACTIVE RECALL v27.5 ═══════════════
+   Subject → Chapter → (Notes | Cards), plus whole-subject cascades,
+   a spaced-repetition layer, and a Due Today queue across every deck.
+
+   CASCADE (unchanged in spirit): round 1 = every card. Round 2+ = only the
+   cards missed in the previous round, shuffled. Repeats to zero wrong.
+
+   SPACING (new): every card carries its own due date and interval ladder
+   1 → 3 → 7 → 16 → 35 → 75 → 150 days. "Good" climbs a rung, "Hard" repeats
+   the current rung, "Again" drops to zero and makes it due immediately.
+   Clearing a deck no longer ends it — the cards come back on their own days.
+
+   REVERSE (new): flip any run so the answer side is the prompt. Optional
+   type-the-answer grading on reverse runs, because recognising is not recall.
+
+   IMPORT (new): decks MERGE by card id. Editing a lecture and re-importing it
+   no longer wipes that deck's history, and a changed card count no longer
+   deletes progress.
+
+   Quarantine: a card missed QUAR_AT rounds running is pulled out of the
+   cascade and given an explicit re-learn path back in.
    Everything here rides the normal cloud sync.
    ═══════════════════════════════════════════════════ */
 (function(){
   const AR_KEY='megaQuizAR_v1';
   const QUAR_AT=3;
-  let A={ decks:{}, cprog:{}, life:{}, session:1, lastOpen:0 };
+  const DAY=86400000;
+  const IVL=[1,3,7,16,35,75,150];
+  let A={ decks:{}, cprog:{}, life:{}, runlog:{}, opts:{reverse:false,type:false}, session:1, lastOpen:0 };
   let view='subjects', curSub=null, deckId=null, tab='cards', runId=null;
-  let filter='all', pending=null;
+  let filter='all', pending=null, editing=null, searchQ='', typed='', checked=null;
+  let sess={start:0, graded:0, subs:{}};
 
   const $=id=>document.getElementById(id);
   const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const slug=s=>String(s).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
   const toast=m=>{ if(typeof hubToast==='function') hubToast(m); else alert(m); };
 
+  /* ---------- day helpers (IST, same basis the rest of the hub uses) ---------- */
+  function endOfToday(){ const d=new Date(); d.setHours(23,59,59,999); return d.getTime(); }
+  function dayDiff(ts){ return Math.round((ts-Date.now())/DAY); }
+  function dueLabel(L){
+    if(!L||!L.due) return 'new';
+    const d=dayDiff(L.due);
+    if(d<=0) return 'due';
+    if(d===1) return 'tomorrow';
+    return d+'d';
+  }
+
   /* ---------- storage ---------- */
   async function arLoad(){
     try{ const v=await idbKeyval.get(AR_KEY); if(v&&typeof v==='object') A=Object.assign(A,v); }catch(e){}
     A.decks=A.decks||{}; A.cprog=A.cprog||{}; A.life=A.life||{};
+    A.runlog=A.runlog||{}; A.opts=Object.assign({reverse:false,type:false},A.opts||{});
     /* the MCQ drill is gone — its records are dead weight in every sync */
     if(A.chapters||A.prog){ delete A.chapters; delete A.prog; }
     A.session=A.session||1; A.lastOpen=Date.now();
@@ -23679,7 +23726,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
   }
   window.__arFromCloud=function(cloud){
     if(!cloud||typeof cloud!=='object') return;
-    A.decks=A.decks||{}; A.cprog=A.cprog||{}; A.life=A.life||{};
+    A.decks=A.decks||{}; A.cprog=A.cprog||{}; A.life=A.life||{}; A.runlog=A.runlog||{};
     Object.keys(cloud.decks||{}).forEach(k=>{
       const c=cloud.decks[k], l=A.decks[k];
       /* never let a stripped cloud copy blank out notes we already hold */
@@ -23693,14 +23740,32 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
         history:(l.history||[]).length>(c.history||[]).length?l.history:c.history });
     });
     /* lifetime counters only ever grow — take the max of each side so a stale
-       device can never erase misses recorded elsewhere */
+       device can never erase misses recorded elsewhere. Scheduling fields
+       belong to whichever device graded the card most recently. */
     Object.keys(cloud.life||{}).forEach(k=>{
-      const c=cloud.life[k], l=A.life[k];
+      const c=cloud.life[k]||{}, l=A.life[k];
       if(!l){ A.life[k]=c; return; }
-      A.life[k]={ w:Math.max(l.w||0,c.w||0), r:Math.max(l.r||0,c.r||0), w1:Math.max(l.w1||0,c.w1||0),
-        streak:(c.last||0)>(l.last||0)?(c.streak||0):(l.streak||0),
-        quar:!!(l.quar||c.quar), last:Math.max(l.last||0,c.last||0) };
+      const newer=(c.last||0)>(l.last||0);
+      const base=newer?Object.assign({},l,c):Object.assign({},c,l);
+      base.w=Math.max(l.w||0,c.w||0);
+      base.r=Math.max(l.r||0,c.r||0);
+      base.w1=Math.max(l.w1||0,c.w1||0);
+      base.reps=Math.max(l.reps||0,c.reps||0);
+      base.streak=newer?(c.streak||0):(l.streak||0);
+      base.quar=!!(l.quar||c.quar);
+      base.star=!!(l.star||c.star);
+      base.last=Math.max(l.last||0,c.last||0);
+      base.due=newer?c.due:l.due; base.ivl=newer?c.ivl:l.ivl; base.step=newer?c.step:l.step;
+      A.life[k]=base;
     });
+    /* run history is append-only on both sides — union by timestamp */
+    Object.keys(cloud.runlog||{}).forEach(k=>{
+      const c=cloud.runlog[k]||[], l=A.runlog[k]||[];
+      const seen={}, out=[];
+      l.concat(c).forEach(r=>{ if(!r||seen[r.ts]) return; seen[r.ts]=1; out.push(r); });
+      A.runlog[k]=out.sort((a,b)=>a.ts-b.ts).slice(-40);
+    });
+    if(cloud.opts) A.opts=Object.assign({reverse:false,type:false},cloud.opts,A.opts);
     A.session=Math.max(A.session||1, cloud.session||1);
     rebuildAutoNotes();
     try{ idbKeyval.set(AR_KEY,A); }catch(e){}
@@ -23714,8 +23779,24 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     const c=d.cards.find(x=>x.id===k.slice(i+2));
     return c? {card:c, deck:d} : null;
   }
-  function lf(k){ return A.life[k] || (A.life[k]={w:0,r:0,w1:0,streak:0,quar:false,last:0}); }
+  function lf(k){ return A.life[k] || (A.life[k]={w:0,r:0,w1:0,streak:0,quar:false,star:false,last:0,due:0,ivl:0,step:0,reps:0}); }
   const isQuar=k=>!!(A.life[k]&&A.life[k].quar);
+  const isDue=k=>{ const L=A.life[k]; return !L || !L.due || L.due<=endOfToday(); };
+
+  /* ---------- the spacing ladder ---------- */
+  function schedule(k,g){
+    const L=lf(k);
+    let step=L.step||0;
+    if(g==='again'){ L.step=0; L.ivl=0; L.due=Date.now(); }
+    else if(g==='hard'){
+      const iv=IVL[Math.max(0,step-1)]||1;
+      L.ivl=iv; L.due=Date.now()+iv*DAY;              /* same rung again */
+    } else {
+      const iv=IVL[Math.min(IVL.length-1,step)];
+      L.step=Math.min(IVL.length-1,step+1); L.ivl=iv; L.due=Date.now()+iv*DAY;
+    }
+    L.reps=(L.reps||0)+1;
+  }
 
   /* ---------- deck helpers ---------- */
   const dk=()=>A.decks[deckId];
@@ -23726,6 +23807,15 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     Object.keys(m).forEach(s=>m[s].sort((a,b)=>a.chapter.localeCompare(b.chapter)));
     return m;
   }
+  function allKeys(sub){
+    const out=[];
+    Object.values(A.decks).forEach(d=>{
+      if(sub && d.subject!==sub) return;
+      d.cards.forEach(c=>out.push(key(d.id,c.id)));
+    });
+    return out;
+  }
+  function dueKeys(sub){ return allKeys(sub).filter(k=>!isQuar(k)&&isDue(k)); }
   function runStat(id, totalIfNew){
     const p=A.cprog[id];
     if(!p||!p.round) return {label:'not started', pct:0, tone:'c'};
@@ -23737,8 +23827,11 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       if(!sub) return true; const r=resolveCard(k); return r && r.deck.subject===sub;
     });
   }
+  function starList(){
+    return Object.keys(A.life).filter(k=>A.life[k].star).filter(k=>!!resolveCard(k));
+  }
 
-  /* ---------- import (unchanged shapes) ---------- */
+  /* ---------- import ---------- */
   function readFile(e, cb){
     const f=e.target.files[0]; if(!f) return;
     const r=new FileReader();
@@ -23750,6 +23843,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     if(p && Array.isArray(p.cards)){
       return { subject:p.subject||'Untitled', chapter:p.chapter||'Untitled chapter',
                version:p.version||1, notesHtml:p.notesHtml||'',
+               colA:p.colA||'', colB:p.colB||'',
                cards:p.cards.map((c,i)=>({ id:c.id||('c'+i), topic:c.topic||'General',
                         front:String(c.front||''), back:String(c.back||'') }))
                      .filter(c=>c.front&&c.back) };
@@ -23781,18 +23875,45 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
         by[k].map(c=>`<tr><td>${esc(c.front)}</td><td class="k"><span class="h">${esc(c.back)}</span></td></tr>`).join('')+
         `</table></div>`).join('');
   }
+  /* MERGE, never replace: a card id already in the deck is updated in place,
+     new ids are appended, and every card the file does not mention is left
+     exactly as it was. Progress and lifetime stats are keyed by card id, so
+     nothing is lost by re-importing a corrected lecture. */
+  function mergeCards(prevCards, incoming){
+    const out=(prevCards||[]).slice();
+    const idx={}; out.forEach((c,i)=>idx[c.id]=i);
+    let added=0, updated=0;
+    incoming.forEach(c=>{
+      if(idx[c.id]===undefined){ out.push(c); idx[c.id]=out.length-1; added++; }
+      else {
+        const o=out[idx[c.id]];
+        if(o.front!==c.front||o.back!==c.back||o.topic!==c.topic) updated++;
+        out[idx[c.id]]=Object.assign({},o,c);
+      }
+    });
+    return {cards:out, added, updated};
+  }
   async function commitDeck(meta){
     const id=slug(meta.subject+'-'+meta.chapter);
     const prev=A.decks[id];
+    const m=prev? mergeCards(prev.cards, meta.cards) : {cards:meta.cards, added:meta.cards.length, updated:0};
     A.decks[id]={ id, subject:meta.subject, chapter:meta.chapter,
-      version:meta.version||1, cards:meta.cards,
-      notesHtml: meta.notesHtml || (prev&&prev.notesHtml) || notesFromCards(meta.cards, meta.colA||'Prompt', meta.colB||'Answer'),
-      autoNotes: !(meta.notesHtml || (prev&&prev.notesHtml&&!prev.autoNotes)),
-      colA: meta.colA||'Prompt', colB: meta.colB||'Answer',
+      version:meta.version||1, cards:m.cards,
+      notesHtml: meta.notesHtml || '',
+      autoNotes: !meta.notesHtml,
+      colA: meta.colA||(prev&&prev.colA)||'Prompt', colB: meta.colB||(prev&&prev.colB)||'Answer',
       updated:Date.now() };
-    if(prev && prev.cards.length!==meta.cards.length){ delete A.cprog[id]; }
+    if(A.decks[id].autoNotes)
+      A.decks[id].notesHtml=notesFromCards(m.cards, A.decks[id].colA, A.decks[id].colB);
+    /* progress is NEVER deleted on re-import. If a run is mid-flight and the
+       deck grew, flag it so the run screen offers a restart rather than
+       silently drilling a stale pool. */
+    const p=A.cprog[id];
+    if(p && p.round && !p.done && m.added) p.stale=true;
     await arSave(true);
-    toast(meta.chapter+' — '+meta.cards.length+' cards ready');
+    toast(prev
+      ? meta.chapter+' — '+m.added+' new, '+m.updated+' updated, progress kept'
+      : meta.chapter+' — '+m.cards.length+' cards ready');
     curSub=meta.subject; deckId=id; view='chapter'; tab='cards'; render();
   }
   function onImport(p, fname){
@@ -23825,10 +23946,11 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
   function startRun(id, pool, fresh){
     const p=cp(id);
     if(fresh || !p.round || p.done){
-      Object.assign(p,{round:1,pool:pool,wrong:[],history:[],done:false,idx:0,lastRun:Date.now(),quarantined:[]});
+      Object.assign(p,{round:1,pool:pool,wrong:[],history:[],done:false,idx:0,lastRun:Date.now(),quarantined:[],stale:false,startedAt:Date.now()});
       /* a fresh run clears the consecutive-miss streaks it is about to re-measure */
       pool.forEach(k=>{ const L=lf(k); L.streak=0; });
     }
+    if(!sess.start) sess.start=Date.now();
     arSave(false);
   }
   function nextRound(id){
@@ -23847,7 +23969,13 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     const newQ=p.wrong.filter(k=>(lf(k).streak||0)>=QUAR_AT);
     newQ.forEach(k=>{ lf(k).quar=true; if(p.quarantined.indexOf(k)<0) p.quarantined.push(k); });
     const carry=p.wrong.filter(k=>newQ.indexOf(k)<0);
-    if(!carry.length){ p.done=true; p.idx=p.pool.length; p.lastRun=Date.now(); arSave(true);
+    if(!carry.length){
+      p.done=true; p.idx=p.pool.length; p.lastRun=Date.now();
+      /* archive the run so clearing a deck twice does not erase the first result */
+      const cold=p.firstTotal? Math.round((p.firstTotal-(p.firstWrong||[]).length)/p.firstTotal*100) : null;
+      A.runlog[id]=(A.runlog[id]||[]).concat([{ts:Date.now(), rounds:p.history.length,
+        total:p.firstTotal||p.pool.length, cold:cold, quar:(p.quarantined||[]).length}]).slice(-40);
+      arSave(true);
       if(newQ.length) toast(newQ.length+' card'+(newQ.length>1?'s':'')+' quarantined — repetition is not working on them');
       return; }
     p.round++; p.pool=carry.slice().sort(()=>Math.random()-.5);
@@ -23855,15 +23983,43 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     arSave(true);
     if(newQ.length) toast(newQ.length+' card'+(newQ.length>1?'s':'')+' quarantined');
   }
-  async function grade(id, ok){
+  async function grade(id, g){
     const p=cp(id), k=p.pool[p.idx], L=lf(k);
+    const ok=(g!=='again');
     if(ok){ L.r=(L.r||0)+1; L.streak=0; }
     else  { L.w=(L.w||0)+1; L.streak=(L.streak||0)+1; if(p.wrong.indexOf(k)<0) p.wrong.push(k); }
+    schedule(k,g);
     L.last=Date.now();
+    sess.graded++;
+    const R=resolveCard(k); if(R) sess.subs[R.deck.subject]=(sess.subs[R.deck.subject]||0)+1;
     p.idx++; p.lastRun=Date.now();
     if(p.idx>=p.pool.length) nextRound(id);
+    typed=''; checked=null;
     await arSave(false);
     render();
+  }
+
+  /* ---------- reverse / typing helpers ---------- */
+  function face(card){
+    return A.opts.reverse ? {q:card.back, a:card.front} : {q:card.front, a:card.back};
+  }
+  const norm=s=>String(s||'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();
+  function typingOn(){ return !!(A.opts.reverse && A.opts.type); }
+
+  /* ---------- session logging into War Zone daily hours ---------- */
+  function flushSession(){
+    if(!sess.start || !sess.graded){ sess={start:0,graded:0,subs:{}}; return; }
+    const mins=Math.round((Date.now()-sess.start)/60000);
+    const cards=sess.graded;
+    const subs=Object.keys(sess.subs).sort((a,b)=>sess.subs[b]-sess.subs[a]);
+    sess={start:0,graded:0,subs:{}};
+    if(mins<1) return;
+    try{
+      if(typeof window._wrAutoLog==='function') window._wrAutoLog({
+        type:'study', title:'Active Recall — '+cards+' cards',
+        subject:subs[0]||'English', chapter:'Active Recall',
+        duration:mins, cards:cards });
+    }catch(e){ console.warn('AR study-hours log failed:',e); }
   }
 
   /* ---------- render: subjects ---------- */
@@ -23873,15 +24029,25 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     const m=subjects(), subs=Object.keys(m).sort();
     const worst=Object.keys(A.life).filter(k=>(A.life[k].w||0)>0).length;
     const q=quarList(null).length;
+    const st=starList().length;
+    const due=dueKeys(null).length;
+    const total=allKeys(null).length;
     $('ar-body').innerHTML='<div class="wrap">'+
-      `<div class="addbar"><label class="pri">+ Add cards JSON<input type="file" id="arImp" accept=".json" hidden></label></div>`+
+      `<div class="addbar"><label class="pri">+ Add cards JSON<input type="file" id="arImp" accept=".json" hidden></label>
+         <button id="arFind">Search</button>${st?`<button id="arStarB">★ ${st}</button>`:''}</div>`+
+      (total? `<button class="bigbtn ${due?'':'flat'}" id="arDue"><div class="ic2">◷</div>
+          <div><div class="t1">Due today — ${due}</div>
+          <div class="t2">${due? 'Every card the spacing ladder says you owe, mixed across all decks'
+                               : 'Nothing owed. Next cards return on their own schedule.'}</div></div>
+          <div class="go">›</div></button>`:'')+
       (subs.length ? subs.map(s=>{
           const ds=m[s], cards=ds.reduce((n,d)=>n+d.cards.length,0);
           const cleared=ds.filter(d=>(A.cprog[d.id]||{}).done).length;
+          const sd=dueKeys(s).length;
           return `<div class="subcard" data-sub="${esc(s)}">
             <div class="ic">${esc(s.slice(0,2).toUpperCase())}</div>
             <div><div class="nm">${esc(s)}</div>
-              <div class="mt">${ds.length} chapter${ds.length>1?'s':''} · ${cards} cards${cleared?' · '+cleared+' cleared':''}</div></div>
+              <div class="mt">${ds.length} chapter${ds.length>1?'s':''} · ${cards} cards${cleared?' · '+cleared+' cleared':''}${sd?' · <b style="color:#c2410c">'+sd+' due</b>':''}</div></div>
             <div class="go">›</div></div>`;
         }).join('')
         : `<div class="empty">Nothing here yet.<br><br>Press <b>+ Add cards JSON</b> and pick a deck file.<br>
@@ -23892,10 +24058,13 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
           <div class="go">›</div></button>`:'')+
       (q? `<button class="bigbtn warn" id="arQ"><div class="ic2">⏸</div>
           <div><div class="t1">Quarantined — ${q}</div>
-          <div class="t2">Missed ${QUAR_AT} rounds running. Read these, don't drill them.</div></div>
+          <div class="t2">Missed ${QUAR_AT} rounds running. Read these, then send them back in.</div></div>
           <div class="go">›</div></button>`:'')
       +'</div>';
     $('arImp').onchange=e=>readFile(e,onImport);
+    $('arFind').onclick=()=>{view='search';render();};
+    if($('arStarB')) $('arStarB').onclick=()=>{view='star';render();};
+    if($('arDue')) $('arDue').onclick=()=>{ if(!dueKeys(null).length){toast('Nothing due today.');return;} curSub=null; runId='due::all'; view='duerun'; render(); };
     $('ar-body').querySelectorAll('[data-sub]').forEach(r=>r.onclick=()=>{curSub=r.dataset.sub;view='chapters';render();});
     if($('arWorst')) $('arWorst').onclick=()=>{view='worst';render();};
     if($('arQ')) $('arQ').onclick=()=>{view='quar';render();};
@@ -23907,11 +24076,16 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     const total=ds.reduce((n,d)=>n+d.cards.length,0);
     const sid='sub::'+slug(curSub);
     const st=runStat(sid);
+    const sdue=dueKeys(curSub).length;
     setHead(esc(curSub), ds.length+' chapter'+(ds.length===1?'':'s'), false);
     $('ar-nav').innerHTML='';
     $('ar-body').innerHTML='<div class="wrap">'+
       `<div class="addbar"><button id="arBack">← All subjects</button>
          <label>+ Add cards JSON<input type="file" id="arImp2" accept=".json" hidden></label></div>`+
+      (sdue? `<button class="bigbtn" id="arDueSub"><div class="ic2">◷</div>
+        <div><div class="t1">Due today in ${esc(curSub)} — ${sdue}</div>
+        <div class="t2">Only the cards this subject owes you right now</div></div>
+        <div class="go">›</div></button>`:'')+
       `<button class="bigbtn" id="arSubRun"><div class="ic2">⚡</div>
         <div><div class="t1">Run the whole subject</div>
         <div class="t2">${total} cards mixed across every chapter · ${st.label}</div></div>
@@ -23919,15 +24093,108 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       `<div class="subh">Chapters</div>`+
       ds.map(d=>{
         const s=runStat(d.id);
+        const dd=d.cards.filter(c=>isDue(key(d.id,c.id))&&!isQuar(key(d.id,c.id))).length;
         return `<div class="chrow" data-d="${esc(d.id)}">
           <div class="n">${esc(d.chapter)}<span class="ar">›</span></div>
-          <div class="meta">${d.cards.length} cards · ${s.label}${d.notesHtml?' · notes ✓':''}</div>
+          <div class="meta">${d.cards.length} cards · ${s.label}${d.notesHtml?' · notes ✓':''}${dd?' · <b style="color:#c2410c">'+dd+' due</b>':''}</div>
           <div class="stack"><i class="${s.tone}" style="width:${s.pct}%"></i></div></div>`;
       }).join('')+'</div>';
     $('arBack').onclick=()=>{view='subjects';curSub=null;render();};
     $('arImp2').onchange=e=>readFile(e,onImport);
     $('arSubRun').onclick=()=>{ runId=sid; view='subrun'; render(); };
+    if($('arDueSub')) $('arDueSub').onclick=()=>{ runId='due::'+slug(curSub); view='duerun'; render(); };
     $('ar-body').querySelectorAll('[data-d]').forEach(r=>r.onclick=()=>{deckId=r.dataset.d;view='chapter';tab='cards';render();});
+  }
+
+  /* ---------- render: search across every deck ---------- */
+  function renderSearch(){
+    const q=norm(searchQ);
+    let rows=[];
+    if(q) Object.values(A.decks).forEach(d=>d.cards.forEach(c=>{
+      if(norm(c.front).indexOf(q)>=0 || norm(c.back).indexOf(q)>=0)
+        rows.push({k:key(d.id,c.id), card:c, deck:d});
+    }));
+    setHead('Search', q? rows.length+' match'+(rows.length===1?'':'es') : 'every card, every deck', false);
+    $('ar-nav').innerHTML='';
+    $('ar-body').innerHTML='<div class="wrap">'+
+      `<div class="addbar"><button id="arBack6">← Subjects</button></div>
+       <div class="fform" style="padding:12px 13px;margin-bottom:12px">
+         <input id="arQ2" placeholder="Type a word, a meaning, anything…" value="${esc(searchQ)}"></div>`+
+      (q? (rows.length? rows.slice(0,300).map(x=>cardRow(x)).join('')
+                      : `<div class="empty">Nothing matches that.</div>`)
+        : `<div class="empty">Search runs over the prompt and the answer of every card you have imported.</div>`)+
+      '</div>';
+    $('arBack6').onclick=()=>{view='subjects';render();};
+    const inp=$('arQ2');
+    inp.oninput=()=>{ searchQ=inp.value; const pos=inp.selectionStart; render();
+      const n=$('arQ2'); if(n){ n.focus(); try{n.setSelectionRange(pos,pos);}catch(e){} } };
+    wireCardRows();
+  }
+  function cardRow(x){
+    const L=A.life[x.k]||{};
+    return `<div class="wrow">
+      <div class="q">${esc(x.card.front)}</div>
+      <div class="a2">${esc(x.card.back)}</div>
+      <div class="m2"><span>${esc(x.deck.chapter)}</span><span>·</span><span>${esc(x.card.topic)}</span>
+        <span class="pill" style="background:#eef1f6;color:#46505f">${dueLabel(L)}</span>
+        ${L.quar?'<span class="pill q2">quarantined</span>':''}
+        <button data-star="${esc(x.k)}">${L.star?'★ Starred':'☆ Star'}</button>
+        <button data-edit="${esc(x.k)}">Edit</button></div></div>`;
+  }
+  function wireCardRows(){
+    $('ar-body').querySelectorAll('[data-star]').forEach(b=>b.onclick=async()=>{
+      const L=lf(b.dataset.star); L.star=!L.star; await arSave(true); render(); });
+    $('ar-body').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{
+      editing=b.dataset.edit; view='edit'; render(); });
+  }
+
+  /* ---------- render: starred ---------- */
+  function renderStar(){
+    const rows=starList().map(k=>{ const R=resolveCard(k); return {k, card:R.card, deck:R.deck}; });
+    setHead('Starred', rows.length+' card'+(rows.length===1?'':'s'), false);
+    $('ar-nav').innerHTML='';
+    $('ar-body').innerHTML='<div class="wrap">'+
+      `<div class="addbar"><button id="arBack7">← Subjects</button>${rows.length?'<button id="arStarRun">Drill these</button>':''}</div>
+       <p class="small" style="margin:0 0 12px">Your own shortlist. Starring is manual and never expires —
+         use it for the handful you keep losing regardless of what the counters say.</p>`+
+      (rows.length? rows.map(x=>cardRow(x)).join('') : `<div class="empty">Nothing starred yet.</div>`)+'</div>';
+    $('arBack7').onclick=()=>{view='subjects';render();};
+    if($('arStarRun')) $('arStarRun').onclick=()=>{ runId='star::all'; view='starrun'; render(); };
+    wireCardRows();
+  }
+
+  /* ---------- render: edit one card ---------- */
+  function renderEdit(){
+    const R=resolveCard(editing);
+    if(!R){ view='subjects'; return render(); }
+    setHead('Edit card', esc(R.deck.chapter), false);
+    $('ar-nav').innerHTML='';
+    $('ar-body').innerHTML='<div class="wrap"><div class="fform">'+
+      `<label>Prompt (${esc(R.deck.colA||'front')})</label><textarea id="efF" rows="3">${esc(R.card.front)}</textarea>
+       <label>Answer (${esc(R.deck.colB||'back')})</label><textarea id="efB" rows="6">${esc(R.card.back)}</textarea>
+       <label>Topic</label><input id="efT" value="${esc(R.card.topic)}">
+       <p class="small" style="margin:12px 0 0">Editing text never touches this card's history, due date or counters —
+         they are keyed to the card id, not its wording.</p>
+       <div class="rowb"><button class="can" id="efX">Cancel</button><button id="efOK">Save</button></div>
+       <div class="rowb"><button class="can" id="efDel" style="background:#fdeee4;color:#c2410c">Delete this card</button></div>`+
+      '</div></div>';
+    $('efX').onclick=()=>{editing=null;view=curSub?'chapters':'subjects';render();};
+    $('efOK').onclick=async()=>{
+      const f=$('efF').value.trim(), b=$('efB').value.trim();
+      if(!f||!b){ toast('Both sides are needed.'); return; }
+      R.card.front=f; R.card.back=b; R.card.topic=$('efT').value.trim()||'General';
+      R.deck.updated=Date.now();
+      if(R.deck.autoNotes) R.deck.notesHtml=notesFromCards(R.deck.cards, R.deck.colA||'Prompt', R.deck.colB||'Answer');
+      await arSave(true); toast('Card updated'); editing=null; view='search'; render();
+    };
+    $('efDel').onclick=async()=>{
+      if(!confirm('Delete this card? Its history goes with it.')) return;
+      R.deck.cards=R.deck.cards.filter(c=>c.id!==R.card.id);
+      delete A.life[editing];
+      R.deck.updated=Date.now();
+      if(R.deck.autoNotes) R.deck.notesHtml=notesFromCards(R.deck.cards, R.deck.colA||'Prompt', R.deck.colB||'Answer');
+      await arSave(true); toast('Card deleted'); editing=null; view='search'; render();
+    };
   }
 
   /* ---------- render: worst cards ---------- */
@@ -23952,11 +24219,15 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
           <div class="m2">${(x.L.w1||0)>0?`<span class="pill">${x.L.w1} cold miss${x.L.w1>1?'es':''}</span>`:''}
             <span class="pill" style="background:#eef1f6;color:#46505f">${x.L.w} total</span>
             <span>${acc}% right</span><span>·</span><span>${esc(x.R.deck.chapter)} — ${esc(x.R.card.topic)}</span>
-            ${x.L.quar?'<span class="pill q2">quarantined</span>':''}</div></div>`;
+            <span class="pill" style="background:#eef1f6;color:#46505f">${dueLabel(x.L)}</span>
+            ${x.L.quar?'<span class="pill q2">quarantined</span>':''}
+            <button data-star="${esc(x.k)}">${x.L.star?'★':'☆'}</button>
+            <button data-edit="${esc(x.k)}">Edit</button></div></div>`;
       }).join('') : `<div class="empty">No misses recorded yet.</div>`)+'</div>';
     $('arBack4').onclick=()=>{view='subjects';render();};
-    $('arWipe').onclick=async()=>{ if(!confirm('Clear every lifetime counter and release all quarantined cards?')) return;
+    $('arWipe').onclick=async()=>{ if(!confirm('Clear every lifetime counter and release all quarantined cards?\n\nDue dates and intervals are cleared too — every card becomes due today.')) return;
       A.life={}; await arSave(true); render(); };
+    wireCardRows();
   }
 
   /* ---------- render: quarantine ---------- */
@@ -23969,18 +24240,27 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
          <button id="arRelAll">Release all</button></div>
        <p class="small" style="margin:0 0 12px">Each of these was missed in ${QUAR_AT} rounds running, so it is out of the
          cascade. Drilling them again will not help — the fault is interference with a neighbouring fact, not weak memory.
-         Read each one beside whatever it is being confused with, then release it.</p>`+
+         Read each one beside whatever it is being confused with, then <b>Re-learn</b> it: that releases the card, wipes its
+         streak and puts it back at the bottom of the ladder, due today.</p>`+
       (ks.length? ks.map(x=>`<div class="wrow">
           <div class="q">${esc(x.R.card.front)}</div>
           <div class="a2">${esc(x.R.card.back)}</div>
           <div class="m2"><span class="pill">${x.L.w} lifetime miss${x.L.w>1?'es':''}</span>
             <span>${esc(x.R.deck.chapter)} — ${esc(x.R.card.topic)}</span>
-            <button data-rel="${esc(x.k)}">Release</button></div></div>`).join('')
-        : `<div class="empty">Nothing quarantined. Good.</div>`)+'</div>';
+            <button data-rel="${esc(x.k)}">Release</button>
+            <button data-relearn="${esc(x.k)}" style="border-color:#0e1116;background:#0e1116;color:#fff">Re-learn</button></div></div>`).join('')
+        : `<div class="empty">Nothing quarantined. Good.</div>`)+
+      (ks.length? `<div class="addbar" style="margin-top:12px"><button id="arQRun" class="pri">Drill the released ones</button></div>`:'')+
+      '</div>';
     $('arBack5').onclick=()=>{view='subjects';render();};
     $('arRelAll').onclick=async()=>{ ks.forEach(x=>{A.life[x.k].quar=false;A.life[x.k].streak=0;}); await arSave(true); render(); };
     $('ar-body').querySelectorAll('[data-rel]').forEach(b=>b.onclick=async()=>{
       const k=b.dataset.rel; A.life[k].quar=false; A.life[k].streak=0; await arSave(true); render(); });
+    $('ar-body').querySelectorAll('[data-relearn]').forEach(b=>b.onclick=async()=>{
+      const k=b.dataset.relearn, L=lf(k);
+      L.quar=false; L.streak=0; L.step=0; L.ivl=0; L.due=Date.now();
+      await arSave(true); toast('Back in the ladder — due today'); render(); });
+    if($('arQRun')) $('arQRun').onclick=()=>{ if(!dueKeys(null).length){toast('Release a card first.');return;} runId='due::all'; view='duerun'; render(); };
   }
 
   /* ---------- render: metadata form ---------- */
@@ -24060,33 +24340,53 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     setHead(esc(curSub)+' <em>·</em> whole subject', total+' cards', false);
     cascadeUI(runId, {chips:false, backTo:'chapters', subject:curSub});
   }
+  /* ---------- render: due-today run ---------- */
+  function renderDueRun(){
+    const sub=curSub||null;
+    setHead('Due <em>today</em>'+(sub?' · '+esc(sub):''), dueKeys(sub).length+' owed', false);
+    cascadeUI(runId, {chips:false, backTo:(sub?'chapters':'subjects'), due:true, dueSub:sub});
+  }
+  /* ---------- render: starred run ---------- */
+  function renderStarRun(){
+    setHead('Starred <em>drill</em>', starList().length+' cards', false);
+    cascadeUI(runId, {chips:false, backTo:'star', star:true});
+  }
 
-  /* ---------- the cascade UI, shared by deck runs and subject runs ---------- */
+  /* ---------- the cascade UI, shared by every run type ---------- */
   function cascadeUI(id, o){
     const p=A.cprog[id];
     $('ar-nav').innerHTML='';
-    const freshPool=()=> o.deck? poolForDeck(o.deck) : poolForSubject(o.subject);
+    const freshPool=()=> o.deck? poolForDeck(o.deck)
+                       : o.due? dueKeys(o.dueSub).sort(()=>Math.random()-.5)
+                       : o.star? starList().filter(k=>!isQuar(k)).sort(()=>Math.random()-.5)
+                       : poolForSubject(o.subject);
     const backBtn=()=>{ const b=$('arBackR'); if(b) b.onclick=()=>{view=o.backTo;render();}; };
 
     /* not started */
     if(!p || !p.round){
       const pool=freshPool();
       const tops=o.deck? [...new Set(o.deck.cards.map(c=>c.topic))].length
-                       : (subjects()[o.subject]||[]).length;
+                       : (o.subject? (subjects()[o.subject]||[]).length : 0);
       $('ar-body').innerHTML='<div class="wrap">'+
-        (o.deck?'':`<div class="addbar"><button id="arBackR">← Chapters</button></div>`)+
+        (o.deck?'':`<div class="addbar"><button id="arBackR">← Back</button></div>`)+
+        modeBar()+
         `<div class="empty" style="padding:30px 20px">
            <div style="font-size:34px;font-weight:700;letter-spacing:-.03em;color:#0e1116">${pool.length}</div>
-           <p class="small" style="max-width:410px;margin:8px auto 0">cards across ${tops} ${o.deck?'topics':'chapters'}.
-             ${o.deck?'Round 1 runs the chapter in topic order.':'Round 1 mixes every chapter together — that is the point of a subject run.'}
+           <p class="small" style="max-width:410px;margin:8px auto 0">${
+             o.due? 'cards the ladder says you owe today, mixed across every deck.'
+             : o.star? 'starred cards.'
+             : 'cards across '+tops+' '+(o.deck?'topics':'chapters')+'.'}
+             ${o.deck?'Round 1 runs the chapter in topic order.':'Round 1 mixes everything together — that is the point.'}
              Every card you miss comes back in round 2, and only those. It repeats until a round ends with nothing wrong.
              Miss the same card ${QUAR_AT} rounds running and it is pulled out for reading instead.</p>
            <div class="addbar" style="justify-content:center;margin-top:20px">
              <button class="pri" id="arGo">Start round 1</button></div></div>`+
-        (o.chips?'<div class="chips" id="arChips"></div>':'')+'</div>';
+        (o.chips?'<div class="chips" id="arChips"></div>':'')+
+        deckHistory(o)+'</div>';
       if(o.chips) chips(id,o);
+      wireModeBar();
       backBtn();
-      $('arGo').onclick=()=>{startRun(id, freshPool(), true); render();};
+      $('arGo').onclick=()=>{ if(!freshPool().length){toast('Nothing to run.');return;} startRun(id, freshPool(), true); render();};
       return;
     }
     /* finished */
@@ -24094,8 +24394,9 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       const q=(p.quarantined||[]).length;
       $('ar-body').innerHTML='<div class="wrap">'+
         `<div class="done"><div class="n">${p.history.length}</div>
-          <p>round${p.history.length>1?'s':''} to clear this${o.deck?' chapter':' subject'} — the last one finished with nothing wrong.
-          ${q?'<br><br>'+q+' card'+(q>1?'s were':' was')+' quarantined along the way.':''}</p>
+          <p>round${p.history.length>1?'s':''} to clear this${o.deck?' chapter':o.due?' queue':' set'} — the last one finished with nothing wrong.
+          ${q?'<br><br>'+q+' card'+(q>1?'s were':' was')+' quarantined along the way.':''}
+          <br><br>These cards are not finished — each one now has its own return date on the ladder.</p>
           <button id="arAgain">Run it again</button><button class="sec2" id="arBackR">Back</button></div>`+
         (p.firstTotal? `<div class="rep"><div class="hh">Cold recall — round 1 only</div>
            <div class="rr"><span class="nm">Right first time</span>
@@ -24107,7 +24408,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
           p.history.map(h=>`<div class="rr"><span class="nm">Round ${h.round}</span>
             <span class="bar"><i style="width:${Math.round(h.wrong/Math.max(1,h.total)*100)}%"></i></span>
             <span class="vv">${h.wrong}/${h.total}</span></div>`).join('')+
-        `</div>`+ topicReport(id,o) +'</div>';
+        `</div>`+ topicReport(id,o) + deckHistory(o) +'</div>';
       $('arAgain').onclick=()=>{startRun(id, freshPool(), true); render();};
       backBtn();
       return;
@@ -24118,6 +24419,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     if(!R){ p.idx++; if(p.idx>=p.pool.length) nextRound(id); arSave(false); return render(); }
     const L=lf(k), showLabel = p.round===1;
     const label = o.deck ? R.card.topic : R.deck.chapter+' · '+R.card.topic;
+    const F=face(R.card);
     $('ar-body').innerHTML='<div class="wrap">'+
       `<div class="rbar">
          <div class="rd"><div class="rn">${p.round}</div><div class="rl">round</div></div>
@@ -24127,33 +24429,85 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
          <div class="rd"><div class="rn">${p.wrong.length}</div><div class="rl">wrong so far</div></div>
          <div class="rt2">${o.deck?'':'<button id="arBackR">Exit</button>'}<button id="arRestart">Restart</button></div>
        </div>`+
+      (p.stale?`<div class="stale">This deck was re-imported mid-run, so new cards are not in the current pool.
+         <b id="arReset2">Restart to include them</b>.</div>`:'')+
       (o.chips&&p.round===1?'<div class="chips" id="arChips"></div>':'')+
       `<div class="prog"><i style="width:${p.idx/p.pool.length*100}%"></i></div>`+
       `<div class="cd">
          <div class="tp">${showLabel?esc(label):'round '+p.round+' — misses only'}
+           ${A.opts.reverse?'<span class="lf rev">reverse</span>':''}
            ${(L.w1||0)>0?`<span class="lf">${L.w1} cold</span>`:((L.w||0)>0?`<span class="lf">${L.w} lifetime</span>`:'')}
            <span class="ct">${p.idx+1} of ${p.pool.length}</span></div>
-         <div class="fr">${esc(R.card.front)}</div>
+         <div class="fr">${esc(F.q)}</div>
          <div id="arBk"></div>
-       </div>
-       <button class="revb" id="arRev">Reveal</button>
+       </div>`+
+      (typingOn()? `<input class="tin" id="arTin" placeholder="Type the answer…" value="${esc(typed)}" autocomplete="off" autocapitalize="off" spellcheck="false">`:'')+
+      `<button class="revb" id="arRev">${typingOn()?'Check':'Reveal'}</button>
        <div id="arGr"></div>`+
       '</div>';
     if(o.chips&&p.round===1) chips(id,o);
     backBtn();
+    if($('arReset2')) $('arReset2').onclick=()=>{ p.stale=false; startRun(id, freshPool(), true); render(); };
     $('arRestart').onclick=()=>{ if(confirm('Restart from round 1?')){startRun(id, freshPool(), true); render();} };
-    $('arRev').onclick=()=>{
-      $('arBk').innerHTML=`<div class="bkw"><div class="a">${esc(R.card.back)}</div></div>`;
+    const tin=$('arTin');
+    if(tin){ tin.oninput=()=>{typed=tin.value;}; tin.onkeydown=e=>{ if(e.key==='Enter'){e.preventDefault(); doReveal();} }; setTimeout(()=>{try{tin.focus();}catch(e){}},30); }
+    function doReveal(){
+      let verdict='';
+      if(typingOn()){
+        const good=norm(typed)===norm(F.a) && norm(typed)!=='';
+        verdict=`<div class="tv ${good?'ok':'no'}">${good?'✓ exact match':'✗ you typed: '+(esc(typed)||'(nothing)')}</div>`;
+      }
+      $('arBk').innerHTML=`<div class="bkw">${verdict}<div class="a">${esc(F.a)}</div></div>`;
       $('arRev').style.display='none';
-      $('arGr').innerHTML=`<div class="grade"><button class="gy" id="arGY">Right</button><button class="gn" id="arGN">Wrong</button></div>`;
-      $('arGY').onclick=()=>grade(id,true); $('arGN').onclick=()=>grade(id,false);
-    };
+      if(tin) tin.disabled=true;
+      $('arGr').innerHTML=`<div class="grade">
+          <button class="gn" id="arGA">Again<span>0d</span></button>
+          <button class="gh" id="arGH">Hard<span>${IVL[Math.max(0,(L.step||0)-1)]||1}d</span></button>
+          <button class="gy" id="arGG">Good<span>${IVL[Math.min(IVL.length-1,L.step||0)]}d</span></button>
+        </div>
+        <div class="grow2"><button id="arStar2">${L.star?'★ Starred':'☆ Star this'}</button>
+          <button id="arEdit2">Edit card</button></div>`;
+      $('arGA').onclick=()=>grade(id,'again');
+      $('arGH').onclick=()=>grade(id,'hard');
+      $('arGG').onclick=()=>grade(id,'good');
+      $('arStar2').onclick=async()=>{ L.star=!L.star; await arSave(false); $('arStar2').textContent=L.star?'★ Starred':'☆ Star this'; };
+      $('arEdit2').onclick=()=>{ editing=k; view='edit'; render(); };
+    }
+    $('arRev').onclick=doReveal;
   }
+
+  /* ---------- reverse / typing toggles ---------- */
+  function modeBar(){
+    return `<div class="modebar">
+      <button id="arRevT" class="${A.opts.reverse?'on':''}">${A.opts.reverse?'Reverse: answer → prompt':'Normal: prompt → answer'}</button>
+      ${A.opts.reverse?`<button id="arTypT" class="${A.opts.type?'on':''}">${A.opts.type?'Typing on':'Typing off'}</button>`:''}
+    </div>`;
+  }
+  function wireModeBar(){
+    if($('arRevT')) $('arRevT').onclick=async()=>{ A.opts.reverse=!A.opts.reverse; if(!A.opts.reverse) A.opts.type=false; await arSave(false); render(); };
+    if($('arTypT')) $('arTypT').onclick=async()=>{ A.opts.type=!A.opts.type; await arSave(false); render(); };
+  }
+
+  /* ---------- past-run history for a deck ---------- */
+  function deckHistory(o){
+    const id=o.deck?o.deck.id:null; if(!id) return '';
+    const rl=A.runlog[id]||[]; if(!rl.length) return '';
+    return `<div class="rep"><div class="hh">Past runs — cold recall each time</div>`+
+      rl.slice().reverse().slice(0,12).map(r=>{
+        const d=new Date(r.ts).toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+        return `<div class="rr"><span class="nm">${d}</span>
+          <span class="bar"><i style="width:${r.cold==null?0:r.cold}%;background:#15803d"></i></span>
+          <span class="vv" style="color:#15803d">${r.cold==null?'—':r.cold+'%'}</span>
+          <span style="font-size:11.5px;color:#8b95a5;min-width:62px;text-align:right">${r.rounds} round${r.rounds>1?'s':''}</span></div>`;
+      }).join('')+
+      `<p class="small" style="margin:8px 0 0">Cold recall is round-1 accuracy. Watch this climb across runs —
+        a flat line means the deck is being recognised, not learned.</p></div>`;
+  }
+
   /* per-topic (or per-chapter) miss report for a finished run */
   function topicReport(id,o){
     const p=A.cprog[id]; if(!p||!p.history.length) return '';
     const miss={};
-    (p.pool||[]).concat(p.quarantined||[]).forEach(()=>{});
     Object.keys(A.life).forEach(k=>{
       const R=resolveCard(k); if(!R) return;
       if(o.deck && R.deck.id!==o.deck.id) return;
@@ -24199,8 +24553,13 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     else if(view==='worst') renderWorst();
     else if(view==='quar') renderQuar();
     else if(view==='subrun') renderSubRun();
+    else if(view==='duerun') renderDueRun();
+    else if(view==='starrun') renderStarRun();
+    else if(view==='search') renderSearch();
+    else if(view==='star') renderStar();
+    else if(view==='edit') renderEdit();
     else renderChapter();
-    $('ar-body').scrollTop=0;
+    if(view!=='search') $('ar-body').scrollTop=0;
   }
   window.arOpen=async function(){
     await arLoad();
@@ -24224,8 +24583,11 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
   window.arClose=async function(){
     $('ar-modal').style.display='none';
     document.body.style.overflow='';
+    flushSession();
     await arSave(true);
   };
+  /* a due count other modules can read without opening the drawer */
+  window.__arDueCount=function(sub){ try{ return dueKeys(sub||null).length; }catch(e){ return 0; } };
   document.addEventListener('keydown',e=>{ if(e.key==='Escape' && $('ar-modal') && $('ar-modal').style.display==='block') window.arClose(); });
   arLoad();
 })();
