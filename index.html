@@ -1810,7 +1810,17 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-14 · v27.5';
+    const HUB_BUILD = '2026-08-14 · v27.6';
+
+    // v27.6 — Pomodoro fixed + extended:
+    //   BUG in v27.4/27.5: 🍅 buttons were only wired to drillRowTimer(), which
+    //   only 🎯 Mock rows use. 📘 Lecture and 🔄 Revision rows draw their own
+    //   controls (drillLecCurrent / drillLecChip / drillRenderRevLecRow), so the
+    //   buttons were invisible on every row actually used. Now on all three.
+    //   Added: ⏸ pause/resume on the Pomodoro (pauses the study clock with it),
+    //   break choice 5 or 10 min (or none), pausable/skippable break, and the
+    //   ability to attach a Pomodoro to a session already running continuously.
+    //   See POMO_KIND / pomoStart / pomoAsk / brkStart.
 
     // v27.3 — SRS schedule retune (less time left before exam):
     //   MA (Maths/Arithmetic R1-correct) now masters INSTANTLY, no review at all.
@@ -18000,6 +18010,7 @@ function drillRenderRevLecRow(col,it){
     cls='doing';
     const live=drillFmtLive(drillLecElapsedMs(it.revLogId));
     controls=`<span class="drill-lec-timer" data-log="${it.revLogId}" style="font-size:14px">${live}</span>`+
+      (window._pomoOn && window._pomoOn('rev',col,it.id,0) ? '' : pomoBtns('drillRevStartPomo', `'${col}','${it.id}'`))+
       `<button class="drill-lecbtn pause" onclick="drillRevPause('${col}','${it.id}')">⏸ Pause</button>`+
       `<button class="drill-lecbtn end" onclick="drillRevEnd('${col}','${it.id}')">⏹ End</button>`;
   } else if(st==='paused'){
@@ -18013,7 +18024,8 @@ function drillRenderRevLecRow(col,it){
     const undo = it.revLogId ? '' : `<button class="drill-lecbtn undo" onclick="drillRevUndo('${col}','${it.id}')" title="Undo">↩</button>`;
     controls=`<span style="font-size:12px;font-weight:900;color:#34d399">✅ Revised</span>${hrs}${undo}`;
   } else {
-    controls=`<button class="drill-lecbtn start" onclick="drillRevStart('${col}','${it.id}')">▶ Start</button>`+
+    controls=`<button class="drill-lecbtn start" onclick="drillRevStart('${col}','${it.id}')" title="Continuous timer — runs till you stop it">▶ Start</button>`+
+      pomoBtns('drillRevStartPomo', `'${col}','${it.id}'`)+
       `<button class="drill-lecbtn check" onclick="drillRevCheck('${col}','${it.id}')" title="Already done — mark without timing">✓ Done</button>`;
   }
   return `<div class="drill-lecrow">
@@ -18082,6 +18094,7 @@ function drillLecCurrent(col,id,n,l,doneN,total){
     cls='doing';
     const live=drillFmtLive(drillLecElapsedMs(l.logId));
     controls=`<span class="drill-lec-timer" data-log="${l.logId}" style="font-size:14px">${live}</span>`+
+      (window._pomoOn && window._pomoOn('lec',col,id,n) ? '' : pomoBtns('drillLecStartPomo', `'${col}','${id}',${n}`))+
       `<button class="drill-lecbtn pause" onclick="drillLecPause('${col}','${id}',${n})">⏸ Pause</button>`+
       `<button class="drill-lecbtn end" onclick="drillLecEnd('${col}','${id}',${n})">⏹ End</button>`;
   } else if(l.status==='paused'){
@@ -18090,7 +18103,8 @@ function drillLecCurrent(col,id,n,l,doneN,total){
       `<button class="drill-lecbtn resume" onclick="drillLecResume('${col}','${id}',${n})">▶ Resume</button>`+
       `<button class="drill-lecbtn end" onclick="drillLecEnd('${col}','${id}',${n})">⏹ End</button>`;
   } else {
-    controls=`<button class="drill-lecbtn start" onclick="drillLecStart('${col}','${id}',${n})">▶ Start</button>`+
+    controls=`<button class="drill-lecbtn start" onclick="drillLecStart('${col}','${id}',${n})" title="Continuous timer — runs till you stop it">▶ Start</button>`+
+      pomoBtns('drillLecStartPomo', `'${col}','${id}',${n}`)+
       `<button class="drill-lecbtn check" onclick="drillLecCheck('${col}','${id}',${n})" title="Already done — mark without timing">✓ Done</button>`;
   }
   return `<div class="drill-leccurrent ${cls}">
@@ -18118,6 +18132,8 @@ function drillLecChip(col,id,n,l){
   }
   return `<span class="drill-lec todo"><span class="ln">L${n}</span>`+
     `<button class="drill-lecbtn start" onclick="drillLecStart('${col}','${id}',${n})" title="Start timing">▶</button>`+
+    `<button class="drill-lecbtn start" onclick="drillLecStartPomo('${col}','${id}',${n},25)" title="Pomodoro 25 min" style="background:rgba(79,70,229,.18);border-color:rgba(129,140,248,.5);color:#a5b4fc">🍅25</button>`+
+    `<button class="drill-lecbtn start" onclick="drillLecStartPomo('${col}','${id}',${n},50)" title="Pomodoro 50 min" style="background:rgba(79,70,229,.18);border-color:rgba(129,140,248,.5);color:#a5b4fc">🍅50</button>`+
     `<button class="drill-lecbtn check" onclick="drillLecCheck('${col}','${id}',${n})" title="Already done — mark without timing">✓</button></span>`;
 }
 
@@ -18366,17 +18382,15 @@ function drillRowTimer(col,it){
   }
   if(st==='done'){
     return `<div class="drill-leccurrent" style="border-color:var(--green)"><div style="flex:1"><span class="drill-lec-hrs">✓ Logged ${hDisp(it.hrs||0)}</span></div>
-      <div style="display:flex;gap:5px;align-items:center">
+      <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
         <button class="drill-lecbtn start" onclick="drillRowStart('${col}','${it.id}')" title="Log another session">▶ Again</button>
-        <button class="drill-lecbtn start" onclick="drillRowStartPomo('${col}','${it.id}',25)" title="Pomodoro 25 min" style="background:rgba(79,70,229,.15);border-color:rgba(129,140,248,.45);color:#a5b4fc">🍅25</button>
-        <button class="drill-lecbtn start" onclick="drillRowStartPomo('${col}','${it.id}',50)" title="Pomodoro 50 min" style="background:rgba(79,70,229,.15);border-color:rgba(129,140,248,.45);color:#a5b4fc">🍅50</button>
+        ${pomoBtns('drillRowStartPomo', `'${col}','${it.id}'`)}
       </div></div>`;
   }
   return `<div class="drill-leccurrent"><div style="flex:1"><div class="lecsub">Ready to log</div></div>
-    <div style="display:flex;gap:5px;align-items:center">
+    <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
       <button class="drill-lecbtn start" onclick="drillRowStart('${col}','${it.id}')" title="Continuous timer — runs till you stop it">▶ Start</button>
-      <button class="drill-lecbtn start" onclick="drillRowStartPomo('${col}','${it.id}',25)" title="Pomodoro 25 min" style="background:rgba(79,70,229,.15);border-color:rgba(129,140,248,.45);color:#a5b4fc">🍅25</button>
-      <button class="drill-lecbtn start" onclick="drillRowStartPomo('${col}','${it.id}',50)" title="Pomodoro 50 min" style="background:rgba(79,70,229,.15);border-color:rgba(129,140,248,.45);color:#a5b4fc">🍅50</button>
+      ${pomoBtns('drillRowStartPomo', `'${col}','${it.id}'`)}
     </div></div>`;
 }
 
@@ -20055,124 +20069,253 @@ setInterval(()=>{
 }, 60000);
 
 /* ══════════════════════════════════════════════════════════════════════════
-   POMODORO (v27.4) — rides on top of the existing Daily Drill row timer.
-   The continuous ▶ Start timer is untouched; 🍅25 / 🍅50 start the SAME
-   session and just add a target end. When the target lands you get one
-   question: studied, or wasted?
-     • studied → the session is logged normally + a 10 min break starts
-     • wasted  → the log is deleted, nothing counts toward study hours
+   POMODORO (v27.6) — rides on top of the EXISTING Daily Drill timers.
+   It never replaces the continuous ▶ Start timer; it drives the very same
+   start/pause/resume/end functions each row type already uses, and just adds
+   a target end + a question at the end.
+
+   Works on every timed row: 📘 Lecture, 🔄 Revision, 🎯 Mock.
+     • ⏸ Pause freezes the Pomodoro AND the study timer together
+     • at 0 → studied (5 or 10 min break) or wasted (log deleted, 0 hrs)
    ══════════════════════════════════════════════════════════════════════════ */
-let _pomo = null;          // { col, id, logId, mins, endTs }
+
+// One adapter per row type so the Pomodoro can drive whatever timer the row
+// already owns. Keys match the shapes in drillLecCurrent / drillRenderRevLecRow
+// / drillRowTimer.
+const POMO_KIND = {
+  lec: {
+    start:  (p)=>drillLecStart(p.col,p.id,p.n),
+    pause:  (p)=>drillLecPause(p.col,p.id,p.n),
+    resume: (p)=>drillLecResume(p.col,p.id,p.n),
+    end:    (p)=>drillLecEnd(p.col,p.id,p.n),
+    state:  (p)=>{ const it=drillFindRow(p.col,p.id); const l=it&&it.lecs&&it.lecs[p.n-1]; return l?l.status:null; },
+    logId:  (p)=>{ const it=drillFindRow(p.col,p.id); const l=it&&it.lecs&&it.lecs[p.n-1]; return l?l.logId:null; },
+    reset:  (p)=>{ const it=drillFindRow(p.col,p.id); const l=it&&it.lecs&&it.lecs[p.n-1]; if(l){ l.status='todo'; l.logId=null; l.hrs=0; } }
+  },
+  rev: {
+    start:  (p)=>drillRevStart(p.col,p.id),
+    pause:  (p)=>drillRevPause(p.col,p.id),
+    resume: (p)=>drillRevResume(p.col,p.id),
+    end:    (p)=>drillRevEnd(p.col,p.id),
+    state:  (p)=>{ const it=drillFindRow(p.col,p.id); return it?(it.revStatus||'todo'):null; },
+    logId:  (p)=>{ const it=drillFindRow(p.col,p.id); return it?it.revLogId:null; },
+    reset:  (p)=>{ const it=drillFindRow(p.col,p.id); if(it){ it.revStatus='todo'; it.revLogId=null; it.revHrs=0; } }
+  },
+  row: {
+    start:  (p)=>drillRowStart(p.col,p.id),
+    pause:  (p)=>drillRowPause(p.col,p.id),
+    resume: (p)=>drillRowResume(p.col,p.id),
+    end:    (p)=>drillRowEnd(p.col,p.id),
+    state:  (p)=>{ const it=drillFindRow(p.col,p.id); return it?(it.status||'todo'):null; },
+    logId:  (p)=>{ const it=drillFindRow(p.col,p.id); return it?it.logId:null; },
+    reset:  (p)=>{ const it=drillFindRow(p.col,p.id); if(it){ it.status='todo'; it.logId=null; it.hrs=0; } }
+  }
+};
+
+let _pomo = null;      // { kind, col, id, n, mins, endTs, leftMs, paused, label }
 let _pomoTick = null;
-let _breakEnd = 0;
-let _breakTick = null;
+let _brk = null;       // { endTs, leftMs, paused, mins }
+let _brkTick = null;
 
 function pomoFmt(ms){
   if(ms<0) ms=0;
-  const s = Math.floor(ms/1000);
+  const s = Math.round(ms/1000);
   return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
 }
+function pomoLeft(){
+  if(!_pomo) return 0;
+  return _pomo.paused ? _pomo.leftMs : (_pomo.endTs - Date.now());
+}
 
-window.drillRowStartPomo = function(col, id, mins){
-  if(_pomo){ alert('A Pomodoro is already running — end it first'); return; }
-  const it = (typeof drillFindRow==='function') ? drillFindRow(col,id) : null;
-  if(!it) return;
-  if(it.status !== 'doing') drillRowStart(col, id);       // reuse the normal timer
-  const row = drillFindRow(col,id);
-  _pomo = { col, id, logId: (row&&row.logId)||null, mins, endTs: Date.now() + mins*60000 };
-  pomoStartTick();
-  try{ hubToast('🍅 '+mins+' min started — phone face down'); }catch(e){}
+/* ── start ─────────────────────────────────────────────────────────────── */
+window.pomoStart = function(kind, col, id, n, mins){
+  if(_pomo){
+    if(!confirm('A '+_pomo.mins+' min Pomodoro is already running.\n\nOK = drop it and start this one instead.')) return;
+    pomoClear();
+  }
+  const A = POMO_KIND[kind]; if(!A) return;
+  const p = { kind, col, id, n:n||0, mins, paused:false, leftMs:mins*60000, endTs: Date.now()+mins*60000 };
+  const st = A.state(p);
+  if(st==='doing'){ /* already timing — just attach the target */ }
+  else if(st==='paused'){ A.resume(p); }
+  else { A.start(p); }
+  if(!A.logId(p)){ alert('Could not start the timer on this row — set subject/topic first.'); return; }
+  _pomo = p;
+  pomoTickOn();
+  pomoBadgeRender();
 };
+// thin wrappers used by the row buttons
+window.drillLecStartPomo = (col,id,n,mins)=>pomoStart('lec',col,id,n,mins);
+window.drillRevStartPomo = (col,id,mins)=>pomoStart('rev',col,id,0,mins);
+window.drillRowStartPomo = (col,id,mins)=>pomoStart('row',col,id,0,mins);
 
-function pomoStartTick(){
+/* ── pause / resume / cancel ───────────────────────────────────────────── */
+window.pomoPause = function(){
+  if(!_pomo || _pomo.paused) return;
+  _pomo.leftMs = _pomo.endTs - Date.now();
+  _pomo.paused = true;
+  const A = POMO_KIND[_pomo.kind];
+  try{ if(A.state(_pomo)==='doing') A.pause(_pomo); }catch(e){}   // stop the study clock too
+  pomoBadgeRender();
+};
+window.pomoResume = function(){
+  if(!_pomo || !_pomo.paused) return;
+  _pomo.endTs = Date.now() + _pomo.leftMs;
+  _pomo.paused = false;
+  const A = POMO_KIND[_pomo.kind];
+  try{ if(A.state(_pomo)==='paused') A.resume(_pomo); }catch(e){}
+  pomoTickOn();
+  pomoBadgeRender();
+};
+window.pomoCancel = function(){
+  if(!_pomo) return;
+  if(!confirm('Drop this Pomodoro?\n\nThe time you already did stays on the row — only the target is cancelled.')) return;
+  const A = POMO_KIND[_pomo.kind];
+  try{ if(A.state(_pomo)==='doing') A.pause(_pomo); }catch(e){}
+  pomoClear();
+};
+function pomoClear(){
+  if(_pomoTick){ clearInterval(_pomoTick); _pomoTick=null; }
+  _pomo = null;
+  pomoBadgeRender();
+}
+
+function pomoTickOn(){
   if(_pomoTick) return;
   _pomoTick = setInterval(()=>{
-    if(!_pomo){ clearInterval(_pomoTick); _pomoTick=null; pomoBadge(''); return; }
-    const left = _pomo.endTs - Date.now();
-    pomoBadge('🍅 '+pomoFmt(left));
-    if(left <= 0){
+    if(!_pomo){ clearInterval(_pomoTick); _pomoTick=null; return; }
+    if(_pomo.paused){ return; }
+    if(pomoLeft() <= 0){
       clearInterval(_pomoTick); _pomoTick = null;
       pomoAsk();
+      return;
     }
+    pomoBadgeRender();
   }, 1000);
 }
 
-// Small floating readout so you can see the countdown from anywhere in the hub.
-function pomoBadge(txt){
+/* ── floating badge (visible from anywhere in the hub) ──────────────────── */
+function pomoBadgeRender(){
   let b = document.getElementById('pomo-badge');
-  if(!txt){ if(b) b.remove(); return; }
+  const showPomo = !!_pomo, showBrk = !!_brk;
+  if(!showPomo && !showBrk){ if(b) b.remove(); return; }
   if(!b){
     b = document.createElement('div');
     b.id = 'pomo-badge';
-    b.style.cssText = 'position:fixed;top:64px;right:14px;z-index:2147483644;background:#4f46e5;color:#fff;padding:7px 13px;border-radius:999px;font-size:13px;font-weight:900;box-shadow:0 6px 18px rgba(0,0,0,.35);font-family:inherit';
+    b.style.cssText = 'position:fixed;top:64px;right:12px;z-index:2147483644;display:flex;align-items:center;gap:6px;background:#4f46e5;color:#fff;padding:6px 8px 6px 12px;border-radius:999px;font-size:13px;font-weight:900;box-shadow:0 6px 18px rgba(0,0,0,.4);font-family:inherit';
     document.body.appendChild(b);
   }
-  b.textContent = txt;
+  const bs = 'background:rgba(255,255,255,.18);border:none;color:#fff;width:26px;height:26px;border-radius:50%;font-size:12px;font-weight:900;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center';
+  if(showBrk){
+    b.style.background = '#0ea5e9';
+    b.innerHTML = `<span>☕ ${pomoFmt(_brk.paused?_brk.leftMs:(_brk.endTs-Date.now()))}</span>`
+      + `<button style="${bs}" onclick="${_brk.paused?'brkResume()':'brkPause()'}" title="${_brk.paused?'Resume break':'Pause break'}">${_brk.paused?'▶':'⏸'}</button>`
+      + `<button style="${bs}" onclick="brkSkip()" title="Skip break">✕</button>`;
+    return;
+  }
+  b.style.background = _pomo.paused ? '#64748b' : '#4f46e5';
+  b.innerHTML = `<span>🍅 ${pomoFmt(pomoLeft())}${_pomo.paused?' · paused':''}</span>`
+    + `<button style="${bs}" onclick="${_pomo.paused?'pomoResume()':'pomoPause()'}" title="${_pomo.paused?'Resume':'Pause'}">${_pomo.paused?'▶':'⏸'}</button>`
+    + `<button style="${bs}" onclick="pomoCancel()" title="Drop this Pomodoro">✕</button>`;
 }
 
+/* ── the question ──────────────────────────────────────────────────────── */
 function pomoAsk(){
   const p = _pomo; if(!p) return;
   try{ if(navigator.vibrate) navigator.vibrate([200,100,200,100,200]); }catch(e){}
-  pomoBadge('');
   if(document.getElementById('pomo-ask')) return;
   const ov = document.createElement('div');
   ov.id = 'pomo-ask';
-  ov.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:linear-gradient(160deg,#0f172a,#1e1b4b 60%,#020617);display:flex;align-items:center;justify-content:center;padding:24px;font-family:inherit';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:linear-gradient(160deg,#0f172a,#1e1b4b 60%,#020617);display:flex;align-items:center;justify-content:center;padding:22px;font-family:inherit;overflow-y:auto';
   ov.innerHTML = `
     <div style="max-width:400px;width:100%;text-align:center;color:#e2e8f0">
-      <div style="font-size:48px;margin-bottom:6px">🍅</div>
+      <div style="font-size:46px;margin-bottom:4px">🍅</div>
       <div style="font-size:22px;font-weight:900;color:#fff;margin-bottom:4px">${p.mins} MINUTES DONE</div>
-      <div style="font-size:14px;font-weight:700;color:#a5b4fc;line-height:1.5;margin-bottom:18px">
-        Be honest — nobody else sees this. Wasted time that gets logged as study is a lie you'll believe at mock time.
+      <div style="font-size:13px;font-weight:700;color:#a5b4fc;line-height:1.5;margin-bottom:18px">
+        Be honest — nobody else sees this. Wasted time logged as study is a lie you'll believe on exam day.
       </div>
-      <button id="pomo-studied" style="width:100%;background:#10b981;color:#fff;font-weight:900;font-size:16px;padding:14px;border:none;border-radius:12px;cursor:pointer;margin-bottom:10px;box-shadow:0 6px 20px rgba(16,185,129,.4)">✅ I STUDIED — log it + 10 min break</button>
-      <button id="pomo-wasted" style="width:100%;background:transparent;color:#fca5a5;font-weight:800;font-size:14px;padding:12px;border:1px solid #7f1d1d;border-radius:11px;cursor:pointer">✗ Wasted it — don't count this</button>
+      <div style="font-size:11px;font-weight:900;color:#6ee7b7;letter-spacing:.08em;margin-bottom:7px">✅ I STUDIED — LOG IT, THEN BREAK</div>
+      <div style="display:flex;gap:9px;margin-bottom:14px">
+        <button id="pomo-b5"  style="flex:1;background:#10b981;color:#fff;font-weight:900;font-size:15px;padding:14px;border:none;border-radius:12px;cursor:pointer;box-shadow:0 6px 18px rgba(16,185,129,.35)">☕ 5 min</button>
+        <button id="pomo-b10" style="flex:1;background:#10b981;color:#fff;font-weight:900;font-size:15px;padding:14px;border:none;border-radius:12px;cursor:pointer;box-shadow:0 6px 18px rgba(16,185,129,.35)">☕ 10 min</button>
+      </div>
+      <button id="pomo-b0" style="width:100%;background:rgba(16,185,129,.12);color:#6ee7b7;font-weight:800;font-size:13px;padding:11px;border:1px solid rgba(16,185,129,.4);border-radius:11px;cursor:pointer;margin-bottom:16px">Log it — no break, straight into the next block</button>
+      <button id="pomo-bw" style="width:100%;background:transparent;color:#fca5a5;font-weight:800;font-size:14px;padding:12px;border:1px solid #7f1d1d;border-radius:11px;cursor:pointer">✗ Wasted it — don't count this</button>
     </div>`;
   document.body.appendChild(ov);
 
-  document.getElementById('pomo-studied').onclick = ()=>{
+  const studied = (brkMins)=>{
     ov.remove();
-    try{ drillRowEnd(p.col, p.id); }catch(e){}
-    _pomo = null;
-    breakStart(10);
+    const A = POMO_KIND[p.kind];
+    try{ A.end(p); }catch(e){}
+    pomoClear();
+    if(brkMins) brkStart(brkMins);
+    else { try{ hubToast('Logged ✓ — straight into the next block'); }catch(e){} }
   };
-  document.getElementById('pomo-wasted').onclick = ()=>{
+  document.getElementById('pomo-b5').onclick  = ()=>studied(5);
+  document.getElementById('pomo-b10').onclick = ()=>studied(10);
+  document.getElementById('pomo-b0').onclick  = ()=>studied(0);
+  document.getElementById('pomo-bw').onclick  = ()=>{
     ov.remove();
     // bin the log entirely — wasted minutes never reach the study total
+    const A = POMO_KIND[p.kind];
     try{
-      const it = drillFindRow(p.col, p.id);
-      const logId = (it && it.logId) || p.logId;
-      if(logId) deleteLog(drillViewDate, logId);
-      if(it){ it.status='todo'; it.logId=null; it.hrs=0; }
-      drillStamp(); save();
+      const logId = A.logId(p);
+      if(logId && typeof deleteLog==='function') deleteLog(drillViewDate, logId);
+      A.reset(p);
+      if(typeof drillStamp==='function') drillStamp();
+      if(typeof save==='function') save();
       if(typeof drillRenderCol==='function') drillRenderCol(p.col);
       if(typeof drillUpdateCounts==='function') drillUpdateCounts();
     }catch(e){}
-    _pomo = null;
+    pomoClear();
     try{ hubToast('Not counted. Next block — start clean.'); }catch(e){}
   };
 }
 
-function breakStart(mins){
-  _breakEnd = Date.now() + mins*60000;
-  if(_breakTick) clearInterval(_breakTick);
-  _breakTick = setInterval(()=>{
-    const left = _breakEnd - Date.now();
-    if(left <= 0){
-      clearInterval(_breakTick); _breakTick = null;
-      pomoBadge('');
+/* ── break (pausable, skippable) ───────────────────────────────────────── */
+function brkStart(mins){
+  _brk = { mins, paused:false, leftMs:mins*60000, endTs: Date.now()+mins*60000 };
+  if(_brkTick) clearInterval(_brkTick);
+  _brkTick = setInterval(()=>{
+    if(!_brk){ clearInterval(_brkTick); _brkTick=null; return; }
+    if(_brk.paused) return;
+    if(_brk.endTs - Date.now() <= 0){
+      clearInterval(_brkTick); _brkTick=null; _brk=null;
+      pomoBadgeRender();
       try{ if(navigator.vibrate) navigator.vibrate([200,100,200]); }catch(e){}
       try{ hubToast('☕ Break over — back to it'); }catch(e){}
       return;
     }
-    pomoBadge('☕ '+pomoFmt(left));
+    pomoBadgeRender();
   }, 1000);
-  try{ hubToast('☕ 10 min break — stand up, water, no phone scroll'); }catch(e){}
+  pomoBadgeRender();
+  try{ hubToast('☕ '+mins+' min break — stand up, water, no scrolling'); }catch(e){}
 }
+window.brkPause = function(){
+  if(!_brk || _brk.paused) return;
+  _brk.leftMs = _brk.endTs - Date.now(); _brk.paused = true; pomoBadgeRender();
+};
+window.brkResume = function(){
+  if(!_brk || !_brk.paused) return;
+  _brk.endTs = Date.now() + _brk.leftMs; _brk.paused = false; pomoBadgeRender();
+};
+window.brkSkip = function(){
+  if(_brkTick){ clearInterval(_brkTick); _brkTick=null; }
+  _brk = null; pomoBadgeRender();
+};
 
-window.pomoCancel = function(){
-  if(_pomoTick){ clearInterval(_pomoTick); _pomoTick=null; }
-  _pomo = null; pomoBadge('');
+// True when a Pomodoro is already attached to this exact row — so the row
+// shows the running countdown instead of offering to start another one.
+window._pomoOn = function(kind, col, id, n){
+  return !!(_pomo && _pomo.kind===kind && _pomo.col===col && _pomo.id===id && (_pomo.n||0)===(n||0));
+};
+
+// Shared button markup so every row type shows the same 🍅 pair.
+window.pomoBtns = function(fnName, args){
+  const st = 'background:rgba(79,70,229,.18);border-color:rgba(129,140,248,.5);color:#a5b4fc';
+  return `<button class="drill-lecbtn start" onclick="${fnName}(${args},25)" title="Pomodoro 25 min" style="${st}">🍅25</button>`
+       + `<button class="drill-lecbtn start" onclick="${fnName}(${args},50)" title="Pomodoro 50 min" style="${st}">🍅50</button>`;
 };
 
 window.plannerInit = function(){
