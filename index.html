@@ -1810,7 +1810,33 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-14 · v28.2';
+    const HUB_BUILD = '2026-08-14 · v28.4';
+
+    // v28.4 — log rows say what actually happened:
+    //   The 🍅 tag showed the TARGET picked (🍅50) even when the session was
+    //   stopped at 12 minutes. Split into pomoPlan (target, stamped on create)
+    //   and pomoDone (real minutes, stamped when the session is banked); the
+    //   feed shows the real number and appends "of 50" when it fell short.
+    //   Active Recall rows now read "Active Recall · English · OWS" — the deck's
+    //   own shorthand is kept for the headline while the chapter field keeps the
+    //   full topic name for the stats bars.
+
+    // v28.3 — session identity + three bugs found in v28.1/28.2's own code:
+    //   1. the 25/day new-card cap was self-defeating: grading 25 new cards
+    //      marked them seen, they left the "new" list, and the next slice
+    //      handed out 25 more in the same sitting (175 reachable on day one).
+    //      Budget is now released-minus-used, spent when a new card is graded.
+    //   2. isNew() keyed only on .seen, so every card studied before v28.1 —
+    //      the whole existing collection — counted as new. Now falls back to
+    //      reps/r/w/last/due for pre-v28.1 cards.
+    //   3. the per-subject split recomputed the gap instead of reusing the one
+    //      sessTouch banked, so the first card of a session gave 0s to its
+    //      subject and handed all its time to the next one. sessTouch now
+    //      returns the capped gap and the split credits the card being closed.
+    //   Also: quarantine auto-releases after its cool-off (quarUntil) instead
+    //   of freezing forever, and each Pomodoro against one lecture is numbered
+    //   ("L17 · session 2") with its length stamped on the log, so repeated
+    //   30-minute blocks on the same lecture are no longer indistinguishable.
 
     // v28.2 — Active Recall logs roll up to core subjects:
     //   A deck's subject is often a TOPIC (an OWS deck carries subject "OWS"),
@@ -16956,7 +16982,10 @@ function renderTodayLogList(){
     const totalMin=Math.floor((pastMs+currMs)/60000);
     const hh=Math.floor(totalMin/60), mm=totalMin%60;
     const liveStr=(hh>0?hh+'h ':'')+mm+'m';
-    const detail=l.type==='srs'?(()=>{const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;let sj='';if(l.topicMap&&Object.keys(l.topicMap).length){const parts=[];Object.entries(l.topicMap).forEach(([subj,topics])=>{Object.entries(topics).forEach(([tp,v])=>{parts.push(subj+' › '+tp+' ('+v.count+')');});});sj='<br><span style="font-size:9px;color:var(--muted)">'+parts.join(' · ')+'</span>';}else if(l.subjects&&Object.keys(l.subjects).length){sj='<br><span style="font-size:9px;color:var(--muted)">'+Object.entries(l.subjects).map(([s,n])=>s+': '+n).join(' · ')+'</span>';}return l.cards+'cards\xb7'+l.correct+'/'+l.cards+'\xb7'+acc+'%'+sj;})():l.type==='quiz'?(l.questions+'q\xb7'+Math.round((l.correct||0)/(l.questions||1)*100)+'%'+((l.topic||l.subtopic)?'<br><span style="font-size:9px;color:var(--muted)">'+[l.subject,l.topic,l.subtopic].filter(Boolean).join(' › ')+'</span>':'')):l.type==='mock'?('Net: '+l.net+(l.sectionSubject?'\xb7'+l.sectionSubject:'')):l.type==='lecture'?(l._continuationOf?'cont\xb7'+(l.chapter||''):(l.isRevision?'Rev\xb7'+l.chapter:'Lec#'+l.lectureNo+'\xb7'+l.chapter))+'\xb7'+l.subject:(l.subject+(l.chapter?'\xb7'+l.chapter:''));
+    const detail=l.type==='srs'?(()=>{const acc=l.cards?Math.round((l.correct||0)/l.cards*100):0;let sj='';if(l.topicMap&&Object.keys(l.topicMap).length){const parts=[];Object.entries(l.topicMap).forEach(([subj,topics])=>{Object.entries(topics).forEach(([tp,v])=>{parts.push(subj+' › '+tp+' ('+v.count+')');});});sj='<br><span style="font-size:9px;color:var(--muted)">'+parts.join(' · ')+'</span>';}else if(l.subjects&&Object.keys(l.subjects).length){sj='<br><span style="font-size:9px;color:var(--muted)">'+Object.entries(l.subjects).map(([s,n])=>s+': '+n).join(' · ')+'</span>';}return l.cards+'cards\xb7'+l.correct+'/'+l.cards+'\xb7'+acc+'%'+sj;})():l.type==='quiz'?(l.questions+'q\xb7'+Math.round((l.correct||0)/(l.questions||1)*100)+'%'+((l.topic||l.subtopic)?'<br><span style="font-size:9px;color:var(--muted)">'+[l.subject,l.topic,l.subtopic].filter(Boolean).join(' › ')+'</span>':'')):l.type==='mock'?('Net: '+l.net+(l.sectionSubject?'\xb7'+l.sectionSubject:'')):l.type==='lecture'?((l._continuationOf?'cont\xb7'+(l.chapter||''):(l.isRevision?'Rev\xb7'+l.chapter:'Lec#'+l.lectureNo+'\xb7'+l.chapter))+'\xb7'+l.subject+((l.sessionNo&&l.sessionNo>1)?'\xb7 session '+l.sessionNo:'')+(function(){ if(!l.pomoPlan&&!l.pomoDone) return '';
+        const done=l.pomoDone||0, plan=l.pomoPlan||0;
+        if(!done) return ' \xb7 \ud83c\udf45'+plan+'m';
+        return ' \xb7 \ud83c\udf45'+done+'m'+((plan&&done<plan-1)?' of '+plan:''); })()):(l.subject+(l.chapter?'\xb7'+l.chapter:''));
     const isCan=status==='cancelled';
     const borderC=isAuto?'rgba(99,102,241,0.2)':status==='doing'?'rgba(245,158,11,0.25)':status==='paused'?'rgba(99,102,241,0.25)':isCan?'rgba(239,68,68,0.15)':'var(--border)';
     const bgC=isAuto?'rgba(99,102,241,0.05)':status==='doing'?'rgba(245,158,11,0.04)':status==='paused'?'rgba(99,102,241,0.04)':isCan?'rgba(239,68,68,0.03)':'var(--bg3)';
@@ -18120,6 +18149,7 @@ function drillRevEndSession(col,id){
   if(typeof logDone==='function') logDone(drillViewDate,it.revLogId);
   const lg=drillLecLog(it.revLogId);
   const got = lg ? (lg.hrs||0) : 0;
+  if(lg){ lg.pomoDone=Math.max(1,Math.round(got*60)); }
   if(got>0){ it.revTotal=Math.round(((it.revTotal||0)+got)*100)/100; it.revSess=(it.revSess||0)+1; }
   it.revStatus='todo'; it.revLogId=null; it.revHrs=0;
   drillStamp(); save(); drillRenderCol(col); drillUpdateCounts();
@@ -18244,10 +18274,19 @@ function drillLecStart(col,id,n){
   const now=Date.now();
   const timeLabel=new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',hour12:true});
   const isRev=(col==='revision');
-  const label=(isRev?'Rev: ':'')+it.subject+' · '+it.topic+' · L'+n;
-  const log={ id:now, date:drillViewDate, type:'lecture', status:'doing', subject:it.subject, chapter:it.topic, lectureNo:n, lectureName:'L'+n+' — '+it.topic, isRevision:isRev, label, hrs:0, note:'', priority:'medium', startTs:now, segments:[], time:timeLabel, _drill:true };
+  /* v28.3 — a lecture spread over several Pomodoros used to produce identical
+     log rows ("Maths · Geometry · L17" twice at 30 min each) with nothing to
+     tell them apart. Each session is numbered as it is created, so the feed
+     reads "L17 · session 2" and you can see the lecture being built up. */
+  const sessNo=(l.sess||0)+1;
+  const label=(isRev?'Rev: ':'')+it.subject+' · '+it.topic+' · L'+n+(sessNo>1?' · session '+sessNo:'');
+  const log={ id:now, date:drillViewDate, type:'lecture', status:'doing', subject:it.subject, chapter:it.topic, lectureNo:n, lectureName:'L'+n+' — '+it.topic+(sessNo>1?' (session '+sessNo+')':''), sessionNo:sessNo, isRevision:isRev, label, hrs:0, note:'', priority:'medium', startTs:now, segments:[], time:timeLabel, _drill:true };
   if(!D.logs[drillViewDate]) D.logs[drillViewDate]=[];
   D.logs[drillViewDate].push(log);
+  /* v28.4 — pomoPlan is the target picked (25/50); pomoDone is what was really
+     done, written when the session is banked. The feed shows the real number,
+     because a 50 that was stopped at 12 minutes is a 12-minute session. */
+  try{ if(window.__pomoPlanned){ log.pomoPlan=window.__pomoPlanned; window.__pomoPlanned=0; } }catch(e){}
   l.status='doing'; l.logId=log.id; l.hrs=0;
   drillStamp(); save(); drillRenderCol(col); drillStartTicker();
 }
@@ -18285,6 +18324,7 @@ function drillLecEndSession(col,id,n){
   if(typeof logDone==='function') logDone(drillViewDate,l.logId);
   const lg=drillLecLog(l.logId);
   const got = lg ? (lg.hrs||0) : 0;
+  if(lg){ lg.pomoDone=Math.max(1,Math.round(got*60)); }
   if(got>0){ l.total=Math.round(((l.total||0)+got)*100)/100; l.sess=(l.sess||0)+1; }
   /* back to todo so the next Pomodoro can be added to the same lecture */
   l.status='todo'; l.logId=null; l.hrs=0;
@@ -20317,6 +20357,8 @@ function pomoLeft(){
 
 /* ── start ─────────────────────────────────────────────────────────────── */
 window.pomoStart = function(kind, col, id, n, mins){
+  /* stamped onto the log the session creates, so the feed can show 🍅25 / 🍅50 */
+  window.__pomoPlanned = mins;
   if(_pomo){
     if(!confirm('A '+_pomo.mins+' min Pomodoro is already running.\n\nOK = drop it and start this one instead.')) return;
     pomoClear();
@@ -24134,14 +24176,20 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
      closed tab or a refresh can lose at most the final gap instead of the
      whole session. This is how Anki does it. */
   const IDLE_CAP=120000;                       /* 2 minutes — Yogi's setting */
-  let sess={ms:0, graded:0, subs:{}, last:0, startTs:0};
+  let sess={ms:0, graded:0, subs:{}, last:0, startTs:0, _lastSub:''};
+  /* Returns the gap it just banked, so the per-subject split uses the SAME
+     capped number the session total does. Computing it twice let the first card
+     of a session bank 0s to its subject, handing all its time to the next one. */
   function sessTouch(){
     const now=Date.now();
-    if(sess.last) sess.ms += Math.min(now-sess.last, IDLE_CAP);
+    let gap=0;
+    if(sess.last) gap = Math.min(now-sess.last, IDLE_CAP);
     else sess.startTs = sess.startTs || now;
+    sess.ms += gap;
     sess.last=now;
+    return gap;
   }
-  function sessReset(){ sess={ms:0, graded:0, subs:{}, last:0, startTs:0}; }
+  function sessReset(){ sess={ms:0, graded:0, subs:{}, last:0, startTs:0, _lastSub:''}; }
 
   const $=id=>document.getElementById(id);
   const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -24244,7 +24292,14 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     return c? {card:c, deck:d} : null;
   }
   function lf(k){ return A.life[k] || (A.life[k]={w:0,r:0,w1:0,streak:0,quar:false,star:false,last:0,due:0,ivl:0,step:0,reps:0}); }
-  const isQuar=k=>!!(A.life[k]&&A.life[k].quar);
+  /* Quarantine is a leech flag, not a grave. A card pulled out for reading
+     comes back on its own once its cool-off has passed, at the bottom of the
+     ladder — before this it kept a stale due date and never returned unaided. */
+  const isQuar=k=>{
+    const L=A.life[k]; if(!L||!L.quar) return false;
+    if(L.quarUntil && Date.now()>=L.quarUntil){ L.quar=false; L.quarUntil=0; return false; }
+    return true;
+  };
   const isDue=k=>{ const L=A.life[k]; return !L || !L.due || L.due<=endOfToday(); };
 
   /* ---------- the spacing ladder ---------- */
@@ -24277,6 +24332,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
   }
   function schedule(k,g){
     const L=lf(k);
+    if(isNew(k)) newSpend(k);          /* counts against today's 25 */
     let step=L.step||0;
     if(g==='again'){
       L.step=Math.max(0,step-1);        /* drop a rung, not all the way to zero */
@@ -24328,15 +24384,32 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
      Reviews are never capped (they are already owed), but new cards are
      released 25 a day. Clear the batch and "Next 25" hands out another. */
   const NEW_PER_DAY=25;
-  function isNew(k){ const L=A.life[k]; return !L || !L.seen; }
+  /* A card counts as new until it has been graded once. Cards studied before
+     this build carry no .seen flag, so reps/last/due stand in for it —
+     otherwise the entire existing collection would flood the new-card queue. */
+  function isNew(k){
+    const L=A.life[k];
+    if(!L) return true;
+    if(L.seen) return false;
+    return !((L.reps||0)>0 || (L.r||0)>0 || (L.w||0)>0 || L.last || L.due);
+  }
   function todayKey(){ return new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'}); }
   function newBudget(){
     A.newlog=A.newlog||{};
     const t=todayKey();
-    if(!A.newlog[t]) A.newlog={[t]:{released:NEW_PER_DAY}};   /* one day kept, old days dropped */
+    if(!A.newlog[t]) A.newlog={[t]:{released:NEW_PER_DAY, used:0}};   /* one day kept, old days dropped */
+    if(typeof A.newlog[t].used!=='number') A.newlog[t].used=0;
     return A.newlog[t];
   }
-  window.arGrantMoreNew=function(){ const b=newBudget(); b.released+=NEW_PER_DAY; arSave(true); };
+  /* Budget is what is LEFT, not what was released. Without this the cap was
+     self-defeating: grading 25 new cards marked them seen, they dropped out of
+     the "new" list, and the next slice handed out 25 more in the same sitting. */
+  function newLeft(){ const b=newBudget(); return Math.max(0, b.released - b.used); }
+  function newSpend(k){
+    if(!isNew(k)) return;
+    const b=newBudget(); b.used=(b.used||0)+1;
+  }
+  window.arGrantMoreNew=function(){ const b=newBudget(); b.released=(b.used||0)+NEW_PER_DAY; arSave(true); };
   /* reviews first, then whatever slice of new cards today's budget allows */
   function dueKeys(sub){
     const all=allKeys(sub).filter(k=>!isQuar(k)&&isDue(k));
@@ -24347,7 +24420,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
   }
   function newHeld(sub){
     const fresh=allKeys(sub).filter(k=>!isQuar(k)&&isDue(k)&&isNew(k));
-    return Math.max(0, fresh.length - Math.max(0,newBudget().released));
+    return Math.max(0, fresh.length - newLeft());
   }
   function runStat(id, totalIfNew){
     const p=A.cprog[id];
@@ -24599,7 +24672,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     const newQ=p.wrong.filter(k=>(lf(k).streak||0)>=QUAR_AT);
     /* a quarantined card used to keep its stale due date and never come back
        on its own; it now returns tomorrow at the bottom of the ladder */
-    newQ.forEach(k=>{ const L=lf(k); L.quar=true; L.step=0; L.due=Date.now()+DAY; L.seen=true;
+    newQ.forEach(k=>{ const L=lf(k); L.quar=true; L.quarUntil=Date.now()+DAY; L.step=0; L.due=Date.now()+DAY; L.seen=true;
       if(p.quarantined.indexOf(k)<0) p.quarantined.push(k); });
     const carry=p.wrong.filter(k=>newQ.indexOf(k)<0);
     if(!carry.length){
@@ -24623,7 +24696,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     else  { L.w=(L.w||0)+1; L.streak=(L.streak||0)+1; if(p.wrong.indexOf(k)<0) p.wrong.push(k); }
     schedule(k,g);
     L.last=Date.now();
-    sessTouch();
+    const gap=sessTouch();
     sess.graded++;
     const R=resolveCard(k);
     if(R){
@@ -24631,10 +24704,15 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       const sb=map.subject||'Active Recall';
       sess.subs[sb]=sess.subs[sb]||{cards:0,ms:0,chaps:{}};
       sess.subs[sb].cards++;
-      sess.subs[sb].ms += Math.min(Date.now()-(sess._prev||Date.now()), IDLE_CAP);
+      /* the gap belongs to the card just answered — the one being closed out */
+      const owner=sess._lastSub||sb;
+      if(sess.subs[owner]) sess.subs[owner].ms += gap;
+      else sess.subs[sb].ms += gap;
       if(map.line) sess.subs[sb].chaps[map.line]=(sess.subs[sb].chaps[map.line]||0)+1;
+      if(map.short){ sess.subs[sb].shorts=sess.subs[sb].shorts||{};
+        sess.subs[sb].shorts[map.short]=(sess.subs[sb].shorts[map.short]||0)+1; }
+      sess._lastSub=sb;
     }
-    sess._prev=Date.now();
     p.idx++; p.lastRun=Date.now();
     if(p.idx>=p.pool.length) nextRound(id);
     typed=''; checked=null;
@@ -24685,7 +24763,9 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     }catch(e){}
     return _arSubjIndex;
   }
-  /* → { subject: a core subject for the stats bars, line: what shows beneath } */
+  /* → { subject: a core subject for the stats bars,
+          line:    the full topic, used for the chapter field and stats,
+          short:   the deck's own name (OWS), which is what he actually reads } */
   function arLogSubject(deckSubject, deckChapter){
     const idx=arSubjIndex();
     const raw=String(deckSubject||'').trim();
@@ -24695,13 +24775,15 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       /* try the deck's chapter instead — some decks are named the other way round */
       let h2=idx[arNorm(deckChapter)];
       if(!h2){ const al2=AR_SUBJ_ALIAS[arNorm(deckChapter)]; if(al2) h2=idx[arNorm(al2)]; }
-      if(h2) return { subject:h2.subject, line:(h2.topic||raw||h2.subject) };
-      return { subject: raw||'Active Recall', line: deckChapter||raw||'Active Recall' };
+      if(h2) return { subject:h2.subject, line:(h2.topic||raw||h2.subject), short:(raw||h2.topic||h2.subject) };
+      return { subject: raw||'Active Recall', line: deckChapter||raw||'Active Recall', short: raw||deckChapter||'Active Recall' };
     }
-    if(!hit.topic) return { subject:hit.subject, line: deckChapter||hit.subject };   /* deck subject WAS a core subject */
+    if(!hit.topic) return { subject:hit.subject, line: deckChapter||hit.subject, short: deckChapter||hit.subject };
     const ch=String(deckChapter||'').trim();
     const line = (ch && arNorm(ch)!==arNorm(hit.topic)) ? (hit.topic+' — '+ch) : hit.topic;
-    return { subject:hit.subject, line };
+    /* keep his own shorthand for the headline: an "OWS" deck reads as OWS, not
+       "One Word Substitution", while the chapter field keeps the full name */
+    return { subject:hit.subject, line, short: raw||hit.topic };
   }
   window.__arLogSubject=arLogSubject;
 
@@ -24717,9 +24799,12 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     const rows=subs.map(sb=>{
       const v=sess.subs[sb];
       const chaps=Object.keys(v.chaps).sort((a,b)=>v.chaps[b]-v.chaps[a]);
-      return {sb, cards:v.cards, ms:v.ms, chap:chaps[0]||'', nchap:chaps.length};
+      const shorts=Object.keys(v.shorts||{}).sort((a,b)=>v.shorts[b]-v.shorts[a]);
+      return {sb, cards:v.cards, ms:v.ms, chap:chaps[0]||'', nchap:chaps.length,
+              short:shorts[0]||'', nshort:shorts.length};
     });
-    const knownMs=rows.reduce((a,r)=>a+r.ms,0) || 1;
+    let knownMs=rows.reduce((a,r)=>a+r.ms,0);
+    if(knownMs<=0){ rows.forEach(r=>r.ms=r.cards); knownMs=rows.reduce((a,r)=>a+r.ms,0)||1; }
     sessReset();
     rows.forEach(r=>{
       /* rescale each subject's slice so the parts always add up to the whole */
@@ -24729,7 +24814,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       try{
         if(typeof window._wrAutoLog==='function') window._wrAutoLog({
           type:'study',
-          title:'Active Recall · '+r.sb,
+          title:'Active Recall · '+r.sb+(r.short? ' · '+r.short+(r.nshort>1?' +'+(r.nshort-1):'') : ''),
           subject:r.sb,
           chapter: r.nchap>1 ? (r.chap+' +'+(r.nchap-1)+' more') : (r.chap||'Active Recall'),
           duration:mins, cards:r.cards,
