@@ -1810,7 +1810,18 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-14 · v27.6';
+    const HUB_BUILD = '2026-08-14 · v28.0';
+
+    // v28.0 — Pomodoro sound + lecture-bar layout fix:
+    //   LAYOUT: .drill-leccurrent's info block was flex:1;min-width:0, so once
+    //   the control group grew to 4 buttons (Start/🍅25/🍅50/✓Done) it was
+    //   squeezed to a few px and "LECTURE 17" wrapped one letter per line.
+    //   Now .lecinfo has flex:1 1 120px;min-width:112px, the row wraps, and
+    //   .lecname is nowrap. See the .drill-leccurrent CSS block.
+    //   SOUND: Web Audio synthesis, no files, works offline. Pomodoro end =
+    //   rising A5-C#6-E6-A6 fanfare ×3; break end = two blunt A4 square blips.
+    //   Volume/mute/test + optional user-supplied mp3 per alarm in
+    //   pomoSoundPanel() (🔊 on the badge); clips are device-local, not synced.
 
     // v27.6 — Pomodoro fixed + extended:
     //   BUG in v27.4/27.5: 🍅 buttons were only wired to drillRowTimer(), which
@@ -14950,7 +14961,14 @@ body::before { content:''; position:fixed; inset:0; background-image:url("data:i
 .drill-lecbtn.resume { background:linear-gradient(135deg,#10b981,#059669); box-shadow:0 2px 10px rgba(16,185,129,0.30); }
 .drill-lecbtn.end { background:linear-gradient(135deg,#f43f5e,#e11d48); box-shadow:0 2px 10px rgba(244,63,94,0.30); }
 .drill-lecbtn.undo { background:var(--bg3); color:var(--muted2); border:1px solid var(--border); }
-.drill-leccurrent { display:flex; align-items:center; gap:10px; border:1px solid var(--border); border-radius:11px; background:var(--bg2); padding:11px 12px; }
+.drill-leccurrent { display:flex; align-items:center; gap:10px; flex-wrap:wrap; border:1px solid var(--border); border-radius:11px; background:var(--bg2); padding:11px 12px; }
+/* v28.0 — the info block used to be flex:1;min-width:0, so once the control
+   group grew to 4 buttons it got squeezed to a few px and "LECTURE 17" wrapped
+   one character per line. Give it a real floor and let the row wrap instead. */
+.drill-leccurrent .lecinfo { flex:1 1 120px; min-width:112px; }
+.drill-leccurrent .lecctrls { display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end; flex:1 1 auto; }
+.drill-leccurrent .lecname { white-space:nowrap; }
+.drill-leccurrent .lecsub { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .drill-leccurrent.doing { border-color:#f59e0b; background:rgba(245,158,11,0.09); animation:drillLivePulse 2.2s ease-in-out infinite; }
 .drill-leccurrent.paused { border-color:#6366f1; background:rgba(99,102,241,0.09); }
 @keyframes drillLivePulse { 0%,100%{ box-shadow:0 0 0 0 rgba(245,158,11,0.0); } 50%{ box-shadow:0 0 0 3px rgba(245,158,11,0.16); } }
@@ -18108,8 +18126,8 @@ function drillLecCurrent(col,id,n,l,doneN,total){
       `<button class="drill-lecbtn check" onclick="drillLecCheck('${col}','${id}',${n})" title="Already done — mark without timing">✓ Done</button>`;
   }
   return `<div class="drill-leccurrent ${cls}">
-    <div style="flex:1;min-width:0"><div class="lecname">LECTURE ${n}</div><div class="lecsub">${sub}</div></div>
-    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">${controls}</div>
+    <div class="lecinfo"><div class="lecname">LECTURE ${n}</div><div class="lecsub">${sub}</div></div>
+    <div class="lecctrls">${controls}</div>
   </div>`;
 }
 
@@ -20112,6 +20130,98 @@ const POMO_KIND = {
   }
 };
 
+/* ── SOUND (v28.0) ─────────────────────────────────────────────────────────
+   Synthesised with the Web Audio API — no files, no network, works offline.
+   Two distinct alarms so you know which one fired without looking:
+     pomo end  → bright rising fanfare (A5-C#6-E6-A6), repeated 3× — "get up"
+     break end → two blunt low blips (A4), dry and unpleasant  — "sit down"
+   Both are deliberately loud. Volume slider + mute live in the Pomodoro
+   settings; a custom mp3 can replace either one (see snd.custom below).
+   Browsers block audio until the user has clicked something — every entry
+   point here is behind a button tap, and sndUnlock() runs on the first one. */
+const SND_KEY = 'pomoSound_v1';
+let _sndCfg = (()=>{
+  try{ return JSON.parse(localStorage.getItem(SND_KEY)) || {}; }catch(e){ return {}; }
+})();
+_sndCfg.vol  = (typeof _sndCfg.vol === 'number') ? _sndCfg.vol : 0.9;
+_sndCfg.on   = (_sndCfg.on !== false);
+_sndCfg.custom = _sndCfg.custom || {};   // { pomo: dataURL, brk: dataURL }
+
+function sndSave(){ try{ localStorage.setItem(SND_KEY, JSON.stringify(_sndCfg)); }catch(e){} }
+
+let _actx = null;
+function sndUnlock(){
+  try{
+    if(!_actx) _actx = new (window.AudioContext||window.webkitAudioContext)();
+    if(_actx.state === 'suspended') _actx.resume();
+  }catch(e){}
+  return _actx;
+}
+window.sndUnlock = sndUnlock;
+
+// One note. type/attack shaped so it cuts through a room rather than pinging.
+function sndNote(freq, startAt, dur, gainMul, type){
+  const ctx = _actx; if(!ctx) return;
+  const osc  = ctx.createOscillator();
+  const gain = ctx.createGain();
+  // a square blended under the sine gives it body/edge at low volume
+  osc.type = type || 'sine';
+  osc.frequency.setValueAtTime(freq, startAt);
+  const peak = Math.max(0.0001, _sndCfg.vol * (gainMul==null?1:gainMul));
+  gain.gain.setValueAtTime(0.0001, startAt);
+  gain.gain.exponentialRampToValueAtTime(peak, startAt + 0.012);   // fast attack
+  gain.gain.setValueAtTime(peak, startAt + dur*0.55);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startAt + dur);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(startAt); osc.stop(startAt + dur + 0.02);
+}
+
+function sndPlayCustom(which){
+  const src = _sndCfg.custom && _sndCfg.custom[which];
+  if(!src) return false;
+  try{
+    const a = new Audio(src);
+    a.volume = Math.min(1, Math.max(0, _sndCfg.vol));
+    a.play().catch(()=>{});
+    return true;
+  }catch(e){ return false; }
+}
+
+// Rising fanfare, three passes. Loud, unmistakably "done".
+window.sndPomoEnd = function(){
+  if(!_sndCfg.on) return;
+  if(sndPlayCustom('pomo')) return;
+  const ctx = sndUnlock(); if(!ctx) return;
+  const t0 = ctx.currentTime + 0.02;
+  const notes = [880, 1108.73, 1318.51, 1760];   // A5 C#6 E6 A6
+  for(let pass=0; pass<3; pass++){
+    const base = t0 + pass*0.62;
+    notes.forEach((f,i)=>{
+      sndNote(f, base + i*0.10, 0.16, 1.0, 'sine');
+      sndNote(f/2, base + i*0.10, 0.16, 0.35, 'square');  // octave-down body
+    });
+  }
+};
+
+// Two low blunt blips. Deliberately not pleasant — it means break's over.
+window.sndBreakEnd = function(){
+  if(!_sndCfg.on) return;
+  if(sndPlayCustom('brk')) return;
+  const ctx = sndUnlock(); if(!ctx) return;
+  const t0 = ctx.currentTime + 0.02;
+  [0, 0.42].forEach(off=>{
+    sndNote(440, t0+off, 0.30, 1.0, 'square');
+    sndNote(220, t0+off, 0.30, 0.5, 'sine');
+  });
+};
+
+// Short tick used when a Pomodoro starts, so you know sound is armed.
+window.sndStartTick = function(){
+  if(!_sndCfg.on) return;
+  const ctx = sndUnlock(); if(!ctx) return;
+  sndNote(1318.51, ctx.currentTime + 0.01, 0.09, 0.55, 'sine');
+};
+
 let _pomo = null;      // { kind, col, id, n, mins, endTs, leftMs, paused, label }
 let _pomoTick = null;
 let _brk = null;       // { endTs, leftMs, paused, mins }
@@ -20141,6 +20251,8 @@ window.pomoStart = function(kind, col, id, n, mins){
   else { A.start(p); }
   if(!A.logId(p)){ alert('Could not start the timer on this row — set subject/topic first.'); return; }
   _pomo = p;
+  sndUnlock();          // first user tap — unblocks audio for the alarms below
+  sndStartTick();
   pomoTickOn();
   pomoBadgeRender();
 };
@@ -20216,12 +20328,14 @@ function pomoBadgeRender(){
   b.style.background = _pomo.paused ? '#64748b' : '#4f46e5';
   b.innerHTML = `<span>🍅 ${pomoFmt(pomoLeft())}${_pomo.paused?' · paused':''}</span>`
     + `<button style="${bs}" onclick="${_pomo.paused?'pomoResume()':'pomoPause()'}" title="${_pomo.paused?'Resume':'Pause'}">${_pomo.paused?'▶':'⏸'}</button>`
+    + `<button style="${bs}" onclick="pomoSoundPanel()" title="Sound settings">🔊</button>`
     + `<button style="${bs}" onclick="pomoCancel()" title="Drop this Pomodoro">✕</button>`;
 }
 
 /* ── the question ──────────────────────────────────────────────────────── */
 function pomoAsk(){
   const p = _pomo; if(!p) return;
+  try{ sndPomoEnd(); }catch(e){}
   try{ if(navigator.vibrate) navigator.vibrate([200,100,200,100,200]); }catch(e){}
   if(document.getElementById('pomo-ask')) return;
   const ov = document.createElement('div');
@@ -20283,6 +20397,7 @@ function brkStart(mins){
     if(_brk.endTs - Date.now() <= 0){
       clearInterval(_brkTick); _brkTick=null; _brk=null;
       pomoBadgeRender();
+      try{ sndBreakEnd(); }catch(e){}
       try{ if(navigator.vibrate) navigator.vibrate([200,100,200]); }catch(e){}
       try{ hubToast('☕ Break over — back to it'); }catch(e){}
       return;
@@ -20303,6 +20418,83 @@ window.brkResume = function(){
 window.brkSkip = function(){
   if(_brkTick){ clearInterval(_brkTick); _brkTick=null; }
   _brk = null; pomoBadgeRender();
+};
+
+/* ── Sound settings panel (v28.0) ──────────────────────────────────────────
+   Opened from the 🔊 button on the Pomodoro badge, or pomoSoundPanel().
+   Custom clips are stored as data URLs in localStorage — device-local on
+   purpose, since an mp3 has no business going through the cloud sync. */
+window.pomoSoundPanel = function(){
+  if(document.getElementById('snd-panel')) return;
+  const ov = document.createElement('div');
+  ov.id = 'snd-panel';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(2,6,23,.85);display:flex;align-items:center;justify-content:center;padding:20px;font-family:inherit;overflow-y:auto';
+  const has = (k)=> !!(_sndCfg.custom && _sndCfg.custom[k]);
+  ov.innerHTML = `
+    <div style="max-width:420px;width:100%;background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:20px;color:#e2e8f0">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div style="font-size:17px;font-weight:900;color:#fff">🔊 Timer sound</div>
+        <button onclick="document.getElementById('snd-panel').remove()" style="background:transparent;border:none;color:#64748b;font-size:20px;cursor:pointer;font-weight:900">✕</button>
+      </div>
+
+      <label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:800;margin-bottom:14px;cursor:pointer">
+        <input type="checkbox" id="snd-on" ${_sndCfg.on?'checked':''} style="width:17px;height:17px;cursor:pointer">
+        Sound on
+      </label>
+
+      <div style="font-size:11px;font-weight:900;color:#94a3b8;letter-spacing:.06em;margin-bottom:6px">VOLUME</div>
+      <input type="range" id="snd-vol" min="0" max="1" step="0.05" value="${_sndCfg.vol}" style="width:100%;margin-bottom:16px;cursor:pointer">
+
+      <div style="display:flex;gap:8px;margin-bottom:18px">
+        <button id="snd-t1" style="flex:1;background:#4f46e5;color:#fff;border:none;border-radius:10px;padding:11px;font-size:12px;font-weight:900;cursor:pointer">▶ Test Pomodoro</button>
+        <button id="snd-t2" style="flex:1;background:#0ea5e9;color:#fff;border:none;border-radius:10px;padding:11px;font-size:12px;font-weight:900;cursor:pointer">▶ Test break</button>
+      </div>
+
+      <div style="font-size:11px;font-weight:900;color:#94a3b8;letter-spacing:.06em;margin-bottom:4px">YOUR OWN CLIP (OPTIONAL)</div>
+      <div style="font-size:11px;color:#64748b;font-weight:700;line-height:1.5;margin-bottom:10px">
+        Pick any mp3/m4a from this device — a hype clip, a voice line, whatever. It replaces the built-in tone. Stored on this device only, not synced. Keep it short (a few seconds).
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="flex:1;font-size:12px;font-weight:800">🍅 Pomodoro end ${has('pomo')?'<span style="color:#34d399">· custom set</span>':'<span style="color:#64748b">· built-in tone</span>'}</div>
+        <button id="snd-p-pick" style="background:#1e293b;color:#cbd5e1;border:1px solid #334155;border-radius:8px;padding:7px 11px;font-size:11px;font-weight:900;cursor:pointer">Choose</button>
+        ${has('pomo')?'<button id="snd-p-clr" style="background:transparent;color:#fca5a5;border:1px solid #7f1d1d;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:900;cursor:pointer">Clear</button>':''}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <div style="flex:1;font-size:12px;font-weight:800">☕ Break end ${has('brk')?'<span style="color:#34d399">· custom set</span>':'<span style="color:#64748b">· built-in tone</span>'}</div>
+        <button id="snd-b-pick" style="background:#1e293b;color:#cbd5e1;border:1px solid #334155;border-radius:8px;padding:7px 11px;font-size:11px;font-weight:900;cursor:pointer">Choose</button>
+        ${has('brk')?'<button id="snd-b-clr" style="background:transparent;color:#fca5a5;border:1px solid #7f1d1d;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:900;cursor:pointer">Clear</button>':''}
+      </div>
+      <input type="file" id="snd-file" accept="audio/*" style="display:none">
+    </div>`;
+  document.body.appendChild(ov);
+
+  const reopen = ()=>{ ov.remove(); pomoSoundPanel(); };
+  document.getElementById('snd-on').onchange = (e)=>{ _sndCfg.on = e.target.checked; sndSave(); };
+  document.getElementById('snd-vol').oninput = (e)=>{ _sndCfg.vol = parseFloat(e.target.value); sndSave(); };
+  document.getElementById('snd-t1').onclick  = ()=>{ sndUnlock(); sndPomoEnd(); };
+  document.getElementById('snd-t2').onclick  = ()=>{ sndUnlock(); sndBreakEnd(); };
+
+  const fileEl = document.getElementById('snd-file');
+  let pickFor = null;
+  const pick = (which)=>{ pickFor = which; fileEl.value=''; fileEl.click(); };
+  document.getElementById('snd-p-pick').onclick = ()=>pick('pomo');
+  document.getElementById('snd-b-pick').onclick = ()=>pick('brk');
+  const clrP = document.getElementById('snd-p-clr'); if(clrP) clrP.onclick = ()=>{ delete _sndCfg.custom.pomo; sndSave(); reopen(); };
+  const clrB = document.getElementById('snd-b-clr'); if(clrB) clrB.onclick = ()=>{ delete _sndCfg.custom.brk;  sndSave(); reopen(); };
+
+  fileEl.onchange = ()=>{
+    const f = fileEl.files && fileEl.files[0]; if(!f || !pickFor) return;
+    if(f.size > 900*1024){ alert('That clip is too big for browser storage.\n\nUse one under ~900 KB (a 3-6 second clip). Trim it and try again.'); return; }
+    const r = new FileReader();
+    r.onload = ()=>{
+      _sndCfg.custom[pickFor] = r.result;
+      sndSave();
+      try{ const a=new Audio(r.result); a.volume=_sndCfg.vol; a.play().catch(()=>{}); }catch(e){}
+      reopen();
+    };
+    r.readAsDataURL(f);
+  };
 };
 
 // True when a Pomodoro is already attached to this exact row — so the row
@@ -23623,7 +23815,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
 })();
 </script>
 
-<!-- ═══════════════ ACTIVE RECALL (v27.5) ═══════════════ -->
+<!-- ═══════════════ ACTIVE RECALL (v27.9) ═══════════════ -->
 <div id="ar-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(8,11,16,.72);backdrop-filter:blur(3px)">
   <div id="ar-root">
     <div id="ar-head"></div>
@@ -23702,6 +23894,8 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
 #ar-root .bigbtn{width:100%;background:#0e1116;color:#fff;border-radius:13px;padding:16px 18px;margin-bottom:11px;text-align:left;display:flex;align-items:center;gap:13px}
 #ar-root .bigbtn .ic2{width:38px;height:38px;border-radius:11px;background:#1d2735;color:#86efac;display:flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto}
 #ar-root .bigbtn .t1{font-size:15px;font-weight:700;letter-spacing:-.01em}
+#ar-root .bigbtn .t1 .cd2{float:right;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#fca5a5;padding-top:3px}
+#ar-root .bigbtn.flat .t1 .cd2{color:#c2410c}
 #ar-root .bigbtn .t2{font-size:11.5px;color:#98a3b3;margin-top:2px}
 #ar-root .bigbtn .go{margin-left:auto;color:#5b6779;font-size:19px}
 #ar-root .bigbtn.warn{background:#faf5ff;border:1px solid #e9d5ff;color:#0e1116}
@@ -23789,7 +23983,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
 }
 </style>
 <script>
-/* ═══════════════ ACTIVE RECALL v27.5 ═══════════════
+/* ═══════════════ ACTIVE RECALL v27.9 ═══════════════
    Subject → Chapter → (Notes | Cards), plus whole-subject cascades,
    a spaced-repetition layer, and a Due Today queue across every deck.
 
@@ -23816,7 +24010,16 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
   const AR_KEY='megaQuizAR_v1';
   const QUAR_AT=3;
   const DAY=86400000;
-  const IVL=[1,3,7,16,35,75,150];
+  /* Exam-mode ladder. The long rungs of a normal SRS schedule are useless when
+     the paper has a date — a 75-day interval set today would surface the card
+     after the exam. So the ladder is compressed, and every due date is clamped
+     to two days before the paper. Nothing you learn can fall off the far side. */
+  const EXAM_DATE=new Date('2026-09-28T00:00:00+05:30').getTime();
+  /* Hard stop for the ladder. Every card must have come round at least once by
+     this date, leaving the run-in to the paper clear for mocks and weak areas
+     rather than first-time reviews. */
+  const LAST_DUE=new Date('2026-09-15T00:00:00+05:30').getTime();
+  const IVL=[1,2,4,7,12,20,30];
   let A={ decks:{}, cprog:{}, life:{}, runlog:{}, opts:{reverse:false,type:false}, session:1, lastOpen:0 };
   let view='subjects', curSub=null, deckId=null, tab='cards', runId=null;
   let filter='all', pending=null, editing=null, searchQ='', typed='', checked=null;
@@ -23927,16 +24130,26 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
   const isDue=k=>{ const L=A.life[k]; return !L || !L.due || L.due<=endOfToday(); };
 
   /* ---------- the spacing ladder ---------- */
+  function daysToExam(){ return Math.ceil((EXAM_DATE-Date.now())/DAY); }
+  /* never park a card past the paper — cap at exam minus 2 days, and once the
+     exam is inside the shortest rung everything simply stays on daily review */
+  function clampDue(due){
+    if(Date.now()>=LAST_DUE) return Math.min(due, Date.now()+DAY);
+    return Math.min(due, LAST_DUE);
+  }
   function schedule(k,g){
     const L=lf(k);
     let step=L.step||0;
     if(g==='again'){ L.step=0; L.ivl=0; L.due=Date.now(); }
     else if(g==='hard'){
       const iv=IVL[Math.max(0,step-1)]||1;
-      L.ivl=iv; L.due=Date.now()+iv*DAY;              /* same rung again */
+      L.due=clampDue(Date.now()+iv*DAY);              /* same rung again */
+      L.ivl=Math.max(0,Math.round((L.due-Date.now())/DAY));
     } else {
       const iv=IVL[Math.min(IVL.length-1,step)];
-      L.step=Math.min(IVL.length-1,step+1); L.ivl=iv; L.due=Date.now()+iv*DAY;
+      L.step=Math.min(IVL.length-1,step+1);
+      L.due=clampDue(Date.now()+iv*DAY);
+      L.ivl=Math.max(0,Math.round((L.due-Date.now())/DAY));
     }
     L.reps=(L.reps||0)+1;
   }
@@ -23972,6 +24185,98 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
   }
   function starList(){
     return Object.keys(A.life).filter(k=>A.life[k].star).filter(k=>!!resolveCard(k));
+  }
+
+  /* ---------- build a deck straight from the hub question bank ----------
+     The hub already holds thousands of pairs — OWS definitions, idioms, syn/ant.
+     Re-typing them as cards would be madness, so this reads the live question
+     bank and turns any chapter into an Active Recall deck. Because import
+     merges by card id and the ids are hashed from the question text, sending
+     the same chapter again updates edited questions and leaves progress alone. */
+  function hubDb(){ try{ return (typeof db!=='undefined'&&db)?db:(window.db||null); }catch(e){ return null; } }
+  function plain(h){
+    const d=document.createElement('div'); d.innerHTML=String(h==null?'':h);
+    return (d.textContent||'').replace(/\s+/g,' ').trim();
+  }
+  function hash32(s){ let h=5381; for(let i=0;i<s.length;i++) h=((h*33)^s.charCodeAt(i))>>>0; return h.toString(36); }
+  function answerOf(q){
+    if(Array.isArray(q.options)){
+      const c=q.options.find(o=>o&&o.correct);
+      if(c) return plain(c.text);
+    }
+    if(q.exactAnswer) return plain(q.exactAnswer);
+    if(typeof q.answer==='string' && q.answer.length>2) return plain(q.answer);
+    return '';
+  }
+  /* the hub stores a source line on its own line inside the question text —
+     it is noise on a recall card, so it is dropped here and only here */
+  function promptOf(q){
+    let t=plain(q.question);
+    t=t.replace(/\s*(Source|SYN\/ANT Lecture|Lecture)\s*:?[^.]{0,60}$/i,'').trim();
+    return t;
+  }
+  function hubChapters(){
+    const D=hubDb(); if(!D) return null;
+    const map={};
+    Object.keys(D).forEach(qid=>{
+      const quiz=D[qid];
+      if(!quiz||!Array.isArray(quiz.questions)) return;
+      if(qid.startsWith('quiz_srs')||qid.startsWith('quiz_master_mock')||qid.startsWith('quiz_topic_practice')||qid.startsWith('quiz_weak_bank')) return;
+      quiz.questions.forEach(q=>{
+        const tg=Array.isArray(q.tags)?q.tags:[];
+        const sub=tg[0]||q.subject||'Miscellaneous';
+        const ch=tg[1]||'General';
+        const front=promptOf(q), back=answerOf(q);
+        if(!front||!back) return;
+        const kk=sub+'|||'+ch;
+        (map[kk]=map[kk]||{subject:sub,chapter:ch,cards:[],seen:{}});
+        const id='q'+hash32(front.toLowerCase());
+        if(map[kk].seen[id]) return;            /* same question twice in the bank — one card */
+        map[kk].seen[id]=1;
+        map[kk].cards.push({id, topic:(tg[2]||'General'), front, back});
+      });
+    });
+    return Object.values(map).filter(x=>x.cards.length).sort((a,b)=>
+      a.subject.localeCompare(b.subject)||a.chapter.localeCompare(b.chapter));
+  }
+  function renderFromHub(){
+    const list=hubChapters();
+    setHead('Build from <em>hub</em>', list? list.length+' chapters found':'question bank not loaded', false);
+    $('ar-nav').innerHTML='';
+    if(!list){
+      $('ar-body').innerHTML='<div class="wrap"><div class="addbar"><button id="arBack8">← Subjects</button></div>'+
+        '<div class="empty">The question bank has not loaded yet.<br><br>Close this, let the hub finish loading, and try again.</div></div>';
+      $('arBack8').onclick=()=>{view='subjects';render();}; return;
+    }
+    const q=norm(searchQ);
+    const rows=q? list.filter(x=>norm(x.subject+' '+x.chapter).indexOf(q)>=0) : list;
+    $('ar-body').innerHTML='<div class="wrap">'+
+      `<div class="addbar"><button id="arBack8">← Subjects</button></div>
+       <p class="small" style="margin:0 0 12px">Every chapter in your question bank, turned into recall cards.
+         The question becomes the prompt, the correct option becomes the answer, and the two-column
+         <b>Notes</b> table is built for you at the same time. Sending a chapter again later updates
+         edited cards and keeps all progress.</p>
+       <div class="fform" style="padding:12px 13px;margin-bottom:12px">
+         <input id="arQ3" placeholder="Filter chapters…" value="${esc(searchQ)}"></div>`+
+      (rows.length? rows.map(x=>{
+        const id=slug(x.subject+'-'+x.chapter), have=A.decks[id];
+        return `<div class="chrow" data-hub="${esc(x.subject+'|||'+x.chapter)}">
+          <div class="n">${esc(x.chapter)}<span class="ar">›</span></div>
+          <div class="meta">${esc(x.subject)} · ${x.cards.length} cards${have?' · already a deck ('+have.cards.length+') — will update':''}</div></div>`;
+      }).join('') : '<div class="empty">Nothing matches that.</div>')+'</div>';
+    $('arBack8').onclick=()=>{view='subjects';searchQ='';render();};
+    const inp=$('arQ3');
+    inp.oninput=()=>{ searchQ=inp.value; const p=inp.selectionStart; render();
+      const n2=$('arQ3'); if(n2){ n2.focus(); try{n2.setSelectionRange(p,p);}catch(e){} } };
+    $('ar-body').querySelectorAll('[data-hub]').forEach(r=>r.onclick=()=>{
+      const [s,c]=r.dataset.hub.split('|||');
+      const hit=(hubChapters()||[]).find(x=>x.subject===s&&x.chapter===c);
+      if(!hit){ toast('Could not read that chapter.'); return; }
+      const prev=A.decks[slug(s+'-'+c)];
+      pending={subject:s, chapter:c, cards:hit.cards,
+               colA:(prev&&prev.colA)||'Question', colB:(prev&&prev.colB)||'Answer'};
+      searchQ=''; view='meta'; render();
+    });
   }
 
   /* ---------- import ---------- */
@@ -24177,9 +24482,10 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     const total=allKeys(null).length;
     $('ar-body').innerHTML='<div class="wrap">'+
       `<div class="addbar"><label class="pri">+ Add cards JSON<input type="file" id="arImp" accept=".json" hidden></label>
+         <button id="arFromHub">⇄ Build from hub</button>
          <button id="arFind">Search</button>${st?`<button id="arStarB">★ ${st}</button>`:''}</div>`+
       (total? `<button class="bigbtn ${due?'':'flat'}" id="arDue"><div class="ic2">◷</div>
-          <div><div class="t1">Due today — ${due}</div>
+          <div><div class="t1">Due today — ${due}<span class="cd2">${daysToExam()>0?daysToExam()+' days to the paper':'exam day'}${Math.ceil((LAST_DUE-Date.now())/DAY)>0?' · '+Math.ceil((LAST_DUE-Date.now())/DAY)+' of revision':''}</span></div>
           <div class="t2">${due? 'Every card the spacing ladder says you owe, mixed across all decks'
                                : 'Nothing owed. Next cards return on their own schedule.'}</div></div>
           <div class="go">›</div></button>`:'')+
@@ -24206,6 +24512,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       +'</div>';
     $('arImp').onchange=e=>readFile(e,onImport);
     $('arFind').onclick=()=>{view='search';render();};
+    $('arFromHub').onclick=()=>{searchQ='';view='fromhub';render();};
     if($('arStarB')) $('arStarB').onclick=()=>{view='star';render();};
     if($('arDue')) $('arDue').onclick=()=>{ if(!dueKeys(null).length){toast('Nothing due today.');return;} curSub=null; runId='due::all'; view='duerun'; render(); };
     $('ar-body').querySelectorAll('[data-sub]').forEach(r=>r.onclick=()=>{curSub=r.dataset.sub;view='chapters';render();});
@@ -24414,8 +24721,8 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       `<p class="small" style="margin:0 0 6px">${pending.cards.length} pairs read from the file. Tell me where they belong.</p>
        <label>Subject</label><input id="mfS" value="${esc(pending.subject||'English')}" placeholder="English">
        <label>Chapter</label><input id="mfC" value="${esc(pending.chapter||'')}" placeholder="One Word Substitution">
-       <label>Left column heading</label><input id="mfA" value="Meaning">
-       <label>Right column heading</label><input id="mfB" value="Word">
+       <label>Left column heading</label><input id="mfA" value="${esc(pending.colA||'Meaning')}">
+       <label>Right column heading</label><input id="mfB" value="${esc(pending.colB||'Word')}">
        <div class="rowb"><button class="can" id="mfX">Cancel</button><button id="mfOK">Add deck</button></div>`+
       '</div></div>';
     $('mfX').onclick=()=>{pending=null;view='subjects';render();};
@@ -24605,8 +24912,8 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       if(tin) tin.disabled=true;
       $('arGr').innerHTML=`<div class="grade">
           <button class="gn" id="arGA">Again<span>0d</span></button>
-          <button class="gh" id="arGH">Hard<span>${IVL[Math.max(0,(L.step||0)-1)]||1}d</span></button>
-          <button class="gy" id="arGG">Good<span>${IVL[Math.min(IVL.length-1,L.step||0)]}d</span></button>
+          <button class="gh" id="arGH">Hard<span>${Math.max(1,Math.round((clampDue(Date.now()+((IVL[Math.max(0,(L.step||0)-1)]||1))*DAY)-Date.now())/DAY))}d</span></button>
+          <button class="gy" id="arGG">Good<span>${Math.max(1,Math.round((clampDue(Date.now()+IVL[Math.min(IVL.length-1,L.step||0)]*DAY)-Date.now())/DAY))}d</span></button>
         </div>
         <div class="grow2"><button id="arStar2">${L.star?'★ Starred':'☆ Star this'}</button>
           <button id="arEdit2">Edit card</button></div>`;
@@ -24699,6 +25006,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     else if(view==='duerun') renderDueRun();
     else if(view==='starrun') renderStarRun();
     else if(view==='search') renderSearch();
+    else if(view==='fromhub') renderFromHub();
     else if(view==='star') renderStar();
     else if(view==='edit') renderEdit();
     else renderChapter();
