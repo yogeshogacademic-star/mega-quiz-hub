@@ -1810,8 +1810,29 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-18 · v28.6.4';
+    const HUB_BUILD = '2026-08-19 · v28.6.5';
 
+    // v28.6.5 — THE REASON DISCOUNT WAS *STILL* OUT OF ORDER AFTER v28.6.2.
+    //   Two separate causes, both fixed here:
+    //   (1) ALL-OR-NOTHING SORT. Both the topic sort and the sub-topic sort only
+    //       ran when EVERY row in the chapter carried a code (D05, P12...). One
+    //       single mock question tagged "Mark-up % + discount % → profit/loss %"
+    //       with no D-prefix switched the sort off for the WHOLE chapter, so the
+    //       rows fell back to first-seen order and looked untouched. Now coded
+    //       rows always sort by code and sit at the top; uncoded rows follow in
+    //       upload order. One stray tag can no longer break the chapter.
+    //   (2) A STALE _subOrder OVERRODE THE CODE SORT. The hand-set order saved by
+    //       the old FIX_syllabus_order script wins over everything — and any
+    //       sub-topic added after it was saved gets 9999 and sinks to the bottom.
+    //       _subOrder is now honoured ONLY when it still covers every live
+    //       sub-topic; the moment it is incomplete it is treated as stale and the
+    //       code sort takes over. Manual "↕️ Reorder Sub-topics" still works.
+    //   Also: SC_DEFAULT and PLANNER_SUBJECTS had drifted from SYLLABUS_MAP again
+    //   (the v25.10 bug class) — missing 2 whole subjects (Calculation, Computer
+    //   Knowledge) and 13 chapters including the six v28.6.4 added. Rather than
+    //   hand-syncing three literals forever, SYLLABUS_MAP is now exported and both
+    //   maps TOP THEMSELVES UP from it at load. One list to edit from now on.
+    //
     // v28.6.4 — six chapters were genuinely MISSING from SYLLABUS_MAP, which is
     //   why correctly-tagged mock questions had nowhere valid to live:
     //   Advanced Maths + Statistics, Permutation & Combination;
@@ -2131,6 +2152,28 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
         "Static GK": ["Firsts in India & World", "Classical Dances", "Folk Dances", "Musical Instruments and their maestros",  "Festivals & Fairs", "International Organisations", "Superlatives", "Important Dates & Days", "National Parks & Wildlife Sanctuaries", "UNESCO World Heritage Sites", "Capitals & Currencies", "International Headquarters", "Books & Authors", "Sports Terminologies & Trophies", "Awards & Honours", "Miscellaneous Static GK"],
         "Current Affairs": ["National News & Governance", "International News", "Economy & Banking Updates", "Sports News", "Awards & Honors", "Appointments & Resignations", "Defense & Military", "Government Schemes & Yojanas", "Environment & Climate", "Bills & Acts", "Reports & Indices", "Science & Technology", "Space", "Health & Medicine", "Summits & Conferences", "Infrastructure & Industrial Development", "Books, Authors & Institutions"],
         "Computer Knowledge": ["Computer Fundamentals & History", "Hardware & Software", "Operating Systems", "MS Office", "Internet & Networking", "Cyber Security & Threats", "Keyboard Shortcuts & Abbreviations"]
+    };
+
+    /* ── v28.6.5 — ONE SOURCE OF TRUTH FOR THE CHAPTER LIST ────────────────────
+       SC_DEFAULT (Syllabus tracker) and PLANNER_SUBJECTS (War Zone) live in later
+       script blocks and were hand-copied from this map. They drifted — again —
+       and questions tagged to a chapter the tracker has never heard of simply
+       do not appear. Exporting the map lets both of them top themselves up at
+       load, so from now on this list is the only one that needs editing. */
+    try { window.SYLLABUS_MAP = SYLLABUS_MAP; } catch(e) {}
+    window.__scTopUpFromSyllabusMap = function(target, label){
+      try{
+        const SM = window.SYLLABUS_MAP; if(!SM || !target) return;
+        let addedSubj = 0, addedCh = 0;
+        Object.keys(SM).forEach(subj => {
+          if(!Array.isArray(target[subj])){ target[subj] = SM[subj].slice(); addedSubj++; addedCh += SM[subj].length; return; }
+          const have = new Set(target[subj].map(x => String(x).trim().toLowerCase()));
+          SM[subj].forEach(ch => {
+            if(!have.has(String(ch).trim().toLowerCase())){ target[subj].push(ch); addedCh++; }
+          });
+        });
+        if(addedSubj || addedCh) console.log('[v28.6.5] ' + label + ' topped up from SYLLABUS_MAP: +' + addedSubj + ' subjects, +' + addedCh + ' chapters');
+      }catch(e){ console.warn('topUpFromSyllabusMap failed for ' + label, e); }
     };
 
     const CONCEPT_MAP = {
@@ -12368,6 +12411,7 @@ const SC_DEFAULT = {
   "Current Affairs": ["National News & Governance","International News","Economy & Banking Updates","Sports News","Awards & Honors","Appointments & Resignations","Defense & Military","Government Schemes & Yojanas","Environment & Climate","Bills & Acts","Reports & Indices","Science & Technology","Space","Health & Medicine","Summits & Conferences","Infrastructure & Industrial Development","Books, Authors & Institutions"],
   "Art & Culture": ["Architecture & Sculpture","Paintings","Music & Dance","Puppetry & Theatre","Languages & Literature","Fairs, Festivals & Handicrafts","Indian Philosophy"]
 };
+try{ window.__scTopUpFromSyllabusMap && window.__scTopUpFromSyllabusMap(SC_DEFAULT, 'SC_DEFAULT'); }catch(e){}
 
 // ── PERMANENT STALE-TOPIC KILL LIST ───────────────────────────────────────────
 // Polity tag[1] was migrated to the locked 18-topic Laxmikant list (Jun 2026).
@@ -12813,17 +12857,22 @@ function scRenderTracker() {
   Object.values(subjects).forEach(chs => {
     Object.keys(chs).forEach(ch => {
       const rows = chs[ch];
-      const allCoded = rows.length > 1 && rows.every(r => _SC_CODE.test(String(r.name||'').trim()));
-      if (allCoded) {
-        rows.sort((x,y) => {
-          const a = String(x.name||'').trim().match(_SC_CODE), b = String(y.name||'').trim().match(_SC_CODE);
+      /* v28.6.5 — was: sort by code ONLY IF every row is coded. One mock question
+         whose sub-topic lost its "D05 " prefix made that test fail and silently
+         disabled the sort for the entire chapter. Now the coded rows always sort
+         by code and lead; the uncoded stragglers follow in JSON-upload order. */
+      rows.sort((x,y) => {
+        const a = String(x.name||'').trim().match(_SC_CODE);
+        const b = String(y.name||'').trim().match(_SC_CODE);
+        if (a && b) {
           return (a[1].toLowerCase().localeCompare(b[1].toLowerCase()))
               || (parseInt(a[2],10) - parseInt(b[2],10))
               || _scNat(x.name||'', y.name||'');
-        });
-      } else {
-        rows.sort((x,y) => (_scOrdOf(x) - _scOrdOf(y)) || _scNat(x.name||'', y.name||''));
-      }
+        }
+        if (a) return -1;          // coded rows first
+        if (b) return 1;
+        return (_scOrdOf(x) - _scOrdOf(y)) || _scNat(x.name||'', y.name||'');
+      });
     });
   });
 
@@ -13258,7 +13307,15 @@ function scGetAvailableSubTopics(topicName, subject) {
   // Apply custom saved order if it exists on the parent topic
   const _tKey = subj + '|||' + topicName;
   const _t = scDb[_tKey];
-  if(_t && _t._subOrder){
+  /* ── v28.6.5 — THE STALE _subOrder TRAP ────────────────────────────────────
+     A hand-set _subOrder (from the ↕️ Reorder modal, or from the old
+     FIX_syllabus_order script) beat every other rule — and any sub-topic added
+     to the bank AFTER it was saved is not in the map, scores 9999 and sinks to
+     the bottom. That is the second reason Discount still looked unsorted.
+     Rule now: honour _subOrder only while it still covers EVERY live sub-topic.
+     The moment one is missing the map is stale, so it is ignored and the code
+     sort below takes over. Re-running ↕️ Reorder re-arms it. */
+  if(_t && _t._subOrder && subsArr.every(nm => _t._subOrder[nm] != null)){
     subsArr.sort((a,b)=>{
       const oa=_t._subOrder[a]!=null?_t._subOrder[a]:9999;
       const ob=_t._subOrder[b]!=null?_t._subOrder[b]:9999;
@@ -13278,12 +13335,21 @@ function scGetAvailableSubTopics(topicName, subject) {
      order, which IS the order your JSON files were uploaded in. A hand-set
      _subOrder still overrides both, above. */
   const _SC_SUBCODE = /^([A-Za-z]{1,3})[ ]?(\d{1,3})\b/;
-  if (subsArr.length > 1 && subsArr.every(nm => _SC_SUBCODE.test(String(nm).trim()))) {
+  /* v28.6.5 — was: every() — one uncoded sub-topic (a mock question that lost its
+     "D05 " prefix) turned the sort off for the whole chapter. Coded sub-topics
+     now sort by code and lead; uncoded ones keep first-seen order behind them. */
+  if (subsArr.length > 1 && subsArr.some(nm => _SC_SUBCODE.test(String(nm).trim()))) {
+    const _seen = new Map(); subsArr.forEach((nm,i) => _seen.set(nm,i));
     subsArr.sort((a,b) => {
       const x = String(a).trim().match(_SC_SUBCODE), y = String(b).trim().match(_SC_SUBCODE);
-      return x[1].toLowerCase().localeCompare(y[1].toLowerCase())
-          || (parseInt(x[2],10) - parseInt(y[2],10))
-          || String(a).localeCompare(String(b), undefined, { numeric:true });
+      if (x && y) {
+        return x[1].toLowerCase().localeCompare(y[1].toLowerCase())
+            || (parseInt(x[2],10) - parseInt(y[2],10))
+            || String(a).localeCompare(String(b), undefined, { numeric:true });
+      }
+      if (x) return -1;
+      if (y) return 1;
+      return _seen.get(a) - _seen.get(b);
     });
   }
   return subsArr; // default = dashboard order (first-seen as questions appear in db), NOT alphabetical
@@ -15995,7 +16061,10 @@ const SUB_COLORS = {
   'Medieval History':'#fb923c','Modern History':'#f97316','Geography':'#22c55e',
   'Economics':'#10b981','Environment & Ecology':'#34d399','Biology':'#4ade80',
   'Science & Technology':'#22d3ee','Static GK':'#e879f9','Current Affairs':'#f472b6',
-  'Art & Culture':'#c084fc','Physics':'#38bdf8','Chemistry':'#67e8f9','Custom':'#94a3b8'
+  'Art & Culture':'#c084fc','Physics':'#38bdf8','Chemistry':'#67e8f9','Custom':'#94a3b8',
+  // v28.6.5 — these two subjects exist in SYLLABUS_MAP but had never been copied
+  // into PLANNER_SUBJECTS, so they had no colour either.
+  'Calculation':'#facc15','Computer Knowledge':'#60a5fa'
 };
 
 let hubData = {}; // subject → [chapters]
@@ -16755,6 +16824,7 @@ const PLANNER_SUBJECTS = {
   "Current Affairs": ["National News & Governance","International News","Economy & Banking Updates","Sports News","Awards & Honors","Appointments & Resignations","Defense & Military","Government Schemes & Yojanas","Environment & Climate","Bills & Acts","Reports & Indices","Science & Technology","Space","Health & Medicine","Summits & Conferences","Infrastructure & Industrial Development","Books, Authors & Institutions"],
   "Art & Culture": ["Architecture & Sculpture","Paintings","Music & Dance","Puppetry & Theatre","Languages & Literature","Fairs, Festivals & Handicrafts","Indian Philosophy"]
 };
+try{ window.__scTopUpFromSyllabusMap && window.__scTopUpFromSyllabusMap(PLANNER_SUBJECTS, 'PLANNER_SUBJECTS'); }catch(e){}
 
 function loadHub(){
   // Always load from SC_DEFAULT first (guaranteed chapters)
