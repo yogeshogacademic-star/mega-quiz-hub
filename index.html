@@ -1810,7 +1810,49 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-15 · v28.5';
+    const HUB_BUILD = '2026-08-18 · v28.6';
+
+    // v28.6 — the Pomodoro stops when it says it will, and the day reads like a day.
+    //
+    //   POMODORO REBUILT. _pomo was a plain in-memory variable: it died on
+    //   refresh and never existed on a second device, while the log underneath
+    //   kept status:'doing' and counted on. That one fact caused all three
+    //   complaints — the overrun past 25/50, the phone banking hours after a
+    //   backgrounded tab missed the alarm, and the laptop saying "ended" while
+    //   the iPad said "running". The Pomodoro is now a pure function of the log,
+    //   which already cloud-syncs: pomoStart stamps kind/col/row/target onto the
+    //   log entry, and pomoRehydrate() rebuilds the identical timer on any
+    //   device, after any refresh, on wake-from-background and after every sync
+    //   pull. HARD STOP: logCapAt() freezes the clock at exactly the target,
+    //   backdated to the millisecond it was hit — a phone asleep for two hours
+    //   still banks exactly 25 minutes, and banked time can never exceed the
+    //   target. Breaks persist the same way. Stale 'doing' sessions left running
+    //   from a previous day are frozen on load instead of banking a whole night.
+    //
+    //   FINISH A LECTURE MID-POMODORO. ✓ Finish lecture now shows while the
+    //   timer is running or paused, not only once it has run out. The part
+    //   session banks at the real clock time, the timer PAUSES rather than
+    //   running on, and the leftover minutes are held for whichever lecture you
+    //   start next instead of resetting to a fresh 25/50.
+    //
+    //   UNDO. A finished lecture can be reopened from the row header (↩) and
+    //   from the all-complete banner, not just from its chip. Banked sessions
+    //   are kept — only the "finished" flag comes off.
+    //
+    //   AUTO-CROSS BUG. r1QsTotalRaw was only re-stamped inside
+    //   `rev==='r1' && doneOffset===0`, which the red-badge flow never enters,
+    //   so the stored count stayed stale, the badge condition stayed true and
+    //   the topic never settled into a clean cross. Now re-stamped on every path
+    //   that closes R1.
+    //
+    //   LOG FEED. Sorted morning → night off real start timestamps instead of
+    //   newest-first by id, each row showing the range it occupied
+    //   ("10:20 AM – 11:30 AM"), and rendered as proper cards — subject-coloured
+    //   spine, icon tile, time chip, duration. Targets show as x/10 daily and
+    //   x/70 weekly with a progress bar.
+    //
+    //   The 0-hour lecture auto-log is gone. Syllabus rows sort naturally at
+    //   render time (D2 before D10), so the order can never drift again.
 
     // v28.4 — log rows say what actually happened:
     //   The 🍅 tag showed the TARGET picked (🍅50) even when the session was
@@ -12679,6 +12721,16 @@ function scRenderTracker() {
     subjects[t.subject][t.chapter][subjects[t.subject][t.chapter].length] = { key, ...t };
   });
 
+  /* v28.6 — ORDER FIX (permanent).
+     The tracker used to render rows in object-insertion order, i.e. the order
+     you first opened each topic, so Discount came out D23, D18, D05, D26...
+     A one-off script re-keyed the store once; this sorts at render time so it
+     can never drift again. Digit-aware, so D2 sorts before D10. */
+  const _scNat = (a,b) => String(a).localeCompare(String(b), undefined, { numeric:true, sensitivity:'base' });
+  Object.values(subjects).forEach(chs => {
+    Object.keys(chs).forEach(ch => { chs[ch].sort((x,y) => _scNat(x.name||'', y.name||'')); });
+  });
+
   // Get active subject tab
   const activeSubject = window.scActiveSubject || Object.keys(subjects)[0] || '';
   if (!window.scActiveSubject) window.scActiveSubject = activeSubject;
@@ -13070,7 +13122,9 @@ window.scTickLec = (key) => {
     t.lec = true; t.lecDate = scToday();
     t.trackingMode = t.trackingMode || 'unit';
     scSave(); scRender();
-    if (typeof window._wrAutoLog === 'function') window._wrAutoLog({ type:'revision', title:'Lecture — '+t.name, subject:t.subject||'', chapter:t.name, rev:'LEC', ts:Date.now() });
+    /* v28.6 — the lecture auto-log is GONE. It wrote a 0-hour row into the War
+       Room feed every time a lecture was ticked, which was noise, not a record.
+       Every other auto-log (SRS, quiz, mock, Active Recall, R1/R2) is untouched. */
     if (typeof window._saveDataGlobal === 'function') window._saveDataGlobal();
   }
 };
@@ -14711,11 +14765,38 @@ function scShowConfidenceModal(key, rev) {
   }
 }
 
+/* v28.6 — live unfiltered question count for a topic, matching EXACTLY what the
+   red "new questions" badge counts. Used to re-stamp r1QsTotalRaw. */
+function scLiveTopicTotal(t){
+  if(!t) return 0;
+  let v;
+  try{
+    v = t.isSubTopic ? scGetTopicQsCount(t.parentName, t.subject, t.name)
+                     : scGetTopicQsCount(t.name, t.subject);
+  }catch(e){ return 0; }
+  return typeof v === 'number' ? v : 0;
+}
+
+/* v28.6 — THE AUTO-CROSS BUG.
+   r1QsTotalRaw is the "question count when R1 finished", and the red badge fires
+   on liveCount > r1QsTotalRaw. But it was ONLY re-stamped inside
+   `if (rev === 'r1' && doneOffset === 0)`. In the red-badge flow doneOffset is
+   the length of r1QuestionsAttempted — large and non-zero — so that block never
+   ran, r1QsTotalRaw kept the OLD number forever, the badge condition stayed true
+   and the topic never settled into a clean cross. Re-stamp on every path that
+   closes R1. */
+function scStampR1Total(t){
+  if(!t) return;
+  const live = scLiveTopicTotal(t);
+  if(live > 0) t.r1QsTotalRaw = live;
+}
+
 window.scMarkR1Done = (key) => {
   const t = scDb[key];
   t.r1 = true;
   t.r1Date = scToday();
   t.r1Progress = 0;
+  scStampR1Total(t);
   scUpdateStreak();
   scSave();
   scCloseModal();
@@ -14731,6 +14812,7 @@ window.scMarkRevDoneAuto = (key, rev) => {
   t[rev] = true;
   t[rev + 'Date'] = scToday();
   t[rev + 'Progress'] = 0;
+  if (rev === 'r1') scStampR1Total(t);   // v28.6 — see scStampR1Total
 
   // R3 & R4 REMOVED — completing R2 now closes the revision cycle. We keep the r3/r4 flags
   // in the data model (set them true here) so every existing "fully done" check keeps working
@@ -15289,6 +15371,8 @@ body.light select.inp option { background:white; }
           <div class="stat-lbl">Logged hrs</div>
         </div>
       </div>
+      <!-- v28.6 — weekly progress sits beside the daily figure, as asked -->
+      <div style="margin-top:10px" id="h-week-line"></div>
       <div style="margin-top:10px" id="h-debt"></div>
     </div>
 
@@ -15804,6 +15888,63 @@ function to12hr(t){ if(!t)return ''; if(t.includes('AM')||t.includes('PM')) retu
 // Spelled-out duration: under 1hr -> "45 min"; 1hr+ -> "1 hr 50 min" / "2 hr". Never decimals.
 // v26.4: log rows print from the exact minute count when the entry has one.
 // hDisp() rounds hours to 1 decimal, so anything under ~3 min collapsed to "0 min".
+/* ══ v28.6 — WHEN did this happen? ═══════════════════════════════════════════
+   The feed was sorted newest-first by id and showed, at best, a bare finish
+   time. A study day reads properly in the order you lived it, so every row now
+   resolves to a real start and end and the list runs morning → night.
+   Sources are tried in order of trustworthiness: real segment timestamps first,
+   then the live start stamp, then the typed HH:MM fields, then ts minus the
+   recorded duration. */
+function _logClockMs(dateKey, hhmm){
+  if(!hhmm) return 0;
+  const m = String(hhmm).match(/^(\d{1,2}):(\d{2})$/);
+  if(!m) return 0;
+  const d = dateKey || todayStr();
+  const t = new Date(d+'T'+String(m[1]).padStart(2,'0')+':'+m[2]+':00+05:30').getTime();
+  return isNaN(t) ? 0 : t;
+}
+function logStartMs(l){
+  if(!l) return 0;
+  const segs = Array.isArray(l.segments) ? l.segments.filter(x=>x&&x.from) : [];
+  if(segs.length) return Math.min.apply(null, segs.map(x=>x.from));
+  if(l.startTs) return l.startTs;
+  const d = l._carryDate || l.date;
+  const typed = _logClockMs(d, l.startTime) || _logClockMs(d, l.start);
+  if(typed) return typed;
+  if(l.ts){
+    const span = (typeof l.duration==='number' && l.duration>0) ? l.duration*60000
+               : ((l.hrs||0) * 3600000);
+    return l.ts - span;
+  }
+  return l.id || 0;
+}
+function logEndMs(l){
+  if(!l) return 0;
+  if(l.status==='doing') return Date.now();
+  const segs = Array.isArray(l.segments) ? l.segments.filter(x=>x&&x.to) : [];
+  if(segs.length) return Math.max.apply(null, segs.map(x=>x.to));
+  const d = l._carryDate || l.date;
+  const typed = _logClockMs(d, l.endTime) || _logClockMs(d, l.end);
+  if(typed) return typed;
+  if(l.ts) return l.ts;
+  const st = logStartMs(l);
+  const span = (typeof l.duration==='number' && l.duration>0) ? l.duration*60000 : ((l.hrs||0)*3600000);
+  return st + span;
+}
+function _clock12(ms){
+  if(!ms) return '';
+  try{ return new Date(ms).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',hour12:true}); }
+  catch(e){ return ''; }
+}
+/* "10:20 AM – 11:30 AM". Falls back to a single stamp when only one end is known. */
+function logRangeStr(l){
+  const a = logStartMs(l), b = logEndMs(l);
+  const A = _clock12(a), B = _clock12(b);
+  if(A && B && b > a + 30000) return A+' – '+B;
+  if(A) return A;
+  if(B) return B;
+  return l && l.time ? l.time : '';
+}
 function logDisp(l){
   if(l && typeof l.duration === 'number' && l.duration > 0){
     const m = Math.round(l.duration), hh = Math.floor(m/60), mm = m%60;
@@ -15847,7 +15988,7 @@ function getWeekDates(ws){ return Array.from({length:7},(_,i)=>{ const d=new Dat
    ══════════════════════════════════════════════════════════════════════════ */
 
 const WR_DRILL_COLS = ['newTopic','revision','mock'];
-const WR_SCALARS    = ['target','wakeTarget','sleepTarget','wtWeekStart','wtArchive','streak'];
+const WR_SCALARS    = ['target','dailyTarget','wakeTarget','sleepTarget','wtWeekStart','wtArchive','streak'];   // v28.6 +dailyTarget
 const WR_TOMB_TTL   = 120*24*3600*1000;   // keep tombstones 120 days
 
 /* ── monotonic clock ─────────────────────────────────────────────────
@@ -16150,6 +16291,10 @@ window.__wrRepaint = function(){
     if(ds && ds.classList.contains('active')) safe(typeof drillRender === 'function' ? drillRender : null);
     // a session started on another device is now merged in — start the clock here too
     if(typeof drillAnyDoing === 'function' && drillAnyDoing() && typeof drillStartTicker === 'function') drillStartTicker();
+    /* v28.6 — and rebuild the Pomodoro from the freshly merged logs, so a timer
+       started on the phone shows the same remaining minutes on the laptop, and
+       one ended anywhere is ended everywhere. */
+    if(typeof pomoRehydrate === 'function') pomoRehydrate();
   } catch(e){}
 };
 document.addEventListener('focusout', function(){
@@ -16285,7 +16430,15 @@ function load(){
   window.__wrQuiet = true;   // migrations below call save(); don't fire a sync per repair
   try{
     const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);}catch(e){}
-    D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||50; D.checklist=D.checklist||{}; D.sleepLog=D.sleepLog||{}; D.wakeTarget=D.wakeTarget||'05:00'; D.sleepTarget=D.sleepTarget||'23:30'; D.weeklyTasks=D.weeklyTasks||[]; D.wtWeekStart=D.wtWeekStart||''; D.wtArchive=D.wtArchive||[]; D.meta=D.meta||{}; D.dailyItems=D.dailyItems||dcDefaultItems(); D.dailyLog=D.dailyLog||{}; D.drill=D.drill||{}; D.top5=D.top5||{}; D.tomb=D.tomb||{};
+    D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||70; D.dailyTarget=D.dailyTarget||10; D.checklist=D.checklist||{}; D.sleepLog=D.sleepLog||{}; D.wakeTarget=D.wakeTarget||'05:00'; D.sleepTarget=D.sleepTarget||'23:30'; D.weeklyTasks=D.weeklyTasks||[]; D.wtWeekStart=D.wtWeekStart||''; D.wtArchive=D.wtArchive||[]; D.meta=D.meta||{}; D.dailyItems=D.dailyItems||dcDefaultItems(); D.dailyLog=D.dailyLog||{}; D.drill=D.drill||{}; D.top5=D.top5||{}; D.tomb=D.tomb||{};
+    /* v28.6 — targets confirmed as 10/day, 70/week. Runs once; if you change
+       them later by hand this never touches them again. */
+    if(!D.meta._targets286){
+      D.meta._targets286 = true;
+      if(!D.target || D.target === 50) D.target = 70;
+      if(!D.dailyTarget) D.dailyTarget = 10;
+      _dStamp('target'); _dStamp('dailyTarget');
+    }
     wrMigrateStamps();
     window.__wrPrevIdx = wrBuildIdx(); wrSnapScalars();
     window.__wrDLoaded = true;
@@ -16964,7 +17117,7 @@ function renderTodayLogList(){
   if(!el) return;
   const logs=D.logs[todayStr()]||[];
   if(!logs.length){ el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;font-weight:700">No sessions logged yet today</div>'; return; }
-  const sorted=[...logs].sort((a,b)=>(b.id||0)-(a.id||0));
+  const sorted=[...logs].sort((a,b)=>(logStartMs(a)-logStartMs(b)) || ((a.id||0)-(b.id||0)));   // v28.6 morning → night
   el.innerHTML=sorted.map(l=>{
     const isAuto=l.auto;
     const status=l.status||(isAuto?'done':'done');
@@ -17063,6 +17216,23 @@ function renderHome(){
   document.getElementById('h-today-date').textContent=fmtDate(today);
 
   // Debt
+  /* v28.6 — targets confirmed: 10 hrs a day, 70 a week. A figure with nothing to
+     measure it against tells you nothing, so both now show as x/target. */
+  const _dTgt = D.dailyTarget || 10, _wTgt = D.target || 70;
+  const _lg = Math.round(tLogged*10)/10;
+  const _lgEl = document.getElementById('h-logged');
+  if(_lgEl) _lgEl.innerHTML = _lg + '<span style="font-size:0.55em;font-weight:900;color:var(--muted);letter-spacing:0"> / '+_dTgt+'</span>';
+  const _wkEl = document.getElementById('h-week-line');
+  if(_wkEl){
+    const wPct = Math.min(100, Math.round((wHrs/_wTgt)*100));
+    const wCol = wPct>=100?'#10b981':wPct>=60?'#4f6ef7':wPct>=30?'#f59e0b':'#ef4444';
+    _wkEl.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">'
+      + '<span style="font-size:9px;font-weight:900;letter-spacing:.08em;color:var(--muted)">THIS WEEK</span>'
+      + '<span style="font-size:11px;font-weight:900;color:'+wCol+'">'+(Math.round(wHrs*10)/10)+' / '+_wTgt+' hrs</span></div>'
+      + '<div style="height:5px;border-radius:999px;background:rgba(148,163,184,.18);overflow:hidden">'
+      + '<div style="height:100%;width:'+wPct+'%;background:'+wCol+';border-radius:999px;transition:width .4s"></div></div>';
+  }
+
   const totalDebt=Object.values(D.debt).reduce((a,v)=>a+v,0);
   const debtEl=document.getElementById('h-debt');
   debtEl.innerHTML=totalDebt>0.05?`<span class="debt-pill has">⚠️ Debt: ${hDisp(totalDebt)}</span>`:`<span class="debt-pill none">✅ Zero Debt</span>`;
@@ -17112,7 +17282,7 @@ function renderHome(){
 
   // Ring sub target
   const ringSubEl=document.getElementById('h-ring-sub');
-  if(ringSubEl) ringSubEl.textContent='/ '+(D.target||50)+' hrs';
+  if(ringSubEl) ringSubEl.textContent='/ '+(D.target||70)+' hrs';
 
   renderBuckets();
   renderSleep();
@@ -17280,7 +17450,9 @@ function renderHomeTodayLogged(){
   const filt = window._wrLogFilter || 'all';
   if(filt === 'manual') logs = logs.filter(function(l){ return !l.auto; });
   else if(filt === 'auto') logs = logs.filter(function(l){ return l.auto; });
-  const sorted=[...logs].sort((a,b)=>(b.id||0)-(a.id||0));
+  /* v28.6 — the day in the order it happened: first task of the morning at the
+     top, last thing at night at the bottom. */
+  const sorted=[...logs].sort((a,b)=>(logStartMs(a)-logStartMs(b)) || ((a.id||0)-(b.id||0)));
   const totalHrs=logs.filter(l=>!l.status||l.status==='done').reduce((a,l)=>a+l.hrs,0);
   if(totEl) totEl.textContent=logs.length?hDisp(totalHrs):'';
   if(!sorted.length){ listEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;font-weight:700">'+(isToday?'Nothing logged yet today':'Nothing logged this day')+'</div>'; return; }
@@ -17319,15 +17491,35 @@ function renderHomeTodayLogged(){
       else if(status==='paused') actionBtns=`<button onclick="logResume('${_logDate}',${l.id})" style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);color:#fbbf24;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Resume</button> <button onclick="logDone('${_logDate}',${l.id})" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#4ade80;font-size:9px;font-weight:900;padding:3px 7px;border-radius:7px;cursor:pointer">Done</button> <button onclick="logCancel('${_logDate}',${l.id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px">x</button>`;
       else actionBtns=`<button onclick="confirmDeleteLog('${_logDate}',${l.id},()=>{renderHomeTodayLogged();renderHome()})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 4px">×</button>`;
     }
-    const hrsDisp=(status==='doing'||status==='paused')?`<span data-liveid="${l.id}" data-livedate="${l.date}" style="font-size:12px;font-weight:900;color:#fbbf24;flex-shrink:0;white-space:nowrap">${liveStr||'0m'}</span>`:`<span style="font-size:12px;font-weight:900;color:${isCan?'var(--muted)':subColor(l.subject||'Other')};flex-shrink:0;white-space:nowrap;${isCan?'text-decoration:line-through':''}">${logDisp(l)}</span>`;
-    return `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:11px;border:1px solid ${borderC};background:${bgC};margin-bottom:7px;${isCan?'opacity:0.5':''}">
-      <div style="font-size:15px;flex-shrink:0">${icon}</div>
+    /* ── v28.6 LOG CARDS ────────────────────────────────────────────────────
+       These rows are the record of the work. A cramped one-line strip made a
+       hard day look like nothing. Each session is now a proper card: a coloured
+       spine in its subject colour, the icon in a tinted tile, the time range it
+       occupied, and the duration as a solid figure on the right. A finished
+       session gets a green tick, because seeing the day stack up is the point. */
+    const accent = isCan ? '#64748b' : subColor(l.subject||'Other');
+    const live   = (status==='doing'||status==='paused');
+    const hrsDisp = live
+      ? `<span data-liveid="${l.id}" data-livedate="${l.date}" style="font-size:15px;font-weight:900;color:#fbbf24;white-space:nowrap">${liveStr||'0m'}</span>`
+      : `<span style="font-size:15px;font-weight:900;color:${isCan?'var(--muted)':accent};white-space:nowrap;${isCan?'text-decoration:line-through':''}">${logDisp(l)}</span>`;
+    const rangeStr = logRangeStr(l);
+    const rangeChip = rangeStr
+      ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:900;color:var(--muted2);background:rgba(148,163,184,.13);border-radius:999px;padding:2px 8px;white-space:nowrap">🕐 ${rangeStr}</span>`
+      : '';
+    const doneTick = (!live && !isCan)
+      ? `<span style="font-size:9px;font-weight:900;color:#4ade80;background:rgba(16,185,129,.13);border-radius:999px;padding:2px 7px">✓ DONE</span>` : '';
+    return `<div style="position:relative;display:flex;align-items:center;gap:11px;padding:12px 13px 12px 16px;border-radius:14px;border:1px solid ${borderC};background:${bgC};margin-bottom:9px;box-shadow:0 1px 3px rgba(0,0,0,.16);overflow:hidden;${isCan?'opacity:0.5':''}">
+      <div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:${accent}"></div>
+      <div style="width:36px;height:36px;border-radius:11px;background:${accent}26;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">${icon}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:900;${isCan?'text-decoration:line-through;color:var(--muted)':''}">${l.title||l.label||l.subject}${statusBadge}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:3px;font-weight:700;line-height:1.5">${detail}${l.startTime&&l.endTime?' · 🕐 '+to12hr(l.startTime)+'–'+to12hr(l.endTime):l.time?' · 🕐 '+l.time:l.start&&l.end?' · 🕐 '+to12hr(l.start)+'–'+to12hr(l.end):''}</div>
+        <div style="font-size:12.5px;font-weight:900;line-height:1.35;${isCan?'text-decoration:line-through;color:var(--muted)':''}">${l.title||l.label||l.subject}${statusBadge}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px;font-weight:700;line-height:1.5">${detail}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;align-items:center">${rangeChip}${doneTick}</div>
       </div>
-      ${hrsDisp}
-      <div style="display:flex;gap:3px;flex-shrink:0;align-items:center">${actionBtns}</div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+        ${hrsDisp}
+        <div style="display:flex;gap:3px;align-items:center">${actionBtns}</div>
+      </div>
     </div>`;
   }).join('');
 }
@@ -17799,11 +17991,18 @@ function init(){
 window.markBlockDone = markBlockDone;
 // ════════════════ WEEKLY TARGET EDIT ════════════════
 function editWeeklyTarget(){
-  const v=prompt('Set weekly study target (hours):',D.target||50);
+  const v=prompt('Set WEEKLY study target (hours):',D.target||70);
   if(v===null) return;
   const n=parseFloat(v);
   if(isNaN(n)||n<=0){ alert('Enter a valid number'); return; }
   D.target=n;
+  /* v28.6 — the daily target is set in the same breath; two prompts for two
+     numbers that have to agree beats hunting for a second button. */
+  const dv=prompt('Set DAILY study target (hours):', D.dailyTarget || Math.round((n/7)*10)/10);
+  if(dv!==null){
+    const dn=parseFloat(dv);
+    if(!isNaN(dn) && dn>0){ D.dailyTarget=dn; _dStamp('dailyTarget'); }
+  }
   _dStamp('target');
   save(); renderHome();
 }
@@ -18045,14 +18244,19 @@ function drillRenderLecRow(col,it){
   const doneN = it.lecs.filter(l=>l.status==='done').length;
   const pct = Math.round(doneN/it.total*100);
   const curIdx = it.lecs.findIndex(l=>l.status!=='done');
+  /* v28.6 — when every lecture is closed there was no way back except hunting
+     for the right chip. Reopen the last one straight from the banner. */
   const currentHtml = (curIdx===-1)
-    ? `<div class="drill-lec-all">✅ All ${it.total} lectures complete</div>`
+    ? `<div class="drill-lec-all">✅ All ${it.total} lectures complete
+         <button class="drill-lecbtn undo" onclick="drillLecUndoLast('${col}','${it.id}')" title="Reopen the last lecture" style="margin-left:8px">↩ Undo</button>
+       </div>`
     : drillLecCurrent(col, it.id, curIdx+1, it.lecs[curIdx], doneN, it.total);
   return `<div class="drill-lecrow">
     <div class="drill-lecrow-head">
       <div class="drill-lecrow-title"><span class="sub">📘 ${drillEsc(it.subject)}</span><span class="tp">· ${drillEsc(it.topic)}</span></div>
       <div class="drill-lecrow-tools">
         <button class="drill-mini" onclick="drillLecEditCount('${col}','${it.id}')" title="Edit lecture count">✎ ${it.total}</button>
+        ${doneN>0?`<button class="drill-mini" onclick="drillLecUndoLast('${col}','${it.id}')" title="Reopen the last finished lecture">↩</button>`:''}
         <button class="drill-mini del" onclick="drillRemoveRowConfirm('${col}','${it.id}')" title="Remove">✕</button>
       </div>
     </div>
@@ -18157,6 +18361,17 @@ function drillRevEndSession(col,id){
 }
 function drillRevFinish(col,id){
   const it=drillFindRow(col,id); if(!it) return;
+  /* v28.6 — same mid-Pomodoro finish as lectures */
+  try{
+    if(_pomo && _pomo.kind==='rev' && _pomo.col===col && _pomo.id===id){
+      const carryMs = pomoLeft();
+      if(_pomoTick){ clearInterval(_pomoTick); _pomoTick=null; }
+      const A = POMO_KIND['rev'];
+      try{ if(A.state(_pomo)==='doing') A.pause(_pomo); }catch(e){}
+      pomoClear();
+      if(carryMs > 30000) pomoCarrySet(carryMs, Math.round(carryMs/60000));
+    }
+  }catch(e){}
   if(it.revLogId) drillRevEndSession(col,id);
   const it2=drillFindRow(col,id);
   it2.revStatus='done'; it2.revHrs=it2.revTotal||0;
@@ -18181,14 +18396,18 @@ function drillLecCurrent(col,id,n,l,doneN,total){
   if(l.status==='doing'){
     cls='doing';
     const live=drillFmtLive(drillLecElapsedMs(l.logId));
+    /* v28.6 — ✓ Finish lecture now sits here too, not only in the idle state.
+       A lecture that ends 8 minutes into a 50 can be closed on the spot. */
     controls=`<span class="drill-lec-timer" data-log="${l.logId}" style="font-size:14px">${live}</span>`+
       `<button class="drill-lecbtn pause" onclick="drillLecPause('${col}','${id}',${n})">⏸ Pause</button>`+
-      `<button class="drill-lecbtn end" onclick="drillLecEndSession('${col}','${id}',${n})" title="End this session — the lecture stays open">⏹ End session</button>`;
+      `<button class="drill-lecbtn end" onclick="drillLecEndSession('${col}','${id}',${n})" title="End this session — the lecture stays open">⏹ End session</button>`+
+      `<button class="drill-lecbtn check" onclick="drillLecFinish('${col}','${id}',${n})" title="Lecture finished right now — banks this session and holds the leftover Pomodoro minutes">✓ Finish lecture</button>`;
   } else if(l.status==='paused'){
     cls='paused';
     controls=`<span class="drill-lec-hrs" style="font-size:13px">${hDisp(l.hrs||0)}</span>`+
       `<button class="drill-lecbtn resume" onclick="drillLecResume('${col}','${id}',${n})">▶ Resume</button>`+
-      `<button class="drill-lecbtn end" onclick="drillLecEndSession('${col}','${id}',${n})" title="End this session — the lecture stays open">⏹ End session</button>`;
+      `<button class="drill-lecbtn end" onclick="drillLecEndSession('${col}','${id}',${n})" title="End this session — the lecture stays open">⏹ End session</button>`+
+      `<button class="drill-lecbtn check" onclick="drillLecFinish('${col}','${id}',${n})" title="Lecture finished right now — banks this session and holds the leftover Pomodoro minutes">✓ Finish lecture</button>`;
   } else {
     /* v28.1 — the continuous ▶ Start timer is gone. Every session is a Pomodoro,
        and ending one banks its time WITHOUT closing the lecture. Finishing the
@@ -18209,12 +18428,14 @@ function drillLecChip(col,id,n,l){
     const live=drillFmtLive(drillLecElapsedMs(l.logId));
     return `<span class="drill-lec doing"><span class="ln">L${n}</span><span class="drill-lec-timer" data-log="${l.logId}">${live}</span>`+
       `<button class="drill-lecbtn pause" onclick="drillLecPause('${col}','${id}',${n})" title="Pause">⏸</button>`+
-      `<button class="drill-lecbtn end" onclick="drillLecEndSession('${col}','${id}',${n})" title="End session">⏹</button></span>`;
+      `<button class="drill-lecbtn end" onclick="drillLecEndSession('${col}','${id}',${n})" title="End session">⏹</button>`+
+      `<button class="drill-lecbtn check" onclick="drillLecFinish('${col}','${id}',${n})" title="Finish lecture now — holds the leftover Pomodoro minutes">✓</button></span>`;
   }
   if(l.status==='paused'){
     return `<span class="drill-lec paused"><span class="ln">L${n}</span><span class="drill-lec-hrs">${hDisp(l.hrs||0)}</span>`+
       `<button class="drill-lecbtn resume" onclick="drillLecResume('${col}','${id}',${n})" title="Resume">▶</button>`+
-      `<button class="drill-lecbtn end" onclick="drillLecEndSession('${col}','${id}',${n})" title="End session">⏹</button></span>`;
+      `<button class="drill-lecbtn end" onclick="drillLecEndSession('${col}','${id}',${n})" title="End session">⏹</button>`+
+      `<button class="drill-lecbtn check" onclick="drillLecFinish('${col}','${id}',${n})" title="Finish lecture now — holds the leftover Pomodoro minutes">✓</button></span>`;
   }
   if(l.status==='done'){
     const tot = (l.total||l.hrs||0);
@@ -18331,14 +18552,38 @@ function drillLecEndSession(col,id,n){
   drillStamp(); save(); drillRenderCol(col); drillUpdateCounts();
   try{ if(got>0) hubToast('Session banked — '+hDisp(got)+'. Lecture still open.'); }catch(e){}
 }
+/* v28.6 — A LECTURE CAN FINISH MID-POMODORO.
+   Finishing used to be reachable only once a Pomodoro had run out, but lectures
+   don't end on the tomato's schedule. Finish is now available while the timer is
+   running or paused: the part-session banks at the real clock time, the Pomodoro
+   PAUSES (it does not keep running), and the minutes left over wait for whichever
+   lecture you pick next instead of being reset. */
 function drillLecFinish(col,id,n){
   const it=drillFindRow(col,id); if(!it||!it.lecs[n-1]) return;
   const l=it.lecs[n-1];
+
+  // is the live Pomodoro pointed at THIS lecture?
+  let carryMs = 0;
+  try{
+    if(_pomo && _pomo.kind==='lec' && _pomo.col===col && _pomo.id===id && Number(_pomo.n)===Number(n)){
+      carryMs = pomoLeft();
+      if(_pomoTick){ clearInterval(_pomoTick); _pomoTick=null; }
+      const A = POMO_KIND['lec'];
+      try{ if(A.state(_pomo)==='doing') A.pause(_pomo); }catch(e){}   // freeze the study clock now
+      pomoClear();
+    }
+  }catch(e){}
+
   if(l.logId) drillLecEndSession(col,id,n);          // bank a running session first
   const l2=drillFindRow(col,id).lecs[n-1];
   l2.status='done'; l2.hrs=l2.total||0;
   drillStamp(); save(); drillRenderCol(col); drillUpdateCounts();
-  try{ hubToast('Lecture done — '+hDisp(l2.total||0)+' across '+((l2.sess||0)||1)+' session'+(((l2.sess||0)||1)>1?'s':'')); }catch(e){}
+  if(carryMs > 30000){
+    pomoCarrySet(carryMs, Math.round(carryMs/60000));
+    try{ hubToast('Lecture done — '+hDisp(l2.total||0)+'. ⏸ '+Math.round(carryMs/60000)+' min held for the next lecture.'); }catch(e){}
+  } else {
+    try{ hubToast('Lecture done — '+hDisp(l2.total||0)+' across '+((l2.sess||0)||1)+' session'+(((l2.sess||0)||1)>1?'s':'')); }catch(e){}
+  }
 }
 /* kept so older call sites and the Pomodoro adapter keep working */
 function drillLecEnd(col,id,n){ drillLecEndSession(col,id,n); }
@@ -18353,10 +18598,28 @@ function drillLecUndo(col,id,n){
   const it=drillFindRow(col,id); if(!it||!it.lecs[n-1]) return;
   const l=it.lecs[n-1];
   /* v28.1 — reopening keeps the banked time; only the "finished" flag is undone,
-     so a lecture closed by mistake does not lose its logged sessions. */
-  if(l.status==='done'){ l.status='todo'; l.hrs=0; }
+     so a lecture closed by mistake does not lose its logged sessions.
+     v28.6 — reachable from the current-lecture panel as well as the chip, and
+     it now reports what came back so a mis-tap is obviously recoverable. */
+  if(l.status==='done'){
+    l.status='todo'; l.hrs=0;
+    drillStamp(); save(); drillRenderCol(col); drillUpdateCounts();
+    const bk=drillLecBanked(l);
+    try{ hubToast('Lecture '+n+' reopened'+(bk.sess?' — '+bk.label+' kept':'')); }catch(e){}
+    return;
+  }
   drillStamp(); save(); drillRenderCol(col); drillUpdateCounts();
 }
+
+/* v28.6 — undo the most recently finished lecture on a row, so you don't have to
+   hunt for the right chip after a mis-tap. */
+window.drillLecUndoLast = function(col,id){
+  const it=drillFindRow(col,id); if(!it||!Array.isArray(it.lecs)) return;
+  for(let i=it.lecs.length-1;i>=0;i--){
+    if(it.lecs[i] && it.lecs[i].status==='done'){ drillLecUndo(col,id,i+1); return; }
+  }
+  try{ hubToast('No finished lecture to reopen on this row'); }catch(e){}
+};
 
 // ── Questions (R1) + SRS progress readers/renderers ──
 function drillTopicKey(subject,topic){ return subject+'|||'+topic; }
@@ -18824,6 +19087,7 @@ function drillRender(){
   drillUpdateCounts();
   drillRenderTimeline();
   if(drillAnyDoing()) drillStartTicker();
+  if(typeof pomoRehydrate === 'function') pomoRehydrate();   // v28.6
 }
 window.drillRender=drillRender; window.drillDayNav=drillDayNav; window.drillDayPick=drillDayPick;
 window.drillAddRow=drillAddRow; window.drillToggle=drillToggle; window.drillEditText=drillEditText; window.drillRemoveRow=drillRemoveRow; window.drillRemoveRowConfirm=drillRemoveRowConfirm;
@@ -20402,41 +20666,177 @@ window.sndStartTick = function(){
   sndNote(1318.51, ctx.currentTime + 0.01, 0.09, 0.55, 'sine');
 };
 
-let _pomo = null;      // { kind, col, id, n, mins, endTs, leftMs, paused, label }
+/* ══════════════════════════════════════════════════════════════════════════
+   POMODORO ENGINE — REBUILT IN v28.6
+   ──────────────────────────────────────────────────────────────────────────
+   What was wrong before (all one root cause):
+
+   `_pomo` was a plain in-memory JS variable. It died on refresh, on tab close,
+   and never existed on a second device — while the study log underneath it kept
+   its `status:'doing'` and went on counting. So:
+     · the timer ran past 25/50 and banked the overrun as study time
+     · the phone throttled the 1-second tick in the background, the alarm never
+       fired at zero, and an unanswered 25-minute Pomodoro banked hours
+     · the laptop showed the session ended and the iPad showed it still running,
+       because each had its own private `_pomo` and neither was synced
+
+   The fix: THE POMODORO IS NOW A PURE FUNCTION OF THE LOG.
+   `pomoStart` stamps pomoKind/pomoCol/pomoRow/pomoN/pomoTargetMs onto the log
+   entry itself — and log entries already cloud-sync. `_pomo` is now just a
+   pointer; every figure is recomputed from the log's own segments. Any device,
+   any refresh, any wake-from-background rebuilds the identical timer, and
+   ending it on one device ends it on all of them.
+
+   HARD STOP: the clock is frozen the instant it reaches its target, backdated
+   to the exact millisecond the target was hit — not to when you happened to
+   look at the screen. A phone asleep for two hours still banks exactly 25 min.
+   Banked time can never exceed the target.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+let _pomo = null;      // { kind, col, id, n, mins, targetMs, carried }
 let _pomoTick = null;
 let _brk = null;       // { endTs, leftMs, paused, mins }
 let _brkTick = null;
+const POMO_KEY  = 'pomoState_v1';
+const POMO_CARRY_KEY = 'pomoCarry_v1';
+const BRK_KEY   = 'pomoBreak_v1';
 
 function pomoFmt(ms){
   if(ms<0) ms=0;
   const s = Math.round(ms/1000);
   return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
 }
+
+/* ── the log is the single source of truth ─────────────────────────────── */
+function pomoLogById(id, date){
+  if(!id) return null;
+  const days = [];
+  try{ days.push(date || drillViewDate); }catch(e){}
+  try{ days.push(todayStr()); }catch(e){}
+  try{
+    const t = new Date();
+    for(let i=1;i<=3;i++){ const d=new Date(t); d.setDate(d.getDate()-i);
+      days.push(d.toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'})); }
+  }catch(e){}
+  for(const d of days){
+    if(!d) continue;
+    const l = (D.logs[d]||[]).find(x=>x.id===id);
+    if(l) return l;
+  }
+  return null;
+}
+function pomoLog(p){
+  if(!p) return null;
+  const A = POMO_KIND[p.kind]; if(!A) return null;
+  let id = null; try{ id = A.logId(p); }catch(e){}
+  return pomoLogById(id, p.date);
+}
+/* total real study milliseconds on a log, live segment included */
+function logTotalMs(l){
+  if(!l) return 0;
+  let ms = (l.segments||[]).reduce((a,sg)=>a+Math.max(0,(sg.to-sg.from)),0);
+  if(l.status==='doing' && l.startTs) ms += Math.max(0, Date.now()-l.startTs);
+  return ms;
+}
+/* Freeze a running log at exactly capMs of accumulated time, backdating the
+   close to the millisecond the cap was reached. This is the hard stop. */
+function logCapAt(l, capMs){
+  if(!l) return 0;
+  const past = (l.segments||[]).reduce((a,sg)=>a+Math.max(0,(sg.to-sg.from)),0);
+  if(l.status==='doing' && l.startTs){
+    const need = Math.max(0, capMs - past);
+    const stop = Math.min(Date.now(), l.startTs + need);
+    l.segments = l.segments||[];
+    if(stop > l.startTs) l.segments.push({ from:l.startTs, to:stop });
+    l.status = 'paused'; l.startTs = null; l.ts = stop;
+  }
+  l.hrs = Math.round(logTotalMs(l)/3600000*100)/100;
+  return logTotalMs(l);
+}
+function pomoTargetMs(p){ return (p && p.targetMs) || ((p&&p.mins||25)*60000); }
+function pomoDoneMs(){ const l = pomoLog(_pomo); return l ? logTotalMs(l) : 0; }
 function pomoLeft(){
   if(!_pomo) return 0;
-  return _pomo.paused ? _pomo.leftMs : (_pomo.endTs - Date.now());
+  return Math.max(0, pomoTargetMs(_pomo) - pomoDoneMs());
 }
+function pomoIsPaused(){
+  const l = pomoLog(_pomo);
+  return !l || l.status !== 'doing';
+}
+
+/* ── persistence: survives refresh on this device; the log stamps carry it
+      across devices, so both routes rebuild the same timer ─────────────── */
+function pomoPersist(){
+  try{
+    if(_pomo) localStorage.setItem(POMO_KEY, JSON.stringify({
+      kind:_pomo.kind, col:_pomo.col, id:_pomo.id, n:_pomo.n,
+      mins:_pomo.mins, targetMs:_pomo.targetMs, carried:!!_pomo.carried, date:_pomo.date||null
+    }));
+    else localStorage.removeItem(POMO_KEY);
+  }catch(e){}
+}
+function pomoStampLog(p){
+  const l = pomoLog(p); if(!l) return;
+  l.pomoKind = p.kind; l.pomoCol = p.col; l.pomoRow = p.id; l.pomoN = p.n||0;
+  l.pomoTargetMs = pomoTargetMs(p);
+  l.pomoPlan = p.mins;              // 🍅25 / 🍅50 shown in the feed
+  l.pomoCarried = !!p.carried;
+}
+
+/* ── carry-over: lecture finished mid-Pomodoro, minutes wait for the next one ── */
+function pomoCarryGet(){
+  try{ const c = JSON.parse(localStorage.getItem(POMO_CARRY_KEY)); 
+       return (c && c.leftMs > 30000) ? c : null; }catch(e){ return null; }
+}
+function pomoCarrySet(leftMs, mins){
+  try{
+    if(leftMs > 30000) localStorage.setItem(POMO_CARRY_KEY, JSON.stringify({ leftMs, mins, at:Date.now() }));
+    else localStorage.removeItem(POMO_CARRY_KEY);
+  }catch(e){}
+  pomoBadgeRender();
+}
+window.pomoCarryDrop = function(){
+  try{ localStorage.removeItem(POMO_CARRY_KEY); }catch(e){}
+  pomoBadgeRender();
+  try{ hubToast('Leftover Pomodoro minutes dropped.'); }catch(e){}
+};
 
 /* ── start ─────────────────────────────────────────────────────────────── */
 window.pomoStart = function(kind, col, id, n, mins){
-  /* stamped onto the log the session creates, so the feed can show 🍅25 / 🍅50 */
-  window.__pomoPlanned = mins;
   if(_pomo){
     if(!confirm('A '+_pomo.mins+' min Pomodoro is already running.\n\nOK = drop it and start this one instead.')) return;
     pomoClear();
   }
   const A = POMO_KIND[kind]; if(!A) return;
-  const p = { kind, col, id, n:n||0, mins, paused:false, leftMs:mins*60000, endTs: Date.now()+mins*60000 };
+
+  /* v28.6 — leftover minutes from a lecture you finished mid-Pomodoro resume
+     here instead of the fresh 25/50 you tapped. */
+  const carry = pomoCarryGet();
+  let targetMs = mins*60000, carried = false;
+  if(carry){ targetMs = carry.leftMs; carried = true; }
+
+  window.__pomoPlanned = Math.round(targetMs/60000);
+  const p = { kind, col, id, n:n||0, mins:Math.round(targetMs/60000), targetMs, carried, date:(typeof drillViewDate!=='undefined'?drillViewDate:null) };
+
   const st = A.state(p);
-  if(st==='doing'){ /* already timing — just attach the target */ }
+  if(st==='doing'){
+    /* Already running — most likely started on another device and synced in.
+       Adopt the live log rather than handing it a fresh full clock. */
+  }
   else if(st==='paused'){ A.resume(p); }
   else { A.start(p); }
   if(!A.logId(p)){ alert('Could not start the timer on this row — set subject/topic first.'); return; }
+
   _pomo = p;
+  pomoStampLog(p);
+  pomoPersist();
+  if(carried) pomoCarrySet(0);          // consumed
+  try{ save(); }catch(e){}
   sndUnlock();          // first user tap — unblocks audio for the alarms below
   sndStartTick();
   pomoTickOn();
   pomoBadgeRender();
+  if(carried){ try{ hubToast('▶ Resumed with '+p.mins+' min carried over from the last lecture'); }catch(e){} }
 };
 // thin wrappers used by the row buttons
 window.drillLecStartPomo = (col,id,n,mins)=>pomoStart('lec',col,id,n,mins);
@@ -20445,65 +20845,156 @@ window.drillRowStartPomo = (col,id,mins)=>pomoStart('row',col,id,0,mins);
 
 /* ── pause / resume / cancel ───────────────────────────────────────────── */
 window.pomoPause = function(){
-  if(!_pomo || _pomo.paused) return;
-  _pomo.leftMs = _pomo.endTs - Date.now();
-  _pomo.paused = true;
+  if(!_pomo || pomoIsPaused()) return;
   const A = POMO_KIND[_pomo.kind];
-  try{ if(A.state(_pomo)==='doing') A.pause(_pomo); }catch(e){}   // stop the study clock too
-  pomoBadgeRender();
+  try{ if(A.state(_pomo)==='doing') A.pause(_pomo); }catch(e){}   // the study clock stops too
+  pomoPersist(); pomoBadgeRender();
 };
 window.pomoResume = function(){
-  if(!_pomo || !_pomo.paused) return;
-  _pomo.endTs = Date.now() + _pomo.leftMs;
-  _pomo.paused = false;
+  if(!_pomo || !pomoIsPaused()) return;
   const A = POMO_KIND[_pomo.kind];
   try{ if(A.state(_pomo)==='paused') A.resume(_pomo); }catch(e){}
-  pomoTickOn();
-  pomoBadgeRender();
+  pomoPersist(); pomoTickOn(); pomoBadgeRender();
 };
-/* v28.1 — with the continuous timer gone, this is how a short session ends.
-   It banks the minutes actually done and asks the same honesty question, so
-   stopping at 12 minutes is a first-class action rather than lost work. */
+/* Ends a Pomodoro short. Banks the minutes actually done and asks the same
+   honesty question, so stopping at 12 minutes is a first-class action. */
 window.pomoCancel = function(){
   if(!_pomo) return;
-  const doneMs = _pomo.mins*60000 - Math.max(0, pomoLeft());
-  const doneMin = Math.round(doneMs/60000);
+  const doneMin = Math.round(pomoDoneMs()/60000);
   if(doneMin < 1){
     if(!confirm('Under a minute done — drop this session?')) return;
     const A0 = POMO_KIND[_pomo.kind];
     try{ if(A0.state(_pomo)==='doing') A0.pause(_pomo); }catch(e){}
+    try{
+      const lid = A0.logId(_pomo);
+      if(lid && typeof deleteLog==='function') deleteLog(_pomo.date||drillViewDate, lid);
+      A0.reset(_pomo);
+      drillStamp(); save(); drillRenderCol(_pomo.col); drillUpdateCounts();
+    }catch(e){}
     pomoClear();
     return;
   }
   if(_pomoTick){ clearInterval(_pomoTick); _pomoTick=null; }
+  const A = POMO_KIND[_pomo.kind];
+  try{ if(A.state(_pomo)==='doing') A.pause(_pomo); }catch(e){}   // freeze at the real moment you stopped
   _pomo.early = doneMin;
   pomoAsk();
 };
 function pomoClear(){
   if(_pomoTick){ clearInterval(_pomoTick); _pomoTick=null; }
   _pomo = null;
+  try{ localStorage.removeItem(POMO_KEY); }catch(e){}
   pomoBadgeRender();
+}
+
+/* ── THE HARD STOP ─────────────────────────────────────────────────────────
+   Reached the target: freeze the log at exactly the target, backdated to the
+   millisecond it was hit, then ask. Called from the tick, from wake-from-
+   background, and from the rehydrate on page load — so a missed tick, a
+   sleeping phone or a closed tab can never let the clock run past its limit. */
+function pomoExpire(){
+  if(!_pomo || _pomo._expired) return;
+  _pomo._expired = true;
+  if(_pomoTick){ clearInterval(_pomoTick); _pomoTick = null; }
+  const l = pomoLog(_pomo);
+  if(l) logCapAt(l, pomoTargetMs(_pomo));
+  try{ save(); }catch(e){}
+  try{ if(typeof drillRenderCol==='function' && _pomo.col) drillRenderCol(_pomo.col); }catch(e){}
+  pomoAsk();
 }
 
 function pomoTickOn(){
   if(_pomoTick) return;
   _pomoTick = setInterval(()=>{
     if(!_pomo){ clearInterval(_pomoTick); _pomoTick=null; return; }
-    if(_pomo.paused){ return; }
-    if(pomoLeft() <= 0){
-      clearInterval(_pomoTick); _pomoTick = null;
-      pomoAsk();
-      return;
-    }
+    if(pomoIsPaused()){ pomoBadgeRender(); return; }
+    if(pomoLeft() <= 0){ pomoExpire(); return; }
     pomoBadgeRender();
   }, 1000);
 }
 
+/* ── REHYDRATE — the cross-device / refresh / wake-up repair ───────────────
+   Rebuilds the Pomodoro from whatever the logs say, wherever we are:
+     · this device after a refresh          (localStorage pointer)
+     · another device after a cloud pull    (the pomo* stamps on the log)
+     · this tab waking from the background  (recompute, expire if overdue)
+   Also mops up stale `doing` sessions left running from a previous day. */
+function pomoRehydrate(){
+  try{
+    if(typeof D === 'undefined' || !D.logs) return;
+
+    // 1. adopt from the log stamps — this is what makes it cross-device
+    if(!_pomo){
+      let found = null, days = [];
+      try{ days.push(todayStr()); }catch(e){}
+      try{
+        const t = new Date();
+        for(let i=1;i<=2;i++){ const d=new Date(t); d.setDate(d.getDate()-i);
+          days.push(d.toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'})); }
+      }catch(e){}
+      days.forEach(d=>{
+        (D.logs[d]||[]).forEach(l=>{
+          if(!l || !l.pomoKind || !l.pomoTargetMs) return;
+          if(l.status!=='doing' && l.status!=='paused') return;
+          if(!found || (l.id > found.id)) found = l;
+        });
+      });
+      if(found){
+        _pomo = { kind:found.pomoKind, col:found.pomoCol, id:found.pomoRow, n:found.pomoN||0,
+                  mins:found.pomoPlan||Math.round(found.pomoTargetMs/60000),
+                  targetMs:found.pomoTargetMs, carried:!!found.pomoCarried, date:found.date };
+        // the row must still exist and still point at this log
+        const A = POMO_KIND[_pomo.kind];
+        let ok = false; try{ ok = A && A.logId(_pomo) === found.id; }catch(e){}
+        if(!ok) _pomo = null; else pomoPersist();
+      }
+    }
+
+    /* 2. stale timer sessions left running from a previous day. Only drill /
+       Pomodoro rows are touched — a hand-logged session keeps its own
+       forgot-to-hit-Done safeguard in logDone() and is left alone here.
+       A Pomodoro is capped at its target; a drill session with no target is
+       closed at its last real segment rather than banking the whole night. */
+    const today = todayStr();
+    let _staleFixed = 0;
+    Object.keys(D.logs||{}).forEach(d=>{
+      if(d >= today) return;
+      (D.logs[d]||[]).forEach(l=>{
+        if(!l || l.status!=='doing' || !l.startTs) return;
+        if(!l.pomoTargetMs && !l._drill) return;
+        const closed = (l.segments||[]).reduce((a,sg)=>a+Math.max(0,(sg.to-sg.from)),0);
+        logCapAt(l, l.pomoTargetMs || closed);
+        l._staleClosed = true; _staleFixed++;
+      });
+    });
+    if(_staleFixed){ try{ save(); }catch(e){} }
+
+    brkRestore();
+
+    // 3. overdue or still live?
+    if(_pomo){
+      if(pomoLeft() <= 0) pomoExpire();
+      else { pomoTickOn(); pomoBadgeRender(); }
+    }
+  }catch(e){ console.warn('pomoRehydrate', e); }
+}
+window.pomoRehydrate = pomoRehydrate;
+
+/* wake-from-background is the single biggest source of drift on the phone:
+   the 1-second interval is throttled to nothing, so the alarm never fires.
+   Recheck the instant the tab comes back, and again on focus. */
+try{
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) pomoRehydrate(); });
+  window.addEventListener('focus', ()=>pomoRehydrate());
+  window.addEventListener('pageshow', ()=>pomoRehydrate());
+}catch(e){}
+
 /* ── floating badge (visible from anywhere in the hub) ──────────────────── */
 function pomoBadgeRender(){
   let b = document.getElementById('pomo-badge');
+  const carry = (!_pomo && !_brk) ? pomoCarryGet() : null;
   const showPomo = !!_pomo, showBrk = !!_brk;
-  if(!showPomo && !showBrk){ if(b) b.remove(); return; }
+  if(!showPomo && !showBrk && !carry){ if(b) b.remove(); return; }
   if(!b){
     b = document.createElement('div');
     b.id = 'pomo-badge';
@@ -20518,9 +21009,18 @@ function pomoBadgeRender(){
       + `<button style="${bs}" onclick="brkSkip()" title="Skip break">✕</button>`;
     return;
   }
-  b.style.background = _pomo.paused ? '#64748b' : '#4f46e5';
-  b.innerHTML = `<span>🍅 ${pomoFmt(pomoLeft())}${_pomo.paused?' · paused':''}</span>`
-    + `<button style="${bs}" onclick="${_pomo.paused?'pomoResume()':'pomoPause()'}" title="${_pomo.paused?'Resume':'Pause'}">${_pomo.paused?'▶':'⏸'}</button>`
+  if(carry){
+    /* v28.6 — lecture finished mid-Pomodoro. The clock is PAUSED and waiting;
+       it resumes against whichever lecture you start next. */
+    b.style.background = '#7c3aed';
+    b.innerHTML = `<span>⏸ ${pomoFmt(carry.leftMs)} · pick next lecture</span>`
+      + `<button style="${bs}" onclick="pomoCarryDrop()" title="Drop the leftover minutes">✕</button>`;
+    return;
+  }
+  const paused = pomoIsPaused();
+  b.style.background = paused ? '#64748b' : '#4f46e5';
+  b.innerHTML = `<span>🍅 ${pomoFmt(pomoLeft())}${paused?' · paused':''}</span>`
+    + `<button style="${bs}" onclick="${paused?'pomoResume()':'pomoPause()'}" title="${paused?'Resume':'Pause'}">${paused?'▶':'⏸'}</button>`
     + `<button style="${bs}" onclick="pomoSoundPanel()" title="Sound settings">🔊</button>`
     + `<button style="${bs}" onclick="pomoCancel()" title="End early — banks the minutes you did">⏹</button>`;
 }
@@ -20531,13 +21031,17 @@ function pomoAsk(){
   try{ sndPomoEnd(); }catch(e){}
   try{ if(navigator.vibrate) navigator.vibrate([200,100,200,100,200]); }catch(e){}
   if(document.getElementById('pomo-ask')) return;
+  /* the figure shown is the REAL banked time, which the hard stop has already
+     capped at the target — never the overrun, never a stale plan number */
+  const realMin = Math.max(1, Math.round(pomoDoneMs()/60000));
   const ov = document.createElement('div');
   ov.id = 'pomo-ask';
   ov.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:linear-gradient(160deg,#0f172a,#1e1b4b 60%,#020617);display:flex;align-items:center;justify-content:center;padding:22px;font-family:inherit;overflow-y:auto';
   ov.innerHTML = `
     <div style="max-width:400px;width:100%;text-align:center;color:#e2e8f0">
       <div style="font-size:46px;margin-bottom:4px">🍅</div>
-      <div style="font-size:22px;font-weight:900;color:#fff;margin-bottom:4px">${p.early? p.early+' MINUTES DONE' : p.mins+' MINUTES DONE'}</div>
+      <div style="font-size:22px;font-weight:900;color:#fff;margin-bottom:4px">${realMin} MINUTES DONE</div>
+      <div style="font-size:11px;font-weight:800;color:#818cf8;margin-bottom:10px">${p.early? 'Ended early — timer stopped at '+realMin+' min' : 'Timer stopped at its '+p.mins+' min limit ⏹'}</div>
       <div style="font-size:13px;font-weight:700;color:#a5b4fc;line-height:1.5;margin-bottom:18px">
         Be honest — nobody else sees this. Wasted time logged as study is a lie you'll believe on exam day.
       </div>
@@ -20578,7 +21082,7 @@ function pomoAsk(){
     const A = POMO_KIND[p.kind];
     try{
       const logId = A.logId(p);
-      if(logId && typeof deleteLog==='function') deleteLog(drillViewDate, logId);
+      if(logId && typeof deleteLog==='function') deleteLog(p.date||drillViewDate, logId);
       A.reset(p);
       if(typeof drillStamp==='function') drillStamp();
       if(typeof save==='function') save();
@@ -20591,14 +21095,50 @@ function pomoAsk(){
 }
 
 /* ── break (pausable, skippable) ───────────────────────────────────────── */
-function brkStart(mins){
-  _brk = { mins, paused:false, leftMs:mins*60000, endTs: Date.now()+mins*60000 };
+function brkPersist(){
+  try{
+    if(_brk) localStorage.setItem(BRK_KEY, JSON.stringify(_brk));
+    else localStorage.removeItem(BRK_KEY);
+  }catch(e){}
+}
+/* v28.6 — the break used to die on refresh exactly like the Pomodoro did, so
+   you'd come back to no badge and no idea whether the break was over. */
+function brkRestore(){
+  if(_brk) return;
+  try{
+    const b = JSON.parse(localStorage.getItem(BRK_KEY));
+    if(!b) return;
+    if(!b.paused && (b.endTs - Date.now()) <= 0){ localStorage.removeItem(BRK_KEY); return; }
+    brkResumeTimer(b);
+  }catch(e){}
+}
+function brkResumeTimer(b){
+  _brk = b;
   if(_brkTick) clearInterval(_brkTick);
   _brkTick = setInterval(()=>{
     if(!_brk){ clearInterval(_brkTick); _brkTick=null; return; }
     if(_brk.paused) return;
     if(_brk.endTs - Date.now() <= 0){
-      clearInterval(_brkTick); _brkTick=null; _brk=null;
+      clearInterval(_brkTick); _brkTick=null; _brk=null; brkPersist();
+      pomoBadgeRender();
+      try{ sndBreakEnd(); }catch(e){}
+      try{ if(navigator.vibrate) navigator.vibrate([200,100,200]); }catch(e){}
+      try{ hubToast('☕ Break over — back to it'); }catch(e){}
+      return;
+    }
+    pomoBadgeRender();
+  }, 1000);
+  pomoBadgeRender();
+}
+function brkStart(mins){
+  _brk = { mins, paused:false, leftMs:mins*60000, endTs: Date.now()+mins*60000 };
+  brkPersist();
+  if(_brkTick) clearInterval(_brkTick);
+  _brkTick = setInterval(()=>{
+    if(!_brk){ clearInterval(_brkTick); _brkTick=null; return; }
+    if(_brk.paused) return;
+    if(_brk.endTs - Date.now() <= 0){
+      clearInterval(_brkTick); _brkTick=null; _brk=null; brkPersist();
       pomoBadgeRender();
       try{ sndBreakEnd(); }catch(e){}
       try{ if(navigator.vibrate) navigator.vibrate([200,100,200]); }catch(e){}
@@ -20612,15 +21152,15 @@ function brkStart(mins){
 }
 window.brkPause = function(){
   if(!_brk || _brk.paused) return;
-  _brk.leftMs = _brk.endTs - Date.now(); _brk.paused = true; pomoBadgeRender();
+  _brk.leftMs = _brk.endTs - Date.now(); _brk.paused = true; brkPersist(); pomoBadgeRender();
 };
 window.brkResume = function(){
   if(!_brk || !_brk.paused) return;
-  _brk.endTs = Date.now() + _brk.leftMs; _brk.paused = false; pomoBadgeRender();
+  _brk.endTs = Date.now() + _brk.leftMs; _brk.paused = false; brkPersist(); pomoBadgeRender();
 };
 window.brkSkip = function(){
   if(_brkTick){ clearInterval(_brkTick); _brkTick=null; }
-  _brk = null; pomoBadgeRender();
+  _brk = null; brkPersist(); pomoBadgeRender();
 };
 
 /* ── Sound settings panel (v28.0) ──────────────────────────────────────────
@@ -20716,6 +21256,7 @@ window.pomoBtns = function(fnName, args){
 window.plannerInit = function(){
   load(); loadHub(); viewingBlockDate=todayStr();
   window._plannerLoaded = true;
+  if(typeof pomoRehydrate === 'function') pomoRehydrate();   // v28.6 refresh/cross-device repair
   // Flush queued auto-logs
   if(window._wrLogQueue && window._wrLogQueue.length > 0) {
     window._wrLogQueue.forEach(function(e){ window._wrAutoLog(e); });
