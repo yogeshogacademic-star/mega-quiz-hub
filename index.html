@@ -1810,8 +1810,45 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-18 · v28.6';
+    const HUB_BUILD = '2026-08-18 · v28.6.3';
 
+    // v28.6.3 — NO TAG IS EVER BLANK AGAIN, and the old ones get repaired.
+    //   A blank or off-menu tag[1] means the question never appears in the
+    //   Syllabus at all — it hides in the dirty-tag bin where it can't be seen,
+    //   practised or corrected. That is strictly worse than a slightly wrong tag.
+    //   normalizeHubTags now guarantees four non-empty tags: a blank/off-menu
+    //   chapter is re-homed to the closest real SYLLABUS_MAP entry, a sub-topic
+    //   that lost its "D05 " prefix has it restored, and empty tag[2]/tag[3] are
+    //   filled — every change stamped needsRetag so it surfaces for a one-tap fix.
+    //   Both mock prompts now lead with the never-blank mandate and explain WHY.
+    //   New "🩹 Repair Mock Tags" button re-runs that same gate over every
+    //   question already in the mock buckets — previews the numbers first, writes
+    //   only on your OK.
+    //
+    // v28.6.2 — the order fix v28.6 MISSED. v28.6 sorted the TOPIC rows and
+    //   skipped everything flagged isSubTopic — but the D-codes under "Discount &
+    //   Dishonest Shopkeeper" ARE sub-topics, rendered by scGetAvailableSubTopics,
+    //   so the sort never reached the rows that were out of order. Coded sub-topics
+    //   now sort on their code prefix there too.
+    //
+    // v28.6.1 — follow-ups from the first v28.6 test run:
+    //   · daily /10 and weekly /70 now sit on the HUB dashboard chips beside the
+    //     Planner button, not only inside the Planner itself. The Today chip goes
+    //     green once the daily target is hit; a new Week chip does the same at 70.
+    //   · syllabus row order: coded chapters (D05, P12...) sort on the code, and
+    //     everything else falls back to the order the questions were UPLOADED in,
+    //     i.e. the order your JSON files define. Sorted at render time, so no
+    //     restore script or cloud merge can ever scramble it again.
+    //   · a topic already stuck on the old auto-cross bug now repairs itself on
+    //     sight: if you've attempted at least as many questions as the topic
+    //     actually holds, the stale stored count is corrected during render, the
+    //     red badge clears and the topic crosses. No need to re-run anything.
+    //   · the mock JSON prompt now states each chapter's REAL state and question
+    //     count — ✅ BUILT (copy tag[2] exactly, never invent), 🟡 PARTIAL (prefer
+    //     the list), 🔨 NOT BUILT (no list exists — best standard name, flagged,
+    //     never blank). Blank tag[2] on unbuilt chapters is where the wrong tags
+    //     were coming from.
+    //
     // v28.6 — the Pomodoro stops when it says it will, and the day reads like a day.
     //
     //   POMODORO REBUILT. _pomo was a plain in-memory variable: it died on
@@ -2007,13 +2044,23 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
     // Live header snapshot — streak · today's hours · SRS due. Fills the hero dead space.
     window.renderHubSnapshot = function(){
         const el = document.getElementById('hub-live-snapshot'); if(!el) return;
-        let streak = 0, todayHrs = 0, due = 0;
+        let streak = 0, todayHrs = 0, due = 0, weekHrs = 0, dTgt = 10, wTgt = 70;
         try {
             if(typeof D !== 'undefined' && D){
                 streak = (D.streak && D.streak.count) || 0;
                 const tk = (typeof todayStr === 'function') ? todayStr() : new Date().toISOString().slice(0,10);
                 const logs = (D.logs && D.logs[tk]) || [];
                 todayHrs = Math.round(logs.reduce((a,l)=>a+(l.hrs||0),0)*10)/10;
+                /* v28.6.1 — the targets belong on the dashboard, not only inside the
+                   Planner. A bare "4.3h" says nothing; "4.3 / 10" says everything. */
+                dTgt = D.dailyTarget || 10;
+                wTgt = D.target || 70;
+                if(typeof getWeekStart === 'function' && typeof getWeekDates === 'function'){
+                    getWeekDates(getWeekStart(tk)).forEach(d => {
+                        (D.logs[d]||[]).forEach(l => { weekHrs += (l.hrs||0); });
+                    });
+                    weekHrs = Math.round(weekHrs*10)/10;
+                }
             }
         } catch(e){}
         try {
@@ -2024,7 +2071,8 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
         } catch(e){}
         el.innerHTML =
             `<div class="hub-snap" title="Study streak"><span class="n" style="color:#fbbf24">🔥 ${streak}</span><span class="l">Streak</span></div>`+
-            `<div class="hub-snap" title="Hours logged today"><span class="n" style="color:#34d399">${todayHrs}h</span><span class="l">Today</span></div>`+
+            `<div class="hub-snap" title="Hours logged today vs your ${dTgt}h daily target"><span class="n" style="color:${todayHrs>=dTgt?'#34d399':'#fbbf24'}">${todayHrs}<span style="font-size:0.62em;opacity:.65">/${dTgt}</span></span><span class="l">Today</span></div>`+
+            `<div class="hub-snap" title="Hours logged this week vs your ${wTgt}h weekly target"><span class="n" style="color:${weekHrs>=wTgt?'#34d399':'#818cf8'}">${weekHrs}<span style="font-size:0.62em;opacity:.65">/${wTgt}</span></span><span class="l">Week</span></div>`+
             `<div class="hub-snap" title="SRS cards due now"><span class="n" style="color:#fb7185">${due}</span><span class="l">Due</span></div>`;
     };
     document.addEventListener('DOMContentLoaded', function(){ try{ renderHubSnapshot(); }catch(e){} });
@@ -12721,14 +12769,56 @@ function scRenderTracker() {
     subjects[t.subject][t.chapter][subjects[t.subject][t.chapter].length] = { key, ...t };
   });
 
-  /* v28.6 — ORDER FIX (permanent).
-     The tracker used to render rows in object-insertion order, i.e. the order
-     you first opened each topic, so Discount came out D23, D18, D05, D26...
-     A one-off script re-keyed the store once; this sorts at render time so it
-     can never drift again. Digit-aware, so D2 sorts before D10. */
+  /* ── v28.6.1 — ROW ORDER, PERMANENTLY ──────────────────────────────────────
+     The tracker rendered rows in object-insertion order, i.e. the order you
+     first happened to open each topic — which is why Discount came out D23,
+     D18, D05, D26. Sorting at render time means it can never drift again, no
+     matter what a restore script or a cloud merge does to key order.
+
+     Two rules, in this order:
+       1. If every topic in a chapter carries a code prefix (D05, P12, ...),
+          sort on the code. Digit-aware, so D2 comes before D10.
+       2. Otherwise fall back to the order the questions were UPLOADED in —
+          first appearance in the question bank — which is the order your JSON
+          files define. Anything the bank has never seen sorts last by name.  */
   const _scNat = (a,b) => String(a).localeCompare(String(b), undefined, { numeric:true, sensitivity:'base' });
+  const _SC_CODE = /^([A-Za-z]{1,3})[ ]?(\d{1,3})\b/;
+
+  // first-appearance index across the question bank = your JSON upload order
+  const _scJsonOrder = (() => {
+    const idx = new Map(); let i = 0;
+    try {
+      Object.values(db).forEach(qz => {
+        if (!qz || !qz.questions) return;
+        if (qz.isScRevision || qz.isSRS || qz.isWeakBank || (qz.id && qz.id.startsWith('quiz_sc_rev_'))) return;
+        qz.questions.forEach(q => {
+          if (!q || !q.tags) return;
+          const k = (q.tags[0]||'').trim().toLowerCase() + '|||' + (q.tags[1]||'').trim().toLowerCase();
+          if (!idx.has(k)) idx.set(k, i++);
+        });
+      });
+    } catch(e){}
+    return idx;
+  })();
+  const _scOrdOf = (t) => {
+    const v = _scJsonOrder.get((t.subject||'').trim().toLowerCase() + '|||' + (t.name||'').trim().toLowerCase());
+    return (typeof v === 'number') ? v : Number.MAX_SAFE_INTEGER;
+  };
   Object.values(subjects).forEach(chs => {
-    Object.keys(chs).forEach(ch => { chs[ch].sort((x,y) => _scNat(x.name||'', y.name||'')); });
+    Object.keys(chs).forEach(ch => {
+      const rows = chs[ch];
+      const allCoded = rows.length > 1 && rows.every(r => _SC_CODE.test(String(r.name||'').trim()));
+      if (allCoded) {
+        rows.sort((x,y) => {
+          const a = String(x.name||'').trim().match(_SC_CODE), b = String(y.name||'').trim().match(_SC_CODE);
+          return (a[1].toLowerCase().localeCompare(b[1].toLowerCase()))
+              || (parseInt(a[2],10) - parseInt(b[2],10))
+              || _scNat(x.name||'', y.name||'');
+        });
+      } else {
+        rows.sort((x,y) => (_scOrdOf(x) - _scOrdOf(y)) || _scNat(x.name||'', y.name||''));
+      }
+    });
   });
 
   // Get active subject tab
@@ -13014,7 +13104,22 @@ function scRevTick(t, rev, checked, daysUntil, revLabel) {
   }
   if (typeof totalQsNow !== 'number') totalQsNow = 0;
   
-  const totalQsAtR1 = t.r1QsTotalRaw || 0;
+  let totalQsAtR1 = t.r1QsTotalRaw || 0;
+  /* v28.6.1 — SELF-HEAL for topics already stuck on the old bug.
+     r1QsTotalRaw could only be re-stamped at the start of a fresh R1, so a topic
+     that finished its new questions kept the OLD count forever and the red badge
+     never went away — the topic never settled into a clean cross. If you have
+     now attempted at least as many questions as the topic actually holds, the
+     stored count is simply out of date: correct it here, on sight, so existing
+     rows repair themselves without you re-running anything. */
+  if (checked && rev === 'r1' && t.r1 && totalQsNow > totalQsAtR1) {
+    const attempted = (t.r1QuestionsAttempted || []).length;
+    if (attempted >= totalQsNow && totalQsNow > 0) {
+      t.r1QsTotalRaw = totalQsNow;
+      totalQsAtR1 = totalQsNow;
+      try { scSave(); } catch(e){}
+    }
+  }
   // Red badge ONLY when R1 (the single cycle) complete AND new questions added
   const allCyclesDone = t.r1;
   const newQsDetected = checked && rev === 'r1' && allCyclesDone && totalQsAtR1 > 0 && totalQsNow > totalQsAtR1;
@@ -13154,6 +13259,26 @@ function scGetAvailableSubTopics(topicName, subject) {
       return oa-ob || a.localeCompare(b);
     });
     return subsArr;
+  }
+  /* ── v28.6.2 — THE ORDER FIX I MISSED IN v28.6 ─────────────────────────────
+     v28.6 sorted the TOPIC rows and explicitly skipped anything flagged
+     isSubTopic — but the D-codes under "Discount & Dishonest Shopkeeper" are
+     sub-topics, rendered by this function, so the sort never touched the rows
+     that were actually out of order. That is why the tracker still showed
+     D23, D18, D05 after v28.6 loaded.
+
+     Rule now: if every sub-topic carries a code prefix (D05, P12...), sort on
+     the code — digit-aware, so D2 comes before D10. Otherwise keep first-seen
+     order, which IS the order your JSON files were uploaded in. A hand-set
+     _subOrder still overrides both, above. */
+  const _SC_SUBCODE = /^([A-Za-z]{1,3})[ ]?(\d{1,3})\b/;
+  if (subsArr.length > 1 && subsArr.every(nm => _SC_SUBCODE.test(String(nm).trim()))) {
+    subsArr.sort((a,b) => {
+      const x = String(a).trim().match(_SC_SUBCODE), y = String(b).trim().match(_SC_SUBCODE);
+      return x[1].toLowerCase().localeCompare(y[1].toLowerCase())
+          || (parseInt(x[2],10) - parseInt(y[2],10))
+          || String(a).localeCompare(String(b), undefined, { numeric:true });
+    });
   }
   return subsArr; // default = dashboard order (first-seen as questions appear in db), NOT alphabetical
 }
@@ -21580,7 +21705,37 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     var tree = {};
     try { if (typeof window.__hubBuildFullTaxonomy === 'function') tree = window.__hubBuildFullTaxonomy() || {}; } catch(e){ tree = {}; }
     var SM = (typeof SYLLABUS_MAP !== 'undefined') ? SYLLABUS_MAP : {};
+
+    /* ── v28.6.1 — THE MENU NOW SAYS WHICH CHAPTERS ARE FINISHED ────────────
+       Mock questions kept coming back wrongly tagged because the menu treated
+       every chapter alike. They are not alike. A chapter I have fully built has
+       a real, closed sub-topic list and the model must copy from it exactly. A
+       chapter I have not built yet has no list — and the old menu told the model
+       to leave tag[2] BLANK there, which is precisely where the bad tags came
+       from. Each chapter now carries its live question count and one of three
+       states, so the instruction matches the reality of that chapter. */
+    var _tmCnt = {}, _tmCnt2 = {};
+    try {
+      Object.values(db).forEach(function(qz){
+        if (!qz || !qz.questions) return;
+        if (qz.isScRevision || qz.isSRS || qz.isWeakBank || (qz.id && String(qz.id).indexOf('quiz_sc_rev_') === 0)) return;
+        qz.questions.forEach(function(q){
+          if (!q || !q.tags) return;
+          var k = (q.tags[0]||'').trim() + '|' + (q.tags[1]||'').trim();
+          _tmCnt[k] = (_tmCnt[k]||0) + 1;
+          if (q.tags[2]) { var k2 = k + '|' + String(q.tags[2]).trim(); _tmCnt2[k2] = (_tmCnt2[k2]||0) + 1; }
+        });
+      });
+    } catch(e){}
+
     var out = '';
+    out += '\nCHAPTER STATE LEGEND — where each chapter of my hub actually stands right now.\n';
+    out += 'The number in (brackets) is how many questions that chapter already holds; [n] beside a sub-topic is its own count.\n';
+    out += '  ✅ BUILT      — finished chapter. tag[2] MUST be an exact copy from its list. Inventing a new one here is an ERROR.\n';
+    out += '  \ud83d\udfe1 PARTIAL    — a list exists but is still thin. Use it whenever anything fits; only otherwise best-guess + "needsReview": true.\n';
+    out += '  \ud83d\udd28 NOT BUILT  — I have not built this chapter yet, so no list exists. NEVER leave tag[2] blank: give me the best standard\n';
+    out += '                 SSC sub-topic name you can, in my naming style, with "needsReview": true. I will re-tag it when I build that chapter.\n';
+
     (parents || []).forEach(function(par){
       // tag[1] list ALWAYS from SYLLABUS_MAP (authoritative, stable) so a stray dirty tag can't pose as valid.
       var topics = (SM[par] && SM[par].length) ? SM[par] : Object.keys(tree[par] || {}).filter(function(t){ return t; }).sort();
@@ -21589,15 +21744,26 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       topics.forEach(function(topic){
         var t2map = (tree[par] && tree[par][topic]) ? tree[par][topic] : {};
         var subs = Object.keys(t2map).filter(function(s){ return s; }).sort();
-        if (!subs.length) {
-          out += '- **' + topic + '**  — no sub-topics tagged yet → leave tag[2]="" tag[3]="" and set "needsRetag": true\n';
+        var qn = _tmCnt[par + '|' + topic] || 0;
+        var state = (subs.length >= 4 && qn >= 40) ? 'BUILT' : (subs.length ? 'PARTIAL' : 'NOTBUILT');
+
+        if (state === 'NOTBUILT') {
+          out += '- **' + topic + '**  — \ud83d\udd28 NOT BUILT (' + qn + ' Qs, no sub-topic list yet)\n';
+          out += '    → there is no list to copy from. Do NOT leave tag[2] blank. Write the best standard SSC sub-topic name for\n';
+          out += '      this question, styled like my other tags (Title Case, "&" not "and"), give a specific tag[3], and set "needsReview": true.\n';
           return;
         }
-        out += '- **' + topic + '**  → pick tag[2] from:\n';
+        if (state === 'BUILT') {
+          out += '- **' + topic + '**  — ✅ BUILT (' + qn + ' Qs, ' + subs.length + ' sub-topics) — tag[2] MUST be copied EXACTLY from this list, never invented:\n';
+        } else {
+          out += '- **' + topic + '**  — \ud83d\udfe1 PARTIAL (' + qn + ' Qs, ' + subs.length + ' sub-topics) — prefer this list; best-guess + "needsReview": true only if nothing fits:\n';
+        }
         subs.forEach(function(t2){
           var t3s = (t2map[t2] || []).filter(function(x){ return x; });
-          if (t3s.length) out += '    · ' + t2 + '   (tag[3] options: ' + t3s.join(' | ') + ')\n';
-          else            out += '    · ' + t2 + '\n';
+          var c2 = _tmCnt2[par + '|' + topic + '|' + t2] || 0;
+          var head = '    · ' + t2 + (c2 ? ' [' + c2 + ']' : '');
+          if (t3s.length) out += head + '   (tag[3] options: ' + t3s.join(' | ') + ')\n';
+          else            out += head + '\n';
         });
       });
     });
@@ -21629,6 +21795,43 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
                      "Polygon","Pentagon","Hexagon","Regular Hexagon","Octagon"];
     function inList(arr, v){ for(var i=0;i<arr.length;i++){ if(arr[i]===v) return true; } return false; }
 
+    /* v28.6.3 — pick the nearest real entry from a list, by shared words then by
+       shared characters. Deliberately simple: its job is to land the question in
+       a plausible, VISIBLE chapter, not to be clever. It always flags for review. */
+    var _scStop = { of:1, the:1, and:1, a:1, an:1, in:1, on:1, to:1, for:1, '&':1 };
+    function _scWords(v){
+      return String(v||'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').split(/\s+/)
+             .filter(function(w){ return w && !_scStop[w] && w.length > 2; });
+    }
+    window.__scClosestTopic = function(list, needle){
+      if(!list || !list.length) return '';
+      if(!needle) return '';
+      var nw = _scWords(needle);
+      if(!nw.length) return '';
+      var best = '', bestScore = 0;
+      list.forEach(function(cand){
+        var cw = _scWords(cand), hits = 0;
+        cw.forEach(function(w){ if(nw.indexOf(w) !== -1) hits++; });
+        var score = hits * 2;
+        var a = String(cand).toLowerCase(), b = String(needle).toLowerCase();
+        if(a.indexOf(b) !== -1 || b.indexOf(a) !== -1) score += 3;
+        if(score > bestScore){ bestScore = score; best = cand; }
+      });
+      return bestScore > 0 ? best : '';
+    };
+    /* A tag whose wording matches a coded sub-topic but has lost its "D05 " prefix
+       is not a wrong tag — it is the right tag with the code stripped. Put it back. */
+    window.__scRestoreCode = function(known, t2){
+      if(!known || !t2) return '';
+      var bare = String(t2).trim().toLowerCase().replace(/^[a-z]{1,3} ?\d{1,3}[ .:\-]+/i,'');
+      for(var i=0;i<known.length;i++){
+        var k = String(known[i]).trim();
+        var kb = k.toLowerCase().replace(/^[a-z]{1,3} ?\d{1,3}[ .:\-]+/i,'');
+        if(kb && kb === bare) return k;
+      }
+      return '';
+    };
+
     window.normalizeHubTags = function(tagsIn){
       var tags = Array.isArray(tagsIn) ? tagsIn.slice(0,4) : [];
       while(tags.length < 4) tags.push('');
@@ -21638,26 +21841,50 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       // 2) shape sitting in the topic slot → move to tag[2], set the real topic
       if(inList(SHAPES_3D, t1)){ if(!t2) t2 = t1; t1 = "3D-Mensuration"; }
       else if(inList(SHAPES_2D, t1)){ if(!t2) t2 = t1; t1 = "2D-Mensuration"; }
-      // 3) validate the topic against the real syllabus; flag (never silently save) if invalid
+      /* ── v28.6.3 — NO TAG IS EVER LEFT BLANK ────────────────────────────────
+         A blank or invalid tag[1] means the question lands in Dirty Tags and is
+         INVISIBLE in the Syllabus — so it can never be found, practised, or
+         corrected. That is worse than a slightly wrong tag. Every slot now gets
+         a real value: the closest valid chapter is assigned, needsRetag is set so
+         it shows up for review, and the question stays visible and fixable. */
       var needsRetag = false;
       try {
-        if(typeof SYLLABUS_MAP !== 'undefined' && t0 && SYLLABUS_MAP[t0]){
-          if(t1 && SYLLABUS_MAP[t0].indexOf(t1) === -1) needsRetag = true;
-          if(!t1) needsRetag = true;
+        if(typeof SYLLABUS_MAP !== 'undefined' && t0 && SYLLABUS_MAP[t0] && SYLLABUS_MAP[t0].length){
+          var valid = SYLLABUS_MAP[t0];
+          if(!t1 || valid.indexOf(t1) === -1){
+            needsRetag = true;
+            var guess = window.__scClosestTopic(valid, t1 || t2 || t3 || '');
+            if(guess) t1 = guess;                 // never leave tag[1] empty or invalid
+          }
+        } else if(!t1){
+          needsRetag = true;
+          t1 = t2 || t3 || 'General';
         }
       } catch(e){}
-      // 4) validate the sub-topic against YOUR live taxonomy for this t0/t1.
-      //    Flag ONLY — never alter or blank the tag. Unknown tag[2] (or empty where sub-topics exist) is surfaced for review.
+      // 4) sub-topic against YOUR live taxonomy for this t0/t1 — flag, and FILL if empty.
       try {
         if(typeof window.__hubBuildFullTaxonomy === 'function'){
           var ft = window.__hubBuildFullTaxonomy() || {};
           var known = (ft[t0] && ft[t0][t1]) ? Object.keys(ft[t0][t1]).filter(function(s){return s;}) : null;
           if(known && known.length){
-            if(t2 && known.indexOf(t2) === -1) needsRetag = true; // invented sub-topic
-            if(!t2) needsRetag = true;                            // topic has sub-topics but none chosen
+            if(!t2){
+              needsRetag = true;
+              var g2 = window.__scClosestTopic(known, t3 || '');
+              t2 = g2 || known[0];                // a real sub-topic beats an empty slot
+            } else if(known.indexOf(t2) === -1){
+              needsRetag = true;
+              /* v28.6.3 — restore a missing code prefix (D05, P12...) where the
+                 wording already matches one of your coded sub-topics. This is the
+                 single most common near-miss in imported mock tags. */
+              var fixed = window.__scRestoreCode(known, t2);
+              if(fixed) { t2 = fixed; }
+            }
           }
         }
       } catch(e){}
+      // 5) last line of defence — nothing ships empty.
+      if(!t2){ t2 = t3 || t1 || 'General'; needsRetag = true; }
+      if(!t3){ t3 = t2; }
       return { tags:[t0, t1, t2, t3], needsRetag: needsRetag };
     };
   })();
@@ -21673,19 +21900,28 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     p += '```json\n';
     p += `{\n  "question": "<full question text exactly as in screenshot>",\n  "options": [\n    {"text": "<A>", "correct": false},\n    {"text": "<B>", "correct": false},\n    {"text": "<C>", "correct": true},\n    {"text": "<D>", "correct": false}\n  ],\n  "tags": ["<tag[0]>", "<tag[1]>", "<tag[2]>", "<tag[3]>"],\n  "solution": "<2–3 line solution — smartest/fastest method, no label prefix>",\n  "mockSource": "Week ${wk.display} · ${subject} Pool"\n}\n`;
     p += '```\n\n';
+    p += `## ⛔ THE RULE THAT MATTERS MOST — NEVER LEAVE A TAG BLANK\n\n`;
+    p += `All four tags are MANDATORY on every question. \"\" is not an acceptable value for any of them, ever, for any reason.\n\n`;
+    p += `Why this matters more than accuracy: my hub files questions into the Syllabus by tag[1]. A question with a blank or off-menu tag[1] does not appear in the Syllabus at all — it vanishes into a \"dirty tags\" bin where I never see it, never practise it, and never get the chance to correct it. **A slightly wrong tag I can fix in one tap beats a blank tag that hides the question from me.** Always commit to your best answer.\n\n`;
+    p += `- **tag[0]** the subject — from the fixed list. Never blank, never invented.\n`;
+    p += `- **tag[1]** the chapter — copied EXACTLY from the menu for that tag[0]. Nothing fits? Pick the CLOSEST menu entry anyway and flag it. This is the tag that decides whether I can see the question at all.\n`;
+    p += `- **tag[2]** the sub-topic — copy exactly where the chapter is BUILT; write your own best standard name where no list exists. Never blank.\n`;
+    p += `- **tag[3]** the specific concept tested — always something specific. Never blank.\n\n`;
+    p += `Unsure? Tag it anyway and add \"needsReview\": true. Uncertainty is a reason to FLAG, never a reason to leave a slot empty.\n\n`;
     p += `## TAG RULES (CRITICAL — DO NOT INVENT ANY TAG)\n\n`;
     p += `**tag[0]** MUST be exactly one of: ${cfg.parents.map(x => `"${x}"`).join(', ')}\n\n`;
     p += `**tag[1] / tag[2] / tag[3]** — this menu below IS my hub's real, live tag list. ALWAYS prefer an EXACT copy (same spelling, spacing, punctuation, &) from it.\n`;
     p += `\`\`\`\n${window.__hubBuildTagMenu(cfg.parents)}\`\`\`\n\n`;
     p += `⚠️ Shapes are NEVER tag[1]. Triangle/Circle/Quadrilateral/Rectangle/Square/Trapezium/Rhombus/Polygon/Hexagon → tag[2]; tag[1]="2D-Mensuration" (use "Geometry" only for angle/property questions). Cube/Cuboid/Cylinder/Cone/Sphere/Hemisphere/Prism/Pyramid/Frustum → tag[2]; tag[1]="3D-Mensuration".\n\n`;
     p += `## WHEN A QUESTION DOES NOT MATCH THE MENU — SUGGEST, DON'T LEAVE BLANK\n\n`;
+    p += `**Read the chapter state before you tag.** A ✅ BUILT chapter is finished on my side: its sub-topic list is complete, so tag[2] MUST be an exact copy from it and inventing a new label there is a bug, not a suggestion. A \ud83d\udfe1 PARTIAL chapter has a real but thin list — use it whenever anything fits. A \ud83d\udd28 NOT BUILT chapter has no list at all, so there is nothing to copy: give me your best standard sub-topic name rather than a blank, and flag it.\n\n`;
     p += `The menu is the FIRST choice. If a slot has no exact match, do NOT leave it "" — instead put YOUR single best-guess tag there (concise, standard SSC terminology, styled like the existing menu names) AND add "needsReview": true to that question object. I will confirm or fix it in one tap on my side — your guess is a suggestion, never a silent commit.\n`;
     p += `Rules for the guess:\n`;
     p += `1. tag[0] is FIXED — it MUST be exactly one of the ${cfg.parents.length} parents above. Never guess tag[0].\n`;
-    p += `2. tag[1] no menu match → best-guess the standard chapter/topic name + "needsReview": true.\n`;
+    p += `2. tag[1] no exact menu match → best-guess the standard chapter/topic name + "needsReview": true.\n`;
     p += `3. tag[2] no menu match → best-guess the sub-topic/shape + "needsReview": true.\n`;
-    p += `4. tag[3] is the question-specific concept — always fill your best specific label (no review flag needed for tag[3] alone).\n`;
-    p += `5. Match my naming STYLE: use "&" not "and", Title Case, singular where my menu is singular (e.g. "Profit & Loss", "Boat & Stream").\n`;
+    p += `4. tag[3] is the question-specific concept — always fill your best specific label. Never blank.\n`;
+    p += `5. Match my naming STYLE: use "&" not "and", Title Case, singular where my menu is singular (e.g. "Profit & Loss", "Boat & Stream"). If a sub-topic in the list carries a code prefix like \"D05 \" or \"P12 \", KEEP the prefix — the wording without its code is a broken tag.\n`;
     p += `6. If you did use the menu exactly for tag[1] AND tag[2], do NOT add needsReview.\n`;
     p += `7. Extract the FULL question text — include tables, data, conditions, line breaks.\n`;
     p += `8. Mark exactly ONE option as "correct": true (the right answer per the mock solution).\n`;
@@ -21727,18 +21963,27 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     p += `- **Reasoning**: the logic chain that produces the answer, in order.\n`;
     p += `- **English**: the rule being tested, then why each wrong option fails.\n`;
     p += `- **GS**: full revision-ready explanation — the concept, why the wrong options fail, plus the adjacent facts I'd be asked next on the same topic.\n\n`;
+    p += `## ⛔ THE RULE THAT MATTERS MOST — NEVER LEAVE A TAG BLANK\n\n`;
+    p += `All four tags are MANDATORY on every question. \"\" is not an acceptable value for any of them, ever, for any reason.\n\n`;
+    p += `Why this matters more than accuracy: my hub files questions into the Syllabus by tag[1]. A question with a blank or off-menu tag[1] does not appear in the Syllabus at all — it vanishes into a \"dirty tags\" bin where I never see it, never practise it, and never get the chance to correct it. **A slightly wrong tag I can fix in one tap beats a blank tag that hides the question from me.** Always commit to your best answer.\n\n`;
+    p += `- **tag[0]** the subject — from the fixed list. Never blank, never invented.\n`;
+    p += `- **tag[1]** the chapter — copied EXACTLY from the menu for that tag[0]. Nothing fits? Pick the CLOSEST menu entry anyway and flag it. This is the tag that decides whether I can see the question at all.\n`;
+    p += `- **tag[2]** the sub-topic — copy exactly where the chapter is BUILT; write your own best standard name where no list exists. Never blank.\n`;
+    p += `- **tag[3]** the specific concept tested — always something specific. Never blank.\n\n`;
+    p += `Unsure? Tag it anyway and add \"needsReview\": true. Uncertainty is a reason to FLAG, never a reason to leave a slot empty.\n\n`;
     p += `## TAG RULES (CRITICAL — DO NOT INVENT WHERE A MENU ENTRY EXISTS)\n\n`;
     p += `**tag[1] / tag[2] / tag[3]** — the menu below IS my hub's real, live tag list, covering all four subjects. ALWAYS prefer an EXACT copy (same spelling, spacing, punctuation, &) from it.\n`;
     p += `\`\`\`\n${window.__hubBuildTagMenu(ALL_PARENTS)}\`\`\`\n\n`;
     p += `⚠️ Shapes are NEVER tag[1]. Triangle/Circle/Quadrilateral/Rectangle/Square/Trapezium/Rhombus/Polygon/Hexagon → tag[2]; tag[1]="2D-Mensuration" (use "Geometry" only for angle/property questions). Cube/Cuboid/Cylinder/Cone/Sphere/Hemisphere/Prism/Pyramid/Frustum → tag[2]; tag[1]="3D-Mensuration".\n\n`;
     p += `## WHEN A QUESTION DOES NOT MATCH THE MENU — SUGGEST, DON'T LEAVE BLANK\n\n`;
+    p += `**Read the chapter state before you tag.** A ✅ BUILT chapter is finished on my side: its sub-topic list is complete, so tag[2] MUST be an exact copy from it — inventing a label for a BUILT chapter is a bug. A \ud83d\udfe1 PARTIAL chapter has a real but thin list; use it whenever anything fits. A \ud83d\udd28 NOT BUILT chapter has no list at all — nothing to copy, so give your best standard sub-topic name rather than a blank, and flag it.\n\n`;
     p += `The menu is the FIRST choice. If a slot has no exact match, do NOT leave it "" — instead put YOUR single best-guess tag there (concise, standard SSC terminology, styled exactly like the existing menu names) AND add "needsReview": true to that question object. I confirm or fix it in one tap — your guess is a suggestion, never a silent commit.\n`;
     p += `Rules for the guess:\n`;
     p += `1. tag[0] is NEVER guessed — it must be one of the parents listed in the routing block above.\n`;
-    p += `2. tag[1] no menu match → best-guess the standard chapter/topic name + "needsReview": true.\n`;
+    p += `2. tag[1] no exact menu match → best-guess the standard chapter/topic name + "needsReview": true.\n`;
     p += `3. tag[2] no menu match → best-guess the sub-topic/shape + "needsReview": true.\n`;
-    p += `4. tag[3] is the question-specific concept — always fill your best specific label (no review flag needed for tag[3] alone).\n`;
-    p += `5. Match my naming STYLE: "&" not "and", Title Case, singular where my menu is singular (e.g. "Profit & Loss", "Boat & Stream").\n`;
+    p += `4. tag[3] is the question-specific concept — always fill your best specific label. Never blank.\n`;
+    p += `5. Match my naming STYLE: "&" not "and", Title Case, singular where my menu is singular (e.g. "Profit & Loss", "Boat & Stream"). If a sub-topic in the list carries a code prefix like \"D05 \" or \"P12 \", KEEP the prefix — the wording without its code is a broken tag.\n`;
     p += `6. If you used the menu exactly for tag[1] AND tag[2], do NOT add needsReview.\n`;
     p += `7. Extract the FULL question text verbatim — include tables, data, conditions, line breaks. Never reword, abbreviate or shorten it. My duplicate scanner fingerprints the text, so a reworded question looks like a new one.\n`;
     p += `8. Mark exactly ONE option as "correct": true (the right answer per the mock solution).\n`;
@@ -21752,6 +21997,76 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     return p;
   }
   
+  /* ══════════════════════════════════════════════════════════════════════════
+     v28.6.3 — MOCK TAG REPAIR
+     Every mock question already in the hub is re-run through normalizeHubTags,
+     which is the same gate new imports pass through. That gate now guarantees
+     four non-empty tags, so running it over the existing pool IS the repair:
+
+       · blank tag[1]  → closest chapter from SYLLABUS_MAP, flagged
+       · off-menu tag[1] (the Economics / Polity parallel taxonomies) → closest
+         real chapter, flagged — the question becomes VISIBLE in the Syllabus
+         instead of sitting invisible in the dirty-tag bin
+       · tag[2] missing its code prefix ("Mark-up % + discount %..." with no
+         "D05 ") → prefix restored, because that was never a wrong tag, just a
+         stripped one
+       · blank tag[2] / tag[3] → filled
+
+     Everything it touches is stamped needsRetag so it surfaces under
+     "⚠️ Find Dirty Tags" for a one-tap confirm. Nothing is silently accepted.
+     Always previews first; writes only after you approve the numbers. */
+  window.mwqTagRepair = function(dryRun){
+    if (typeof window.normalizeHubTags !== 'function'){ alert('Tag normalizer unavailable.'); return; }
+    const changes = { blank1:0, offmenu1:0, code2:0, blank2:0, blank3:0 };
+    const samples = [];
+    let scanned = 0, touched = 0;
+
+    Object.keys(db).forEach(qid => {
+      if (!qid.startsWith('quiz_mock_wrong_')) return;
+      const quiz = db[qid];
+      if (!quiz || !Array.isArray(quiz.questions)) return;
+      quiz.questions.forEach(q => {
+        if (!q || !Array.isArray(q.tags)) return;
+        scanned++;
+        const before = [ (q.tags[0]||'').trim(), (q.tags[1]||'').trim(), (q.tags[2]||'').trim(), (q.tags[3]||'').trim() ];
+        let res;
+        try { res = window.normalizeHubTags(q.tags); } catch(e){ return; }
+        const after = res.tags;
+        if (before.join('\u0001') === after.join('\u0001')) return;
+        touched++;
+        if (!before[1] && after[1]) changes.blank1++;
+        else if (before[1] && before[1] !== after[1]) changes.offmenu1++;
+        if (before[2] && after[2] && before[2] !== after[2]) changes.code2++;
+        if (!before[2] && after[2]) changes.blank2++;
+        if (!before[3] && after[3]) changes.blank3++;
+        if (samples.length < 12) samples.push(before.slice(1,3).join(' \u203a ') + '   \u2192   ' + after.slice(1,3).join(' \u203a '));
+        if (!dryRun){ q.tags = after; if (res.needsRetag) q.needsRetag = true; }
+      });
+    });
+
+    const report =
+      'MOCK TAG REPAIR\n\n' +
+      scanned + ' mock questions scanned\n' +
+      touched + ' would change\n\n' +
+      '  blank chapter filled ......... ' + changes.blank1 + '\n' +
+      '  off-menu chapter re-homed .... ' + changes.offmenu1 + '\n' +
+      '  code prefix restored ......... ' + changes.code2 + '\n' +
+      '  blank sub-topic filled ....... ' + changes.blank2 + '\n' +
+      '  blank concept filled ......... ' + changes.blank3 + '\n\n' +
+      (samples.length ? 'Examples:\n' + samples.join('\n') + '\n\n' : '') +
+      'Every changed question is flagged for review under "Find Dirty Tags".\n\n';
+
+    if (dryRun){
+      if (!touched){ alert(report + 'Nothing to repair \u2014 your mock tags are clean.'); return; }
+      if (confirm(report + 'OK = apply these changes.  Cancel = do nothing.')) window.mwqTagRepair(false);
+      return;
+    }
+    try { saveData(); } catch(e){}
+    alert('Repaired ' + touched + ' of ' + scanned + ' mock questions.\n\nThey now appear in the Syllabus and are flagged under "Find Dirty Tags" so you can correct any that landed in the wrong chapter.');
+    try { if (typeof renderDashboard === 'function') renderDashboard(); } catch(e){}
+    try { if (typeof scRender === 'function') scRender(); } catch(e){}
+  };
+
   // ── CSS injection ──
   function injectCSS() {
     if (document.getElementById('mwq-styles')) return;
@@ -22046,6 +22361,14 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
                     '<span class="cnt">Mixed screenshots · one JSON · auto-routed by tag[0]</span>';
       b.onclick = function() { processAllSubjects(); };
       fullWrap.appendChild(b);
+      /* v28.6.3 — repair the tags already sitting in the mock buckets */
+      const rb = document.createElement('button');
+      rb.className = 'mwq-subj-btn';
+      rb.style.cssText = 'border-color:#f59e0b';
+      rb.innerHTML = '<span class="icon">\ud83e\ude79</span><span class="lbl">Repair Mock Tags</span>' +
+                     '<span class="cnt">Scan every mock question \u00b7 fill blanks \u00b7 restore D-codes \u00b7 re-home off-menu chapters</span>';
+      rb.onclick = function() { window.mwqTagRepair(true); };
+      fullWrap.appendChild(rb);
     }
 
     // v27.1 — Practice subject buttons
