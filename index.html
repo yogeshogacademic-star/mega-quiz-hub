@@ -1217,6 +1217,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
                 <div class="flex justify-center gap-4 flex-wrap">
                     <button onclick="exportBackup()" class="bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-blue-100 dark:border-blue-900/30">💾 Full Backup (Everything)</button>
                     <button onclick="triggerRestore()" class="bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-amber-100 dark:border-amber-900/30">📂 Restore Backup 🔒</button>
+                    <button onclick="openRestorePanel()" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-emerald-100 dark:border-emerald-900/30">🛟 Restore Points 🔒</button>
                     <button onclick="manualPullFromCloud()" class="bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-900/20 dark:text-purple-400 dark:hover:bg-purple-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-purple-100 dark:border-purple-900/30">☁️ Manual Pull from Cloud</button>
                     <button onclick="recoverAllHistory()" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-emerald-100 dark:border-emerald-900/30">🔄 Recover & Sync History</button>
                     <button onclick="scanDuplicates()" class="bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/40 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-xl transition-all shadow-sm hover:shadow-md border border-orange-100 dark:border-orange-900/30">🔍 Scan Duplicates</button>
@@ -1810,7 +1811,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-19 · v28.6.5';
+    const HUB_BUILD = '2026-08-19 · v28.8';
 
     // v28.6.5 — THE REASON DISCOUNT WAS *STILL* OUT OF ORDER AFTER v28.6.2.
     //   Two separate causes, both fixed here:
@@ -3175,6 +3176,306 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
         }
     }
 
+    /* ══════════════════════════════════════════════════════════════════════
+       v28.7 — DATA SAFETY LAYER
+       Written after the 17 Aug 2026 loss, where a device whose localStorage had
+       been cleared pushed empty stores over good cloud data. Three parts:
+
+       1. COUNT MIRROR (`megaQuizSyncMeta_v1`, IndexedDB). The old guard read
+          `megaLastKnownCount` from localStorage and every check was written
+          `if (lastKnownCount > 0 && ...)`. Clearing localStorage set it to 0,
+          which switched every protection OFF at the exact moment it was needed.
+          The mirror lives in IndexedDB, so a localStorage clear cannot disarm it.
+
+       2. PER-STORE PUSH GUARD. The old code only guarded the question count.
+          mockTracker / fcCards / syllabus / planner / notes were pushed raw.
+          Now every store is compared against the mirror before the push:
+            · one store looks emptied  → pull cloud, carry its value forward
+            · two or more look emptied → BLOCK the push (that is the wipe
+              signature; a device in that state must pull, not push)
+            · cloud unreachable while anything looks emptied → BLOCK
+
+       3. SNAPSHOTS (`megaQuizSnaps_v1`, IndexedDB). A rolling set of local
+          restore points, one taken before a push whenever anything looks off,
+          plus a throttled routine one. Read/restored from the in-app panel.
+
+       Nothing here mutates live data. The guard only reads state, and may only
+       substitute a cloud value into the OUTGOING payload or stop the push. ── */
+    const SYNC_META_KEY = 'megaQuizSyncMeta_v1';
+    const SNAP_KEY      = 'megaQuizSnaps_v1';
+    const SNAP_MAX      = 8;
+    window.__syncMeta   = null;
+
+    /* Count one store the same way everywhere, so the mirror and the live
+       reading can never disagree because of how they were measured. */
+    function __sfCount(kind, v) {
+        try {
+            if (v === null || v === undefined) return 0;
+            if (kind === 'questions') {
+                return Object.values(v).reduce((a, quiz) => {
+                    if (!quiz || typeof quiz !== 'object') return a;
+                    return a + Object.values(quiz).reduce((b, f) => b + (Array.isArray(f) ? f.length : 0), 0);
+                }, 0);
+            }
+            if (kind === 'notes') {
+                return Object.keys(v).reduce((a, s) => a + Object.keys(v[s] || {}).length, 0);
+            }
+            if (Array.isArray(v)) return v.length;
+            if (typeof v === 'object') return Object.keys(v).length;
+            return 0;
+        } catch (e) { return 0; }
+    }
+
+    /* The stores the guard watches. `floor` is the count below which a store is
+       too small to reason about — a genuinely new device must still be able to
+       push its first rows. */
+    const SF_STORES = [
+        { id: 'questions', label: 'Questions',      field: 'db',           kind: 'questions', floor: 50 },
+        { id: 'mocks',     label: 'Mock Tracker',   field: 'mockTracker',  kind: 'array',     floor: 3  },
+        { id: 'fcCards',   label: 'Flashcards',     field: 'fcCards',      kind: 'array',     floor: 3  },
+        { id: 'syllabus',  label: 'Syllabus rows',  field: 'syllabusData', kind: 'object',    floor: 20 },
+        { id: 'planner',   label: 'Planner',        field: 'plannerData',  kind: 'object',    floor: 3  },
+        { id: 'notes',     label: 'Notes',          field: 'notes',        kind: 'notes',     floor: 2  },
+        { id: 'mistakes',  label: 'SRS cards',      field: 'mistakes',     kind: 'array',     floor: 50 },
+        { id: 'history',   label: 'Quiz history',   field: 'history',      kind: 'array',     floor: 20 }
+    ];
+
+    async function __sfMetaLoad() {
+        if (window.__syncMeta) return window.__syncMeta;
+        let m = null;
+        try { m = await idbKeyval.get(SYNC_META_KEY); } catch (e) {}
+        if (!m || typeof m !== 'object') m = { counts: {}, at: 0 };
+        if (!m.counts || typeof m.counts !== 'object') m.counts = {};
+        /* one-way import of the old localStorage figure, so an existing install
+           starts guarded instead of waiting for its first push */
+        const legacy = parseInt(localStorage.getItem('megaLastKnownCount') || '0');
+        if (legacy > 0 && !(m.counts.questions > 0)) m.counts.questions = legacy;
+        window.__syncMeta = m;
+        return m;
+    }
+
+    /* Record what a healthy payload looked like. Counts only ever move UP here
+       unless the move was verified — a smaller number is written only when it
+       came from a confirmed cloud pull (`trusted`), never from a local guess. */
+    async function __sfMetaWrite(payload, trusted) {
+        try {
+            const m = await __sfMetaLoad();
+            SF_STORES.forEach(s => {
+                const n = __sfCount(s.kind, payload[s.field]);
+                const prev = m.counts[s.id] || 0;
+                if (trusted || n >= prev) m.counts[s.id] = n;
+            });
+            m.at = Date.now();
+            window.__syncMeta = m;
+            await idbKeyval.set(SYNC_META_KEY, m);
+        } catch (e) { console.warn('[Safety] meta write failed', e); }
+    }
+
+    /* ── snapshots ────────────────────────────────────────────────────────── */
+    async function __sfSnapList() {
+        try { const a = await idbKeyval.get(SNAP_KEY); return Array.isArray(a) ? a : []; }
+        catch (e) { return []; }
+    }
+    /* History carries reviewData for R1 revisions, which is by far the biggest
+       thing in the file. Snapshots keep the row but drop that payload, so eight
+       restore points stay affordable. */
+    function __sfSlimHistory(h) {
+        if (!Array.isArray(h)) return [];
+        return h.map(r => { if (!r || !r.reviewData) return r; const c = Object.assign({}, r); delete c.reviewData; return c; });
+    }
+    async function __sfSnapTake(label, force) {
+        try {
+            const snaps = await __sfSnapList();
+            const last = snaps[snaps.length - 1];
+            /* routine snapshots are throttled; a guard-triggered one never is */
+            if (!force && last && (Date.now() - last.ts) < 30 * 60 * 1000) return null;
+
+            /* Eight snapshots have to fit inside the browser's quota, so the
+               heavy blobs that are neither data nor recoverable-by-restore are
+               left out: the Pomodoro audio file (~600 KB), the SRS audit log and
+               the drill backups, which are themselves copies of live stores. */
+            const SNAP_SKIP = { pomoSound_v1: 1, srsAuditLog: 1, drill_backup_logs: 1, drill_backup: 1 };
+            SNAP_SKIP[SNAP_KEY] = 1;
+            const ls = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (SNAP_SKIP[k]) continue;
+                try { ls[k] = localStorage.getItem(k); } catch (e) {}
+            }
+            let cleanDb = {};
+            Object.keys(db).forEach(k => {
+                if (!k.startsWith('quiz_srs') && !k.startsWith('quiz_master_mock') &&
+                    !k.startsWith('quiz_topic_practice') && !k.startsWith('quiz_weak_bank')) cleanDb[k] = db[k];
+            });
+            const snap = {
+                ts: Date.now(), label: label || 'auto', build: HUB_BUILD,
+                counts: {
+                    questions: __sfCount('questions', cleanDb),
+                    mocks:     __sfCount('array',  (function(){ try { return JSON.parse(localStorage.getItem('ssc_mock_tracker') || '[]'); } catch(e){ return []; } })()),
+                    fcCards:   __sfCount('array',  (function(){ try { return JSON.parse(localStorage.getItem('yogesh_fc_cards_v2') || '[]'); } catch(e){ return []; } })()),
+                    syllabus:  __sfCount('object', (function(){ try { return JSON.parse(localStorage.getItem('sc_syllabus_v1') || '{}'); } catch(e){ return {}; } })()),
+                    notes:     __sfCount('notes',  notesDb),
+                    mistakes:  __sfCount('array',  mistakesDb),
+                    history:   __sfCount('array',  historyDb)
+                },
+                data: { db: cleanDb, history: __sfSlimHistory(historyDb), mistakes: mistakesDb, notes: notesDb, localStorage: ls }
+            };
+            snaps.push(snap);
+            while (snaps.length > SNAP_MAX) snaps.shift();
+            /* On a quota error, drop the oldest points and try again rather than
+               silently keeping none — the newest restore point is the one that
+               matters most. */
+            let saved = false;
+            for (let attempt = 0; attempt < 3 && !saved; attempt++) {
+                try { await idbKeyval.set(SNAP_KEY, snaps); saved = true; }
+                catch (err) {
+                    console.warn('[Safety] snapshot store failed (' + snaps.length + ' points) — trimming', err);
+                    if (snaps.length <= 1) throw err;
+                    snaps.splice(0, Math.max(1, Math.floor(snaps.length / 2)));
+                }
+            }
+            console.log('[Safety] snapshot saved — ' + snap.label + ' · ' + snap.counts.questions + ' Qs · ' + snap.counts.mocks + ' mocks');
+            return snap;
+        } catch (e) {
+            /* a failed snapshot must never stop a save */
+            console.warn('[Safety] snapshot failed', e);
+            return null;
+        }
+    }
+    window.__sfSnapTake = __sfSnapTake;
+    window.__sfSnapList = __sfSnapList;
+
+    /* ── the guard ────────────────────────────────────────────────────────────
+       Returns { ok, blocked, reason, carried[] }. It may edit `payload` only by
+       substituting a cloud value for a store that looks emptied locally. */
+    async function __sfGuardPush(payload) {
+        const m = await __sfMetaLoad();
+        const sus = [];
+        SF_STORES.forEach(s => {
+            const known = m.counts[s.id] || 0;
+            if (known < s.floor) return;                    /* nothing trustworthy to compare against */
+            const now = __sfCount(s.kind, payload[s.field]);
+            if (now === 0) sus.push({ s: s, known: known, now: now, how: 'emptied' });
+            else if (now < known * 0.3) sus.push({ s: s, known: known, now: now, how: 'collapsed' });
+        });
+
+        if (!sus.length) return { ok: true, carried: [] };
+
+        console.warn('[Safety] suspicious stores before push:', sus.map(x => x.s.label + ' ' + x.known + '→' + x.now).join(', '));
+        await __sfSnapTake('before-guard', true);
+
+        if (window.__sfForcePush) {
+            window.__sfForcePush = false;
+            console.warn('[Safety] override used — pushing anyway.');
+            return { ok: true, carried: [], forced: true };
+        }
+
+        /* Two or more stores emptied at once is the storage-clear signature.
+           A device in that state must pull, never push. */
+        if (sus.length >= 2) {
+            return { ok: false, blocked: true, reason: sus.map(x => x.s.label + ' ' + x.known + ' → ' + x.now).join(' · ') };
+        }
+
+        /* Exactly one store looks wrong: carry the cloud's copy forward so this
+           push cannot erase it, and let the rest of the save proceed. */
+        let cloud = null;
+        try { cloud = await fetchFromCloud(9000); } catch (e) { cloud = null; }
+        if (!cloud || typeof cloud !== 'object') {
+            return { ok: false, blocked: true, reason: 'cloud unreachable while ' + sus[0].s.label + ' looks empty (' + sus[0].known + ' → ' + sus[0].now + ')' };
+        }
+        const carried = [];
+        sus.forEach(x => {
+            const cv = cloud[x.s.field];
+            const cn = __sfCount(x.s.kind, cv);
+            if (cn > x.now) { payload[x.s.field] = cv; carried.push(x.s.label + ' (kept ' + cn + ' from cloud)'); }
+        });
+        if (!carried.length) {
+            /* cloud agrees the store is empty — the local reading is real, not a wipe */
+            return { ok: true, carried: [] };
+        }
+        return { ok: true, carried: carried };
+    }
+
+    /* ── notes: tombstones + merge (v28.7) ───────────────────────────────────
+       A deleted note is recorded as `Subject|||Chapter -> deletedAt`. The
+       tombstone travels with the sync, so a delete on one device still removes
+       the note everywhere — while a device that simply HAS no notes can no
+       longer erase the collection just by pulling. */
+    const NOTES_TOMB_KEY = 'megaQuizNotesTomb_v1';
+    function __sfTombRead() {
+        try { const o = JSON.parse(localStorage.getItem(NOTES_TOMB_KEY) || '{}'); return (o && typeof o === 'object') ? o : {}; }
+        catch (e) { return {}; }
+    }
+    function __sfTombWrite(t) { try { localStorage.setItem(NOTES_TOMB_KEY, JSON.stringify(t)); } catch (e) {} }
+    window.__sfNoteTomb = function (subject, chapter) {
+        const t = __sfTombRead();
+        if (chapter) t[subject + '|||' + chapter] = Date.now();
+        else t[subject + '|||*'] = Date.now();      /* whole folder */
+        __sfTombWrite(t);
+    };
+    function __sfMergeNotes(local, cloud, cloudTomb) {
+        try {
+            local = (local && typeof local === 'object') ? local : {};
+            cloud = (cloud && typeof cloud === 'object') ? cloud : {};
+            const tomb = __sfTombRead();
+            if (cloudTomb && typeof cloudTomb === 'object') {
+                Object.keys(cloudTomb).forEach(k => {
+                    if (!tomb[k] || cloudTomb[k] > tomb[k]) tomb[k] = cloudTomb[k];
+                });
+                __sfTombWrite(tomb);
+            }
+            const killed = (s, c, note) => {
+                const at = Math.max(tomb[s + '|||' + c] || 0, tomb[s + '|||*'] || 0);
+                if (!at) return false;
+                /* a note edited AFTER the delete is a genuine re-creation — it wins */
+                return !((note && note.updatedAt) > at);
+            };
+            const out = {};
+            const subs = new Set(Object.keys(local).concat(Object.keys(cloud)));
+            subs.forEach(s => {
+                const L = local[s] || {}, C = cloud[s] || {};
+                const chaps = new Set(Object.keys(L).concat(Object.keys(C)));
+                chaps.forEach(c => {
+                    const ln = L[c], cn = C[c];
+                    let pick;
+                    if (ln && cn) pick = ((cn.updatedAt || 0) > (ln.updatedAt || 0)) ? cn : ln;
+                    else pick = ln || cn;
+                    if (!pick) return;
+                    if (killed(s, c, pick)) return;
+                    (out[s] = out[s] || {})[c] = pick;
+                });
+                if (out[s] && !Object.keys(out[s]).length) delete out[s];
+            });
+            return out;
+        } catch (e) {
+            console.warn('[Safety] notes merge failed — keeping local', e);
+            return (local && typeof local === 'object') ? local : {};
+        }
+    }
+
+    /* The one way past the guard. Deliberately single-use: it arms exactly one
+       push, and that push is the only one allowed to lower the stored counts. */
+    window.__sfPushAnyway = function () {
+        if (!confirm('Push this device\'s data over the cloud copy?\n\nDo this ONLY if you deliberately deleted things and the smaller numbers are correct.\n\nIf you are not sure, cancel and refresh instead — the cloud copy is still intact.')) return;
+        window.__sfForcePush = true;
+        try { document.querySelectorAll('div').forEach(d => { if (d.textContent && d.textContent.indexOf('PUSH BLOCKED') === 0) d.remove(); }); } catch (e) {}
+        hubToast('Pushing once, guard bypassed…');
+        saveData();
+    };
+
+    function __sfBanner(html, colour) {
+        try {
+            const warn = document.createElement('div');
+            warn.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:9999;background:' +
+                (colour === 'amber' ? '#78350f' : '#7f1d1d') + ';color:' + (colour === 'amber' ? '#fcd34d' : '#fca5a5') +
+                ';font-weight:900;font-size:13px;padding:14px 24px;border-radius:16px;border:1px solid ' +
+                (colour === 'amber' ? '#b45309' : '#b91c1c') + ';box-shadow:0 4px 24px rgba(0,0,0,0.5);max-width:440px;text-align:center;line-height:1.5;';
+            warn.innerHTML = html;
+            document.body.appendChild(warn);
+            setTimeout(() => warn.remove(), 12000);
+        } catch (e) {}
+    }
+
     async function saveData() {
         showSyncStatus('syncing');
         let cleanDb = {};
@@ -3250,11 +3551,40 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
             }
             return base;
         });
-        const payload = { subjects: SUBJECTS, db: cleanDb, syllabusData: scDataCloud, syllabusLastSave: parseInt(localStorage.getItem('sc_syllabus_lastSave')||'0'), history: historyForCloud, mistakes: mistakesDb, notes: notesDb, version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, mockTracker: mockTrackerCloud, plannerData: plannerCloud, srsAuditLog: (window.srsAuditLog||[]), dupIgnore: dupIgnoreCloud, activeRecall: (typeof window.__arForCloud==="function" ? window.__arForCloud() : null), savedAt: nowTs };
+        const payload = { subjects: SUBJECTS, db: cleanDb, syllabusData: scDataCloud, syllabusLastSave: parseInt(localStorage.getItem('sc_syllabus_lastSave')||'0'), history: historyForCloud, mistakes: mistakesDb, notes: notesDb, notesTomb: __sfTombRead(), version: "v21.1", matrixEnabled: SUBJECTS, categories: SUBJECT_CATEGORIES, fcCards: fcCardsCloud, fcProgress: fcProgCloud, mockTracker: mockTrackerCloud, plannerData: plannerCloud, srsAuditLog: (window.srsAuditLog||[]), dupIgnore: dupIgnoreCloud, activeRecall: (typeof window.__arForCloud==="function" ? window.__arForCloud() : null), savedAt: nowTs };
         // v27: the line that used to re-assign window._saveDataGlobal here has been
         // removed. It ran on EVERY push and silently un-wrapped any hook another
         // module had installed, which is why the planner's sync hook only ever
         // fired once per page load.
+        /* v28.7 — last gate before anything leaves the device. */
+        let __sfVerdict = { ok: true, carried: [] };
+        try {
+            __sfVerdict = await __sfGuardPush(payload);
+        } catch (e) {
+            /* the guard itself must never be the thing that breaks a save */
+            console.warn('[Safety] guard error — allowing push', e);
+            __sfVerdict = { ok: true, carried: [] };
+        }
+        if (!__sfVerdict.ok) {
+            console.warn('⛔ PUSH BLOCKED by data-safety guard: ' + __sfVerdict.reason);
+            showSyncStatus('blocked');
+            __sfBanner('⛔ PUSH BLOCKED — this device looks like it lost data.<br><span style="font-weight:700;font-size:11px">' +
+                       __sfVerdict.reason + '</span><br><span style="font-weight:700;font-size:11px">Cloud is untouched — refresh to pull it back.</span>' +
+                       '<div style="margin-top:9px;display:flex;gap:7px;justify-content:center;flex-wrap:wrap">' +
+                       '<button onclick="openRestorePanel()" style="background:#fca5a5;color:#7f1d1d;border:none;border-radius:8px;padding:6px 12px;font-size:10px;font-weight:900;cursor:pointer">Restore Points</button>' +
+                       '<button onclick="__sfPushAnyway()" style="background:transparent;color:#fca5a5;border:1px solid #fca5a5;border-radius:8px;padding:6px 12px;font-size:10px;font-weight:900;cursor:pointer">This is correct — push anyway</button>' +
+                       '</div>');
+            return;
+        }
+        if (__sfVerdict.carried && __sfVerdict.carried.length) {
+            /* Carry-forward also fires on a DELIBERATE bulk deletion — the cloud
+               copy is kept, so the deletion would come back on the next pull.
+               The override is offered here too, so one tap makes the deletion
+               stick instead of leaving him fighting his own guard. */
+            __sfBanner('⚠️ Protected from overwrite:<br><span style="font-weight:700;font-size:11px">' +
+                       __sfVerdict.carried.join('<br>') +
+                       '</span><div style="margin-top:9px"><button onclick="__sfPushAnyway()" style="background:transparent;color:#fcd34d;border:1px solid #b45309;border-radius:8px;padding:6px 12px;font-size:10px;font-weight:900;cursor:pointer">I deleted these on purpose — push my version</button></div>', 'amber');
+        }
         try {
             // Use no-cors for POST to avoid CORS block on Google's redirect
             await fetch(CLOUD_URL, {
@@ -3268,6 +3598,13 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
             window._lastCloudPushTs = nowTs;
             localStorage.setItem('megaLastCloudSave', nowTs.toString());
             localStorage.setItem('megaLastKnownCount', totalQLocal.toString());
+            /* v28.7 — mirror the counts we just pushed into IndexedDB, where a
+               localStorage clear cannot reach them, and keep a rolling restore
+               point. Both are best-effort: neither may break the save. */
+            /* raise-only, unless the override was used — that is the one path
+               where the user has explicitly confirmed a smaller dataset is real */
+            __sfMetaWrite(payload, !!__sfVerdict.forced).catch(() => {});
+            __sfSnapTake('after-push', false).catch(() => {});
 
             // VERIFICATION: for SRS sprints, read back cloud after 5s to confirm delivery
             // This catches silent failures (signal drop during POST)
@@ -3547,9 +3884,14 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
             try { idbKeyval.set('megaQuizMistakes_v5', mistakesDb); } catch(e) {}
         }
 
-        // ── NOTES: cloud database.json is the single source of truth.
-        // Replace (not additive-merge) so deletions and clears propagate across devices. ──
-        notesDb = data.notes || {};
+        // ── NOTES (v28.7): MERGED, never replaced. ──
+        // This used to be `notesDb = data.notes || {}` so that deletions would
+        // propagate. The cost was that any device holding empty notes wiped every
+        // note everywhere on its next pull — with no recovery, since the push side
+        // had no guard either. Deletions now travel as tombstones instead, so both
+        // properties hold: a delete still propagates, and an empty device cannot
+        // erase anything.
+        notesDb = __sfMergeNotes(notesDb, data.notes, data.notesTomb);
         // ── FLASHCARDS: merge cloud + local (never replace) ──
         try { if (data.fcCards && Array.isArray(data.fcCards)) {
             let localFC = [];
@@ -3823,6 +4165,10 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
             const data = await fetchFromCloud(ms);
             const ok = await applyCloudData(data);
             if (!ok) throw new Error('empty response');
+            /* v28.7 — a good pull arms the guard on this device (raise-only), and
+               gives us a restore point that reflects cloud truth. */
+            __sfMetaWrite(data, false).catch(() => {});
+            __sfSnapTake('after-pull', false).catch(() => {});
         } catch(e) {
             if (attempt < 2) {
                 // Wait 3s then retry
@@ -3836,6 +4182,11 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
     async function initializeSystem() {
         if(localStorage.getItem('megaTheme') === 'dark') document.documentElement.classList.add('dark');
         await loadLocalFallback(); renderDashboard();
+        /* v28.7 — arm the guard from the IndexedDB mirror before anything can
+           push, and keep one restore point from the state we booted with (taken
+           BEFORE the first cloud pull, so a bad pull is always recoverable). */
+        try { await __sfMetaLoad(); } catch(e) {}
+        try { await __sfSnapTake('boot', false); } catch(e) {}
         // Daily auto-backup check (downloads once per day)
         if(typeof window.checkAutoBackup === 'function') window.checkAutoBackup();
 
@@ -4304,8 +4655,8 @@ window.saveNote = () => {
 };
 
 /* ---- delete / search-open ---- */
-window.deleteNoteChapter = (subject, chapter) => { requireAuth(() => { if (confirm('Permanently delete the note \u201C' + chapter + '\u201D?')) { delete notesDb[subject][chapter]; if (Object.keys(notesDb[subject]).length === 0) delete notesDb[subject]; if (NOTE_C === chapter) { NOTE_C = null; NOTE_S = null; } saveData(); rebuildSearchCache(); openNotes(); } }); };
-window.deleteNoteSubject = (subject) => { requireAuth(() => { if (confirm('Delete the ENTIRE \u201C' + subject + '\u201D folder?')) { delete notesDb[subject]; if (NOTE_S === subject) { NOTE_C = null; NOTE_S = null; } saveData(); rebuildSearchCache(); openNotes(); } }); };
+window.deleteNoteChapter = (subject, chapter) => { requireAuth(() => { if (confirm('Permanently delete the note \u201C' + chapter + '\u201D?')) { try { window.__sfNoteTomb(subject, chapter); } catch(e){} delete notesDb[subject][chapter]; if (Object.keys(notesDb[subject]).length === 0) delete notesDb[subject]; if (NOTE_C === chapter) { NOTE_C = null; NOTE_S = null; } saveData(); rebuildSearchCache(); openNotes(); } }); };
+window.deleteNoteSubject = (subject) => { requireAuth(() => { if (confirm('Delete the ENTIRE \u201C' + subject + '\u201D folder?')) { try { window.__sfNoteTomb(subject, null); } catch(e){} delete notesDb[subject]; if (NOTE_S === subject) { NOTE_C = null; NOTE_S = null; } saveData(); rebuildSearchCache(); openNotes(); } }); };
 window.openNoteFromSearch = (subject, chapter, blockId) => { if (blockId && String(blockId).indexOf('short_') === 0) NOTE_LAYER = 'short'; else if (blockId && String(blockId).indexOf('detailed_') === 0) NOTE_LAYER = 'detailed'; NOTE_S = subject; NOTE_C = chapter; NOTE_EDIT = false; showScreen('notes'); renderNoteTree(); renderNote(blockId); };
 
 /* ---- focus + print ---- */
@@ -8507,6 +8858,226 @@ window.generateQuantNotes = () => {
     };
 
     window.triggerRestore = () => { requireAuth(() => { document.getElementById('backup-file-input').click(); }); };
+    /* ══════════════════════════════════════════════════════════════════════
+       v28.7 — RESTORE POINTS PANEL
+       Reads the rolling snapshots taken by the safety layer and restores from
+       them. Deliberately narrow: it can put data BACK, and it never pushes.
+       After a restore the page reloads; the next push carries the restored
+       state up, guarded like any other. ────────────────────────────────── */
+    function __rpFmt(ts) {
+        try { return new Date(ts).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+        catch (e) { return String(ts); }
+    }
+    const RP_PARTS = [
+        { id: 'questions', label: 'Questions',    key: 'questions' },
+        { id: 'mocks',     label: 'Mock Tracker', key: 'mocks' },
+        { id: 'notes',     label: 'Notes',        key: 'notes' },
+        { id: 'mistakes',  label: 'SRS cards',    key: 'mistakes' },
+        { id: 'fcCards',   label: 'Flashcards',   key: 'fcCards' },
+        { id: 'syllabus',  label: 'Syllabus',     key: 'syllabus' }
+    ];
+
+    window.openRestorePanel = () => { requireAuth(async () => {
+        const snaps = (await window.__sfSnapList()).slice().reverse();
+        const live = {
+            questions: (function () { let n = 0; Object.keys(db).forEach(k => { if (db[k] && Array.isArray(db[k].questions)) n += db[k].questions.length; }); return n; })(),
+            mocks:     (function () { try { return JSON.parse(localStorage.getItem('ssc_mock_tracker') || '[]').length; } catch (e) { return 0; } })(),
+            notes:     Object.keys(notesDb || {}).reduce((a, s) => a + Object.keys(notesDb[s] || {}).length, 0),
+            mistakes:  Array.isArray(mistakesDb) ? mistakesDb.length : 0,
+            fcCards:   (function () { try { return JSON.parse(localStorage.getItem('yogesh_fc_cards_v2') || '[]').length; } catch (e) { return 0; } })(),
+            syllabus:  (function () { try { return Object.keys(JSON.parse(localStorage.getItem('sc_syllabus_v1') || '{}')).length; } catch (e) { return 0; } })()
+        };
+
+        const rows = snaps.length ? snaps.map((sn, i) => {
+            const c = sn.counts || {};
+            /* flag any store that is markedly bigger in the snapshot than it is
+               right now — that is what a restore-worthy row looks like */
+            const drops = RP_PARTS.filter(p => (c[p.key] || 0) > 0 && (c[p.key] || 0) > (live[p.key] || 0) * 1.25 && (c[p.key] || 0) - (live[p.key] || 0) >= 3);
+            return `<div style="border:1px solid ${drops.length ? '#fca5a5' : '#e2e8f0'};background:${drops.length ? '#fef2f2' : '#fff'};border-radius:12px;padding:12px 14px;margin-bottom:9px">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+                  <div>
+                    <div style="font-size:13px;font-weight:900;color:#0f172a">${__rpFmt(sn.ts)} <span style="font-size:10px;color:#64748b;font-weight:700">· ${sn.label || 'auto'}</span></div>
+                    <div style="font-size:11px;color:#475569;font-weight:700;margin-top:3px">
+                      ${RP_PARTS.map(p => `${c[p.key] || 0} ${p.label.toLowerCase()}`).join(' · ')}
+                    </div>
+                    ${drops.length ? `<div style="font-size:10px;color:#b91c1c;font-weight:900;margin-top:4px">⚠️ has more than you have now: ${drops.map(d => d.label).join(', ')}</div>` : ''}
+                  </div>
+                  <button onclick="__rpOpen(${i})" style="background:#0f172a;color:#fff;border:none;border-radius:9px;padding:8px 15px;font-size:11px;font-weight:900;cursor:pointer;white-space:nowrap">Restore…</button>
+                </div></div>`;
+        }).join('') : `<div style="padding:26px;text-align:center;color:#64748b;font-size:12px;font-weight:700">No restore points yet.<br><span style="font-size:11px;font-weight:600">The first one is taken automatically the next time the hub loads or syncs.</span></div>`;
+
+        const m = document.createElement('div');
+        m.id = 'rp-modal';
+        m.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px)';
+        m.innerHTML = `<div style="background:#f8fafc;border-radius:18px;max-width:620px;width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4)">
+            <div style="padding:16px 20px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center">
+              <div><div style="font-size:16px;font-weight:900;color:#0f172a">🛟 Restore Points</div>
+              <div style="font-size:10px;color:#64748b;font-weight:700;margin-top:2px">Right now: ${RP_PARTS.map(p => `${live[p.key]} ${p.label.toLowerCase()}`).join(' · ')}</div></div>
+              <button onclick="document.getElementById('rp-modal').remove()" style="font-size:26px;color:#94a3b8;background:none;border:none;cursor:pointer;line-height:1">&times;</button>
+            </div>
+            <div style="overflow:auto;flex:1;padding:14px 18px">${rows}</div>
+            <div style="padding:11px 18px;border-top:1px solid #e2e8f0;background:#fff;font-size:10px;color:#64748b;font-weight:600;line-height:1.6">
+              Restoring writes to this device only — nothing is sent to the cloud until your next normal sync, which is guarded.
+              <button onclick="__rpSnapNow()" style="background:#e2e8f0;color:#0f172a;border:none;border-radius:8px;padding:6px 12px;font-size:10px;font-weight:900;cursor:pointer;margin-left:8px">Snapshot now</button>
+            </div>
+          </div>`;
+        document.body.appendChild(m);
+        m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+    }); };
+
+    window.__rpSnapNow = async () => {
+        await window.__sfSnapTake('manual', true);
+        const el = document.getElementById('rp-modal'); if (el) el.remove();
+        hubToast('Restore point saved.');
+        window.openRestorePanel();
+    };
+
+    /* Second step: choose what to bring back from the chosen point. */
+    window.__rpOpen = async (idx) => {
+        const snaps = (await window.__sfSnapList()).slice().reverse();
+        const sn = snaps[idx];
+        if (!sn) return hubToast('That restore point is gone.');
+        const c = sn.counts || {};
+        const boxes = RP_PARTS.map(p => `<label style="display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:9px;margin-bottom:6px;background:#fff;cursor:pointer">
+            <input type="checkbox" id="rp-${p.id}" ${(c[p.key] || 0) > 0 ? '' : 'disabled'} style="width:16px;height:16px">
+            <span style="font-size:12px;font-weight:800;color:#0f172a">${p.label}</span>
+            <span style="font-size:11px;color:#64748b;font-weight:700;margin-left:auto">${c[p.key] || 0} in this point</span>
+          </label>`).join('');
+        const old = document.getElementById('rp-modal'); if (old) old.remove();
+        const m = document.createElement('div');
+        m.id = 'rp-modal';
+        m.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px)';
+        m.innerHTML = `<div style="background:#f8fafc;border-radius:18px;max-width:520px;width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4)">
+            <div style="padding:16px 20px;background:#fff;border-bottom:1px solid #e2e8f0">
+              <div style="font-size:15px;font-weight:900;color:#0f172a">Restore from ${__rpFmt(sn.ts)}</div>
+              <div style="font-size:10px;color:#64748b;font-weight:700;margin-top:2px">Tick only what you want back. Everything else is left exactly as it is.</div>
+            </div>
+            <div style="overflow:auto;flex:1;padding:14px 18px">${boxes}
+              <div style="font-size:10px;color:#64748b;font-weight:700;line-height:1.6;margin-top:8px">
+                Questions, notes and SRS cards are MERGED — nothing you have now is dropped, missing items are added back.
+                Mock Tracker, Flashcards and Syllabus are merged by row, keeping whichever copy is larger per row.
+              </div>
+            </div>
+            <div style="padding:12px 18px;border-top:1px solid #e2e8f0;background:#fff;display:flex;gap:8px;justify-content:flex-end">
+              <button onclick="openRestorePanel()" style="background:#e2e8f0;color:#0f172a;border:none;border-radius:9px;padding:9px 16px;font-size:11px;font-weight:900;cursor:pointer">Back</button>
+              <button onclick="__rpApply(${idx})" style="background:#059669;color:#fff;border:none;border-radius:9px;padding:9px 18px;font-size:11px;font-weight:900;cursor:pointer">Restore selected</button>
+            </div>
+          </div>`;
+        document.body.appendChild(m);
+    };
+
+    window.__rpApply = async (idx) => {
+        const snaps = (await window.__sfSnapList()).slice().reverse();
+        const sn = snaps[idx];
+        if (!sn || !sn.data) return hubToast('That restore point is gone.');
+        const want = {};
+        RP_PARTS.forEach(p => { const el = document.getElementById('rp-' + p.id); want[p.id] = !!(el && el.checked); });
+        if (!Object.keys(want).some(k => want[k])) return hubToast('Nothing ticked.');
+        if (!confirm('Restore the ticked items from ' + __rpFmt(sn.ts) + '?\n\nA snapshot of your CURRENT state is taken first, so this is reversible.')) return;
+
+        await window.__sfSnapTake('before-restore', true);
+        const done = [];
+        const D = sn.data;
+
+        try {
+            /* questions — merge by quiz id, then by question fingerprint inside
+               a quiz, so a restore can only ever ADD back */
+            if (want.questions && D.db) {
+                let added = 0, quizzes = 0;
+                Object.keys(D.db).forEach(qid => {
+                    const old = D.db[qid];
+                    if (!old || !Array.isArray(old.questions)) return;
+                    if (!db[qid]) { db[qid] = old; quizzes++; added += old.questions.length; return; }
+                    const cur = db[qid];
+                    if (!Array.isArray(cur.questions)) return;
+                    const seen = new Set(cur.questions.map(q => String(q && q.question || '').trim().toLowerCase()));
+                    old.questions.forEach(q => {
+                        const k = String(q && q.question || '').trim().toLowerCase();
+                        if (k && !seen.has(k)) { cur.questions.push(q); seen.add(k); added++; }
+                    });
+                });
+                /* The titleless system records live in db alongside quizzes and
+                   carry no `questions` array, so the loop above skips them. They
+                   are exactly what a bad cleanup takes first — bring them back
+                   when this device no longer has them. */
+                ['__conceptSheets', '__savedQs'].forEach(sysKey => {
+                    const old = D.db[sysKey];
+                    if (!old) return;
+                    if (!db[sysKey]) { db[sysKey] = old; done.push(sysKey + ' restored'); return; }
+                    if (sysKey === '__savedQs' && db[sysKey].items && old.items) {
+                        let n = 0;
+                        Object.keys(old.items).forEach(k => { if (!db[sysKey].items[k]) { db[sysKey].items[k] = old.items[k]; n++; } });
+                        if (n) done.push(n + ' saved questions added back');
+                    }
+                });
+                done.push(added + ' questions added back' + (quizzes ? ' (' + quizzes + ' whole quizzes)' : ''));
+            }
+            /* notes — same merge the cloud pull uses, tombstones respected */
+            if (want.notes && D.notes) {
+                const before = Object.keys(notesDb || {}).reduce((a, s) => a + Object.keys(notesDb[s] || {}).length, 0);
+                notesDb = __sfMergeNotes(notesDb, D.notes, null);
+                const after = Object.keys(notesDb || {}).reduce((a, s) => a + Object.keys(notesDb[s] || {}).length, 0);
+                done.push((after - before) + ' notes added back');
+            }
+            /* SRS — add only cards this device no longer has; never overwrite a
+               card's scheduling, since the live one is the more recent */
+            if (want.mistakes && Array.isArray(D.mistakes)) {
+                const kf = q => (typeof window.__srsKey === 'function') ? window.__srsKey(q.question) : String(q && q.question || '').trim().toLowerCase();
+                const have = new Set((mistakesDb || []).map(kf));
+                let n = 0;
+                D.mistakes.forEach(q => { const k = kf(q); if (k && !have.has(k)) { mistakesDb.push(q); have.add(k); n++; } });
+                done.push(n + ' SRS cards added back');
+            }
+            /* mock tracker — union by row id, live row wins on conflict */
+            if (want.mocks && D.localStorage && D.localStorage.ssc_mock_tracker) {
+                let oldRows = []; try { oldRows = JSON.parse(D.localStorage.ssc_mock_tracker) || []; } catch (e) {}
+                let liveRows = []; try { liveRows = JSON.parse(localStorage.getItem('ssc_mock_tracker') || '[]') || []; } catch (e) {}
+                const byId = {};
+                oldRows.forEach(r => { if (r && r.id != null) byId[r.id] = r; });
+                liveRows.forEach(r => { if (r && r.id != null) byId[r.id] = r; });
+                const merged = Object.keys(byId).map(k => byId[k]).sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+                localStorage.setItem('ssc_mock_tracker', JSON.stringify(merged));
+                done.push(merged.length + ' mock rows (' + (merged.length - liveRows.length) + ' recovered)');
+            }
+            /* flashcards — union by card id, live card wins */
+            if (want.fcCards && D.localStorage && D.localStorage.yogesh_fc_cards_v2) {
+                let oldC = []; try { oldC = JSON.parse(D.localStorage.yogesh_fc_cards_v2) || []; } catch (e) {}
+                let liveC = []; try { liveC = JSON.parse(localStorage.getItem('yogesh_fc_cards_v2') || '[]') || []; } catch (e) {}
+                const byId = {};
+                oldC.forEach(r => { if (r && r.id != null) byId[r.id] = r; });
+                liveC.forEach(r => { if (r && r.id != null) byId[r.id] = r; });
+                const merged = Object.keys(byId).map(k => byId[k]);
+                localStorage.setItem('yogesh_fc_cards_v2', JSON.stringify(merged));
+                if (D.localStorage.yogesh_fc_prog_v2 && !localStorage.getItem('yogesh_fc_prog_v2')) {
+                    localStorage.setItem('yogesh_fc_prog_v2', D.localStorage.yogesh_fc_prog_v2);
+                }
+                done.push(merged.length + ' flashcards (' + (merged.length - liveC.length) + ' recovered)');
+            }
+            /* syllabus — add back only rows this device no longer has. A row that
+               still exists keeps its live progress, which is always the newer. */
+            if (want.syllabus && D.localStorage && D.localStorage.sc_syllabus_v1) {
+                let oldS = {}; try { oldS = JSON.parse(D.localStorage.sc_syllabus_v1) || {}; } catch (e) {}
+                let liveS = {}; try { liveS = JSON.parse(localStorage.getItem('sc_syllabus_v1') || '{}') || {}; } catch (e) {}
+                let n = 0;
+                Object.keys(oldS).forEach(k => { if (!(k in liveS)) { liveS[k] = oldS[k]; n++; } });
+                localStorage.setItem('sc_syllabus_v1', JSON.stringify(liveS));
+                done.push(n + ' syllabus rows added back');
+            }
+
+            await updateLocalCache();
+            rebuildSearchCache();
+        } catch (e) {
+            console.error('[Restore] failed', e);
+            return (window.__nativeAlert || window.alert)('❌ Restore failed: ' + e.message + '\n\nNothing was pushed to cloud, and a snapshot of your pre-restore state was taken first.');
+        }
+
+        /* v25.6 replaced window.alert with a toast; a multi-line summary needs
+           the blocking native dialog, which that change kept as __nativeAlert. */
+        (window.__nativeAlert || window.alert)('✅ Restored from ' + __rpFmt(sn.ts) + '\n\n' + done.join('\n') +
+              '\n\nThe page will reload. Your next sync will carry this up to the cloud.');
+        location.reload();
+    };
+
 
     // ── MANUAL PULL FROM CLOUD — force-pulls full cloud data into local IDB ──
     window.manualPullFromCloud = async () => {
@@ -25067,7 +25638,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
 #ar-root .cd .bkw .a{font-size:19px;font-weight:700;color:#0d7a5f;line-height:1.42;white-space:pre-wrap}
 #ar-root .revb{margin-top:18px;width:100%;background:#1c2430;color:#7d8899;border-radius:9px;padding:14px 0;text-align:center;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase}
 #ar-root .revb:hover{background:#232d3b;color:#9aa5b5}
-#ar-root .grade{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+#ar-root .grade{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
 #ar-root .grade button{padding:13px 6px;border-radius:10px;font-weight:700;font-size:15px;display:flex;flex-direction:column;align-items:center;gap:3px}
 #ar-root .grade button span{font-size:10.5px;font-weight:600;opacity:.62;letter-spacing:.04em}
 #ar-root .gy{background:#e3f3ee;color:#0d7a5f}#ar-root .gn{background:#fdeee4;color:#c2410c}
@@ -25159,14 +25730,31 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
      after the exam. So the ladder is compressed, and every due date is clamped
      to two days before the paper. Nothing you learn can fall off the far side. */
   const EXAM_DATE=new Date('2026-09-28T00:00:00+05:30').getTime();
-  /* Hard stop for the ladder. Every card must have come round at least once by
-     this date, leaving the run-in to the paper clear for mocks and weak areas
-     rather than first-time reviews. */
-  const LAST_DUE=new Date('2026-09-15T00:00:00+05:30').getTime();
-  /* v28.1 — the first rung was 1 day, and Hard cannot resolve below a day, so
-     Hard and Good both read "1d" on every new card. Starting the ladder at 2
-     days makes the three buttons distinct at every rung. Again is immediate. */
-  const IVL=[2,4,7,12,20,30];
+  /* ══ v28.8 — "3 TO MASTER" ════════════════════════════════════════════════
+     The old six-rung ladder (IVL=[2,4,7,12,20,30] with Again/Hard/Good) is gone.
+     It had no mastered state, so no card ever left the queue; its top rungs were
+     unreachable because clampDue compressed everything into the days remaining;
+     and its clamp collapsed every overshooting card onto one date.
+
+     The replacement is deliberately small. A card carries one counter:
+     `rights`, 0 to 3.
+
+        RIGHT  → rights+1 · rights 1 → +2 days · rights 2 → +5 days
+                          · rights 3 → MASTERED, out of the queue for good
+        WRONG  → rights back to 0, due TOMORROW, flagged urgent
+
+     Every card therefore needs three consecutive rights to leave. There is no
+     clamp: if the standard gap would land past the deadline, the remaining
+     window is divided by the rights still owed, so cards compress instead of
+     stacking. Gaps count from the day the card was actually answered, so
+     skipped days never break the schedule.                                  */
+  const DEADLINE=new Date('2026-09-20T00:00:00+05:30').getTime();
+  const GAPS=[2,5];        /* days after the 1st right, and after the 2nd */
+  const MASTER_AT=3;       /* consecutive rights needed to master */
+  const LEECH_AT=5;        /* total wrongs before a card goes to the leech sheet */
+  /* kept so older saved runs and the quarantine screens still resolve */
+  const LAST_DUE=DEADLINE;
+  const IVL=[2,5];
   let A={ decks:{}, cprog:{}, life:{}, runlog:{}, opts:{reverse:false,type:false}, session:1, lastOpen:0 };
   let view='subjects', curSub=null, deckId=null, tab='cards', runId=null;
   let filter='all', pending=null, editing=null, searchQ='', typed='', checked=null;
@@ -25218,7 +25806,41 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     /* the MCQ drill is gone — its records are dead weight in every sync */
     if(A.chapters||A.prog){ delete A.chapters; delete A.prog; }
     A.session=A.session||1; A.lastOpen=Date.now();
+    arMigrateTo38();
     rebuildAutoNotes();
+  }
+
+  /* ══ v28.8 migration — runs once, then never again ═════════════════════════
+     Existing cards carry the old ladder's `step`, and their answer history in
+     `r` (rights) and `w` (wrongs). Nothing is thrown away and nothing is reset
+     to zero, because that would discard real work — 153 cards already have
+     history and the OWS run reached card 152 of 436.
+
+     The rule is deliberately conservative: credit is only given where the record
+     is clean.
+       · any wrong on the card      → rights 0, due tomorrow (it has to be re-earned)
+       · answered right, never wrong → rights 1 (one right banked, two to go)
+       · never answered              → untouched, starts fresh when first seen
+     No card is imported straight to mastered — mastery has to be earned under
+     the new rule, and there are enough days to earn it.                       */
+  function arMigrateTo38(){
+    if(A.schemaV38) return;
+    let credited=0, reset=0, cleared=0;
+    Object.keys(A.life||{}).forEach(k=>{
+      const L=A.life[k]; if(!L || typeof L!=='object') return;
+      const r=L.r||0, w=L.w||0;
+      /* drop every field the old ladder owned */
+      delete L.step; delete L.hardRun; delete L.quar; delete L.quarUntil; delete L.streak;
+      if(r>0 && w===0){ L.rights=1; L.wasWrong=false; L.due=Date.now()+gapFor(1)*DAY; L.ivl=gapFor(1); credited++; }
+      else if(r>0 || w>0){ L.rights=0; L.wasWrong=true; L.due=Date.now()+DAY; L.ivl=1; reset++; }
+      else { L.rights=0; L.wasWrong=false; L.due=0; L.ivl=0; cleared++; }
+      L.mastered=false;
+      if(w>=LEECH_AT) L.leech=true;
+    });
+    /* any run saved mid-cascade belongs to the old multi-round model */
+    Object.keys(A.cprog||{}).forEach(id=>{ const c=A.cprog[id]; if(c && c.round>1) delete A.cprog[id]; });
+    A.schemaV38=true;
+    console.log('[AR v28.8] migrated — '+credited+' cards kept a right, '+reset+' back to 0, '+cleared+' untouched.');
   }
   async function arSave(push){
     try{ await idbKeyval.set(AR_KEY,A); }catch(e){}
@@ -25231,7 +25853,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       const d=A.decks[k];
       slim[k]= d.autoNotes ? Object.assign({},d,{notesHtml:''}) : d;
     });
-    return Object.assign({},A,{decks:slim, dead:A.dead||{}, chapters:undefined, prog:undefined});
+    return Object.assign({},A,{decks:slim, dead:A.dead||{}, newlog:A.newlog||{}, chapters:undefined, prog:undefined});
   };
   function rebuildAutoNotes(){
     Object.values(A.decks).forEach(d=>{
@@ -25242,6 +25864,17 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
   window.__arFromCloud=function(cloud){
     if(!cloud||typeof cloud!=='object') return;
     A.decks=A.decks||{}; A.cprog=A.cprog||{}; A.life=A.life||{}; A.runlog=A.runlog||{};
+    /* v28.8 — the daily new-card budget was never synced, so the 25/day cap was
+       per-device: 25 on the laptop plus 25 on the iPad. Take the higher spend
+       per day, so the cap means one number across everything. */
+    if(cloud.newlog && typeof cloud.newlog==='object'){
+      A.newlog=A.newlog||{};
+      Object.keys(cloud.newlog).forEach(day=>{
+        const c=cloud.newlog[day]||{}, l=A.newlog[day]||{};
+        A.newlog[day]={ used:Math.max(l.used||0,c.used||0),
+                        released:Math.max(l.released||0,c.released||0) || NEW_PER_DAY };
+      });
+    }
     /* v28.5 — tombstones. Union both sides first, then drop anything buried.
        A deck deleted here used to reappear from the cloud copy on the very next
        refresh; now the delete sticks across every device. A re-import always
@@ -25276,6 +25909,14 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       base.streak=newer?(c.streak||0):(l.streak||0);
       base.quar=!!(l.quar||c.quar);
       base.star=!!(l.star||c.star);
+      /* v28.8 — mastery and the rights counter belong to whichever device
+         graded last, but mastery is never un-set by a stale device: once a card
+         is out, only a wrong answer can bring it back, and that wrong answer
+         would itself be the newer grading. */
+      base.mastered=newer?!!c.mastered:!!l.mastered;
+      base.rights=newer?(c.rights||0):(l.rights||0);
+      base.wasWrong=newer?!!c.wasWrong:!!l.wasWrong;
+      base.leech=!!(l.leech||c.leech);
       base.last=Math.max(l.last||0,c.last||0);
       base.due=newer?c.due:l.due; base.ivl=newer?c.ivl:l.ivl; base.step=newer?c.step:l.step;
       A.life[k]=base;
@@ -25310,7 +25951,9 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     if(L.quarUntil && Date.now()>=L.quarUntil){ L.quar=false; L.quarUntil=0; return false; }
     return true;
   };
-  const isDue=k=>{ const L=A.life[k]; return !L || !L.due || L.due<=endOfToday(); };
+  /* A mastered card is out permanently — that is the whole point of mastering.
+     Everything else is due when its date has arrived, or has never had one. */
+  const isDue=k=>{ const L=A.life[k]; if(L && L.mastered) return false; return !L || !L.due || L.due<=endOfToday(); };
 
   /* ---------- the spacing ladder ---------- */
   function daysToExam(){ return Math.ceil((EXAM_DATE-Date.now())/DAY); }
@@ -25322,44 +25965,76 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
      Now anything that overshoots is spread evenly across the remaining window
      (deterministically, by card key, so it never moves on re-render). */
   function hash32(str){ let h=2166136261; for(let i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=Math.imul(h,16777619); } return (h>>>0); }
-  function clampDue(due, k){
-    const now=Date.now();
-    if(now>=LAST_DUE) return Math.min(due, now+DAY);
-    if(due<=LAST_DUE) return due;
-    const span=Math.max(1, Math.floor((LAST_DUE-now)/DAY));   /* days still available */
-    const lo=Math.max(1, Math.ceil(span*0.45));               /* never sooner than this */
-    const off=lo + (k? hash32(k)%Math.max(1,(span-lo+1)) : 0);
-    return now + Math.min(span, off)*DAY;
+  /* Days left to the deadline, never below 1 — on and after the deadline the
+     system keeps working at one-day gaps rather than dividing by zero. */
+  function daysLeft(){ return Math.max(1, Math.ceil((DEADLINE-Date.now())/DAY)); }
+  /* ── pace meter ────────────────────────────────────────────────────────────
+     Every unmastered card still owes (MASTER_AT - rights) reviews. Total that
+     across the collection, divide by the days left, and you have the reviews a
+     day needed to finish by the deadline. It turns amber past 120 and red past
+     200, because beyond that the honest answer is to cut cards, not grind. */
+  function arReviewsOwed(){
+    let owed=0, cards=0;
+    Object.keys(A.decks||{}).forEach(id=>{
+      const d=A.decks[id]; if(!d||!d.cards) return;
+      d.cards.forEach(c=>{
+        const k=id+'::'+c.id, L=A.life[k];
+        if(L && L.mastered) return;
+        if(L && L.leech) return;
+        owed += MASTER_AT - ((L&&L.rights)||0);
+        cards++;
+      });
+    });
+    return {owed:owed, cards:cards, perDay:Math.ceil(owed/daysLeft())};
   }
-  /* Hard must never equal Good. It sits at ~60% of the Good interval with a
-     floor of one day, instead of borrowing the rung below (which made Hard and
-     Good identical on a fresh card — the "same days" bug). Three consecutive
-     Hards nudge the card up a rung so it can still graduate. */
-  function ivlFor(step,g){
-    const good=IVL[Math.min(IVL.length-1,step)];
-    if(g==='hard') return Math.max(1, Math.round(good*0.6));
-    return good;
+  function arPace(){
+    try{
+      const p=arReviewsOwed();
+      if(!p.cards) return ' · <b style="color:#059669">all mastered</b>';
+      const col=p.perDay>200?'#dc2626':(p.perDay>120?'#d97706':'#059669');
+      return ' · <b style="color:'+col+'">'+p.perDay+'/day to finish</b>';
+    }catch(e){ return ''; }
   }
-  function schedule(k,g){
+  const isMastered=k=>{ const L=A.life[k]; return !!(L && L.mastered); };
+
+  /* The gap after a right answer. `rights` is the card's NEW count (1 or 2).
+     The standard gap is used when it fits inside the window; when it does not,
+     the window is split evenly across the rights still owed. Two cards owed the
+     same work therefore land on different days instead of piling onto one. */
+  function gapFor(rights){
+    const std=GAPS[Math.min(GAPS.length-1, rights-1)] || 1;
+    const owed=Math.max(1, MASTER_AT - rights);          /* rights still to earn */
+    const room=daysLeft();
+    if(std*owed <= room) return std;                      /* comfortable — use it */
+    return Math.max(1, Math.floor(room/owed));            /* compress to fit */
+  }
+
+  /* The whole scheduler. `right` is a boolean — there is nothing else. */
+  function schedule(k, right){
     const L=lf(k);
-    if(isNew(k)) newSpend(k);          /* counts against today's 25 */
-    let step=L.step||0;
-    if(g==='again'){
-      L.step=Math.max(0,step-1);        /* drop a rung, not all the way to zero */
-      L.ivl=0; L.due=Date.now(); L.hardRun=0; L.lapses=(L.lapses||0)+1;
-    } else if(g==='hard'){
-      L.hardRun=(L.hardRun||0)+1;
-      if(L.hardRun>=3){ L.step=Math.min(IVL.length-1,step+1); L.hardRun=0; }
-      L.due=clampDue(Date.now()+ivlFor(step,'hard')*DAY, k);
-      L.ivl=Math.max(1,Math.round((L.due-Date.now())/DAY));
+    if(isNew(k)) newSpend(k);            /* counts against today's 25 */
+    const today=Date.now();
+    if(right){
+      L.rights=(L.rights||0)+1;
+      L.wasWrong=false;
+      if(L.rights>=MASTER_AT){
+        L.mastered=true; L.masteredAt=today; L.due=0; L.ivl=0;
+      } else {
+        const g=gapFor(L.rights);
+        L.due=today + g*DAY;             /* counted from TODAY, not from when it was owed */
+        L.ivl=g;
+      }
     } else {
-      L.hardRun=0;
-      L.step=Math.min(IVL.length-1,step+1);
-      L.due=clampDue(Date.now()+ivlFor(step,'good')*DAY, k);
-      L.ivl=Math.max(1,Math.round((L.due-Date.now())/DAY));
+      L.rights=0;                        /* three in a row means three in a row */
+      L.mastered=false;
+      L.wasWrong=true;                   /* urgent — served first tomorrow */
+      L.lapses=(L.lapses||0)+1;
+      L.due=today + DAY;
+      L.ivl=1;
+      if((L.w||0)+1>=LEECH_AT) L.leech=true;
     }
     L.reps=(L.reps||0)+1;
-    L.seen=true;                        /* separates "new" from "in review" */
+    L.seen=true;
   }
 
   /* ---------- deck helpers ---------- */
@@ -25421,7 +26096,12 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
   function newBudget(){
     A.newlog=A.newlog||{};
     const t=todayKey();
-    if(!A.newlog[t]) A.newlog={[t]:{released:NEW_PER_DAY, used:0}};   /* one day kept, old days dropped */
+    if(!A.newlog[t]) A.newlog[t]={released:NEW_PER_DAY, used:0};
+    /* v28.8 — this used to REPLACE the whole object with today's entry, which
+       discarded the other devices' days on every call and defeated the sync.
+       Prune to the last 7 days instead. */
+    const keep=Object.keys(A.newlog).sort().slice(-7);
+    Object.keys(A.newlog).forEach(d=>{ if(keep.indexOf(d)<0) delete A.newlog[d]; });
     if(typeof A.newlog[t].used!=='number') A.newlog[t].used=0;
     return A.newlog[t];
   }
@@ -25718,13 +26398,15 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       p.coldRuns=(p.coldRuns||0)+1;
     }
     p.history.push({round:p.round, total:p.pool.length, wrong:p.wrong.length});
-    /* quarantine anything that has now missed QUAR_AT rounds in a row */
-    const newQ=p.wrong.filter(k=>(lf(k).streak||0)>=QUAR_AT);
-    /* a quarantined card used to keep its stale due date and never come back
-       on its own; it now returns tomorrow at the bottom of the ladder */
-    newQ.forEach(k=>{ const L=lf(k); L.quar=true; L.quarUntil=Date.now()+DAY; L.step=0; L.due=Date.now()+DAY; L.seen=true;
-      if(p.quarantined.indexOf(k)<0) p.quarantined.push(k); });
-    const carry=p.wrong.filter(k=>newQ.indexOf(k)<0);
+    /* ══ v28.8 — ONE PASS PER DAY ═══════════════════════════════════════════
+       Rounds 2, 3, 4 used to re-drill the misses inside the same sitting, and
+       every one of those answers rescheduled the card. Getting something right
+       forty seconds after reading its answer is recognition, not recall, and it
+       was awarding real intervals. Cards missed today are already scheduled for
+       tomorrow by schedule(), where the wrong answer means something. So the
+       run ends when the pool is finished — no second round.                  */
+    const newQ=[];
+    const carry=[];
     if(!carry.length){
       p.done=true; p.idx=p.pool.length; p.lastRun=Date.now();
       /* archive the run so clearing a deck twice does not erase the first result */
@@ -25734,17 +26416,22 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       arSave(true);
       if(newQ.length) toast(newQ.length+' card'+(newQ.length>1?'s':'')+' quarantined — repetition is not working on them');
       return; }
+    /* unreachable in v28.8 — kept so an in-flight multi-round run saved by an
+       older build can still finish rather than throwing on resume */
     p.round++; p.pool=carry.slice().sort(()=>Math.random()-.5);
     p.wrong=[]; p.idx=0; p.lastRun=Date.now();
     arSave(true);
-    if(newQ.length) toast(newQ.length+' card'+(newQ.length>1?'s':'')+' quarantined');
   }
   async function grade(id, g){
     const p=cp(id), k=p.pool[p.idx], L=lf(k);
-    const ok=(g!=='again');
+    /* v28.8 — two outcomes. Anything that is not an explicit 'again'/'wrong'
+       counts as right, so an older saved run passing 'hard' still resolves. */
+    const ok=(g!=='again' && g!=='wrong');
     if(ok){ L.r=(L.r||0)+1; L.streak=0; }
     else  { L.w=(L.w||0)+1; L.streak=(L.streak||0)+1; if(p.wrong.indexOf(k)<0) p.wrong.push(k); }
-    schedule(k,g);
+    const wasMastered=!!L.mastered;
+    schedule(k, ok);
+    if(!wasMastered && L.mastered) toast('Mastered — that card is done.');
     L.last=Date.now();
     const gap=sessTouch();
     sess.graded++;
@@ -25895,7 +26582,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
          <button id="arFromHub">⇄ Build from hub</button>
          <button id="arFind">Search</button>${st?`<button id="arStarB">★ ${st}</button>`:''}</div>`+
       (total? `<button class="bigbtn ${due?'':'flat'}" id="arDue"><div class="ic2">◷</div>
-          <div><div class="t1">Due today — ${due}<span class="cd2">${daysToExam()>0?daysToExam()+' days to the paper':'exam day'}${Math.ceil((LAST_DUE-Date.now())/DAY)>0?' · '+Math.ceil((LAST_DUE-Date.now())/DAY)+' of revision':''}</span></div>
+          <div><div class="t1">Due today — ${due}<span class="cd2">${daysToExam()>0?daysToExam()+' days to the paper':'exam day'}${daysLeft()>0?' · '+daysLeft()+'d to master everything':''}${arPace()}</span></div>
           <div class="t2">${due? 'Every card the spacing ladder says you owe, mixed across all decks'+(newHeld(null)?' · '+newHeld(null)+' new cards held back for later days':'')
                                : (newHeld(null)? newHeld(null)+' new cards waiting — today\'s batch of 25 is done'
                                                : 'Nothing owed. Next cards return on their own schedule.')}</div></div>
@@ -26138,7 +26825,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       const k=b.dataset.rel; A.life[k].quar=false; A.life[k].streak=0; await arSave(true); render(); });
     $('ar-body').querySelectorAll('[data-relearn]').forEach(b=>b.onclick=async()=>{
       const k=b.dataset.relearn, L=lf(k);
-      L.quar=false; L.streak=0; L.step=0; L.ivl=0; L.due=Date.now();
+      L.quar=false; L.streak=0; L.rights=0; L.mastered=false; L.ivl=0; L.due=Date.now();
       await arSave(true); toast('Back in the ladder — due today'); render(); });
     if($('arQRun')) $('arQRun').onclick=()=>{ if(!dueKeys(null).length){toast('Release a card first.');return;} runId='due::all'; view='duerun'; render(); };
   }
@@ -26342,16 +27029,19 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       $('arBk').innerHTML=`<div class="bkw">${verdict}<div class="a">${esc(F.a)}</div></div>`;
       $('arRev').style.display='none';
       if(tin) tin.disabled=true;
+      /* v28.8 — two buttons. Each shows exactly what pressing it will do, so
+         the schedule is never a mystery: Wrong always means tomorrow, and Right
+         either names the gap or says this is the card's last review. */
+      const _rn=(L.rights||0)+1;
+      const _rightLabel = _rn>=MASTER_AT ? 'MASTERED' : gapFor(_rn)+'d';
       $('arGr').innerHTML=`<div class="grade">
-          <button class="gn" id="arGA">Again<span>now</span></button>
-          <button class="gh" id="arGH">Hard<span>${Math.max(1,Math.round((clampDue(Date.now()+ivlFor(L.step||0,'hard')*DAY,k)-Date.now())/DAY))}d</span></button>
-          <button class="gy" id="arGG">Good<span>${Math.max(1,Math.round((clampDue(Date.now()+ivlFor(L.step||0,'good')*DAY,k)-Date.now())/DAY))}d</span></button>
+          <button class="gn" id="arGA">Wrong<span>tomorrow</span></button>
+          <button class="gy" id="arGG">Right<span>${_rightLabel}</span></button>
         </div>
         <div class="grow2"><button id="arStar2">${L.star?'★ Starred':'☆ Star this'}</button>
           <button id="arEdit2">Edit card</button></div>`;
-      $('arGA').onclick=()=>grade(id,'again');
-      $('arGH').onclick=()=>grade(id,'hard');
-      $('arGG').onclick=()=>grade(id,'good');
+      $('arGA').onclick=()=>grade(id,'wrong');
+      $('arGG').onclick=()=>grade(id,'right');
       $('arStar2').onclick=async()=>{ L.star=!L.star; await arSave(false); $('arStar2').textContent=L.star?'★ Starred':'☆ Star this'; };
       $('arEdit2').onclick=()=>{ editing=k; view='edit'; render(); };
     }
