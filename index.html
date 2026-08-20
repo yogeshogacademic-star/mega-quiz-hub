@@ -1811,7 +1811,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-19 · v29';
+    const HUB_BUILD = '2026-08-19 · v29.1';
 
     // v28.6.5 — THE REASON DISCOUNT WAS *STILL* OUT OF ORDER AFTER v28.6.2.
     //   Two separate causes, both fixed here:
@@ -25673,7 +25673,31 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
      `life` is keyed by. Re-importing a deck therefore lands on the same keys
      and keeps every card's progress. */
   const ck = (did,cid) => did+'::'+cid;
-  function lf(k){ return A.life[k] || (A.life[k]={rights:0,r:0,w:0,reps:0,due:0,seen:false}); }
+  function lf(k){
+    let L=A.life[k];
+    if(!L) return (A.life[k]={rights:0,r:0,w:0,reps:0,due:0});
+    if(L.rights===undefined) fixEntry(L);   /* arrived from an older build or an older device */
+    return L;
+  }
+  /* ── per-entry repair ────────────────────────────────────────────────────
+     The v29 migration used to be one global pass guarded by A.schema. That is
+     not enough: cloud sync keeps handing this device life records written by
+     older builds, and a single global flag says "already migrated" while those
+     records are still in the old shape. Cards then read as neither new nor due
+     and vanish from every count.
+
+     So the repair is per record and idempotent. Any entry without `rights` is
+     converted the moment it is touched, wherever it came from. */
+  function fixEntry(L){
+    const r=L.r||0, w=L.w||0;
+    ['step','hardRun','quar','quarUntil','streak','w1','lapses','seen','ivl'].forEach(f=>{ delete L[f]; });
+    if(r>0 && w===0){ L.rights=1; L.wasWrong=false; L.ivl=gapFor(1); L.due=Date.now()+L.ivl*DAY; }
+    else if(r>0 || w>0){ L.rights=0; L.wasWrong=true;  L.ivl=1; L.due=Date.now()+DAY; }
+    else { L.rights=0; L.wasWrong=false; L.due=0; L.ivl=0; }
+    L.mastered=false;
+    L.leech=w>=LEECH_AT;
+    return L;
+  }
 
   /* ═══ THE SCHEDULER ═══════════════════════════════════════════════════ */
   function daysLeft(){ return Math.max(1, Math.ceil((DEADLINE-Date.now())/DAY)); }
@@ -25707,13 +25731,18 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       L.due=now+DAY; L.ivl=1;
       if(L.w>=LEECH_AT) L.leech=true;
     }
-    L.reps=(L.reps||0)+1; L.seen=true; L.last=now;
+    L.reps=(L.reps||0)+1; L.last=now;
     return L;
   }
 
-  const isMastered = k => !!(A.life[k] && A.life[k].mastered);
-  const isLeech    = k => !!(A.life[k] && A.life[k].leech && !A.life[k].mastered);
-  const isNew      = k => { const L=A.life[k]; return !L || !L.seen; };
+  const isMastered = k => { const L=A.life[k]; if(L && L.rights===undefined) fixEntry(L); return !!(L && L.mastered); };
+  const isLeech    = k => { const L=A.life[k]; if(L && L.rights===undefined) fixEntry(L); return !!(L && L.leech && !L.mastered); };
+  /* Derived, never stored. A `seen` flag was written differently by three
+     past builds, and a stale one made a card count as neither new nor due —
+     which is exactly how 436 cards showed 0 due and 0 never-seen. A card is
+     new when it has no answer history and no scheduled date. Nothing to get
+     out of step. */
+  const isNew      = k => { const L=A.life[k]; return !L || (!(L.r||0) && !(L.w||0) && !L.due); };
   const isDue      = k => {
     const L=A.life[k];
     if(L && (L.mastered || L.leech)) return false;      /* out of rotation */
@@ -25828,22 +25857,22 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
      history in r/w. Credit is given only where the record is clean, and no
      card is imported straight to mastered — mastery is earned under the new
      rule, and there are enough days left to earn it. */
+  /* A sweep for anything already sitting in storage. It is not the safety net —
+     fixEntry() on every read is — but it makes the console honest about what
+     was carried over the first time a device opens this build. */
   function migrate(){
-    if(A.schema===29) return;
-    let credited=0, reset=0, blank=0;
+    let credited=0, reset=0, blank=0, already=0;
     Object.keys(A.life).forEach(k=>{
-      const L=A.life[k]; if(!L || typeof L!=='object'){ delete A.life[k]; return; }
+      const L=A.life[k];
+      if(!L || typeof L!=='object'){ delete A.life[k]; return; }
+      if(L.rights!==undefined){ already++; return; }
       const r=L.r||0, w=L.w||0;
-      ['step','hardRun','quar','quarUntil','streak','w1','lapses'].forEach(f=>{ delete L[f]; });
-      if(r>0 && w===0){ L.rights=1; L.wasWrong=false; L.ivl=gapFor(1); L.due=Date.now()+L.ivl*DAY; credited++; }
-      else if(r>0 || w>0){ L.rights=0; L.wasWrong=true; L.ivl=1; L.due=Date.now()+DAY; reset++; }
-      else { L.rights=0; L.wasWrong=false; L.due=0; L.ivl=0; blank++; }
-      L.mastered=false;
-      L.leech = w>=LEECH_AT;
-      L.seen  = (r+w)>0;
+      fixEntry(L);
+      if(r>0 && w===0) credited++; else if(r>0||w>0) reset++; else blank++;
     });
     A.schema=29;
-    console.log('[AR v29] migrated — '+credited+' kept a right, '+reset+' back to 0, '+blank+' fresh.');
+    if(credited+reset+blank)
+      console.log('[AR v29] repaired '+(credited+reset+blank)+' cards — '+credited+' kept a right, '+reset+' back to 0, '+blank+' fresh'+(already?' ('+already+' already current)':'')+'.');
   }
 
   /* ═══ CLOUD ═══════════════════════════════════════════════════════════ */
@@ -25873,7 +25902,12 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
        graded it last. */
     Object.keys(cloud.life||{}).forEach(k=>{
       const c=cloud.life[k]||{}, l=A.life[k];
+      /* Repair whatever the other device sent BEFORE merging. Without this an
+         old-shape record wins on timestamp and silently un-migrates the card —
+         the bug that made a 436-card chapter report 0 due and 0 never-seen. */
+      if(c.rights===undefined) fixEntry(c);
       if(!l){ A.life[k]=c; return; }
+      if(l.rights===undefined) fixEntry(l);
       const newer=(c.last||0)>(l.last||0);
       const base=newer?Object.assign({},l,c):Object.assign({},c,l);
       base.r=Math.max(l.r||0,c.r||0);
@@ -25885,7 +25919,6 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       base.due      = newer?(c.due||0):(l.due||0);
       base.leech=!!(l.leech||c.leech);
       base.star =!!(l.star ||c.star);
-      base.seen =!!(l.seen ||c.seen);
       A.life[k]=base;
     });
     /* the daily budget is shared, so take the larger spend for each day */
