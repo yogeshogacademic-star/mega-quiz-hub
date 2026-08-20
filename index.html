@@ -1811,7 +1811,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-19 · v29.2';
+    const HUB_BUILD = '2026-08-19 · v29.3';
 
     // v28.6.5 — THE REASON DISCOUNT WAS *STILL* OUT OF ORDER AFTER v28.6.2.
     //   Two separate causes, both fixed here:
@@ -25743,11 +25743,22 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
      new when it has no answer history and no scheduled date. Nothing to get
      out of step. */
   const isNew      = k => { const L=A.life[k]; return !L || (!(L.r||0) && !(L.w||0) && !L.due); };
-  const isDue      = k => {
+  /* ── due vs new: two different things ────────────────────────────────────
+     A card you have never attempted is not "due" — nothing was scheduled, so
+     nothing can be owed. Lumping the two together made every untouched lecture
+     report a due count it had not earned, and made the same shared pool of new
+     cards appear against all 14 lectures at once.
+
+     isReviewDue = you answered it before, and its date has arrived.
+     isNew       = never attempted (derived, see above).
+     A run takes all review-due cards plus new ones up to the daily budget. */
+  const isReviewDue = k => {
     const L=A.life[k];
-    if(L && (L.mastered || L.leech)) return false;      /* out of rotation */
-    return !L || !L.due || L.due<=endOfToday();
+    if(!L || L.mastered || L.leech) return false;
+    if(isNew(k)) return false;
+    return !L.due || L.due<=endOfToday();
   };
+  const isDue = k => isReviewDue(k) || isNew(k);   /* eligible to appear at all */
 
   /* ── daily budget for unseen cards ───────────────────────────────────────
      Synced, so 25 means 25 across every device rather than 25 on each. */
@@ -25785,7 +25796,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       if(isLeech(k)){ leech++; return; }
       owed += MASTER_AT - ((A.life[k]&&A.life[k].rights)||0);
       if(isNew(k)) fresh++;
-      if(isDue(k)) due++;
+      else if(isReviewDue(k)) due++;      /* reviews genuinely owed today */
     });
     return {total:keys.length, mastered, leech, due, fresh, owed,
             pct: keys.length? Math.round(mastered/keys.length*100):0};
@@ -25799,7 +25810,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
      with unseen cards admitted only up to the daily budget. */
   function queue(keys){
     const seen=[], fresh=[];
-    keys.forEach(k=>{ if(!isDue(k)) return; (isNew(k)?fresh:seen).push(k); });
+    keys.forEach(k=>{ if(isNew(k)) fresh.push(k); else if(isReviewDue(k)) seen.push(k); });
     seen.sort((a,b)=>{
       const A1=A.life[a]||{}, B1=A.life[b]||{};
       if(!!B1.wasWrong !== !!A1.wasWrong) return B1.wasWrong?1:-1;   /* urgent first */
@@ -26092,19 +26103,25 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
   function vHome(){
     head('Active Recall', daysToExam()+' days to the paper', null);
     const subs=subjects();
-    const dueAll=queue(allKeys(null)).length;
+    const qAll=queue(allKeys(null)), dueAll=qAll.length;
+    const newAll=qAll.filter(isNew).length, revAll=dueAll-newAll;
     $('ar-body').innerHTML='<div class="wrap">'+paceStrip()+
       (dueAll?'<div class="row" id="arRunAll" style="border-color:#f0b8a8;background:#fffaf8">'+
-        '<div><div class="nm">Run everything due today</div><div class="mt">all subjects mixed together</div></div>'+
-        '<div class="rt"><span class="due">'+dueAll+' due</span></div></div>':
+        '<div><div class="nm">Today\u2019s session</div><div class="mt">'+
+          (revAll?revAll+' review'+(revAll>1?'s':'')+' owed':'')+(revAll&&newAll?' + ':'')+
+          (newAll?newAll+' new card'+(newAll>1?'s':''):'')+' · all subjects mixed</div></div>'+
+        '<div class="rt"><span class="due">'+dueAll+'</span></div></div>':
         '<div class="empty">Nothing due today. '+(pace().cards?'Next cards return on their own.':'Everything is mastered.')+'</div>')+
       subs.map(s=>{
-        const st=stats(allKeys(s)), d=queue(allKeys(s)).length;
+        const st=stats(allKeys(s));
+        const badge = st.due   ? '<span class="due">'+st.due+' due</span>'
+                    : st.fresh ? '<span class="pill n">'+st.fresh+' untouched</span>'
+                    : '<span class="ok">done</span>';
         return '<div class="row" data-sub="'+esc(s)+'"><div style="flex:1">'+
           '<div class="nm">'+esc(s)+'</div>'+
           '<div class="mt">'+decksOf(s).length+' chapters · '+st.total+' cards · '+st.mastered+' mastered</div>'+
           '<div class="bar"><i style="width:'+st.pct+'%"></i></div></div>'+
-          '<div class="rt">'+(d?'<span class="due">'+d+' due</span>':'<span class="ok">clear</span>')+'</div></div>';
+          '<div class="rt">'+badge+'</div></div>';
       }).join('')+
       '<div class="btnrow"><button class="sec" id="arImp">＋ Import JSON</button>'+
       (pace().leech?'<button class="sec" id="arLeech">Leech sheet</button>':'')+'</div></div>';
@@ -26125,12 +26142,15 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
         '<div><div class="nm">Run '+esc(curSub)+'</div><div class="mt">every chapter mixed</div></div>'+
         '<div class="rt"><span class="due">'+d+' due</span></div></div>':'')+
       ds.map(dk=>{
-        const st=stats(deckKeys(dk)), dd=queue(deckKeys(dk)).length;
+        const st=stats(deckKeys(dk));
+        const badge = st.due   ? '<span class="due">'+st.due+' due</span>'
+                    : st.fresh ? '<span class="pill n">'+st.fresh+' untouched</span>'
+                    : '<span class="ok">done</span>';
         return '<div class="row" data-deck="'+esc(dk.id)+'"><div style="flex:1">'+
           '<div class="nm">'+esc(dk.chapter)+'</div>'+
           '<div class="mt">'+st.total+' cards · '+st.mastered+' mastered'+(st.leech?' · '+st.leech+' leech':'')+'</div>'+
           '<div class="bar"><i style="width:'+st.pct+'%"></i></div></div>'+
-          '<div class="rt">'+(dd?'<span class="due">'+dd+' due</span>':'<span class="ok">clear</span>')+'</div></div>';
+          '<div class="rt">'+badge+'</div></div>';
       }).join('')+'</div>';
     if($('arRunSub')) $('arRunSub').onclick=()=>startRun(allKeys(curSub), curSub, null);
     [].forEach.call(document.querySelectorAll('#ar-body [data-deck]'),el=>{
@@ -26142,17 +26162,20 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
   function vDeck(){
     const d=A.decks[deckId];
     if(!d){ view='home'; return render(); }
-    const st=stats(deckKeys(d)), dd=queue(deckKeys(d)).length;
+    const st=stats(deckKeys(d)), q=queue(deckKeys(d)), dd=q.length;
+    const newInQ=q.filter(isNew).length, revInQ=dd-newInQ;
     head(d.chapter, esc(d.subject)+' · '+st.total+' cards', ()=>{ view='sub'; render(); });
     $('ar-body').innerHTML='<div class="wrap">'+
       '<div class="pace">'+
         '<div><b>'+st.total+'</b><span>cards</span></div>'+
         '<div><b style="color:#15803d">'+st.mastered+'</b><span>mastered</span></div>'+
-        '<div><b style="color:#c2410c">'+dd+'</b><span>due now</span></div>'+
+        '<div><b style="color:#c2410c">'+st.due+'</b><span>reviews due</span></div>'+
         '<div><b>'+st.fresh+'</b><span>never seen</span></div>'+
       '</div>'+
       '<div class="btnrow">'+
-        (dd?'<button class="pri" id="arGo">Mix everything · '+dd+' due</button>':'<button class="sec" id="arGoAll">Nothing due — drill the whole chapter</button>')+
+        (dd?'<button class="pri" id="arGo">Mix everything · '+
+             (revInQ?revInQ+' due':'')+(revInQ&&newInQ?' + ':'')+(newInQ?newInQ+' new':'')+'</button>'
+           :'<button class="sec" id="arGoAll">Nothing left today — drill the whole chapter</button>')+
         '<button class="sec" id="arNotes">Notes</button>'+
         '<button class="sec" id="arList">All cards</button>'+
         '<button class="sec" id="arDel">Delete chapter</button>'+
@@ -26192,12 +26215,19 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       '<div style="font-size:10px;font-weight:800;color:#79838f;text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px">'+
         'Or drill one topic · '+ts.length+'</div>'+
       ts.map((t,i)=>{
-        const st=stats(t.keys), q=queue(t.keys).length;
+        const st=stats(t.keys);
+        /* Reviews owed is a per-topic fact. The new-card allowance is a single
+           daily pool shared by the whole collection, so showing it against each
+           topic would print the same number 14 times — say "untouched" instead. */
+        const badge = st.due    ? '<span class="due">'+st.due+' due</span>'
+                    : st.fresh  ? '<span class="pill n">'+st.fresh+' untouched</span>'
+                    : st.leech && st.leech===st.total ? '<span class="pill l">all leech</span>'
+                    : '<span class="ok">done</span>';
         return '<div class="row" data-topic="'+i+'"><div style="flex:1">'+
           '<div class="nm">'+esc(t.name)+'</div>'+
           '<div class="mt">'+st.total+' cards · '+st.mastered+' mastered'+(st.leech?' · '+st.leech+' leech':'')+'</div>'+
           (st.mastered?'<div class="bar"><i style="width:'+st.pct+'%"></i></div>':'')+
-        '</div><div class="rt">'+(q?'<span class="due">'+q+' due</span>':'<span class="ok">clear</span>')+'</div></div>';
+        '</div><div class="rt">'+badge+'</div></div>';
       }).join('')+'</div>';
   }
   function wireTopics(d){
