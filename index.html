@@ -1811,7 +1811,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-19 · v29.1';
+    const HUB_BUILD = '2026-08-19 · v29.2';
 
     // v28.6.5 — THE REASON DISCOUNT WAS *STILL* OUT OF ORDER AFTER v28.6.2.
     //   Two separate causes, both fixed here:
@@ -26152,11 +26152,11 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
         '<div><b>'+st.fresh+'</b><span>never seen</span></div>'+
       '</div>'+
       '<div class="btnrow">'+
-        (dd?'<button class="pri" id="arGo">Start · '+dd+' due</button>':'<button class="sec" id="arGoAll">Nothing due — drill anyway</button>')+
+        (dd?'<button class="pri" id="arGo">Mix everything · '+dd+' due</button>':'<button class="sec" id="arGoAll">Nothing due — drill the whole chapter</button>')+
         '<button class="sec" id="arNotes">Notes</button>'+
         '<button class="sec" id="arList">All cards</button>'+
         '<button class="sec" id="arDel">Delete chapter</button>'+
-      '</div></div>';
+      '</div>'+ topicBlock(d) +'</div>';
     if($('arGo'))    $('arGo').onclick=()=>startRun(deckKeys(d), d.chapter, d.id);
     if($('arGoAll')) $('arGoAll').onclick=()=>startRun(deckKeys(d).filter(k=>!isMastered(k)), d.chapter, d.id);
     $('arNotes').onclick=()=>{ view='notes'; render(); };
@@ -26167,6 +26167,55 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       deckKeys(d).forEach(k=>delete A.life[k]);
       await save(true); view='sub'; render();
     };
+    wireTopics(d);
+  }
+
+  /* ── topic-wise runs ─────────────────────────────────────────────────────
+     Every deck is already grouped: vocab by lecture, OWS by word family, each
+     Polity chapter by sub-topic. Mixing is the right default for retention,
+     but it is the wrong tool right after a lecture, when the point is to drill
+     that lecture. So both are offered on every chapter, in every subject —
+     the mix button above, one row per topic here. */
+  function topicsOf(d){
+    const seen=[], by={};
+    (d.cards||[]).forEach(c=>{
+      const t=(c.topic||'').trim() || 'Ungrouped';
+      if(!by[t]){ by[t]=[]; seen.push(t); }       /* keep the deck's own order */
+      by[t].push(ck(d.id,c.id));
+    });
+    return seen.map(t=>({name:t, keys:by[t]}));
+  }
+  function topicBlock(d){
+    const ts=topicsOf(d);
+    if(ts.length<2) return '';                    /* one topic — the mix button already covers it */
+    return '<div style="margin-top:22px">'+
+      '<div style="font-size:10px;font-weight:800;color:#79838f;text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px">'+
+        'Or drill one topic · '+ts.length+'</div>'+
+      ts.map((t,i)=>{
+        const st=stats(t.keys), q=queue(t.keys).length;
+        return '<div class="row" data-topic="'+i+'"><div style="flex:1">'+
+          '<div class="nm">'+esc(t.name)+'</div>'+
+          '<div class="mt">'+st.total+' cards · '+st.mastered+' mastered'+(st.leech?' · '+st.leech+' leech':'')+'</div>'+
+          (st.mastered?'<div class="bar"><i style="width:'+st.pct+'%"></i></div>':'')+
+        '</div><div class="rt">'+(q?'<span class="due">'+q+' due</span>':'<span class="ok">clear</span>')+'</div></div>';
+      }).join('')+'</div>';
+  }
+  function wireTopics(d){
+    const ts=topicsOf(d);
+    [].forEach.call(document.querySelectorAll('#ar-body [data-topic]'),el=>{
+      el.onclick=()=>{
+        const t=ts[parseInt(el.getAttribute('data-topic'),10)];
+        if(!t) return;
+        const q=queue(t.keys);
+        /* a topic with nothing due is still worth drilling on demand — offer it
+           rather than refusing, which is what the plain queue would do */
+        if(!q.length){
+          if(!confirm('Nothing due in "'+t.name+'".\n\nDrill it anyway? This will not change any card\u2019s schedule unless you answer.')) return;
+          return startRun(t.keys.filter(k=>!isMastered(k)), d.chapter+' · '+t.name, d.id);
+        }
+        startRun(t.keys, d.chapter+' · '+t.name, d.id);
+      };
+    });
   }
 
   function vNotes(){
