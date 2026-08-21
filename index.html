@@ -1811,7 +1811,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-19 · v29.3';
+    const HUB_BUILD = '2026-08-19 · v29.5';
 
     // v28.6.5 — THE REASON DISCOUNT WAS *STILL* OUT OF ORDER AFTER v28.6.2.
     //   Two separate causes, both fixed here:
@@ -25894,7 +25894,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       /* auto notes are regenerated on every device — never worth uploading */
       slim[k]= (d.autoNotes!==false) ? Object.assign({},d,{notesHtml:''}) : d;
     });
-    return {decks:slim, life:A.life, dead:A.dead, newlog:A.newlog, opts:A.opts, schema:A.schema};
+    return {decks:slim, life:A.life, dead:A.dead, newlog:A.newlog, opts:A.opts, capture:A.capture||[], schema:A.schema};
   };
   window.__arFromCloud=function(cloud){
     if(!cloud || typeof cloud!=='object') return;
@@ -25932,6 +25932,20 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       base.star =!!(l.star ||c.star);
       A.life[k]=base;
     });
+    /* Capture queue: union by text+type, newest wins on the done flag, so a
+       word caught on the phone survives and one already built stays built. */
+    if(Array.isArray(cloud.capture)){
+      const mine=Array.isArray(A.capture)?A.capture:[];
+      const seen={};
+      const merged=[];
+      mine.concat(cloud.capture).forEach(x=>{
+        if(!x || !x.text) return;
+        const key=(x.type||'')+'|'+String(x.text).toLowerCase();
+        if(seen[key]){ const o=seen[key]; o.done=o.done||x.done; o.ts=Math.min(o.ts||x.ts,x.ts||o.ts); return; }
+        seen[key]=Object.assign({},x); merged.push(seen[key]);
+      });
+      A.capture=merged;
+    }
     /* the daily budget is shared, so take the larger spend for each day */
     if(cloud.newlog){
       Object.keys(cloud.newlog).forEach(d=>{
@@ -26077,6 +26091,71 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
   }
   window.__arLogSubject=logSubject;
 
+
+  /* ══ TYPE MODE ═══════════════════════════════════════════════════════════
+     Recognition is much weaker than production: you can flip a card, think
+     "yes, I know that", and still not produce the word in the exam. Typing it
+     closes that gap.
+
+     The two decks are shaped differently, so the mode adapts rather than
+     forcing one direction:
+
+       OWS    front = the definition, back = a single word
+              → prompt with the definition, type the word. Normal direction.
+
+       Vocab  front = the WORD, back = a meaning block with SYN/ANT/mnemonic
+              → the answer side is a paragraph, which cannot be typed. So the
+                card is flipped: show the meaning line, type the word.
+                The mnemonic and the example are held back, because both
+                usually contain the word itself, and any stray occurrence in
+                the meaning is masked.
+
+     A card whose short side is not a short answer simply falls back to the
+     ordinary reveal, so the mode is never wrong for a deck it does not suit. */
+  function shortSide(card){
+    const wc = s => String(s||'').trim().split(/\s+/).filter(Boolean).length;
+    const f=String(card.front||''), b=String(card.back||'');
+    if(wc(b)<=3 && b.length<=32 && b.indexOf('\n')<0) return 'back';
+    if(wc(f)<=3 && f.length<=32 && f.indexOf('\n')<0) return 'front';
+    return null;
+  }
+  /* The prompt shown when the word is the answer: keep the meaning and the
+     synonym/antonym lines, drop the mnemonic and the example sentence. */
+  function promptFor(card, answerSide){
+    const other = answerSide==='back' ? card.front : card.back;
+    let txt=String(other||'');
+    txt=txt.split('\n').filter(l=>{
+      const t=l.trim().toLowerCase();
+      return t && !t.startsWith('mnemonic') && !t.startsWith('eg:') && !t.startsWith('e.g');
+    }).join('\n');
+    const ans=String(answerSide==='back'?card.back:card.front).trim();
+    if(ans.length>2){   /* never leak the answer inside its own prompt */
+      try{ txt=txt.replace(new RegExp(ans.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),'_'.repeat(Math.min(10,ans.length))); }catch(e){}
+    }
+    return txt;
+  }
+  const normalise = s => String(s||'').toLowerCase().trim()
+      .replace(/[^a-z0-9\s]/g,'').replace(/\s+/g,' ');
+  /* one edit apart counts as a typo, not a miss */
+  function within1(a,b){
+    if(Math.abs(a.length-b.length)>1) return false;
+    let i=0,j=0,edits=0;
+    while(i<a.length && j<b.length){
+      if(a[i]===b[j]){ i++; j++; continue; }
+      if(++edits>1) return false;
+      if(a.length>b.length) i++; else if(a.length<b.length) j++; else { i++; j++; }
+    }
+    return edits + (a.length-i) + (b.length-j) <= 1;
+  }
+  function checkTyped(typed, answer){
+    const t=normalise(typed), a=normalise(answer);
+    if(!t) return 'empty';
+    if(t===a) return 'exact';
+    if(a.split(' ').length===1 && within1(t,a)) return 'close';
+    if(a.indexOf(t)===0 && t.length>=Math.max(4,a.length-2)) return 'close';
+    return 'wrong';
+  }
+
   /* ═══ UI ══════════════════════════════════════════════════════════════ */
   function head(title, sub, back){
     $('ar-head').innerHTML =
@@ -26123,13 +26202,19 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
           '<div class="bar"><i style="width:'+st.pct+'%"></i></div></div>'+
           '<div class="rt">'+badge+'</div></div>';
       }).join('')+
-      '<div class="btnrow"><button class="sec" id="arImp">＋ Import JSON</button>'+
+      '<div class="btnrow"><button class="pri" id="arCap">＋ Quick add a word</button>'+
+      '<button class="sec" id="arIns">Inspect</button>'+
+      (needRecallKeys(allKeys(null)).length? '<button class="sec" id="arNR" style="color:#b91c1c">Need Recall · '+needRecallKeys(allKeys(null)).length+'</button>':'')+
+      '<button class="sec" id="arImp">Import JSON</button>'+
       (pace().leech?'<button class="sec" id="arLeech">Leech sheet</button>':'')+'</div></div>';
     if($('arRunAll')) $('arRunAll').onclick=()=>startRun(allKeys(null),'Everything due',null);
     [].forEach.call(document.querySelectorAll('#ar-body [data-sub]'),el=>{
       el.onclick=()=>{ curSub=el.getAttribute('data-sub'); view='sub'; render(); };
     });
     $('arImp').onclick=()=>{ view='import'; imported=null; render(); };
+    $('arCap').onclick=()=>{ view='capture'; render(); };
+    $('arIns').onclick=()=>{ curSub=null; deckId=null; view='inspect'; render(); };
+    if($('arNR')) $('arNR').onclick=()=>{ curSub=null; deckId=null; view='needrecall'; render(); };
     if($('arLeech')) $('arLeech').onclick=()=>{ view='leech'; render(); };
   }
 
@@ -26164,6 +26249,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     if(!d){ view='home'; return render(); }
     const st=stats(deckKeys(d)), q=queue(deckKeys(d)), dd=q.length;
     const newInQ=q.filter(isNew).length, revInQ=dd-newInQ;
+    const canType=(d.cards||[]).some(c=>!!shortSide(c));
     head(d.chapter, esc(d.subject)+' · '+st.total+' cards', ()=>{ view='sub'; render(); });
     $('ar-body').innerHTML='<div class="wrap">'+
       '<div class="pace">'+
@@ -26176,12 +26262,22 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
         (dd?'<button class="pri" id="arGo">Mix everything · '+
              (revInQ?revInQ+' due':'')+(revInQ&&newInQ?' + ':'')+(newInQ?newInQ+' new':'')+'</button>'
            :'<button class="sec" id="arGoAll">Nothing left today — drill the whole chapter</button>')+
+        (canType?'<button class="sec" id="arType2">⌨ Type the word · '+(dd||st.total)+'</button>':'')+
+        '<button class="sec" id="arInsp">Inspect</button>'+
         '<button class="sec" id="arNotes">Notes</button>'+
         '<button class="sec" id="arList">All cards</button>'+
+        '<button class="sec" id="arInsD">Inspect</button>'+
+        (needRecallKeys(deckKeys(d)).length? '<button class="sec" id="arNRD" style="color:#b91c1c">Need Recall · '+needRecallKeys(deckKeys(d)).length+'</button>':'')+
         '<button class="sec" id="arDel">Delete chapter</button>'+
       '</div>'+ topicBlock(d) +'</div>';
-    if($('arGo'))    $('arGo').onclick=()=>startRun(deckKeys(d), d.chapter, d.id);
-    if($('arGoAll')) $('arGoAll').onclick=()=>startRun(deckKeys(d).filter(k=>!isMastered(k)), d.chapter, d.id);
+    if($('arGo'))    $('arGo').onclick=()=>{ A.opts.type=false; startRun(deckKeys(d), d.chapter, d.id, false); };
+    if($('arGoAll')) $('arGoAll').onclick=()=>{ A.opts.type=false; startRun(deckKeys(d), d.chapter, d.id, false, true); };
+    if($('arType2')) $('arType2').onclick=()=>{
+      A.opts.type=true; save(false);        /* topic drills below inherit it */
+      const ks=dd? deckKeys(d) : deckKeys(d).filter(k=>!isMastered(k));
+      startRun(ks, d.chapter, d.id, true);
+    };
+    $('arInsp').onclick=()=>{ view='inspect'; render(); };
     $('arNotes').onclick=()=>{ view='notes'; render(); };
     $('arList').onclick =()=>{ view='cards'; render(); };
     $('arDel').onclick  =async()=>{
@@ -26190,6 +26286,8 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       deckKeys(d).forEach(k=>delete A.life[k]);
       await save(true); view='sub'; render();
     };
+    $('arInsD').onclick=()=>{ view='inspect'; render(); };
+    if($('arNRD')) $('arNRD').onclick=()=>{ view='needrecall'; render(); };
     wireTopics(d);
   }
 
@@ -26206,6 +26304,11 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       if(!by[t]){ by[t]=[]; seen.push(t); }       /* keep the deck's own order */
       by[t].push(ck(d.id,c.id));
     });
+    /* Self-collected cards are imported last, so they would land at the bottom
+       of a 14-lecture list — exactly where the words you personally struggled
+       with should not be. Pin those buckets to the top. */
+    const pinned=t=>/^lecture 00|self-collected|from mocks/i.test(t);
+    seen.sort((a,b)=> (pinned(b)?1:0)-(pinned(a)?1:0));
     return seen.map(t=>({name:t, keys:by[t]}));
   }
   function topicBlock(d){
@@ -26240,10 +26343,12 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
         /* a topic with nothing due is still worth drilling on demand — offer it
            rather than refusing, which is what the plain queue would do */
         if(!q.length){
-          if(!confirm('Nothing due in "'+t.name+'".\n\nDrill it anyway? This will not change any card\u2019s schedule unless you answer.')) return;
-          return startRun(t.keys.filter(k=>!isMastered(k)), d.chapter+' · '+t.name, d.id);
+          const n=t.keys.filter(k=>!isMastered(k)&&!isLeech(k)).length;
+          if(!n){ toast('Every card in "'+t.name+'" is mastered.'); return; }
+          if(!confirm('Nothing due in "'+t.name+'".\n\nDrill all '+n+' cards anyway?\n\nAnswering counts: right moves the card forward, wrong sends it back to zero.')) return;
+          return startRun(t.keys, d.chapter+' · '+t.name, d.id, !!A.opts.type, true);
         }
-        startRun(t.keys, d.chapter+' · '+t.name, d.id);
+        startRun(t.keys, d.chapter+' · '+t.name, d.id, !!A.opts.type);
       };
     });
   }
@@ -26391,10 +26496,19 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     const c=(d.cards||[]).find(x=>x.id===k.slice(i+2));
     return c? {deck:d, card:c} : null;
   }
-  function startRun(keys, label, did){
-    const q=queue(keys);
-    if(!q.length){ toast('Nothing due.'); return; }
-    run={ keys:q, i:0, label:label, deckId:did, right:0, wrong:0, mastered:0, shown:false, started:Date.now() };
+  /* `force` means the user explicitly asked to drill these cards. The daily
+     queue must NOT be consulted then: queue() filters to reviews owed plus new
+     cards up to today's budget, so once that budget was spent an explicit drill
+     resolved to an empty list and silently did nothing — which is exactly what
+     "I can't open the untouched cards" was. */
+  function startRun(keys, label, did, typeMode, force){
+    const q = force ? keys.filter(k=>!isMastered(k) && !isLeech(k)).sort(()=>Math.random()-0.5)
+                    : queue(keys);
+    if(!q.length){ toast(force?'Every card here is already mastered.':'Nothing due.'); return; }
+    /* only offer typing where the deck actually has a short answer to produce */
+    const typable = typeMode && q.some(k=>{ const R=resolve(k); return R && shortSide(R.card); });
+    run={ keys:q, i:0, label:label+(typable?' · typing':''), deckId:did, type:!!typable,
+          right:0, wrong:0, mastered:0, shown:false, started:Date.now() };
     sessStart();
     view='run'; render();
   }
@@ -26402,7 +26516,12 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     if(!run || run.i>=run.keys.length) return vDone();
     const k=run.keys[run.i], R=resolve(k);
     if(!R){ run.i++; return vRun(); }                 /* card deleted mid-run */
-    const L=lf(k), F = A.opts.reverse? {q:R.card.back,a:R.card.front} : {q:R.card.front,a:R.card.back};
+    const L=lf(k);
+    /* In type mode the card is oriented so the WORD is what you produce —
+       which means flipping a vocab card, whose word sits on the front. */
+    const side = run.type ? shortSide(R.card) : null;
+    const F = side ? { q:promptFor(R.card, side), a:(side==='back'?R.card.back:R.card.front), typed:true }
+            : (A.opts.reverse? {q:R.card.back,a:R.card.front} : {q:R.card.front,a:R.card.back});
     head(run.label, (run.i+1)+' of '+run.keys.length+' · '+esc(R.deck.chapter), ()=>endRun());
     const nextRights=(L.rights||0)+1;
     $('ar-body').innerHTML='<div class="wrap">'+
@@ -26412,19 +26531,45 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
         '<div class="fr">'+esc(F.q)+'</div>'+
         '<div id="arBack"></div>'+
       '</div>'+
-      '<div id="arAct"><button class="pri" id="arShow" style="width:100%;padding:15px">Show answer</button></div>'+
+      '<div id="arAct">'+(F.typed
+          ? '<input type="text" id="arType" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Type the word…" style="text-align:center;font-size:17px;font-weight:800;padding:14px">'+
+            '<button class="pri" id="arShow" style="width:100%;padding:14px;margin-top:9px">Check</button>'
+          : '<button class="pri" id="arShow" style="width:100%;padding:15px">Show answer</button>')+'</div>'+
       '<div class="small" style="text-align:center;margin-top:12px">'+
         (isNew(k)?'new card':(L.rights||0)+' of '+MASTER_AT+' rights'+(L.wasWrong?' · missed last time':''))+
       '</div></div>';
-    $('arShow').onclick=()=>{
-      $('arBack').innerHTML='<div class="bk"><div class="a">'+esc(F.a)+'</div>'+
+    const reveal=()=>{
+      let verdict='', full=F.typed? (side==='back'?R.card.back:R.card.front) : F.a;
+      if(F.typed){
+        const res=checkTyped(($('arType')||{}).value||'', F.a);
+        verdict = res==='exact' ? '<div style="font-size:13px;font-weight:800;color:#15803d;margin-bottom:8px">✓ correct</div>'
+                : res==='close' ? '<div style="font-size:13px;font-weight:800;color:#c2410c;margin-bottom:8px">≈ almost — spelling was off</div>'
+                : res==='empty' ? '<div style="font-size:13px;font-weight:800;color:#79838f;margin-bottom:8px">skipped</div>'
+                : '<div style="font-size:13px;font-weight:800;color:#b91c1c;margin-bottom:8px">✗ you wrote “'+esc(($('arType')||{}).value||'')+'”</div>';
+        run.lastCheck=res;
+      }
+      /* in type mode the full meaning block is worth reading after answering,
+         even though only the word was asked for */
+      const extra = F.typed && side==='front' ? '<div class="nt">'+esc(R.card.back)+'</div>' : '';
+      $('arBack').innerHTML='<div class="bk">'+verdict+'<div class="a">'+esc(F.a)+'</div>'+extra+
         (R.card.note?'<div class="nt">'+esc(R.card.note)+'</div>':'')+'</div>';
+      /* the check only suggests — you still decide, because only you know
+         whether you actually recalled it or guessed */
+      const good = run.lastCheck==='exact';
       $('arAct').innerHTML='<div class="grade">'+
-        '<button class="wr" id="arW">Wrong<span>back tomorrow</span></button>'+
-        '<button class="ri" id="arR">Right<span>'+(nextRights>=MASTER_AT?'MASTERED':'in '+gapFor(nextRights)+' days')+'</span></button></div>';
+        '<button class="wr" id="arW" style="'+(F.typed&&good?'opacity:.55':'')+'">Wrong<span>back tomorrow</span></button>'+
+        '<button class="ri" id="arR" style="'+(F.typed&&!good&&run.lastCheck?'opacity:.55':'')+'">Right<span>'+(nextRights>=MASTER_AT?'MASTERED':'in '+gapFor(nextRights)+' days')+'</span></button></div>';
       $('arW').onclick=()=>answer(k,false);
       $('arR').onclick=()=>answer(k,true);
     };
+    $('arShow').onclick=reveal;
+    if(F.typed){
+      const inp=$('arType');
+      if(inp){
+        inp.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); reveal(); } };
+        setTimeout(()=>{ try{ inp.focus(); }catch(e){} },40);
+      }
+    }
   }
   async function answer(k, right){
     const R=resolve(k);
@@ -26456,6 +26601,291 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     save(true); render();
   }
 
+
+
+  /* ══ QUICK ADD ═══════════════════════════════════════════════════════════
+     A word you meet in a mock is lost unless it is written down within about
+     ten seconds. This is that ten seconds: type it, tag it, done. No meaning,
+     no formatting — collecting and authoring are different jobs and mixing
+     them is why capture boxes go unused.
+
+     The queue is synced, so a word caught on the phone is on the laptop. One
+     button copies the whole list in the shape Claude turns into finished
+     cards, which come back as JSON and import into the deck's Lecture 00. */
+  const CAP_TYPES={ vocab:{label:'Vocab',  deck:'english-vocabulary-aman-sir-syn-ant', topic:'Lecture 00 — My Finds'},
+                    ows:  {label:'OWS',    deck:'english-one-word-substitution',       topic:'From Mocks & Self-collected'},
+                    idiom:{label:'Idiom',  deck:'english-idioms-phrases',              topic:'Lecture 00 — My Finds'} };
+  /* deck ids come from slug(subject)+'-'+slug(chapter), and slug() drops '&' —
+     'Idioms & Phrases' becomes 'idioms-phrases'. Keeping the literal above in
+     step with that rule is what makes an idiom captured here land in the same
+     deck the import creates. */
+  function capList(){ A.capture=Array.isArray(A.capture)?A.capture:[]; return A.capture; }
+  function capAdd(text,type){
+    const t=String(text||'').trim(); if(!t) return false;
+    const list=capList();
+    if(list.some(x=>x.text.toLowerCase()===t.toLowerCase() && x.type===type)) return 'dup';
+    list.push({text:t, type:type, ts:Date.now(), done:false});
+    save(true); return true;
+  }
+  function vCapture(){
+    const list=capList(), pend=list.filter(x=>!x.done);
+    head('Quick add', pend.length+' waiting to be built', ()=>{ view='home'; render(); });
+    $('ar-body').innerHTML='<div class="wrap">'+
+      '<div style="background:#fff;border:1px solid #dfe4ec;border-radius:13px;padding:16px">'+
+        '<label style="margin-top:0">Word, phrase or idiom you just met</label>'+
+        '<input type="text" id="capIn" placeholder="pugnacious  ·  one who eats everything  ·  bite the bullet" autocomplete="off">'+
+        '<div class="btnrow" style="margin-top:11px">'+
+          Object.keys(CAP_TYPES).map(t=>'<button class="sec" data-cap="'+t+'">＋ '+CAP_TYPES[t].label+'</button>').join('')+
+        '</div>'+
+        '<div class="small" style="margin-top:9px">Enter adds it as Vocab. Nothing else needed — the meaning gets written later.</div>'+
+      '</div>'+
+      (pend.length? '<div class="btnrow"><button class="pri" id="capCopy">Copy all '+pend.length+' for Claude</button>'+
+        '<button class="sec" id="capClear">Mark all as built</button></div>'+
+        '<div style="margin-top:14px">'+pend.slice().reverse().map((x,i)=>
+          '<div class="row" style="cursor:default"><div style="flex:1">'+
+            '<div class="nm">'+esc(x.text)+'</div>'+
+            '<div class="mt">'+CAP_TYPES[x.type].label+' · '+new Date(x.ts).toLocaleDateString('en-IN',{day:'numeric',month:'short'})+'</div>'+
+          '</div><div class="rt"><button class="sec" data-capdel="'+(list.length-1-i)+'" style="padding:6px 11px;font-size:11px">Remove</button></div></div>'
+        ).join('')+'</div>'
+        : '<div class="empty">Nothing waiting. Add words as you meet them — in a mock, a lecture, a newspaper.</div>')+
+      '</div>';
+
+    const add=(type)=>{
+      const el=$('capIn'); const r=capAdd(el.value,type);
+      if(r==='dup') return toast('Already in the list');
+      if(!r) return;
+      el.value=''; render(); setTimeout(()=>{ const n=$('capIn'); if(n) n.focus(); },30);
+    };
+    [].forEach.call(document.querySelectorAll('#ar-body [data-cap]'),el=>{
+      el.onclick=()=>add(el.getAttribute('data-cap'));
+    });
+    const inp=$('capIn');
+    if(inp){ inp.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); add('vocab'); } }; setTimeout(()=>{try{inp.focus();}catch(e){}},40); }
+    [].forEach.call(document.querySelectorAll('#ar-body [data-capdel]'),el=>{
+      el.onclick=()=>{ list.splice(parseInt(el.getAttribute('data-capdel'),10),1); save(true); render(); };
+    });
+    if($('capCopy')) $('capCopy').onclick=()=>{
+      const txt=['Build Active Recall cards for these. Use my existing deck formats.','']
+        .concat(Object.keys(CAP_TYPES).map(t=>{
+          const items=pend.filter(x=>x.type===t);
+          return items.length? CAP_TYPES[t].label.toUpperCase()+':\n'+items.map(x=>'- '+x.text).join('\n') : '';
+        }).filter(Boolean)).join('\n');
+      try{ navigator.clipboard.writeText(txt); toast('Copied — paste it to Claude'); }
+      catch(e){ (window.__nativeAlert||window.alert)(txt); }
+    };
+    if($('capClear')) $('capClear').onclick=()=>{
+      if(!confirm('Mark all '+pend.length+' as built?\n\nDo this after you have imported the JSON.')) return;
+      list.forEach(x=>{ x.done=true; }); save(true); render();
+    };
+  }
+
+
+  /* ══ NEED RECALL ═════════════════════════════════════════════════════════
+     The cards you have actually got wrong, as readable notes rather than as a
+     drill. Flipping a card you keep failing is not the fix — reading the group
+     of them together is, because that is when you notice the two words you
+     keep swapping.
+
+     Membership is simply: it has at least one wrong on record and is not
+     mastered. Cards wrong twice or more are marked, because those are the ones
+     that need a real reason found, not another repetition. */
+  function needRecallKeys(scope){
+    return (scope||allKeys(null)).filter(k=>{
+      const L=A.life[k]; if(!L) return false;
+      if(isMastered(k)) return false;          /* you fixed it — it leaves the list */
+      return (L.w||0)>=1;
+    }).sort((a,b)=>((A.life[b].w||0)-(A.life[a].w||0)));
+  }
+  function vNeedRecall(){
+    const scope = deckId ? deckKeys(A.decks[deckId]) : allKeys(curSub||null);
+    const ks=needRecallKeys(scope);
+    const back = ()=>{ view = deckId?'deck':(curSub?'sub':'home'); render(); };
+    const hard = ks.filter(k=>(A.life[k].w||0)>=2);
+    head('Need Recall', ks.length+' card'+(ks.length===1?'':'s')+' you have got wrong', back);
+    if(!ks.length){
+      $('ar-body').innerHTML='<div class="wrap"><div class="empty">Nothing here yet.<br>'+
+        '<span class="small">Cards land here the moment you mark one wrong, and leave when you master it.</span></div></div>';
+      return;
+    }
+    /* group the same way the deck notes do, so it reads like a revision sheet */
+    const by={};
+    ks.forEach(k=>{
+      const R=resolve(k); if(!R) return;
+      const g=R.deck.chapter+(R.card.topic?' · '+R.card.topic:'');
+      (by[g]=by[g]||[]).push({k:k, c:R.card, d:R.deck, L:A.life[k]});
+    });
+    $('ar-body').innerHTML='<div class="wrap">'+
+      '<div class="pace"><div><b style="color:#b91c1c">'+ks.length+'</b><span>need recall</span></div>'+
+        '<div><b>'+hard.length+'</b><span>wrong 2+ times</span></div>'+
+        '<div><b>'+Object.keys(by).length+'</b><span>topics affected</span></div></div>'+
+      '<div class="btnrow" style="margin-bottom:14px">'+
+        '<button class="pri" id="nrDrill">Drill these '+ks.length+'</button>'+
+        '<button class="sec" id="nrPrint">Print / PDF</button></div>'+
+      Object.keys(by).map(g=>
+        '<div style="background:#fff;border:1px solid #dfe4ec;border-radius:13px;padding:14px 16px;margin-bottom:10px">'+
+        '<div style="font-size:10px;font-weight:800;color:#79838f;text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px">'+esc(g)+'</div>'+
+        by[g].map(x=>'<div style="padding:9px 0;border-top:1px solid #f1f4f8">'+
+          '<div style="font-size:14px;font-weight:800">'+esc(x.c.front)+
+            ((x.L.w||0)>=2?'<span class="pill l">wrong '+x.L.w+'×</span>':'')+'</div>'+
+          '<div style="font-size:13px;font-weight:600;color:#3d4756;white-space:pre-wrap;margin-top:4px">'+esc(x.c.back)+'</div>'+
+          (x.c.note?'<div class="small" style="margin-top:4px">'+esc(x.c.note)+'</div>':'')+
+        '</div>').join('')+'</div>').join('')+
+      '</div>';
+    $('nrDrill').onclick=()=>startRun(ks, 'Need Recall', deckId||null, !!A.opts.type, true);
+    $('nrPrint').onclick=()=>{
+      const w=window.open('','_blank'); if(!w) return toast('Popup blocked');
+      w.document.write('<html><head><title>Need Recall</title><style>'+
+        'body{font-family:Georgia,serif;max-width:780px;margin:26px auto;padding:0 18px;color:#111}'+
+        'h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:#555;margin:20px 0 6px;border-bottom:1px solid #ddd;padding-bottom:4px}'+
+        '.c{margin:9px 0}.f{font-weight:bold}.b{white-space:pre-wrap;font-size:13px}'+
+        '</style></head><body><h1>Need Recall — '+ks.length+' cards</h1>'+
+        Object.keys(by).map(g=>'<h3>'+esc(g)+'</h3>'+by[g].map(x=>
+          '<div class="c"><div class="f">'+esc(x.c.front)+((x.L.w||0)>=2?' ('+x.L.w+'× wrong)':'')+'</div>'+
+          '<div class="b">'+esc(x.c.back)+'</div></div>').join('')).join('')+
+        '</body></html>');
+      w.document.close(); setTimeout(()=>w.print(),350);
+    };
+  }
+
+  /* ══ INSPECTOR ═══════════════════════════════════════════════════════════
+     Answers, without guessing: where does every card sit, when does it next
+     appear, how many are mastered, and what does the load look like day by day
+     between now and the deadline. Three levels — forecast, topic table, then
+     the individual cards. */
+  function forecast(keys){
+    const days={}, today=new Date(); today.setHours(0,0,0,0);
+    const horizon=daysLeft();
+    keys.forEach(k=>{
+      if(isMastered(k)||isLeech(k)) return;
+      if(isNew(k)){ days.new=(days.new||0)+1; return; }
+      const L=A.life[k];
+      let off=Math.round(((L.due||Date.now())-today.getTime())/DAY);
+      if(off<0) off=0;                       /* overdue lands on today */
+      if(off>horizon) off=horizon;
+      days[off]=(days[off]||0)+1;
+    });
+    return {days:days, horizon:horizon};
+  }
+  function dayLabel(off){
+    if(off===0) return 'Today';
+    if(off===1) return 'Tomorrow';
+    const d=new Date(Date.now()+off*DAY);
+    return d.toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+  }
+  function vInspect(){
+    const scope = deckId ? deckKeys(A.decks[deckId]) : allKeys(curSub||null);
+    const title = deckId ? A.decks[deckId].chapter : (curSub||'Everything');
+    head('Inspect — '+title, scope.length+' cards', ()=>{ view = deckId?'deck':(curSub?'sub':'home'); render(); });
+    const st=stats(scope), f=forecast(scope);
+    const peak=Math.max(1, ...Object.keys(f.days).filter(x=>x!=='new').map(x=>f.days[x]));
+
+    /* ladder position — how far along each unmastered card is */
+    let r0=0,r1=0,r2=0;
+    scope.forEach(k=>{
+      if(isMastered(k)||isLeech(k)||isNew(k)) return;
+      const n=(A.life[k]||{}).rights||0;
+      if(n===0) r0++; else if(n===1) r1++; else r2++;
+    });
+
+    const bars=[];
+    for(let i=0;i<=Math.min(f.horizon,20);i++){
+      const n=f.days[i]||0;
+      bars.push('<div style="flex:1;min-width:26px;text-align:center">'+
+        '<div style="height:70px;display:flex;align-items:flex-end;justify-content:center">'+
+          (n?'<div style="width:70%;background:'+(i===0?'#c2410c':'#0e1116')+';border-radius:3px 3px 0 0;height:'+Math.max(4,Math.round(n/peak*70))+'px"></div>':'')+
+        '</div>'+
+        '<div style="font-size:10px;font-weight:800;margin-top:4px">'+(n||'')+'</div>'+
+        '<div style="font-size:8.5px;font-weight:700;color:#9aa3b0">'+(i===0?'today':(i===1?'tmr':(i%2?'':dayLabel(i).split(' ')[0])))+'</div>'+
+      '</div>');
+    }
+
+    /* one row per topic, across whatever scope we are in */
+    const rows=[];
+    Object.values(A.decks).forEach(d=>{
+      if(deckId && d.id!==deckId) return;
+      if(!deckId && curSub && d.subject!==curSub) return;
+      topicsOf(d).forEach(t=>{
+        const s=stats(t.keys);
+        let next=0;
+        t.keys.forEach(k=>{
+          if(isMastered(k)||isLeech(k)||isNew(k)) return;
+          const dd=(A.life[k]||{}).due||0;
+          if(dd && (!next || dd<next)) next=dd;
+        });
+        rows.push({deck:d, topic:t, s:s,
+          next: s.due? 'today' : (next? dayLabel(Math.max(0,Math.round((next-Date.now())/DAY))) : (s.fresh?'not started':'—'))});
+      });
+    });
+    rows.sort((a,b)=> b.s.due-a.s.due || b.s.fresh-a.s.fresh);
+
+    $('ar-body').innerHTML='<div class="wrap">'+
+      '<div class="pace">'+
+        '<div><b>'+st.total+'</b><span>cards</span></div>'+
+        '<div><b style="color:#15803d">'+st.mastered+'</b><span>mastered</span></div>'+
+        '<div><b style="color:#c2410c">'+st.due+'</b><span>due today</span></div>'+
+        '<div><b>'+st.fresh+'</b><span>never started</span></div>'+
+        (st.leech?'<div><b style="color:#b91c1c">'+st.leech+'</b><span>leech</span></div>':'')+
+      '</div>'+
+
+      '<div style="background:#fff;border:1px solid #dfe4ec;border-radius:13px;padding:15px 16px;margin-bottom:14px">'+
+        '<div style="font-size:10px;font-weight:800;color:#79838f;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">'+
+          'What is coming, day by day</div>'+
+        '<div style="display:flex;gap:2px;align-items:flex-end">'+bars.join('')+'</div>'+
+        '<div class="small" style="margin-top:10px">'+
+          (f.days.new||0)+' cards have never been started — they enter at up to '+dailyNew()+' a day, so they are not on this chart.'+
+        '</div>'+
+      '</div>'+
+
+      '<div style="background:#fff;border:1px solid #dfe4ec;border-radius:13px;padding:15px 16px;margin-bottom:14px">'+
+        '<div style="font-size:10px;font-weight:800;color:#79838f;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">'+
+          'Where the started cards sit</div>'+
+        '<div style="display:flex;gap:10px;flex-wrap:wrap">'+
+          '<div style="flex:1;min-width:78px"><b style="font-size:19px;font-weight:800;display:block">'+r0+'</b><span class="small">0 of 3 rights</span></div>'+
+          '<div style="flex:1;min-width:78px"><b style="font-size:19px;font-weight:800;display:block">'+r1+'</b><span class="small">1 of 3</span></div>'+
+          '<div style="flex:1;min-width:78px"><b style="font-size:19px;font-weight:800;display:block">'+r2+'</b><span class="small">2 of 3</span></div>'+
+          '<div style="flex:1;min-width:78px"><b style="font-size:19px;font-weight:800;display:block;color:#15803d">'+st.mastered+'</b><span class="small">mastered</span></div>'+
+        '</div></div>'+
+
+      '<table><tr><th>Topic</th><th>Cards</th><th>Progress</th><th>Next</th></tr>'+
+      rows.map((r,i)=>'<tr data-ins="'+i+'" style="cursor:pointer">'+
+        '<td><b>'+esc(r.topic.name)+'</b><div class="small">'+esc(r.deck.chapter)+'</div></td>'+
+        '<td>'+r.s.total+'</td>'+
+        '<td>'+(r.s.mastered?'<span class="pill m">'+r.s.mastered+' done</span>':'')+
+             (r.s.fresh?'<span class="pill n">'+r.s.fresh+' new</span>':'')+
+             (r.s.leech?'<span class="pill l">'+r.s.leech+'</span>':'')+'</td>'+
+        '<td>'+(r.s.due?'<span class="due">'+r.s.due+' due</span>':esc(r.next))+'</td></tr>').join('')+
+      '</table></div>';
+
+    [].forEach.call(document.querySelectorAll('#ar-body [data-ins]'),el=>{
+      el.onclick=()=>{ insTopic=rows[parseInt(el.getAttribute('data-ins'),10)]; view='inspectTopic'; render(); };
+    });
+  }
+
+  let insTopic=null;
+  function vInspectTopic(){
+    const r=insTopic;
+    if(!r){ view='inspect'; return render(); }
+    head(r.topic.name, r.deck.subject+' › '+r.deck.chapter+' · '+r.topic.keys.length+' cards', ()=>{ view='inspect'; render(); });
+    const cards=r.topic.keys.map(k=>{
+      const L=A.life[k]||{}, R=resolve(k);
+      const state = isMastered(k)?{o:0,t:'<span class="pill m">mastered</span>'}
+                  : isLeech(k)  ?{o:1,t:'<span class="pill l">leech</span>'}
+                  : isNew(k)    ?{o:4,t:'<span class="pill n">not started</span>'}
+                  : isReviewDue(k)?{o:2,t:'<span class="due">due today</span>'}
+                  : {o:3,t:esc(dayLabel(Math.max(0,Math.round(((L.due||0)-Date.now())/DAY))))};
+      return {k:k, front:R?R.card.front:'(missing)', L:L, state:state,
+              rights:(L.rights||0), done:isMastered(k)};
+    }).sort((a,b)=> a.state.o-b.state.o || (a.L.due||0)-(b.L.due||0));
+
+    $('ar-body').innerHTML='<div class="wrap"><table>'+
+      '<tr><th>Card</th><th>Rights</th><th>R / W</th><th>Next appears</th></tr>'+
+      cards.map(c=>'<tr><td>'+esc(String(c.front).slice(0,70))+'</td>'+
+        '<td>'+(c.done?'3 / 3':c.rights+' / '+MASTER_AT)+'</td>'+
+        '<td class="small">'+(c.L.r||0)+' / '+(c.L.w||0)+'</td>'+
+        '<td>'+c.state.t+'</td></tr>').join('')+
+      '</table></div>';
+  }
+
   /* ── router ─────────────────────────────────────────────────────────── */
   function render(){
     try{
@@ -26467,6 +26897,10 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
       if(view==='edit')       return vEdit();
       if(view==='leech')      return vLeech();
       if(view==='import')     return vImport();
+      if(view==='capture')    return vCapture();
+      if(view==='needrecall') return vNeedRecall();
+      if(view==='inspect')    return vInspect();
+      if(view==='inspectTopic')return vInspectTopic();
       return vHome();
     }catch(e){
       console.error('[AR] render failed', e);
