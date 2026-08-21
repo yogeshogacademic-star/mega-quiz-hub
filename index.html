@@ -1811,7 +1811,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-19 · v29.5';
+    const HUB_BUILD = '2026-08-21 · v29.6';
 
     // v28.6.5 — THE REASON DISCOUNT WAS *STILL* OUT OF ORDER AFTER v28.6.2.
     //   Two separate causes, both fixed here:
@@ -26092,69 +26092,6 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
   window.__arLogSubject=logSubject;
 
 
-  /* ══ TYPE MODE ═══════════════════════════════════════════════════════════
-     Recognition is much weaker than production: you can flip a card, think
-     "yes, I know that", and still not produce the word in the exam. Typing it
-     closes that gap.
-
-     The two decks are shaped differently, so the mode adapts rather than
-     forcing one direction:
-
-       OWS    front = the definition, back = a single word
-              → prompt with the definition, type the word. Normal direction.
-
-       Vocab  front = the WORD, back = a meaning block with SYN/ANT/mnemonic
-              → the answer side is a paragraph, which cannot be typed. So the
-                card is flipped: show the meaning line, type the word.
-                The mnemonic and the example are held back, because both
-                usually contain the word itself, and any stray occurrence in
-                the meaning is masked.
-
-     A card whose short side is not a short answer simply falls back to the
-     ordinary reveal, so the mode is never wrong for a deck it does not suit. */
-  function shortSide(card){
-    const wc = s => String(s||'').trim().split(/\s+/).filter(Boolean).length;
-    const f=String(card.front||''), b=String(card.back||'');
-    if(wc(b)<=3 && b.length<=32 && b.indexOf('\n')<0) return 'back';
-    if(wc(f)<=3 && f.length<=32 && f.indexOf('\n')<0) return 'front';
-    return null;
-  }
-  /* The prompt shown when the word is the answer: keep the meaning and the
-     synonym/antonym lines, drop the mnemonic and the example sentence. */
-  function promptFor(card, answerSide){
-    const other = answerSide==='back' ? card.front : card.back;
-    let txt=String(other||'');
-    txt=txt.split('\n').filter(l=>{
-      const t=l.trim().toLowerCase();
-      return t && !t.startsWith('mnemonic') && !t.startsWith('eg:') && !t.startsWith('e.g');
-    }).join('\n');
-    const ans=String(answerSide==='back'?card.back:card.front).trim();
-    if(ans.length>2){   /* never leak the answer inside its own prompt */
-      try{ txt=txt.replace(new RegExp(ans.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),'_'.repeat(Math.min(10,ans.length))); }catch(e){}
-    }
-    return txt;
-  }
-  const normalise = s => String(s||'').toLowerCase().trim()
-      .replace(/[^a-z0-9\s]/g,'').replace(/\s+/g,' ');
-  /* one edit apart counts as a typo, not a miss */
-  function within1(a,b){
-    if(Math.abs(a.length-b.length)>1) return false;
-    let i=0,j=0,edits=0;
-    while(i<a.length && j<b.length){
-      if(a[i]===b[j]){ i++; j++; continue; }
-      if(++edits>1) return false;
-      if(a.length>b.length) i++; else if(a.length<b.length) j++; else { i++; j++; }
-    }
-    return edits + (a.length-i) + (b.length-j) <= 1;
-  }
-  function checkTyped(typed, answer){
-    const t=normalise(typed), a=normalise(answer);
-    if(!t) return 'empty';
-    if(t===a) return 'exact';
-    if(a.split(' ').length===1 && within1(t,a)) return 'close';
-    if(a.indexOf(t)===0 && t.length>=Math.max(4,a.length-2)) return 'close';
-    return 'wrong';
-  }
 
   /* ═══ UI ══════════════════════════════════════════════════════════════ */
   function head(title, sub, back){
@@ -26249,7 +26186,6 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     if(!d){ view='home'; return render(); }
     const st=stats(deckKeys(d)), q=queue(deckKeys(d)), dd=q.length;
     const newInQ=q.filter(isNew).length, revInQ=dd-newInQ;
-    const canType=(d.cards||[]).some(c=>!!shortSide(c));
     head(d.chapter, esc(d.subject)+' · '+st.total+' cards', ()=>{ view='sub'; render(); });
     $('ar-body').innerHTML='<div class="wrap">'+
       '<div class="pace">'+
@@ -26262,7 +26198,6 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
         (dd?'<button class="pri" id="arGo">Mix everything · '+
              (revInQ?revInQ+' due':'')+(revInQ&&newInQ?' + ':'')+(newInQ?newInQ+' new':'')+'</button>'
            :'<button class="sec" id="arGoAll">Nothing left today — drill the whole chapter</button>')+
-        (canType?'<button class="sec" id="arType2">⌨ Type the word · '+(dd||st.total)+'</button>':'')+
         '<button class="sec" id="arInsp">Inspect</button>'+
         '<button class="sec" id="arNotes">Notes</button>'+
         '<button class="sec" id="arList">All cards</button>'+
@@ -26270,13 +26205,8 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
         (needRecallKeys(deckKeys(d)).length? '<button class="sec" id="arNRD" style="color:#b91c1c">Need Recall · '+needRecallKeys(deckKeys(d)).length+'</button>':'')+
         '<button class="sec" id="arDel">Delete chapter</button>'+
       '</div>'+ topicBlock(d) +'</div>';
-    if($('arGo'))    $('arGo').onclick=()=>{ A.opts.type=false; startRun(deckKeys(d), d.chapter, d.id, false); };
-    if($('arGoAll')) $('arGoAll').onclick=()=>{ A.opts.type=false; startRun(deckKeys(d), d.chapter, d.id, false, true); };
-    if($('arType2')) $('arType2').onclick=()=>{
-      A.opts.type=true; save(false);        /* topic drills below inherit it */
-      const ks=dd? deckKeys(d) : deckKeys(d).filter(k=>!isMastered(k));
-      startRun(ks, d.chapter, d.id, true);
-    };
+    if($('arGo'))    $('arGo').onclick=()=>startRun(deckKeys(d), d.chapter, d.id);
+    if($('arGoAll')) $('arGoAll').onclick=()=>startRun(deckKeys(d), d.chapter, d.id, true);
     $('arInsp').onclick=()=>{ view='inspect'; render(); };
     $('arNotes').onclick=()=>{ view='notes'; render(); };
     $('arList').onclick =()=>{ view='cards'; render(); };
@@ -26346,9 +26276,9 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
           const n=t.keys.filter(k=>!isMastered(k)&&!isLeech(k)).length;
           if(!n){ toast('Every card in "'+t.name+'" is mastered.'); return; }
           if(!confirm('Nothing due in "'+t.name+'".\n\nDrill all '+n+' cards anyway?\n\nAnswering counts: right moves the card forward, wrong sends it back to zero.')) return;
-          return startRun(t.keys, d.chapter+' · '+t.name, d.id, !!A.opts.type, true);
+          return startRun(t.keys, d.chapter+' · '+t.name, d.id, true);
         }
-        startRun(t.keys, d.chapter+' · '+t.name, d.id, !!A.opts.type);
+        startRun(t.keys, d.chapter+' · '+t.name, d.id);
       };
     });
   }
@@ -26501,13 +26431,11 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
      cards up to today's budget, so once that budget was spent an explicit drill
      resolved to an empty list and silently did nothing — which is exactly what
      "I can't open the untouched cards" was. */
-  function startRun(keys, label, did, typeMode, force){
+  function startRun(keys, label, did, force){
     const q = force ? keys.filter(k=>!isMastered(k) && !isLeech(k)).sort(()=>Math.random()-0.5)
                     : queue(keys);
     if(!q.length){ toast(force?'Every card here is already mastered.':'Nothing due.'); return; }
-    /* only offer typing where the deck actually has a short answer to produce */
-    const typable = typeMode && q.some(k=>{ const R=resolve(k); return R && shortSide(R.card); });
-    run={ keys:q, i:0, label:label+(typable?' · typing':''), deckId:did, type:!!typable,
+    run={ keys:q, i:0, label:label, deckId:did,
           right:0, wrong:0, mastered:0, shown:false, started:Date.now() };
     sessStart();
     view='run'; render();
@@ -26517,11 +26445,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
     const k=run.keys[run.i], R=resolve(k);
     if(!R){ run.i++; return vRun(); }                 /* card deleted mid-run */
     const L=lf(k);
-    /* In type mode the card is oriented so the WORD is what you produce —
-       which means flipping a vocab card, whose word sits on the front. */
-    const side = run.type ? shortSide(R.card) : null;
-    const F = side ? { q:promptFor(R.card, side), a:(side==='back'?R.card.back:R.card.front), typed:true }
-            : (A.opts.reverse? {q:R.card.back,a:R.card.front} : {q:R.card.front,a:R.card.back});
+    const F = A.opts.reverse? {q:R.card.back,a:R.card.front} : {q:R.card.front,a:R.card.back};
     head(run.label, (run.i+1)+' of '+run.keys.length+' · '+esc(R.deck.chapter), ()=>endRun());
     const nextRights=(L.rights||0)+1;
     $('ar-body').innerHTML='<div class="wrap">'+
@@ -26531,45 +26455,20 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
         '<div class="fr">'+esc(F.q)+'</div>'+
         '<div id="arBack"></div>'+
       '</div>'+
-      '<div id="arAct">'+(F.typed
-          ? '<input type="text" id="arType" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Type the word…" style="text-align:center;font-size:17px;font-weight:800;padding:14px">'+
-            '<button class="pri" id="arShow" style="width:100%;padding:14px;margin-top:9px">Check</button>'
-          : '<button class="pri" id="arShow" style="width:100%;padding:15px">Show answer</button>')+'</div>'+
+      '<div id="arAct"><button class="pri" id="arShow" style="width:100%;padding:15px">Show answer</button></div>'+
       '<div class="small" style="text-align:center;margin-top:12px">'+
         (isNew(k)?'new card':(L.rights||0)+' of '+MASTER_AT+' rights'+(L.wasWrong?' · missed last time':''))+
       '</div></div>';
     const reveal=()=>{
-      let verdict='', full=F.typed? (side==='back'?R.card.back:R.card.front) : F.a;
-      if(F.typed){
-        const res=checkTyped(($('arType')||{}).value||'', F.a);
-        verdict = res==='exact' ? '<div style="font-size:13px;font-weight:800;color:#15803d;margin-bottom:8px">✓ correct</div>'
-                : res==='close' ? '<div style="font-size:13px;font-weight:800;color:#c2410c;margin-bottom:8px">≈ almost — spelling was off</div>'
-                : res==='empty' ? '<div style="font-size:13px;font-weight:800;color:#79838f;margin-bottom:8px">skipped</div>'
-                : '<div style="font-size:13px;font-weight:800;color:#b91c1c;margin-bottom:8px">✗ you wrote “'+esc(($('arType')||{}).value||'')+'”</div>';
-        run.lastCheck=res;
-      }
-      /* in type mode the full meaning block is worth reading after answering,
-         even though only the word was asked for */
-      const extra = F.typed && side==='front' ? '<div class="nt">'+esc(R.card.back)+'</div>' : '';
-      $('arBack').innerHTML='<div class="bk">'+verdict+'<div class="a">'+esc(F.a)+'</div>'+extra+
+      $('arBack').innerHTML='<div class="bk"><div class="a">'+esc(F.a)+'</div>'+
         (R.card.note?'<div class="nt">'+esc(R.card.note)+'</div>':'')+'</div>';
-      /* the check only suggests — you still decide, because only you know
-         whether you actually recalled it or guessed */
-      const good = run.lastCheck==='exact';
       $('arAct').innerHTML='<div class="grade">'+
-        '<button class="wr" id="arW" style="'+(F.typed&&good?'opacity:.55':'')+'">Wrong<span>back tomorrow</span></button>'+
-        '<button class="ri" id="arR" style="'+(F.typed&&!good&&run.lastCheck?'opacity:.55':'')+'">Right<span>'+(nextRights>=MASTER_AT?'MASTERED':'in '+gapFor(nextRights)+' days')+'</span></button></div>';
+        '<button class="wr" id="arW">Wrong<span>back tomorrow</span></button>'+
+        '<button class="ri" id="arR">Right<span>'+(nextRights>=MASTER_AT?'MASTERED':'in '+gapFor(nextRights)+' days')+'</span></button></div>';
       $('arW').onclick=()=>answer(k,false);
       $('arR').onclick=()=>answer(k,true);
     };
     $('arShow').onclick=reveal;
-    if(F.typed){
-      const inp=$('arType');
-      if(inp){
-        inp.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); reveal(); } };
-        setTimeout(()=>{ try{ inp.focus(); }catch(e){} },40);
-      }
-    }
   }
   async function answer(k, right){
     const R=resolve(k);
@@ -26731,7 +26630,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
           (x.c.note?'<div class="small" style="margin-top:4px">'+esc(x.c.note)+'</div>':'')+
         '</div>').join('')+'</div>').join('')+
       '</div>';
-    $('nrDrill').onclick=()=>startRun(ks, 'Need Recall', deckId||null, !!A.opts.type, true);
+    $('nrDrill').onclick=()=>startRun(ks, 'Need Recall', deckId||null, true);
     $('nrPrint').onclick=()=>{
       const w=window.open('','_blank'); if(!w) return toast('Popup blocked');
       w.document.write('<html><head><title>Need Recall</title><style>'+
