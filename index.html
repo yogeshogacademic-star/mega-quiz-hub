@@ -25548,7 +25548,7 @@ window._plannerSave = function(){ try{ if(typeof save === 'function' && window._
   display:flex;flex-direction:column;color:var(--ink);
   font-family:'Nunito Sans',system-ui,-apple-system,sans-serif;
   box-shadow:0 30px 80px rgba(0,0,0,.35)}
-body.dark #ar-root{
+html.dark #ar-root{
   --bg:#0f141c; --panel:#171e29; --line:#26303f; --ink:#eef2f8; --dim:#9aa8bd; --faint:#6b7a91;
   --accSoft:#2a1c11; --goodSoft:#0f2a21; --easySoft:#111e33; --againSoft:#2c1414; --goldSoft:#2a2312}
 
@@ -25761,8 +25761,14 @@ body.dark #ar-root{
      435 OWS records restored from backup land here on first read. */
   function fixEntry(L){
     const r=L.r||0, w=L.w||0, rights=L.rights||0;
-    if(L.mastered){ L.rung=TOP_RUNG; }
-    else if(rights>=3)  L.rung=TOP_RUNG;
+    if(L.mastered){
+      /* v29 "mastered" meant three rights, which is v30's rung 3 — not a card
+         that has cleared the 21-day check. Give it that check instead of
+         retiring it silently, otherwise 400 cards leave the rotation for good. */
+      L.rung=TOP_RUNG; L.finalCheck=true;
+      if(!L.due) L.due=dueIn(FINAL_CHECK);
+    }
+    else if(rights>=3){ L.rung=TOP_RUNG; L.mastered=true; L.finalCheck=true; if(!L.due) L.due=dueIn(FINAL_CHECK); }
     else if(rights===2) L.rung=3;
     else if(rights===1) L.rung=2;
     else if(r>0)        L.rung=1;
@@ -25854,12 +25860,16 @@ body.dark #ar-root{
     const unseen=allKeys(null).filter(isNew).length;
     return Math.max(NEW_PER_DAY, Math.ceil(unseen/daysLeft()));
   }
+  let _budgetDay=null, _budgetRef=null;
   function budget(){
     const t=todayKey();
+    if(_budgetDay===t && _budgetRef && A.newlog[t]===_budgetRef) return _budgetRef;
     if(!A.newlog[t]) A.newlog[t]={released:dailyNew(), used:0};
     const keep=Object.keys(A.newlog).sort().slice(-14);
+    if(keep.indexOf(t)<0) keep.push(t);      /* never prune today */
     Object.keys(A.newlog).forEach(d=>{ if(keep.indexOf(d)<0) delete A.newlog[d]; });
-    return A.newlog[t];
+    _budgetDay=t; _budgetRef=A.newlog[t];
+    return _budgetRef;
   }
   const newLeft  = () => Math.max(0, budget().released-budget().used);
   function spendNew(n){ budget().used+=n; }
@@ -25870,24 +25880,26 @@ body.dark #ar-root{
   const decksOf = sub => Object.values(A.decks).filter(d=>d.subject===sub)
                           .sort((a,b)=>String(a.chapter).localeCompare(String(b.chapter)));
   const subjects= () => Array.from(new Set(Object.values(A.decks).map(d=>d.subject))).sort();
-  function deckKeys(d){ return (d.cards||[]).map(c=>ck(d.id,c.id)); }
+  function deckKeys(d){ return (d&&d.cards||[]).map(c=>ck(d.id,c.id)); }
   function allKeys(sub){
     const out=[];
     Object.values(A.decks).forEach(d=>{ if(!sub||d.subject===sub) deckKeys(d).forEach(k=>out.push(k)); });
     return out;
   }
   function stats(keys){
-    let mastered=0, retired=0, leech=0, due=0, fresh=0, learning=0;
+    let mastered=0, retired=0, checking=0, leech=0, due=0, fresh=0, learning=0;
     keys.forEach(k=>{
       if(isRetired(k)){ retired++; mastered++; return; }
-      if(isMastered(k)){ mastered++; if(isReviewDue(k)) due++; return; }
+      if(isMastered(k)){ mastered++; checking++; if(isReviewDue(k)) due++; return; }
       if(isLeech(k)){ leech++; return; }
       if(isNew(k)) fresh++; else learning++;
       if(isReviewDue(k)) due++;
     });
-    const done=mastered;
-    return {total:keys.length, mastered, retired, leech, due, fresh, learning,
-            pct: keys.length? Math.round(done/keys.length*100):0};
+    /* progress % counts only cards that have cleared the final check. A card
+       still awaiting its 21-day look is not finished, and showing 100% while
+       reviews are outstanding is the kind of number that stops you revising. */
+    return {total:keys.length, mastered, retired, checking, leech, due, fresh, learning,
+            pct: keys.length? Math.round(retired/keys.length*100):0};
   }
 
   /* ── the session queue ────────────────────────────────────────────────────
@@ -25897,7 +25909,9 @@ body.dark #ar-root{
   function queue(keys){
     const seen=[], fresh=[];
     keys.forEach(k=>{ if(isReviewDue(k)) seen.push(k); else if(isNew(k)) fresh.push(k); });
+    const starred=k=>((A.life[k]||{}).star?1:0);
     seen.sort((a,b)=>{
+      const st=starred(b)-starred(a);         if(st) return st;   /* starred first */
       const ov=daysOverdue(b)-daysOverdue(a); if(ov) return ov;
       const wr=wrongsOf(b)-wrongsOf(a);       if(wr) return wr;
       return rungOf(a)-rungOf(b);
@@ -25908,7 +25922,7 @@ body.dark #ar-root{
   }
   function pace(){
     const s=stats(allKeys(null));
-    const left=s.total-s.mastered-s.leech;
+    const left=s.total-s.retired-s.leech;   /* not finished until it clears the check */
     return {perDay:Math.ceil(left/daysLeft()), cards:left, mastered:s.mastered,
             leech:s.leech, total:s.total, due:s.due};
   }
@@ -26003,20 +26017,30 @@ body.dark #ar-root{
       /* Repair whatever the other device sent BEFORE merging. Without this an
          old-shape record wins on timestamp and silently un-migrates the card —
          the bug that made a 436-card chapter report 0 due and 0 never-seen. */
-      if(c.rights===undefined) fixEntry(c);
+      /* Repair only records that are genuinely pre-v30. Testing for `rights`
+         was wrong once v30 landed: fixEntry() DELETES that field, so every
+         healthy v30 record looked un-migrated and got rebuilt from scratch —
+         a card sitting on rung 3 came back from another device as rung 1. */
+      if(c.rung===undefined) fixEntry(c);
       if(!l){ A.life[k]=c; return; }
-      if(l.rights===undefined) fixEntry(l);
+      if(l.rung===undefined) fixEntry(l);
       const newer=(c.last||0)>(l.last||0);
       const base=newer?Object.assign({},l,c):Object.assign({},c,l);
       base.r=Math.max(l.r||0,c.r||0);
       base.w=Math.max(l.w||0,c.w||0);
       base.reps=Math.max(l.reps||0,c.reps||0);
-      base.rights   = newer?(c.rights||0):(l.rights||0);
-      base.mastered = newer?!!c.mastered:!!l.mastered;
-      base.wasWrong = newer?!!c.wasWrong:!!l.wasWrong;
-      base.due      = newer?(c.due||0):(l.due||0);
+      /* ladder position follows the newer device, never the higher number —
+         a lapse on the other phone must not be outvoted by a stale rung */
+      base.rung       = newer?(c.rung||0):(l.rung||0);
+      base.mastered   = newer?!!c.mastered:!!l.mastered;
+      base.finalCheck = newer?!!c.finalCheck:!!l.finalCheck;
+      base.retired    = newer?!!c.retired:!!l.retired;
+      base.gradedOn   = newer?(c.gradedOn||''):(l.gradedOn||'');
+      base.due        = newer?(c.due||0):(l.due||0);
+      base.streak     = newer?(c.streak||0):(l.streak||0);
       base.leech=!!(l.leech||c.leech);
       base.star =!!(l.star ||c.star);
+      delete base.rights; delete base.wasWrong;
       A.life[k]=base;
     });
     /* Capture queue: union by text+type, newest wins on the done flag, so a
@@ -26076,7 +26100,12 @@ body.dark #ar-root{
       note:  c.note ||c.explanation||''
     })).filter(c=>c.front&&c.back);
     if(!cards.length) return {error:'no usable cards'};
-    return { id:slug(subject)+'-'+slug(chapter), subject, chapter, cards,
+    /* Two cards sharing one id would share one progress record and fight over
+       it forever. Keep the first, report the rest. */
+    const byId={}; const uniq=[]; let dropped=0;
+    cards.forEach(c=>{ if(byId[c.id]){ dropped++; return; } byId[c.id]=1; uniq.push(c); });
+    if(dropped) console.warn('[AR] '+filename+': dropped '+dropped+' card(s) with duplicate ids');
+    return { id:slug(subject)+'-'+slug(chapter), subject, chapter, cards:uniq, dupes:dropped,
              colA:p.colA||'Prompt', colB:p.colB||'Answer', file:filename };
   }
   function previewDeck(d){
@@ -26205,10 +26234,11 @@ body.dark #ar-root{
     const col = p.perDay>200?'#fca5a5' : p.perDay>120?'#fdba74' : '#6ee7b7';
     return '<div class="hero"><h3>'+daysToExam()+' days to the paper</h3><div class="grid">'+
       '<div><b style="color:'+col+'">'+(p.cards?p.perDay:0)+'</b><span>cards / day to finish</span></div>'+
-      '<div><b>'+p.due+'</b><span>due right now</span></div>'+
+      '<div><b>'+Math.min(p.due,DAILY_CAP)+'</b><span>in today\u2019s session</span></div>'+
       '<div><b style="color:#6ee7b7">'+p.mastered+'</b><span>mastered</span></div>'+
       '<div><b>'+p.cards+'</b><span>still learning</span></div>'+
       '<div><b>'+newLeft()+'</b><span>new left today</span></div>'+
+      (p.due>DAILY_CAP?'<div><b style="color:#fdba74">'+p.due+'</b><span>total backlog</span></div>':'')+
       (p.leech?'<div><b style="color:#fca5a5">'+p.leech+'</b><span>leeches</span></div>':'')+
     '</div></div>';
   }
@@ -26260,6 +26290,7 @@ body.dark #ar-root{
 
   /* ── one subject ──────────────────────────────────────────────────────── */
   function vSub(){
+    if(!curSub || !decksOf(curSub).length){ view='home'; return render(); }
     const ds=decksOf(curSub), d=queue(allKeys(curSub)).length;
     head(curSub, ds.length+' chapters', ()=>{ view='home'; render(); });
     $('ar-body').innerHTML='<div class="wrap">'+
@@ -26281,6 +26312,48 @@ body.dark #ar-root{
     });
   }
 
+
+  /* Topic buckets inside a chapter. This is how a 638-card chapter stays
+     usable: 23 themes for OWS, 14 lectures for the vocab deck. Dropping it
+     left the chapter screen with nothing but buttons. */
+  function topicBlock(d){
+    const ts=topicsOf(d);
+    if(ts.length<2) return '';
+    return '<div style="margin-top:22px">'+
+      '<div style="font-size:10px;font-weight:800;color:var(--faint);text-transform:uppercase;'+
+      'letter-spacing:.07em;margin-bottom:10px">Or drill one topic &middot; '+ts.length+'</div>'+
+      ts.map((t,i)=>{
+        const st=stats(t.keys);
+        const badge = st.due   ? '<span class="due">'+st.due+' due</span>'
+                    : st.fresh ? '<span class="pill n">'+st.fresh+' untouched</span>'
+                    : (st.leech && st.leech===st.total) ? '<span class="pill l">all leech</span>'
+                    : '<span class="ok">done</span>';
+        return '<div class="row" data-topic="'+i+'">'+ring(st.pct)+'<div style="flex:1">'+
+          '<div class="nm">'+esc(t.name)+'</div>'+
+          '<div class="mt">'+st.total+' cards &middot; '+st.mastered+' mastered'+
+            (st.leech?' &middot; '+st.leech+' leech':'')+'</div>'+
+          '<div class="bar"><i style="width:'+st.pct+'%"></i></div>'+
+        '</div><div class="rt">'+badge+'</div></div>';
+      }).join('')+'</div>';
+  }
+  function wireTopics(d){
+    const ts=topicsOf(d);
+    [].forEach.call(document.querySelectorAll('#ar-body [data-topic]'),el=>{
+      el.onclick=()=>{
+        const t=ts[parseInt(el.getAttribute('data-topic'),10)];
+        if(!t) return;
+        const q=queue(t.keys);
+        if(!q.length){
+          const n=t.keys.filter(k=>!isMastered(k)&&!isLeech(k)).length;
+          if(!n){ toast('Every card in "'+t.name+'" is mastered.'); return; }
+          if(!confirm('Nothing due in "'+t.name+'".\n\nDrill all '+n+' cards anyway?')) return;
+          return startRun(t.keys, d.chapter+' \u00b7 '+t.name, d.id, true);
+        }
+        startRun(t.keys, d.chapter+' \u00b7 '+t.name, d.id);
+      };
+    });
+  }
+
   /* ── one chapter ──────────────────────────────────────────────────────── */
   function vDeck(){
     const d=A.decks[deckId]; if(!d){ view='home'; return render(); }
@@ -26289,7 +26362,8 @@ body.dark #ar-root{
     $('ar-body').innerHTML='<div class="wrap">'+
       '<div class="hero"><h3>'+esc(d.chapter)+'</h3><div class="grid">'+
         '<div><b>'+st.total+'</b><span>cards</span></div>'+
-        '<div><b style="color:#6ee7b7">'+st.mastered+'</b><span>mastered</span></div>'+
+        '<div><b style="color:#6ee7b7">'+st.retired+'</b><span>finished</span></div>'+
+        (st.checking?'<div><b style="color:#fcd34d">'+st.checking+'</b><span>final check due</span></div>':'')+
         '<div><b>'+st.learning+'</b><span>learning</span></div>'+
         '<div><b>'+st.fresh+'</b><span>untouched</span></div>'+
         (st.leech?'<div><b style="color:#fca5a5">'+st.leech+'</b><span>leeches</span></div>':'')+
@@ -26303,13 +26377,16 @@ body.dark #ar-root{
         '<button class="sec" id="arNotes">Notes</button>'+
         '<button class="sec" id="arList">Cards</button>'+
         '<button class="sec" id="arInsD">Inspect</button>'+
+        (st.leech?'<button class="sec warn" id="arLeechD">Leeches &middot; '+st.leech+'</button>':'')+
         '<button class="sec warn" id="arDel">Delete chapter</button>'+
-      '</div></div>';
+      '</div>'+topicBlock(d)+'</div>';
+    wireTopics(d);
     if($('arRunDeck')) $('arRunDeck').onclick=()=>startRun(deckKeys(d),d.chapter,d.id);
     $('arAll').onclick  =()=>startRun(deckKeys(d),d.chapter+' (all)',d.id,true);
     $('arNotes').onclick=()=>{ view='notes'; render(); };
     $('arList').onclick =()=>{ view='cards'; render(); };
     $('arInsD').onclick =()=>{ view='inspect'; render(); };
+    if($('arLeechD')) $('arLeechD').onclick=()=>{ view='leech'; render(); };
     $('arDel').onclick  =async()=>{
       if(!confirm('Delete "'+d.chapter+'" and all its progress?\n\nThis syncs to every device.')) return;
       A.dead[d.id]=Date.now(); delete A.decks[d.id];
@@ -26327,10 +26404,8 @@ body.dark #ar-root{
   }
   function startRun(keys, label, did, force){
     const list = force ? keys.filter(k=>!isRetired(k)) : queue(keys);
-    if(!list.length){ toast('Nothing due'); return; }
-    const fresh=list.filter(isNew).length;
-    if(fresh && !force) spendNew(fresh);
-    run={keys:list, i:0, shown:false, label:label, did:did,
+    if(!list.length){ toast(force?'Every card here is retired':'Nothing due'); return; }
+    run={keys:list, i:0, shown:false, label:label, did:did, force:!!force,
          right:0, wrong:0, easy:0, started:Date.now()};
     view='run'; render();
   }
@@ -26350,7 +26425,9 @@ body.dark #ar-root{
       '<div class="cd"><div class="tp">'+esc(R.deck.chapter)+
         (R.card.topic?' &middot; '+esc(R.card.topic):'')+' '+pips(rung,isMastered(k))+
         (w?' <span class="pill l">missed '+w+'\u00d7</span>':'')+
-        (over>2?' <span class="pill n">'+over+'d late</span>':'')+'</div>'+
+        (over>2?' <span class="pill n">'+over+'d late</span>':'')+
+        ' <button id="gStar" title="Star this card" style="background:none;border:none;cursor:pointer;'+
+        'font-size:14px;padding:0 4px;color:'+((L.star)?'var(--gold)':'var(--line)')+'">\u2605</button></div>'+
         '<div class="fr">'+esc(R.card.front)+'</div>'+
         (run.shown?'<div class="hr"></div><div class="a">'+esc(R.card.back)+'</div>'+
           (R.card.note?'<div class="nt">'+esc(R.card.note)+'</div>':''):'')+
@@ -26363,6 +26440,10 @@ body.dark #ar-root{
           '</div>'
         : '<button class="reveal" id="gShow">Show answer</button>')+
       '</div>';
+    if($('gStar')) $('gStar').onclick=async(ev)=>{
+      ev.stopPropagation();
+      const E=lf(k); E.star=!E.star; await save(false); render();
+    };
     if($('gShow')) $('gShow').onclick=()=>{ run.shown=true; render(); };
     if($('gAg')) $('gAg').onclick=()=>answer(k,'again');
     if($('gGd')) $('gGd').onclick=()=>answer(k,'good');
@@ -26379,6 +26460,9 @@ body.dark #ar-root{
   }
   async function answer(k, g){
     const before=isMastered(k);
+    /* charge the daily allowance per card ANSWERED, not per card queued —
+       opening a session and closing it used to burn the whole day's new cards */
+    if(!run.force && isNew(k)) spendNew(1);
     grade(k,g);
     if(g==='again') run.wrong++; else { run.right++; if(g==='easy') run.easy++; }
     if(!before && isMastered(k)) run.mastered=(run.mastered||0)+1;
@@ -26406,7 +26490,13 @@ body.dark #ar-root{
       '</div></div>'+
       '<div class="btnrow"><button class="pri" id="arAgain">Another session</button>'+
       '<button class="sec" id="arHome">Done for now</button></div></div>';
-    $('arAgain').onclick=()=>{ const keys=run.did?deckKeys(A.decks[run.did]):allKeys(curSub); endRun(); startRun(keys, run?run.label:'Review', null); };
+    $('arAgain').onclick=()=>{
+      const did=run.did, label=run.label;
+      const dk=did?A.decks[did]:null;
+      const keys = dk ? deckKeys(dk) : allKeys(curSub);
+      sessFlush(); run=null; save(true);
+      startRun(keys, label, did);
+    };
     $('arHome').onclick =()=>endRun();
   }
   function endRun(){
@@ -26433,8 +26523,10 @@ body.dark #ar-root{
   /* ── notes (sorted by wrongs, worst first) ────────────────────────────── */
   function vNotes(){
     const d=A.decks[deckId]; if(!d){ view='home'; return render(); }
-    head('Notes \u2014 '+d.chapter, 'ordered by how often you missed it', ()=>{ view='deck'; render(); });
-    const html=notesFromCards(d.cards, d.colA, d.colB, d.id);
+    const hand = (d.autoNotes===false && d.notesHtml);
+    head('Notes \u2014 '+d.chapter, hand?'hand-written':'ordered by how often you missed it',
+         ()=>{ view='deck'; render(); });
+    const html = hand ? d.notesHtml : notesFromCards(d.cards, d.colA, d.colB, d.id);
     $('ar-body').innerHTML='<div class="wrap"><div class="nbox">'+html+'</div>'+
       '<div class="btnrow"><button class="sec" id="arPrint">Open / print</button></div></div>';
     $('arPrint').onclick=()=>{
@@ -26468,8 +26560,17 @@ body.dark #ar-root{
              '<td style="white-space:nowrap">'+state+'</td>'+
              '<td style="text-align:right;color:'+(w?'var(--again)':'var(--faint)')+'">'+w+'</td></tr>';
     }).join('');
-    $('ar-body').innerHTML='<div class="wrap"><table><thead><tr><th>Prompt</th><th>Answer</th>'+
-      '<th>State</th><th style="text-align:right">Missed</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+    $('ar-body').innerHTML='<div class="wrap">'+
+      '<input type="text" id="cdFind" placeholder="Filter these '+(d.cards||[]).length+' cards\u2026" '+
+      'style="margin-bottom:12px">'+
+      '<table><thead><tr><th>Prompt</th><th>Answer</th>'+
+      '<th>State</th><th style="text-align:right">Missed</th></tr></thead><tbody id="cdBody">'+rows+'</tbody></table></div>';
+    if($('cdFind')) $('cdFind').oninput=function(){
+      const q=this.value.toLowerCase().trim();
+      [].forEach.call(document.querySelectorAll('#ar-body tr[data-c]'),tr=>{
+        tr.style.display = (!q || tr.textContent.toLowerCase().indexOf(q)>-1) ? '' : 'none';
+      });
+    };
     [].forEach.call(document.querySelectorAll('#ar-body tr[data-c]'),el=>{
       el.style.cursor='pointer';
       el.onclick=()=>{ editing=el.getAttribute('data-c'); view='edit'; render(); };
@@ -26490,11 +26591,18 @@ body.dark #ar-root{
         ' &middot; '+(L.r||0)+' right &middot; '+(L.w||0)+' wrong'+
         (L.due?' &middot; due '+new Date(L.due).toLocaleDateString('en-IN',{day:'numeric',month:'short'}):'')+'</div>'+
       '<div class="btnrow"><button class="pri" id="efS">Save</button>'+
+      '<button class="sec" id="efT">'+(L.star?'\u2605 Starred':'\u2606 Star')+'</button>'+
+      (L.leech?'<button class="sec" id="efL">Release from leeches</button>':'')+
       '<button class="sec" id="efR">Clear its progress</button>'+
       '<button class="sec warn" id="efD">Delete card</button></div></div></div>';
     $('efS').onclick=async()=>{
       c.front=$('efF').value.trim(); c.back=$('efB').value.trim(); c.note=$('efN').value.trim();
       d.updated=Date.now(); await save(true); view='cards'; render();
+    };
+    $('efT').onclick=async()=>{ const E=lf(k); E.star=!E.star; await save(true); render(); };
+    if($('efL')) $('efL').onclick=async()=>{
+      const E=lf(k); E.leech=false; E.w=Math.max(0,LEECH_AT-2); E.rung=1; E.due=tomorrow();
+      await save(true); toast('Back in rotation'); render();
     };
     $('efR').onclick=async()=>{ delete A.life[k]; await save(true); toast('Progress cleared'); render(); };
     $('efD').onclick=async()=>{
@@ -26876,7 +26984,8 @@ body.dark #ar-root{
       if(view==='import')     return vImport();
       if(view==='capture')    return vCapture();
       if(view==='needrecall') return vNeedRecall();
-      if(view==='inspect')    return deckId? vInspectTopic() : vInspect();
+      if(view==='inspectTopic') return vInspectTopic();
+      if(view==='inspect')    return vInspect();
       return vHome();
     }catch(e){
       console.error('[AR v30] render failed', e);
@@ -26895,7 +27004,8 @@ body.dark #ar-root{
     render();
   };
   window.arClose=async function(){
-    if(run) sessFlush();
+    sessFlush();   /* flush unconditionally — closing on the summary screen
+                      used to throw the whole session's study time away */
     $('ar-modal').style.display='none';
     document.body.style.overflow='';
     run=null;
@@ -26907,7 +27017,9 @@ body.dark #ar-root{
     if(view!=='run' || !run) return;
     if(e.key===' '||e.key==='Enter'){ if(!run.shown){ e.preventDefault(); run.shown=true; render(); } return; }
     if(!run.shown) return;
+    if(run.i>=run.keys.length) return;
     const k=run.keys[run.i];
+    if(!k) return;
     if(e.key==='1') answer(k,'again');
     if(e.key==='2') answer(k,'good');
     if(e.key==='3') answer(k,'easy');
