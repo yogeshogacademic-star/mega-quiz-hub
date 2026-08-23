@@ -25625,7 +25625,23 @@ html.dark #ar-root{
   letter-spacing:.09em;margin-bottom:16px}
 #ar-root .cd .fr{font-size:22px;font-weight:800;line-height:1.45;letter-spacing:-.02em}
 #ar-root .cd .hr{height:1px;background:var(--line);margin:22px 0}
-#ar-root .cd .a{font-size:24px;font-weight:800;color:var(--good);line-height:1.4;letter-spacing:-.02em}
+#ar-root .cd .a{font-size:24px;font-weight:800;color:var(--good);line-height:1.4;letter-spacing:-.02em;
+  white-space:pre-wrap}
+/* multi-line answers (Meaning / Synonyms / Antonyms / Mnemonic / Eg) get their
+   own rows, left-aligned, with the label muted so the content reads first */
+#ar-root .ab{text-align:left;margin-top:4px}
+#ar-root .ab .lead{font-size:23px;font-weight:800;color:var(--good);line-height:1.35;
+  letter-spacing:-.02em;text-align:center;margin-bottom:16px}
+#ar-root .ab .ln{display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--line);
+  font-size:14.5px;font-weight:600;line-height:1.55}
+#ar-root .ab .ln:first-of-type{border-top:none}
+#ar-root .ab .lb{flex-shrink:0;min-width:74px;font-size:10px;font-weight:800;color:var(--faint);
+  text-transform:uppercase;letter-spacing:.07em;padding-top:4px}
+#ar-root .ab .lv{flex:1}
+#ar-root .ab .ln.syn .lv{color:var(--good);font-weight:700}
+#ar-root .ab .ln.ant .lv{color:var(--again);font-weight:700}
+#ar-root .ab .ln.mne .lv{font-style:italic;color:var(--acc)}
+#ar-root .ab .ln.eg  .lv{color:var(--dim)}
 #ar-root .cd .nt{margin-top:16px;font-size:13px;font-weight:600;color:var(--dim);line-height:1.65;
   text-align:left;background:var(--bg);border-radius:12px;padding:14px 16px;white-space:pre-wrap}
 #ar-root .reveal{width:100%;padding:17px;border:none;border-radius:14px;background:var(--ink);color:var(--bg);
@@ -26394,6 +26410,34 @@ html.dark #ar-root{
       await save(true); view='sub'; render();
     };
   }
+  /* A card back may be one word or a five-part vocab block with real newlines.
+     One centred green line is right for the first; wrong for the second, which
+     collapsed into a wall of text because nothing preserved the breaks. */
+  const LBL={meaning:'Meaning', synonyms:'Synonyms', syn:'Synonyms', antonyms:'Antonyms',
+             ant:'Antonyms', mnemonic:'Mnemonic', eg:'Example', example:'Example',
+             note:'Note', usage:'Usage', root:'Root'};
+  const CLS={Synonyms:'syn', Antonyms:'ant', Mnemonic:'mne', Example:'eg'};
+  function answerHtml(back){
+    const raw=String(back||'');
+    const lines=raw.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+    if(lines.length<2) return '<div class="a">'+esc(raw)+'</div>';
+    let lead=null; const rows=[];
+    lines.forEach(l=>{
+      const m=l.match(/^([A-Za-z][A-Za-z ]{1,11}?)\s*:\s*([\s\S]*)$/);
+      const key=m?LBL[m[1].trim().toLowerCase()]:null;
+      if(key) rows.push([key, m[2].trim()]);
+      else if(lead===null) lead=l;
+      else if(rows.length) rows[rows.length-1][1]+=' '+l;
+      else lead+=' '+l;
+    });
+    if(!rows.length) return '<div class="a">'+esc(raw)+'</div>';
+    return '<div class="ab">'+
+      (lead?'<div class="lead">'+esc(lead)+'</div>':'')+
+      rows.map(r=>'<div class="ln '+(CLS[r[0]]||'')+'">'+
+        '<div class="lb">'+esc(r[0])+'</div><div class="lv">'+esc(r[1])+'</div></div>').join('')+
+    '</div>';
+  }
+
   /* ── the drill ────────────────────────────────────────────────────────── */
   function resolve(k){
     const i=k.indexOf('::'); if(i<0) return null;
@@ -26429,7 +26473,7 @@ html.dark #ar-root{
         ' <button id="gStar" title="Star this card" style="background:none;border:none;cursor:pointer;'+
         'font-size:14px;padding:0 4px;color:'+((L.star)?'var(--gold)':'var(--line)')+'">\u2605</button></div>'+
         '<div class="fr">'+esc(R.card.front)+'</div>'+
-        (run.shown?'<div class="hr"></div><div class="a">'+esc(R.card.back)+'</div>'+
+        (run.shown?'<div class="hr"></div>'+answerHtml(R.card.back)+
           (R.card.note?'<div class="nt">'+esc(R.card.note)+'</div>':''):'')+
       '</div>'+
       (run.shown
