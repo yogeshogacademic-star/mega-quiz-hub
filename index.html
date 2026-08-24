@@ -25668,6 +25668,11 @@ html.dark #ar-root{
 #ar-root .knowit:hover{border-color:var(--gold);color:var(--gold)}
 #ar-root .knowit span{display:block;font-size:10px;font-weight:700;opacity:.75;margin-top:3px}
 
+#ar-root .mini{border:1px solid var(--line);background:var(--bg);color:var(--dim);border-radius:8px;
+  padding:4px 9px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;transition:.15s}
+#ar-root .mini:hover{border-color:var(--acc);color:var(--acc)}
+#ar-root .mini.ok2:hover{border-color:var(--good);color:var(--good)}
+
 /* run progress strip */
 #ar-root .prog{display:flex;align-items:center;gap:12px;margin-bottom:15px;
   font-size:11px;font-weight:800;color:var(--dim)}
@@ -26721,14 +26726,17 @@ html.dark #ar-root{
                 '<button class="ag" id="gAg">Again<span>'+outcome(k,'wrong')+'</span></button>'+
                 '<button class="gd" id="gGd">Good<span>'+outcome(k,'good')+'</span></button>'+
                 '<button class="ez" id="gEz">Easy<span>'+outcome(k,'easy')+'</span></button>'+
-              '</div>'+
-              '<button class="knowit" id="gKnow">I already know this'+
-              '<span>skip the ladder \u00b7 straight to finished</span></button>'
+              '</div>'
             /* EVERY TIME AFTER — just did you get it or not */
             : '<div class="grade two">'+
                 '<button class="ag" id="gAg">\u2717 Wrong<span>'+outcome(k,'wrong')+'</span></button>'+
                 '<button class="gd" id="gGd">\u2713 Right<span>'+outcome(k,'right')+'</span></button>'+
-              '</div>')
+              '</div>')+
+          /* available on EVERY card, not just the first sight — you can decide
+             at any point that a word is done and stop being asked about it */
+          (isRetired(k)?'' :
+            '<button class="knowit" id="gKnow">\u2713\u2713 Mark mastered'+
+            '<span>finished now \u00b7 never shown again</span></button>')
         : '<button class="reveal" id="gShow">Show answer</button>')+
       '</div>';
     if($('gStar')) $('gStar').onclick=async ev=>{ ev.stopPropagation();
@@ -26876,13 +26884,21 @@ html.dark #ar-root{
                   : pips(rungOf(k),false);
       return '<tr data-c="'+esc(c.id)+'"><td>'+esc(c.front)+'</td><td><b>'+esc(c.back)+'</b></td>'+
              '<td style="white-space:nowrap">'+state+'</td>'+
-             '<td style="text-align:right;color:'+(w?'var(--again)':'var(--faint)')+'">'+w+'</td></tr>';
+             '<td style="text-align:right;color:'+(w?'var(--again)':'var(--faint)')+'">'+w+'</td>'+
+             '<td style="text-align:right;white-space:nowrap">'+
+               (isRetired(k)
+                 ? '<button class="mini" data-unm="'+esc(c.id)+'" title="Back in rotation">\u21ba</button>'
+                 : '<button class="mini ok2" data-mas="'+esc(c.id)+'" title="Mark mastered">\u2713\u2713</button>')+
+             '</td></tr>';
     }).join('');
     $('ar-body').innerHTML='<div class="wrap">'+
       '<input type="text" id="cdFind" placeholder="Filter these '+(d.cards||[]).length+' cards\u2026" '+
       'style="margin-bottom:12px">'+
+      '<div class="btnrow" style="margin:0 0 12px"><button class="sec" id="cdMasAll">'+
+        '\u2713\u2713 Master everything shown</button></div>'+
       '<table><thead><tr><th>Prompt</th><th>Answer</th>'+
-      '<th>State</th><th style="text-align:right">Missed</th></tr></thead><tbody id="cdBody">'+rows+'</tbody></table></div>';
+      '<th>State</th><th style="text-align:right">Missed</th><th></th></tr></thead>'+
+      '<tbody id="cdBody">'+rows+'</tbody></table></div>';
     if($('cdFind')) $('cdFind').oninput=function(){
       const q=this.value.toLowerCase().trim();
       [].forEach.call(document.querySelectorAll('#ar-body tr[data-c]'),tr=>{
@@ -26893,6 +26909,28 @@ html.dark #ar-root{
       el.style.cursor='pointer';
       el.onclick=()=>{ editing=el.getAttribute('data-c'); view='edit'; render(); };
     });
+    [].forEach.call(document.querySelectorAll('#ar-body [data-mas]'),b=>{
+      b.onclick=async ev=>{ ev.stopPropagation();
+        grade(ck(d.id,b.getAttribute('data-mas')),'know'); await save(true); render(); };
+    });
+    [].forEach.call(document.querySelectorAll('#ar-body [data-unm]'),b=>{
+      b.onclick=async ev=>{ ev.stopPropagation();
+        const kk=ck(d.id,b.getAttribute('data-unm')), E=lf(kk);
+        E.retired=false; E.mastered=false; E.finalCheck=false; E.knownOutright=false;
+        E.rung=1; E.due=tomorrow(); delete E.gradedOn;
+        await save(true); render(); };
+    });
+    if($('cdMasAll')) $('cdMasAll').onclick=async()=>{
+      const vis=[].filter.call(document.querySelectorAll('#ar-body tr[data-c]'),
+                               tr=>tr.style.display!=='none')
+                  .map(tr=>tr.getAttribute('data-c'));
+      const todo=vis.filter(id=>!isRetired(ck(d.id,id)));
+      if(!todo.length) return toast('Nothing left to master here');
+      if(!confirm('Mark '+todo.length+' card'+(todo.length>1?'s':'')+
+        ' as mastered?\n\nThey will never be shown again.')) return;
+      todo.forEach(id=>grade(ck(d.id,id),'know'));
+      await save(true); toast(todo.length+' mastered'); render();
+    };
   }
 
   function vEdit(){
@@ -26911,6 +26949,8 @@ html.dark #ar-root{
         ' &middot; '+(L.r||0)+' right &middot; '+(L.w||0)+' wrong'+
         (L.due?' &middot; due '+new Date(L.due).toLocaleDateString('en-IN',{day:'numeric',month:'short'}):'')+'</div>'+
       '<div class="btnrow"><button class="pri" id="efS">Save</button>'+
+      (L.retired?'<button class="sec" id="efU">Un-master \u00b7 back to rung 1</button>'
+                :'<button class="sec" id="efM">\u2713\u2713 Mark mastered</button>')+
       '<button class="sec" id="efT">'+(L.star?'\u2605 Starred':'\u2606 Star')+'</button>'+
       (L.leech?'<button class="sec" id="efL">Release from leeches</button>':'')+
       '<button class="sec" id="efR">Clear its progress</button>'+
@@ -26920,6 +26960,15 @@ html.dark #ar-root{
       d.updated=Date.now(); await save(true);
       if(run && run.resume){ run.resume=false; view='run'; } else view='cards';
       render();
+    };
+    if($('efM')) $('efM').onclick=async()=>{
+      grade(k,'know'); await save(true); toast('Mastered'); render();
+    };
+    if($('efU')) $('efU').onclick=async()=>{
+      const E=lf(k);
+      E.retired=false; E.mastered=false; E.finalCheck=false; E.knownOutright=false;
+      E.rung=1; E.due=tomorrow(); delete E.gradedOn;
+      await save(true); toast('Back in rotation'); render();
     };
     $('efT').onclick=async()=>{ const E=lf(k); E.star=!E.star; await save(true); render(); };
     if($('efL')) $('efL').onclick=async()=>{
