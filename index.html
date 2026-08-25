@@ -25673,6 +25673,9 @@ html.dark #ar-root{
 #ar-root .mini:hover{border-color:var(--acc);color:var(--acc)}
 #ar-root .mini.ok2:hover{border-color:var(--good);color:var(--good)}
 
+#ar-root .row.forgetrow{border-color:var(--again);background:linear-gradient(90deg,var(--againSoft),var(--panel) 55%)}
+#ar-root .row.forgetrow:hover{border-color:var(--again)}
+
 /* run progress strip */
 #ar-root .prog{display:flex;align-items:center;gap:12px;margin-bottom:15px;
   font-size:11px;font-weight:800;color:var(--dim)}
@@ -25773,12 +25776,15 @@ html.dark #ar-root{
   const RUNGS      = [1,3,7];     /* gap in days after clearing rung 1, 2, 3 */
   const TOP_RUNG   = RUNGS.length;
   const FINAL_CHECK= 21;          /* one last look this many days after mastering */
+  const FORGET_AT  = 2;           /* straight misses before a card is pulled aside */
+  const FORGET_OUT = 2;           /* straight rights before it is released back */
   const LEECH_AT   = 6;           /* lifetime wrongs before a card is pulled aside */
   const NEW_PER_DAY= 25;
   const DAILY_CAP  = 60;          /* hard ceiling on one session's queue */
 
   let A={ decks:{}, life:{}, dead:{}, newlog:{}, opts:{reverse:false}, lastOpen:0, schema:0 };
   let view='home', curSub=null, deckId=null, run=null, editing=null, imported=null;
+  let nrShowRemoved=false;
 
   const $  = id => document.getElementById(id);
   const esc= s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -25831,6 +25837,10 @@ html.dark #ar-root{
     L.streak= L.streak||(w===0?r:0);
     L.due   = L.due||0;
     L.leech = w>=LEECH_AT;
+    /* Seed from what we already know: a card with two or more misses whose last
+       answer was wrong is exactly the case this group exists for. */
+    L.wstreak = (L.lastResult==='wrong') ? Math.min(w,FORGET_AT) : 0;
+    L.forgot  = (w>=FORGET_AT && L.lastResult==='wrong');
     /* v29 leftovers that no longer mean anything */
     ['rights','hardRun','quar','quarUntil','w1','lapses','ivl','step','wasWrong'].forEach(f=>{ delete L[f]; });
   }
@@ -25892,6 +25902,11 @@ html.dark #ar-root{
 
     if(g==='again' || g==='wrong'){
       L.w=(L.w||0)+1; L.streak=0;
+      L.wstreak=(L.wstreak||0)+1;
+      /* Two straight misses is the signal that a word is not sticking. It gets
+         pulled into its own group so it is revised as a set, and it stays there
+         until it has come back RIGHT twice — one lucky guess is not learning. */
+      if(L.wstreak>=FORGET_AT) L.forgot=true;
       if(L.w>=LEECH_AT) L.leech=true;
       if(!firstToday) return;
       L.gradedOn=today;
@@ -25903,6 +25918,8 @@ html.dark #ar-root{
     }
 
     L.r=(L.r||0)+1; L.streak=(L.streak||0)+1;
+    L.wstreak=0;
+    if(L.forgot && L.streak>=FORGET_OUT) L.forgot=false;   /* earned its way back */
     if(!firstToday) return;
     L.gradedOn=today;
     L.lastResult='right';
@@ -25947,6 +25964,9 @@ html.dark #ar-root{
      source of truth for that, checked in the predicates so mixed, subject,
      chapter and topic drills all inherit it. */
   const answeredToday = k => { const L=A.life[k]; return !!(L && L.gradedOn===todayKey()); };
+  const isForgetting = k => { const L=A.life[k];
+    if(!L) return false; if(L.rung===undefined) fixEntry(L);
+    return !!(L.forgot && !L.retired); };
   const isRetired  = k => { const L=A.life[k]; return !!(L&&L.retired); };
   const isMastered = k => { const L=A.life[k]; if(L&&L.rung===undefined) fixEntry(L); return !!(L&&L.mastered); };
   const isLeech    = k => { const L=A.life[k]; if(L&&L.rung===undefined) fixEntry(L); return !!(L&&L.leech&&!L.mastered); };
@@ -26151,14 +26171,31 @@ html.dark #ar-root{
   /* One sweep so the console is honest about what was carried over the first
      time a device opens v30. fixEntry() on every read is the real safety net. */
   function migrate(){
-    if(A.schema>=30){ return; }
+    /* One-off seed for the Forgetting group. Records written before this
+       existed have no wstreak, so a card you have already missed twice would
+       have to slip twice MORE before it showed up. Seed it from the history
+       that is already there: 2+ misses and the last answer wrong. */
+    if(A.schema<31){
+      let seeded=0;
+      Object.keys(A.life).forEach(k=>{
+        const L=A.life[k];
+        if(!L || typeof L!=='object') return;
+        if(L.forgot!==undefined) return;
+        if((L.w||0)>=FORGET_AT && L.lastResult==='wrong' && !L.retired){
+          L.forgot=true; L.wstreak=FORGET_AT; seeded++;
+        } else if(L.wstreak===undefined){ L.wstreak=0; }
+      });
+      if(seeded) console.log('[AR v30] '+seeded+' card(s) seeded into the Forgetting group.');
+      A.schema=31;
+    }
+    if(A.schema>=30 && A.schemaLadder){ return; }
     let moved=0;
     Object.keys(A.life).forEach(k=>{
       const L=A.life[k];
       if(!L || typeof L!=='object'){ delete A.life[k]; return; }
       if(L.rung===undefined){ fixEntry(L); moved++; }
     });
-    A.schema=30;
+    A.schemaLadder=true;
     if(moved) console.log('[AR v30] carried '+moved+' cards onto the rung ladder — no progress reset.');
   }
   /* ═══ CLOUD ═══════════════════════════════════════════════════════════ */
@@ -26537,8 +26574,8 @@ html.dark #ar-root{
                     : st.due||st.fresh ? '<span class="ok">done today</span>'
                     : (st.leech && st.leech===st.total) ? '<span class="pill l">all leech</span>'
                     : '<span class="ok">done</span>';
-        return '<div class="row" data-topic="'+i+'">'+ring(st.pct)+'<div style="flex:1">'+
-          '<div class="nm">'+esc(t.name)+'</div>'+
+        return '<div class="row'+(t.forget?' forgetrow':'')+'" data-topic="'+i+'">'+ring(st.pct)+'<div style="flex:1">'+
+          '<div class="nm">'+esc(t.name)+(t.forget?'<span class="pill l">2 straight misses</span>':'')+'</div>'+
           '<div class="mt">'+st.total+' cards &middot; '+st.mastered+' mastered'+
             (st.leech?' &middot; '+st.leech+' leech':'')+'</div>'+
           '<div class="bar"><i style="width:'+st.pct+'%"></i></div>'+
@@ -26834,16 +26871,23 @@ html.dark #ar-root{
     render();
   }
   /* topic buckets inside a chapter, self-collected pinned to the top */
+  const FORGET_GROUP = '\u26a0 Forgetting';
   function topicsOf(d){
-    const seen=[], by={};
+    const seen=[], by={}, forget=[];
     (d.cards||[]).forEach(c=>{
+      const k=ck(d.id,c.id);
+      /* A card that keeps slipping belongs in ONE place — its own group — or it
+         hides inside a 100-card theme and you never see it as a pattern. */
+      if(isForgetting(k)){ forget.push(k); return; }
       const t=(c.topic||'').trim() || 'Ungrouped';
       if(!by[t]){ by[t]=[]; seen.push(t); }
-      by[t].push(ck(d.id,c.id));
+      by[t].push(k);
     });
     const pinned=t=>/^lecture 00|self-collected|from mocks/i.test(t);
     seen.sort((a,b)=> (pinned(b)?1:0)-(pinned(a)?1:0));
-    return seen.map(t=>({name:t, keys:by[t]}));
+    const out=seen.map(t=>({name:t, keys:by[t]}));
+    if(forget.length) out.unshift({name:FORGET_GROUP, keys:forget, forget:true});
+    return out;
   }
 
   /* ── notes (sorted by wrongs, worst first) ────────────────────────────── */
@@ -27147,11 +27191,24 @@ html.dark #ar-root{
      Membership is simply: it has at least one wrong on record and is not
      mastered. Cards wrong twice or more are marked, because those are the ones
      that need a real reason found, not another repetition. */
-  function needRecallKeys(scope){
+  /* Every card you have ever got wrong stays on this sheet. It used to drop off
+     the moment you mastered it, which is backwards — the word you fixed is
+     exactly the one worth reading again the week before the paper. Nothing
+     leaves automatically; you take it off yourself when you are done with it. */
+  function needRecallKeys(scope, includeHidden){
     return (scope||allKeys(null)).filter(k=>{
       const L=A.life[k]; if(!L) return false;
-      if(isMastered(k)) return false;          /* you fixed it — it leaves the list */
+      if(!includeHidden && L.nrHide) return false;
       return (L.w||0)>=1;
+    }).sort((a,b)=>{
+      const f=(isForgetting(b)?1:0)-(isForgetting(a)?1:0);   /* slipping words first */
+      if(f) return f;
+      return (A.life[b].w||0)-(A.life[a].w||0);              /* then most-missed */
+    });
+  }
+  function nrHiddenKeys(scope){
+    return (scope||allKeys(null)).filter(k=>{
+      const L=A.life[k]; return !!(L && L.nrHide && (L.w||0)>=1);
     }).sort((a,b)=>((A.life[b].w||0)-(A.life[a].w||0)));
   }
   function vNeedRecall(){
@@ -27159,37 +27216,79 @@ html.dark #ar-root{
     const ks=needRecallKeys(scope);
     const back = ()=>{ view = deckId?'deck':(curSub?'sub':'home'); render(); };
     const hard = ks.filter(k=>(A.life[k].w||0)>=2);
-    head('Need Recall', ks.length+' card'+(ks.length===1?'':'s')+' you have got wrong', back);
+    const forg = ks.filter(isForgetting);
+    const hid  = nrHiddenKeys(scope);
+    head('Need Recall', ks.length+' card'+(ks.length===1?'':'s')+' you have got wrong'+
+         (hid.length?' \u00b7 '+hid.length+' removed':''), back);
     if(!ks.length){
       $('ar-body').innerHTML='<div class="wrap"><div class="empty">Nothing here yet.<br>'+
-        '<span class="small">Cards land here the moment you mark one wrong, and leave when you master it.</span></div></div>';
+        '<span class="small">Cards land here the moment you get one wrong and stay until you take them off.</span></div></div>';
       return;
     }
     /* group the same way the deck notes do, so it reads like a revision sheet */
     const by={};
     ks.forEach(k=>{
       const R=resolve(k); if(!R) return;
-      const g=R.deck.chapter+(R.card.topic?' · '+R.card.topic:'');
+      const g = isForgetting(k) ? (R.deck.chapter+' \u00b7 '+FORGET_GROUP)
+                                : R.deck.chapter+(R.card.topic?' \u00b7 '+R.card.topic:'');
       (by[g]=by[g]||[]).push({k:k, c:R.card, d:R.deck, L:A.life[k]});
     });
     $('ar-body').innerHTML='<div class="wrap">'+
       '<div class="pace"><div><b style="color:#b91c1c">'+ks.length+'</b><span>need recall</span></div>'+
         '<div><b>'+hard.length+'</b><span>wrong 2+ times</span></div>'+
+        (forg.length?'<div><b style="color:#b91c1c">'+forg.length+'</b><span>forgetting</span></div>':'')+
         '<div><b>'+Object.keys(by).length+'</b><span>topics affected</span></div></div>'+
       '<div class="btnrow" style="margin-bottom:14px">'+
         '<button class="pri" id="nrDrill">Drill these '+ks.length+'</button>'+
-        '<button class="sec" id="nrPrint">Print / PDF</button></div>'+
+        '<button class="sec" id="nrPrint">Print / PDF</button>'+
+        (hid.length?'<button class="sec" id="nrShowHid">'+
+          (nrShowRemoved?'Hide removed':'Show '+hid.length+' removed')+'</button>':'')+
+      '</div>'+
+      (nrShowRemoved&&hid.length
+        ? '<div class="nbox" style="margin-bottom:10px;opacity:.62">'+
+          '<div class="nhd" style="margin-top:0;padding-top:0;border-top:none">Removed from this sheet</div>'+
+          hid.map(k=>{ const R=resolve(k); if(!R) return '';
+            return '<div class="nrow"><div class="wcount">'+((A.life[k].w)||0)+'</div>'+
+              '<div style="flex:1;min-width:0"><div class="q">'+esc(R.card.front)+'</div>'+
+              '<div class="nback">'+answerHtml(R.card.back)+'</div></div>'+
+              '<button class="mini" data-nrb="'+esc(k)+'" title="Put it back">\u21ba</button></div>';
+          }).join('')+'</div>'
+        : '')+
       Object.keys(by).map(g=>
         '<div class="nbox" style="margin-bottom:10px">'+
         '<div class="nhd" style="margin-top:0;padding-top:0;border-top:none">'+esc(g)+'</div>'+
         by[g].map(x=>'<div class="nrow">'+
           '<div class="wcount">'+(x.L.w||0)+'</div>'+
-          '<div style="flex:1;min-width:0"><div class="q">'+esc(x.c.front)+'</div>'+
+          '<div style="flex:1;min-width:0"><div class="q">'+esc(x.c.front)+
+            (isForgetting(x.k)?'<span class="pill l">forgetting</span>':'')+
+            (isRetired(x.k)?'<span class="pill g">finished</span>'
+              :isMastered(x.k)?'<span class="pill m">mastered</span>':'')+
+          '</div>'+
           '<div class="nback">'+answerHtml(x.c.back)+'</div>'+
           (x.c.note?'<div class="mt" style="margin-top:4px">'+esc(x.c.note)+'</div>':'')+
-        '</div></div>').join('')+'</div>').join('')+
+        '</div>'+
+        '<button class="mini" data-nrx="'+esc(x.k)+'" title="Take off this sheet">\u00d7</button>'+
+        '</div>').join('')+'</div>').join('')+
       '</div>';
     $('nrDrill').onclick=()=>startRun(ks, 'Need Recall', deckId||null, true);
+    /* removal is yours to make — a card never falls off this sheet on its own */
+    [].forEach.call(document.querySelectorAll('#ar-body [data-nrx]'),b=>{
+      b.onclick=async ev=>{
+        ev.stopPropagation();
+        const L=A.life[b.getAttribute('data-nrx')];
+        if(L){ L.nrHide=true; await save(true); }
+        render();
+      };
+    });
+    if($('nrShowHid')) $('nrShowHid').onclick=()=>{ nrShowRemoved=!nrShowRemoved; render(); };
+    [].forEach.call(document.querySelectorAll('#ar-body [data-nrb]'),b=>{
+      b.onclick=async ev=>{
+        ev.stopPropagation();
+        const L=A.life[b.getAttribute('data-nrb')];
+        if(L){ delete L.nrHide; await save(true); }
+        render();
+      };
+    });
     $('nrPrint').onclick=()=>{
       const w=window.open('','_blank'); if(!w) return toast('Popup blocked');
       w.document.write('<html><head><title>Need Recall</title><style>'+
