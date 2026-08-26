@@ -909,7 +909,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
             <!-- VIEW TABS: Browse | SRS Quiz | Mix Quiz | Chapter Quiz -->
             <div id="fc-main-view">
-                <div class="flex gap-1 mb-5 bg-slate-100 dark:bg-slate-800 rounded-2xl p-1.5 w-fit">
+                <div class="tab-strip flex gap-1 mb-5 bg-slate-100 dark:bg-slate-800 rounded-2xl p-1.5 w-fit">
                     <button onclick="fcSetView('browse')" id="fc-tab-browse" class="fc-tab px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm">📖 Browse</button>
                     <button onclick="fcSetView('srs')" id="fc-tab-srs" class="fc-tab px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">🧠 SRS Quiz</button>
                     <button onclick="fcSetView('chapter')" id="fc-tab-chapter" class="fc-tab px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">📚 Chapter Quiz</button>
@@ -1299,7 +1299,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
       </div>
 
       <!-- TABS -->
-      <div class="flex gap-2 mb-6">
+      <div class="tab-strip flex gap-2 mb-6">
         <button onclick="scSetTab('tracker')" id="sc-tab-tracker" class="sc-tab px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-violet-600 text-white transition-all">📋 Tracker</button>
         <button onclick="scSetTab('coverage')" id="sc-tab-coverage" class="sc-tab px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all">🌐 Coverage</button>
         <button onclick="scSetTab('weekly')" id="sc-tab-weekly" class="sc-tab px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all">📆 Weekly</button>
@@ -1811,7 +1811,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-21 · v29.6';
+    const HUB_BUILD = '2026-08-26 · v29.8';
 
     // v28.6.5 — THE REASON DISCOUNT WAS *STILL* OUT OF ORDER AFTER v28.6.2.
     //   Two separate causes, both fixed here:
@@ -10949,7 +10949,7 @@ window.retryWrong = function() {
     <div id="mt-header-stats" class="flex gap-3 flex-wrap justify-end"></div>
   </div>
 
-  <div style="display:flex;gap:3px;padding:4px;background:#f1f5f9;border-radius:14px;margin-bottom:1.5rem" class="dark:bg-slate-800/60">
+  <div style="display:flex;gap:3px;padding:4px;background:#f1f5f9;border-radius:14px;margin-bottom:1.5rem" class="mt-tab-strip dark:bg-slate-800/60">
     <button class="mt-tab mt-active" onclick="mtSwitchTab('log')">➕ Log Mock</button>
     <button class="mt-tab" onclick="mtSwitchTab('history')">📋 History</button>
     <button class="mt-tab" onclick="mtSwitchTab('analysis')">📊 Analysis</button>
@@ -13472,7 +13472,7 @@ function scRenderTracker() {
   const chapters = chaptersForSubject;
 
   let html = `<div class="flex gap-2 flex-wrap mb-3 pb-3 border-b border-slate-200 dark:border-slate-800">${tabsHtml}</div>
-  <div class="grid gap-0 mb-1 px-2" style="grid-template-columns:16px 1fr 80px 46px 46px 72px 52px 52px 52px 28px">
+  <div class="sc-head grid gap-0 mb-1 px-2" style="grid-template-columns:16px 1fr 80px 46px 46px 72px 52px 52px 52px 28px">
     <div></div>
     <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 pl-2">Topic</div>
     <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Status</div>
@@ -13591,12 +13591,13 @@ function scRenderTracker() {
       </div>`;
 
       html += `
-        <div class="grid items-center gap-0 px-2 py-1 min-h-[46px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" style="grid-template-columns:16px 1fr 80px 46px 46px 72px 52px 52px 52px 28px">
+        <div class="sc-row grid items-center gap-0 px-2 py-1 min-h-[46px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" style="grid-template-columns:16px 1fr 80px 46px 46px 72px 52px 52px 52px 28px">
           <div class="text-slate-300 dark:text-slate-600 text-[10px] text-center">${t.priority ? '⭐' : ''}</div>
           <div class="flex items-center gap-0.5 pl-2">
             <span class="text-[12px] font-semibold ${status === 'done' ? 'line-through text-slate-400' : ''}">${t.name}</span>
             ${newBadge}${subTopicBtn}
           </div>
+          <div class="sc-meta">
           <div class="flex justify-center"><span class="text-[8px] font-black px-1.5 py-0.5 rounded-full ${statusClass}">${statusLabel}</span></div>
           ${hasSubTopics 
             ? `<div class="flex items-center justify-center text-[10px] text-blue-500 dark:text-blue-400 font-bold" style="grid-column: span 2">📊 by sub-topic</div>` 
@@ -13606,6 +13607,7 @@ function scRenderTracker() {
           <div class="flex items-center justify-center">${_colTotal}</div>
           <div class="flex items-center justify-center">${_colSRS}</div>
           <div class="flex items-center justify-center">${_colNew}</div>
+          </div>
           <div class="flex justify-center"><button onclick="scOpenTopicMenu('${scAttr(t.key)}')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg font-black w-6 h-6 flex items-center justify-center rounded transition-colors">⋮</button></div>
         </div>`;
       
@@ -13684,11 +13686,12 @@ function scRenderTracker() {
           </div>`;
           
           html += `
-        <div class="grid items-center gap-0 px-2 py-1 min-h-[40px] bg-slate-50 dark:bg-slate-800/40 border-l border-r border-b border-slate-100 dark:border-slate-800" style="grid-template-columns:16px 1fr 80px 46px 46px 72px 52px 52px 52px 28px">
+        <div class="sc-row sc-sub grid items-center gap-0 px-2 py-1 min-h-[40px] bg-slate-50 dark:bg-slate-800/40 border-l border-r border-b border-slate-100 dark:border-slate-800" style="grid-template-columns:16px 1fr 80px 46px 46px 72px 52px 52px 52px 28px">
           <div class="text-slate-300 dark:text-slate-600 text-[10px] text-center">└</div>
           <div class="flex items-center gap-0.5 pl-4">
             <span class="text-[11px] text-slate-600 dark:text-slate-400">${st.name}</span>
           </div>
+          <div class="sc-meta">
           <div class="flex justify-center"><span class="text-[8px] font-black px-1.5 py-0.5 rounded-full ${subStatusClass}">${subStatusLabel}</span></div>
           <div class="flex justify-center">${subLecTick}</div>
           <div class="flex flex-col items-center">${scRevTick(st, 'r1', st.r1, subDaysUntil, subRevLabel)}</div>
@@ -13696,6 +13699,7 @@ function scRenderTracker() {
           <div class="flex items-center justify-center">${_subColTotal}</div>
           <div class="flex items-center justify-center">${_subColSRS}</div>
           <div class="flex items-center justify-center">${_subColNew}</div>
+          </div>
           <div></div>
         </div>`;
         });
@@ -16089,7 +16093,7 @@ body.light select.inp option { background:white; }
 <!-- NAV -->
 <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #1a2236;background:#0d1321;position:sticky;top:56px;z-index:40">
   <button onclick="showScreen('dashboard')" style="background:none;border:none;color:#64748b;font-size:11px;font-weight:900;cursor:pointer;text-transform:uppercase;letter-spacing:.08em;font-family:'Nunito Sans',sans-serif">← Hub</button>
-  <div style="display:flex;gap:2px;background:#111827;padding:3px;border-radius:12px;border:1px solid #1a2236">
+  <div class="wr-tabs" style="display:flex;gap:2px;background:#111827;padding:3px;border-radius:12px;border:1px solid #1a2236">
     <button class="wr-tab-btn active" onclick="switchTab('home',this)">🏠 Home</button>
     <button class="wr-tab-btn" onclick="switchTab('calendar',this)">📅 Calendar</button>
     <button class="wr-tab-btn" onclick="switchTab('log',this)">✍️ Log</button>
@@ -21672,6 +21676,7 @@ function pomoExpire(){
   if(l) logCapAt(l, pomoTargetMs(_pomo));
   try{ save(); }catch(e){}
   try{ if(typeof drillRenderCol==='function' && _pomo.col) drillRenderCol(_pomo.col); }catch(e){}
+  try{ catCelebrate(); }catch(e){}            /* v29.7 — Focus Cat takes a bow */
   pomoAsk();
 }
 
@@ -21763,6 +21768,7 @@ try{
 
 /* ── floating badge (visible from anywhere in the hub) ──────────────────── */
 function pomoBadgeRender(){
+  try{ catSync(); }catch(e){}                 /* v29.7 — Focus Cat rides the same heartbeat */
   let b = document.getElementById('pomo-badge');
   const carry = (!_pomo && !_brk) ? pomoCarryGet() : null;
   const showPomo = !!_pomo, showBrk = !!_brk;
@@ -21934,6 +21940,433 @@ window.brkSkip = function(){
   if(_brkTick){ clearInterval(_brkTick); _brkTick=null; }
   _brk = null; brkPersist(); pomoBadgeRender();
 };
+
+/* ══════════════════════════════════════════════════════════════════════════
+   FOCUS CAT (v29.7) — the sarcastic Pomodoro companion
+   ──────────────────────────────────────────────────────────────────────────
+   A small SVG cat that sits in the bottom-left corner whenever a Pomodoro or
+   a break is running, and reacts to what the timer is ACTUALLY doing:
+
+     run    · eyes open, pupils sweep left→right as the session burns down,
+              tail flicking, slow breathing
+     paused · eyes shut, curled, snarky about your "quick break"
+     away   · you left the tab for >5s and came back — ears back, narrow eyes
+     break  · relaxed, half-lidded
+     carry  · lecture finished mid-Pomodoro, minutes are being held
+     done   · brief celebration on top of the ask overlay
+
+   Tap  = full screen. Tap again = back to the corner.
+   Long-press (600ms) = hide until the next page load.
+
+   ⚠ READ-ONLY BY DESIGN. It reads _pomo / _brk / pomoLeft() / pomoIsPaused()
+   / pomoCarryGet() and writes NOTHING — no log fields, no save(), no cloud
+   sync, no IndexedDB. Its only persisted value is a per-session "hidden"
+   flag in sessionStorage. Worst case it draws the wrong face; it cannot
+   touch your data.
+
+   All art is inline SVG + CSS keyframes — no image files, works offline,
+   same as the Web Audio alarms.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+let _catTick = null;
+let _catFull = false;
+let _catLine = '';
+let _catLineAt = 0;
+let _catLineSt = '';
+let _catAwayAt = 0;
+let _catCaughtUntil = 0;
+let _catCelebUntil = 0;
+const CAT_HIDE_KEY = 'focusCatHidden_v1';
+
+/* ── what the cat is reacting to ──────────────────────────────────────── */
+function catState(){
+  if(Date.now() < _catCelebUntil) return 'done';
+  try{
+    if(typeof _brk !== 'undefined' && _brk) return 'break';
+    if(typeof _pomo !== 'undefined' && _pomo){
+      if(_pomo._expired) return 'done';
+      if(pomoIsPaused()) return 'paused';
+      if(Date.now() < _catCaughtUntil) return 'away';
+      return 'run';
+    }
+    if(typeof pomoCarryGet === 'function' && pomoCarryGet()) return 'carry';
+  }catch(e){}
+  return null;
+}
+
+/* ── the mouth ────────────────────────────────────────────────────────── */
+const CAT_LINES = {
+  run: [
+    "Oh, we're actually studying today? Bold.",
+    "I'm watching. This is my entire job.",
+    "Don't mind me. Just judging quietly.",
+    "Still going? Suspicious.",
+    "One of us has to stay focused. It's me.",
+    "Your phone isn't going anywhere. Relax.",
+    "This is the part where you don't open Instagram.",
+    "Look at you. Doing the thing.",
+    "I've seen worse. That's a compliment.",
+    "SSC won't crack itself. Obviously.",
+    "Keep going before I faint from shock.",
+    "Nice. Genuinely. Don't let it go to your head.",
+    "Every question you skip, I remember.",
+    "You're doing fine. I'll deny saying that."
+  ],
+  paused: [
+    "Ah yes. The famous 2-minute break. Legendary.",
+    "Paused. Bold strategy.",
+    "I'll wait. I have nine lives.",
+    "Take your time. The exam is very patient.",
+    "Zzz... wake me when you're serious.",
+    "Break number — I stopped counting."
+  ],
+  away: [
+    "I can see the other tab. I'm a cat, not blind.",
+    "Welcome back. Where exactly were you.",
+    "Oh good, you remembered I exist.",
+    "I counted every second. Every single one.",
+    "That was a long 'quick check'.",
+    "Don't explain. Just sit down."
+  ],
+  break: [
+    "Break time. Stand up. Water. No scrolling.",
+    "Rest properly or it doesn't count.",
+    "Stretch. You're folding like paper.",
+    "Legs. Use them. Revolutionary idea.",
+    "Look at something far away. Not your phone."
+  ],
+  carry: [
+    "Pick the next one. I'm holding your minutes.",
+    "Still holding your leftover time. Hurry up.",
+    "These minutes don't keep forever, you know."
+  ],
+  done: [
+    "Fine. That was acceptable. Barely.",
+    "Look at that. You survived.",
+    "Done. I'm mildly impressed.",
+    "Well. That happened. Good.",
+    "Logged. Don't get comfortable."
+  ]
+};
+function catPickLine(st){
+  const pool = CAT_LINES[st] || CAT_LINES.run;
+  let s = pool[Math.floor(Math.random()*pool.length)];
+  if(pool.length > 1){ let g=0; while(s === _catLine && g++ < 6) s = pool[Math.floor(Math.random()*pool.length)]; }
+  return s;
+}
+
+/* ── the art ──────────────────────────────────────────────────────────── */
+function catStyle(){
+  if(document.getElementById('focus-cat-css')) return;
+  const s = document.createElement('style');
+  s.id = 'focus-cat-css';
+  s.textContent = `
+  #focus-cat{position:fixed;left:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:2147483643;
+    display:flex;flex-direction:column;align-items:flex-start;gap:6px;font-family:inherit;
+    -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;
+    animation:catIn .45s cubic-bezier(.34,1.56,.64,1) both}
+  @keyframes catIn{from{opacity:0;transform:translateY(22px) scale(.8)}to{opacity:1;transform:none}}
+  #focus-cat .catbub{max-width:172px;background:#0f172a;border:1px solid #334155;border-radius:12px;
+    padding:7px 10px;font-size:10.5px;font-weight:800;color:#cbd5e1;line-height:1.42;
+    box-shadow:0 8px 22px rgba(0,0,0,.5);position:relative}
+  #focus-cat .catbub:after{content:'';position:absolute;left:22px;bottom:-6px;width:10px;height:10px;
+    background:#0f172a;border-right:1px solid #334155;border-bottom:1px solid #334155;transform:rotate(45deg)}
+  #focus-cat .catwrap{position:relative;width:104px;height:104px;cursor:pointer;filter:drop-shadow(0 6px 14px rgba(0,0,0,.45))}
+  #focus-cat svg{width:100%;height:100%;overflow:visible;display:block}
+  #focus-cat .catclock{position:absolute;left:50%;bottom:-3px;transform:translateX(-50%);
+    background:#4f46e5;color:#fff;font-size:10px;font-weight:900;padding:2px 8px;border-radius:999px;
+    letter-spacing:.02em;box-shadow:0 3px 10px rgba(0,0,0,.45);white-space:nowrap}
+
+  /* full screen */
+  #focus-cat.catfull{left:0;right:0;top:0;bottom:0;z-index:2147483645;
+    background:radial-gradient(circle at 50% 42%,#1e1b4b 0%,#0b1120 62%,#020617 100%);
+    align-items:center;justify-content:center;gap:16px;padding:24px;animation:none}
+  #focus-cat.catfull .catwrap{width:min(56vw,240px);height:min(56vw,240px)}
+  #focus-cat.catfull .catbub{max-width:min(88vw,380px);font-size:14px;padding:13px 16px;text-align:center;order:-1}
+  #focus-cat.catfull .catbub:after{left:50%;margin-left:-5px}
+  #focus-cat.catfull .catclock{position:static;transform:none;font-size:17px;padding:7px 20px;margin-top:16px}
+  #focus-cat .cathint{display:none;font-size:10px;font-weight:800;color:#475569;letter-spacing:.05em}
+  #focus-cat.catfull .cathint{display:block}
+
+  /* ── parts ── */
+  #focus-cat .c-tail{transform-origin:84px 92px;animation:catTail 2.6s ease-in-out infinite}
+  @keyframes catTail{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(13deg)}}
+  #focus-cat .c-body{transform-origin:60px 100px;animation:catBreathe 3.6s ease-in-out infinite}
+  @keyframes catBreathe{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.032)}}
+  #focus-cat .c-head{transform-origin:60px 60px;animation:catBob 4.2s ease-in-out infinite}
+  @keyframes catBob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-1.6px) rotate(1.4deg)}}
+  #focus-cat .c-pupils{transition:transform .9s cubic-bezier(.4,0,.2,1)}
+  /* transform-box:fill-box is REQUIRED here — without it 'center top' resolves
+     against the whole SVG viewport, not the lid, and the lid scales off-screen.
+     Rest state is 0.72, not 0: a permanently half-lidded, unimpressed stare. */
+  #focus-cat .c-lid{transform-box:fill-box;transform-origin:center top;animation:catBlink 6.4s infinite}
+  @keyframes catBlink{0%,95.5%,100%{transform:scaleY(.72)}97%,98.6%{transform:scaleY(1.5)}}
+  #focus-cat .c-ear-l{transform-origin:44px 40px}
+  #focus-cat .c-ear-r{transform-origin:76px 40px}
+  #focus-cat .eyes-open,#focus-cat .eyes-shut,#focus-cat .eyes-narrow,#focus-cat .eyes-happy,
+  #focus-cat .m-flat,#focus-cat .m-smile,#focus-cat .m-frown,#focus-cat .zzz,#focus-cat .sparks{display:none}
+
+  /* state: run */
+  #focus-cat[data-st="run"] .eyes-open,#focus-cat[data-st="run"] .m-flat{display:block}
+  /* state: paused */
+  #focus-cat[data-st="paused"] .eyes-shut,#focus-cat[data-st="paused"] .m-flat,
+  #focus-cat[data-st="paused"] .zzz{display:block}
+  #focus-cat[data-st="paused"] .c-tail{animation-duration:5.5s}
+  #focus-cat[data-st="paused"] .c-head{animation:catSleep 4.4s ease-in-out infinite}
+  @keyframes catSleep{0%,100%{transform:rotate(-7deg) translateY(2px)}50%{transform:rotate(-7deg) translateY(4px)}}
+  #focus-cat[data-st="paused"] .c-ear-l{transform:rotate(-13deg)}
+  #focus-cat[data-st="paused"] .c-ear-r{transform:rotate(13deg)}
+  /* state: away — caught you */
+  #focus-cat[data-st="away"] .eyes-narrow,#focus-cat[data-st="away"] .m-frown{display:block}
+  #focus-cat[data-st="away"] .c-ear-l{transform:rotate(-30deg)}
+  #focus-cat[data-st="away"] .c-ear-r{transform:rotate(30deg)}
+  #focus-cat[data-st="away"] .c-tail{animation:catTailAngry .5s ease-in-out infinite}
+  @keyframes catTailAngry{0%,100%{transform:rotate(-19deg)}50%{transform:rotate(19deg)}}
+  #focus-cat[data-st="away"] .catbub{border-color:#7f1d1d;color:#fca5a5}
+  #focus-cat[data-st="away"] .catbub:after{border-color:#7f1d1d}
+  /* state: break */
+  #focus-cat[data-st="break"] .eyes-happy,#focus-cat[data-st="break"] .m-smile{display:block}
+  #focus-cat[data-st="break"] .c-tail{animation-duration:4.4s}
+  #focus-cat[data-st="break"] .catclock{background:#0ea5e9}
+  /* state: carry */
+  #focus-cat[data-st="carry"] .eyes-narrow,#focus-cat[data-st="carry"] .m-flat{display:block}
+  #focus-cat[data-st="carry"] .catclock{background:#7c3aed}
+  /* state: done */
+  #focus-cat[data-st="done"] .eyes-happy,#focus-cat[data-st="done"] .m-smile,
+  #focus-cat[data-st="done"] .sparks{display:block}
+  #focus-cat[data-st="done"]{z-index:2147483647}
+  #focus-cat[data-st="done"] .c-body{animation:catHop .62s ease-in-out infinite}
+  @keyframes catHop{0%,100%{transform:translateY(0)}30%{transform:translateY(-9px)}60%{transform:translateY(0)}}
+  #focus-cat[data-st="done"] .c-head{animation:catHop .62s ease-in-out infinite}
+  #focus-cat[data-st="done"] .c-tail{animation-duration:.55s}
+  #focus-cat[data-st="done"] .catclock{background:#10b981}
+  #focus-cat[data-st="done"] .catbub{border-color:#065f46;color:#6ee7b7}
+  #focus-cat[data-st="done"] .catbub:after{border-color:#065f46}
+  .sparks circle{animation:catSpark .9s ease-out infinite}
+  .sparks circle:nth-child(2){animation-delay:.3s}
+  .sparks circle:nth-child(3){animation-delay:.6s}
+  @keyframes catSpark{0%{opacity:0;transform:translateY(6px) scale(.4)}45%{opacity:1}100%{opacity:0;transform:translateY(-14px) scale(1.2)}}
+  .zzz text{animation:catZ 3s ease-out infinite}
+  .zzz text:nth-child(2){animation-delay:1s}
+  .zzz text:nth-child(3){animation-delay:2s}
+  @keyframes catZ{0%{opacity:0;transform:translate(0,4px) scale(.6)}30%{opacity:.95}100%{opacity:0;transform:translate(9px,-17px) scale(1.15)}}
+  @media (prefers-reduced-motion:reduce){#focus-cat *{animation:none!important}}
+  `;
+  document.head.appendChild(s);
+}
+
+const CAT_SVG = `
+<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <defs>
+    <linearGradient id="catFur" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#e08a15"/>
+    </linearGradient>
+  </defs>
+
+  <g class="c-tail">
+    <path d="M84 96 C 106 98, 116 76, 104 62 C 100 57, 94 58, 95 64 C 97 74, 92 84, 82 86 Z"
+          fill="url(#catFur)" stroke="#7c4708" stroke-width="2.2" stroke-linejoin="round"/>
+    <path d="M100 61 C 104 64, 105 70, 103 74" stroke="#a15c07" stroke-width="3" fill="none" stroke-linecap="round"/>
+  </g>
+
+  <g class="c-body">
+    <path d="M60 52 C 38 52, 28 74, 28 92 C 28 102, 38 106, 60 106 C 82 106, 92 102, 92 92 C 92 74, 82 52, 60 52 Z"
+          fill="url(#catFur)" stroke="#7c4708" stroke-width="2.6" stroke-linejoin="round"/>
+    <path d="M60 74 C 50 74, 44 82, 44 92 C 44 100, 50 103, 60 103 C 70 103, 76 100, 76 92 C 76 82, 70 74, 60 74 Z"
+          fill="#fde9c0" opacity=".85"/>
+    <ellipse cx="42" cy="101" rx="10" ry="5.6" fill="#fde9c0" stroke="#7c4708" stroke-width="2"/>
+    <ellipse cx="78" cy="101" rx="10" ry="5.6" fill="#fde9c0" stroke="#7c4708" stroke-width="2"/>
+  </g>
+
+  <g class="c-head">
+    <path class="c-ear-l" d="M36 44 L 31 16 L 55 32 Z" fill="url(#catFur)" stroke="#7c4708" stroke-width="2.6" stroke-linejoin="round"/>
+    <path class="c-ear-r" d="M84 44 L 89 16 L 65 32 Z" fill="url(#catFur)" stroke="#7c4708" stroke-width="2.6" stroke-linejoin="round"/>
+    <path class="c-ear-l" d="M39 41 L 36 24 L 51 33 Z" fill="#f9a8b4" opacity=".8"/>
+    <path class="c-ear-r" d="M81 41 L 84 24 L 69 33 Z" fill="#f9a8b4" opacity=".8"/>
+
+    <ellipse cx="60" cy="52" rx="31" ry="27" fill="url(#catFur)" stroke="#7c4708" stroke-width="2.6"/>
+    <path d="M52 28 L 55 38 M60 26 L 60 37 M68 28 L 65 38" stroke="#a15c07" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+
+    <!-- eyes: open -->
+    <g class="eyes-open">
+      <ellipse cx="48" cy="52" rx="8.4" ry="9" fill="#fffdf5" stroke="#7c4708" stroke-width="1.8"/>
+      <ellipse cx="72" cy="52" rx="8.4" ry="9" fill="#fffdf5" stroke="#7c4708" stroke-width="1.8"/>
+      <g class="c-pupils">
+        <ellipse cx="48" cy="52.5" rx="3.5" ry="6.4" fill="#141414"/>
+        <ellipse cx="72" cy="52.5" rx="3.5" ry="6.4" fill="#141414"/>
+        <circle cx="46.4" cy="49.4" r="1.7" fill="#fff"/>
+        <circle cx="70.4" cy="49.4" r="1.7" fill="#fff"/>
+      </g>
+      <ellipse class="c-lid" cx="48" cy="43.4" rx="9" ry="9.6" fill="url(#catFur)"/>
+      <ellipse class="c-lid" cx="72" cy="43.4" rx="9" ry="9.6" fill="url(#catFur)"/>
+    </g>
+    <!-- eyes: shut -->
+    <g class="eyes-shut">
+      <path d="M41 53 Q 48 60, 55 53" stroke="#7c4708" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+      <path d="M65 53 Q 72 60, 79 53" stroke="#7c4708" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+    </g>
+    <!-- eyes: narrow / suspicious -->
+    <g class="eyes-narrow">
+      <path d="M40 48 L 56 52 L 40 56 Z" fill="#fffdf5" stroke="#7c4708" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M80 48 L 64 52 L 80 56 Z" fill="#fffdf5" stroke="#7c4708" stroke-width="1.6" stroke-linejoin="round"/>
+      <ellipse cx="47" cy="52" rx="2.6" ry="3.2" fill="#141414"/>
+      <ellipse cx="73" cy="52" rx="2.6" ry="3.2" fill="#141414"/>
+      <path d="M39 42 L 55 46" stroke="#7c4708" stroke-width="2.8" stroke-linecap="round"/>
+      <path d="M81 42 L 65 46" stroke="#7c4708" stroke-width="2.8" stroke-linecap="round"/>
+    </g>
+    <!-- eyes: happy arcs -->
+    <g class="eyes-happy">
+      <path d="M41 55 Q 48 45, 55 55" stroke="#7c4708" stroke-width="2.9" fill="none" stroke-linecap="round"/>
+      <path d="M65 55 Q 72 45, 79 55" stroke="#7c4708" stroke-width="2.9" fill="none" stroke-linecap="round"/>
+    </g>
+
+    <path d="M56.6 63 L 63.4 63 L 60 67 Z" fill="#e0748a" stroke="#a1394f" stroke-width="1.2" stroke-linejoin="round"/>
+    <path class="m-flat"  d="M60 67 L 60 70 M52 71 Q 56 74, 60 70 M68 71 Q 64 74, 60 70" stroke="#7c4708" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path class="m-smile" d="M60 67 L 60 70 M50 69 Q 55 77, 60 70 M70 69 Q 65 77, 60 70" stroke="#7c4708" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    <path class="m-frown" d="M60 67 L 60 70 M53 75 Q 60 69, 67 75" stroke="#7c4708" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+
+    <path d="M28 60 L 13 56 M28 65 L 14 66 M92 60 L 107 56 M92 65 L 106 66"
+          stroke="#fde9c0" stroke-width="1.9" stroke-linecap="round" opacity=".85"/>
+  </g>
+
+  <g class="zzz" fill="#93c5fd" font-size="13" font-weight="900" font-family="inherit">
+    <text x="90" y="30">z</text><text x="94" y="24">z</text><text x="98" y="18">z</text>
+  </g>
+  <g class="sparks" fill="#fde047">
+    <circle cx="24" cy="34" r="3"/><circle cx="98" cy="30" r="2.4"/><circle cx="60" cy="10" r="2.8"/>
+  </g>
+</svg>`;
+
+/* ── render / update ──────────────────────────────────────────────────── */
+function catSync(){
+  let st = null;
+  try{ st = catState(); }catch(e){ st = null; }
+  let hidden = false;
+  try{ hidden = sessionStorage.getItem(CAT_HIDE_KEY) === '1'; }catch(e){}
+
+  const el = document.getElementById('focus-cat');
+  if(!st || hidden){
+    if(el) el.remove();
+    _catFull = false;
+    if(_catTick){ clearInterval(_catTick); _catTick = null; }
+    return;
+  }
+
+  catStyle();
+  let c = el;
+  if(!c){
+    c = document.createElement('div');
+    c.id = 'focus-cat';
+    c.innerHTML = `<div class="catbub"></div>`
+      + `<div class="catwrap">${CAT_SVG}<div class="catclock"></div></div>`
+      + `<div class="cathint">TAP THE CAT TO SHRINK · LONG-PRESS TO HIDE</div>`;
+    document.body.appendChild(c);
+    catBindTaps(c);
+  }
+
+  /* state + line */
+  if(c.getAttribute('data-st') !== st){
+    c.setAttribute('data-st', st);
+    _catLineSt = st; _catLine = catPickLine(st); _catLineAt = Date.now();
+  } else if(Date.now() - _catLineAt > 120000){
+    _catLine = catPickLine(st); _catLineAt = Date.now();
+  }
+  const bub = c.querySelector('.catbub');
+  if(bub && bub.textContent !== _catLine) bub.textContent = _catLine;
+
+  /* clock text */
+  let txt = '';
+  try{
+    if(st === 'break' && _brk) txt = '☕ ' + pomoFmt(_brk.paused ? _brk.leftMs : (_brk.endTs - Date.now()));
+    else if(st === 'carry'){ const cy = pomoCarryGet(); txt = '⏸ ' + pomoFmt(cy ? cy.leftMs : 0); }
+    else if(st === 'done')  txt = '✓ done';
+    else if(typeof _pomo !== 'undefined' && _pomo) txt = '🍅 ' + pomoFmt(pomoLeft()) + (st === 'paused' ? ' · paused' : '');
+  }catch(e){}
+  const ck = c.querySelector('.catclock');
+  if(ck && ck.textContent !== txt) ck.textContent = txt;
+
+  /* pupils sweep left→right across the session */
+  try{
+    const p = c.querySelector('.c-pupils');
+    if(p && st === 'run' && typeof _pomo !== 'undefined' && _pomo){
+      const tot = pomoTargetMs(_pomo) || 1;
+      const frac = Math.min(1, Math.max(0, 1 - (pomoLeft() / tot)));
+      p.style.transform = 'translateX(' + (-2.4 + frac * 4.8).toFixed(2) + 'px)';
+    } else if(p){ p.style.transform = ''; }
+  }catch(e){}
+
+  catTickOn();
+}
+window.catSync = catSync;
+
+function catTickOn(){
+  if(_catTick) return;
+  _catTick = setInterval(()=>{
+    let st = null; try{ st = catState(); }catch(e){}
+    if(!st){ clearInterval(_catTick); _catTick = null; }
+    catSync();
+  }, 1000);
+}
+
+/* tap = full screen · long-press = hide for this session */
+function catBindTaps(c){
+  const wrap = c.querySelector('.catwrap');
+  let t0 = 0, held = false, timer = null;
+  const down = ()=>{
+    t0 = Date.now(); held = false;
+    timer = setTimeout(()=>{
+      held = true;
+      try{ sessionStorage.setItem(CAT_HIDE_KEY, '1'); }catch(e){}
+      try{ hubToast('🐱 Cat hidden until you reload'); }catch(e){}
+      catSync();
+    }, 600);
+  };
+  const up = (e)=>{
+    clearTimeout(timer);
+    if(held) return;
+    if(e && e.preventDefault) e.preventDefault();
+    _catFull = !_catFull;
+    c.classList.toggle('catfull', _catFull);
+  };
+  wrap.addEventListener('pointerdown', down);
+  wrap.addEventListener('pointerup', up);
+  wrap.addEventListener('pointercancel', ()=>clearTimeout(timer));
+  wrap.addEventListener('pointerleave', ()=>clearTimeout(timer));
+  /* in full screen, tapping the backdrop also collapses it */
+  c.addEventListener('click', (e)=>{
+    if(_catFull && e.target === c){ _catFull = false; c.classList.remove('catfull'); }
+  });
+}
+
+/* celebration — fires from pomoExpire, sits ON TOP of the ask overlay */
+function catCelebrate(){
+  _catCelebUntil = Date.now() + 6500;
+  _catLine = catPickLine('done'); _catLineAt = Date.now();
+  try{ catSync(); }catch(e){}
+}
+window.catCelebrate = catCelebrate;
+
+/* "I saw that" — only counts a real absence (>5s) during a LIVE Pomodoro */
+try{
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden){ _catAwayAt = Date.now(); return; }
+    const gone = _catAwayAt ? (Date.now() - _catAwayAt) : 0;
+    _catAwayAt = 0;
+    let live = false;
+    try{ live = !!(_pomo && !_pomo._expired && !pomoIsPaused() && !_brk); }catch(e){}
+    if(gone > 5000 && live) _catCaughtUntil = Date.now() + 9000;
+    catSync();
+  });
+  window.addEventListener('blur',  ()=>{ if(!_catAwayAt) _catAwayAt = Date.now(); });
+  window.addEventListener('focus', ()=>{
+    const gone = _catAwayAt ? (Date.now() - _catAwayAt) : 0;
+    _catAwayAt = 0;
+    let live = false;
+    try{ live = !!(_pomo && !_pomo._expired && !pomoIsPaused() && !_brk); }catch(e){}
+    if(gone > 5000 && live) _catCaughtUntil = Date.now() + 9000;
+    catSync();
+  });
+}catch(e){}
 
 /* ── Sound settings panel (v28.0) ──────────────────────────────────────────
    Opened from the 🔊 button on the Pomodoro badge, or pomoSoundPanel().
@@ -25746,6 +26179,152 @@ html.dark #ar-root{
   #ar-root .hero .grid b{font-size:21px}
   #ar-root .grade button{font-size:13.5px;padding:14px 4px}
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE LAYER (v29.8) — phone layout, ≤560px only
+   ───────────────────────────────────────────────────────────────────────────
+   Every rule below was written against a MEASURED overflow report: the hub
+   rendered in headless Chromium at 390×844 (iPhone width), walking every
+   element on all 20 screen-* containers and recording which ones spilled past
+   the viewport. 47 elements across 9 screens.
+
+   Nothing here runs above 560px, so the iPad and desktop layouts are
+   untouched. There is deliberately NO `overflow-x:hidden` on body — that
+   hides missing content instead of fixing it, and you'd never know what you
+   weren't seeing.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* .sc-meta wraps the 7 metric cells of a syllabus row. On desktop it is
+   display:contents, i.e. completely transparent to the 10-column grid — the
+   old layout is byte-for-byte unchanged. On a phone it becomes the second
+   line of a two-line card. */
+.sc-meta { display: contents; }
+
+@media (max-width: 560px) {
+
+  /* ── 1. SYLLABUS TRACKER (was the worst: 14 elements, 183px off-screen) ──
+     The row was a 10-column grid carrying 444px of HARD pixel columns on a
+     390px screen, so Lec / R1 / Next Due / Total / SRS / New / ⋮ were simply
+     off the edge. Rebuilt as a two-line card: name on top, metrics below. */
+  #sc-view-tracker .sc-head { display: none; }          /* column labels are meaningless once stacked */
+
+  #sc-view-tracker .sc-row {
+    grid-template-columns: 16px minmax(0,1fr) 28px !important;  /* beats the inline style */
+    row-gap: 5px;
+    padding-top: 7px;
+    padding-bottom: 7px;
+  }
+  #sc-view-tracker .sc-row > *:nth-child(1) { grid-row: 1; grid-column: 1; }
+  #sc-view-tracker .sc-row > *:nth-child(2) { grid-row: 1; grid-column: 2; }
+  #sc-view-tracker .sc-row > *:nth-child(4) { grid-row: 1; grid-column: 3; }
+  #sc-view-tracker .sc-row > *:nth-child(2) span { font-size: 12.5px; line-height: 1.35; }
+
+  #sc-view-tracker .sc-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px 9px;
+    grid-row: 2;
+    grid-column: 1 / -1;
+    padding-left: 18px;
+  }
+  #sc-view-tracker .sc-meta > * {
+    min-width: 0;
+    flex: 0 0 auto;
+    justify-content: flex-start !important;
+    text-align: left !important;
+  }
+  #sc-view-tracker .sc-meta > *:empty { display: none; }   /* the blank Next-Due cell on sub-rows */
+  #sc-view-tracker .sc-sub .sc-meta { padding-left: 26px; }
+
+  /* ── 2. DASHBOARD HEADER (217px clipped) ──
+     Title + build badge sat in one nowrap flex row, so the title was sliced
+     mid-word — this is the "YOG…QUIZ H" you were seeing. */
+  #screen-dashboard header h1 { font-size: 1.55rem !important; line-height: 1.15; }
+  #screen-dashboard header .flex,
+  #screen-dashboard header > div > div { flex-wrap: wrap; }
+  #hub-build-badge { font-size: 9px; }
+
+  /* ── 3. TAB STRIPS — swipe instead of clip ──
+     Mock Tracker (159px), Planner (30px), Flashcards (39px). Tabs are the one
+     case where horizontal scroll is the RIGHT answer: wrapping them into three
+     ragged lines wastes a third of the screen on a phone. */
+  #screen-mock-tracker .mt-tab,
+  #screen-planner .wr-tab-btn { flex: 0 0 auto; white-space: nowrap; }
+  #screen-mock-tracker .mt-tab-strip,
+  #screen-planner .wr-tabs,
+  .tab-strip {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  #screen-mock-tracker .mt-tab-strip::-webkit-scrollbar,
+  #screen-planner .wr-tabs::-webkit-scrollbar,
+  .tab-strip::-webkit-scrollbar { display: none; }
+
+  /* tabs inside any strip keep their full label and never squash */
+  .tab-strip > button { flex: 0 0 auto; white-space: nowrap; }
+  .tab-strip { max-width: 100%; width: auto !important; }
+
+  /* ── 4. SRS MODAL HEADER (54px clipped) — title block + buttons on one nowrap row ── */
+  #screen-srs-modal .flex.justify-between,
+  #screen-srs-modal .flex.items-center { flex-wrap: wrap; gap: 6px; }
+
+  /* ── 5. EDIT MODAL (23px) — two-column tag grid + the Browse button row ── */
+  #screen-edit-modal .grid.md\:grid-cols-2 { grid-template-columns: 1fr !important; }
+  #screen-edit-modal .flex.gap-2 { flex-wrap: wrap; }
+
+  /* ── 6. DB MANAGER (36px) — a 12-column header on a phone ── */
+  #screen-db-manager .grid-cols-12 { grid-template-columns: repeat(4, minmax(0,1fr)) !important; }
+  #screen-db-manager .col-span-2,
+  #screen-db-manager .col-span-1 { grid-column: span 2 / span 2 !important; }
+
+  /* ── 7. RESULTS filter buttons (15px) ── */
+  #screen-results .flex { flex-wrap: wrap; }
+
+  /* ── 7b. Syllabus stat tiles: a 5-column grid gave each tile 62px, so the
+     labels ("Learning", "Overdue", "Day Streak") were cut mid-word.
+     Two rows of tiles reads far better than five slivers. */
+  #screen-syllabus-command .grid-cols-5 {
+    grid-template-columns: repeat(3, minmax(0,1fr)) !important;
+    gap: 8px !important;
+  }
+  #screen-syllabus-command .grid-cols-5 > div { padding: 10px 6px !important; }
+  #screen-syllabus-command .grid-cols-5 .text-\[9px\] { font-size: 8px; letter-spacing: .02em; }
+
+  /* ── 7c. Dashboard header: the decorative blur blob is a 384px circle
+     deliberately hung off the corner as a background glow. Clip it to the
+     header instead of letting it widen the header's scroll box. */
+  #screen-dashboard header h1 { word-break: break-word; }
+
+  /* ── 8. Generic safety net for JS-rendered rows I could not name.
+     Any 3+ track grid with hard pixel columns collapses to two columns. */
+  #screen-planner .g3, #screen-planner .g4,
+  .mt-metric-grid { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
+  .mt-field-row.three, .mt-field-row.four { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
+  .drill-grid { grid-template-columns: 1fr !important; }
+
+  /* ── 9. Charts keep their real width but scroll inside their own box ── */
+  #analytics-chart { max-width: none; }
+  #analytics-chart, .chart-wrap { }
+
+  /* ── 10. Tap targets: nothing interactive smaller than 34px on a phone ── */
+  #sc-view-tracker .sc-row button { min-width: 30px; min-height: 30px; }
+
+  /* ── 11. The Focus Cat gets out of the way on small screens ── */
+  #focus-cat .catwrap { width: 84px; height: 84px; }
+  #focus-cat .catbub { max-width: 150px; font-size: 10px; }
+}
+
+/* Very narrow phones (SE / mini) */
+@media (max-width: 380px) {
+  #screen-dashboard header h1 { font-size: 1.35rem !important; }
+  #sc-view-tracker .sc-meta { gap: 4px 7px; padding-left: 14px; }
+}
+
 </style>
 <script>
 /* ═══════════════════════════ ACTIVE RECALL v30 ═══════════════════════════
