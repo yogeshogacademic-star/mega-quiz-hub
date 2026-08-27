@@ -1811,7 +1811,7 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-26 · v29.8';
+    const HUB_BUILD = '2026-08-27 · v30.1';
 
     // v28.6.5 — THE REASON DISCOUNT WAS *STILL* OUT OF ORDER AFTER v28.6.2.
     //   Two separate causes, both fixed here:
@@ -26020,6 +26020,17 @@ html.dark #ar-root{
 #ar-root .row .mt{font-size:11.5px;font-weight:700;color:var(--dim);margin-top:3px}
 #ar-root .row .rt{margin-left:auto;text-align:right;flex-shrink:0}
 #ar-root .go{background:linear-gradient(135deg,var(--acc),#ea580c);border:none;color:#fff}
+/* the MASTER row must not read as one topic among many — it is the whole
+   chapter, shuffled, and it sits above the list looking like it */
+#ar-root .row.master{background:linear-gradient(135deg,#111827,#1f2937);border:none;color:#fff;
+  margin:22px 0 6px;padding:18px 19px;box-shadow:0 8px 22px rgba(15,23,42,.18)}
+#ar-root .row.master:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(15,23,42,.26)}
+#ar-root .row.master .nm{font-size:14px;font-weight:900;letter-spacing:.06em;color:#fff}
+#ar-root .row.master .mt{color:#cbd5e1;font-weight:600}
+#ar-root .row.master .bar{background:rgba(255,255,255,.16);margin-top:9px}
+#ar-root .row.master .bar i{background:#fbbf24}
+#ar-root .row.master .due{background:#fbbf24;color:#111827}
+#ar-root .row.master .ok{background:rgba(255,255,255,.14);color:#e5e7eb}
 #ar-root .go .nm,#ar-root .go .mt{color:#fff}
 #ar-root .go .mt{opacity:.85}
 #ar-root .go:hover{border-color:transparent}
@@ -26334,11 +26345,10 @@ html.dark #ar-root{
 
    v30 is a plain rung ladder:
 
-       rung 1 → 1 day      Again  → due tomorrow, drop ONE rung (floor 1)
+       rung 1 → 1 day       Again → due tomorrow, drop ONE rung (floor 1)
        rung 2 → 3 days      Good  → next rung
        rung 3 → 7 days      Easy  → skip a rung
-       rung 4 → 14 days
-       clear rung 4 → MASTERED, retired
+       clear rung 3 → MASTERED, then one check 21 days later, then retired
 
    Everything else that already worked — cloud merge, the import pipeline,
    the War Room time log — is carried over untouched. Those are load-bearing
@@ -26375,7 +26385,7 @@ html.dark #ar-root{
   /* ═══ THE SCHEDULER ════════════════════════════════════════════════════
 
      One record per card. `rung` is the whole model — 0 means never answered,
-     1..4 are the ladder, and a mastered card carries rung 4 plus mastered:true.
+     1..3 are the ladder, and a mastered card carries rung 3 plus mastered:true.
 
      Two rules that matter and are easy to get wrong:
        · an overdue card is NOT penalised. Answer it right after a week away
@@ -26470,49 +26480,70 @@ html.dark #ar-root{
     return t;
   }
 
+  /* ── grading ──────────────────────────────────────────────────────────────
+     Rewritten in v30.1. The old version incremented the lifetime counters
+     BEFORE the once-a-day gate, so the second answer of a day still moved
+     them. Drill a card you keep missing four times in one sitting and it
+     recorded four misses, crossed the leech line at six, and fell into the
+     Forgetting group off a single session. The counters and the schedule are
+     now decided together, once, behind one gate.
+
+     Three kinds of answer, and they are NOT the same thing:
+       · the first answer of the day   — counts, and reschedules
+       · a repeat later the same day   — practice only, changes nothing
+       · an explicit "mark mastered"   — a decision you made, always applies  */
   function grade(k, g){
     const L=lf(k), today=todayKey();
-    const firstEver = !(L.r||0) && !(L.w||0);
-
-    const firstToday = (L.gradedOn!==today);
-    L.reps=(L.reps||0)+1;
     L.last=Date.now();
-    L.seen=true;
+    L.reps=(L.reps||0)+1;          /* how many times seen — display only */
+
+    /* An explicit decision from the card list or the grade screen. It is not
+       a test result, so it ignores the daily gate: pressing "mark mastered"
+       on a card you already answered this morning used to do nothing at all. */
+    if(g==='know'){
+      L.rung=TOP_RUNG; L.mastered=true; L.finalCheck=false;
+      L.retired=true; L.masteredAt=Date.now(); L.retiredAt=Date.now();
+      L.knownOutright=true; L.due=0; L.gradedOn=today;
+      return;
+    }
+
+    /* Already answered today: re-drilling is fine and useful, but it must not
+       touch the record. Nothing below this line runs twice in one day. */
+    if(L.gradedOn===today) return;
+
+    const firstEver = !(L.r||0) && !(L.w||0);
+    L.gradedOn=today;
 
     if(g==='again' || g==='wrong'){
-      L.w=(L.w||0)+1; L.streak=0;
+      L.w=(L.w||0)+1;
+      L.streak=0;
       L.wstreak=(L.wstreak||0)+1;
-      /* Two straight misses is the signal that a word is not sticking. It gets
-         pulled into its own group so it is revised as a set, and it stays there
+      /* Two straight misses is the signal that a card is not sticking. It gets
+         pulled into its own group so it is revised as a set, and stays there
          until it has come back RIGHT twice — one lucky guess is not learning. */
       if(L.wstreak>=FORGET_AT) L.forgot=true;
       if(L.w>=LEECH_AT) L.leech=true;
-      if(!firstToday) return;
-      L.gradedOn=today;
-      if(L.mastered){ L.mastered=false; L.finalCheck=false; delete L.masteredAt; L.rung=2; }
-      else L.rung=Math.max(1,(L.rung||1)-1);
+      /* A finished card that you have just missed is not finished. Clear the
+         whole finished state together — leaving `retired` set while wiping
+         `mastered` produced a card that counted as done and never appeared. */
+      if(L.retired || L.mastered){
+        L.retired=false; L.mastered=false; L.finalCheck=false;
+        L.knownOutright=false;
+        delete L.masteredAt; delete L.retiredAt;
+        L.rung=2;
+      } else {
+        L.rung=Math.max(1,(L.rung||1)-1);
+      }
       L.due=tomorrow();
       L.lastResult='wrong';
       return;
     }
 
-    L.r=(L.r||0)+1; L.streak=(L.streak||0)+1;
+    L.r=(L.r||0)+1;
+    L.streak=(L.streak||0)+1;
     L.wstreak=0;
     if(L.forgot && L.streak>=FORGET_OUT) L.forgot=false;   /* earned its way back */
-    if(!firstToday) return;
-    L.gradedOn=today;
     L.lastResult='right';
-
-    /* "I already know this" — offered only on first sight. Drilling a word you
-       have known for years four times over eleven days is wasted revision, so
-       this retires it outright. It stays in the chapter and can be un-retired
-       from the card list if you were wrong about yourself. */
-    if(g==='know'){
-      L.rung=TOP_RUNG; L.mastered=true; L.finalCheck=false;
-      L.retired=true; L.masteredAt=Date.now(); L.retiredAt=Date.now();
-      L.knownOutright=true; L.due=0;
-      return;
-    }
 
     if(L.mastered && L.finalCheck){
       L.finalCheck=false; L.retired=true; L.due=0; L.retiredAt=Date.now();
@@ -26566,7 +26597,6 @@ html.dark #ar-root{
        owed, and hiding it would lose it for good */
     return !!(L.due && startOfDay(L.due) <= startOfDay(Date.now()));
   };
-  const isDue = k => isReviewDue(k) || (isNew(k) && newLeft()>0);
   const rungOf = k => { const L=A.life[k]; if(!L) return 0; if(L.rung===undefined) fixEntry(L); return L.rung||0; };
   const wrongsOf= k => { const L=A.life[k]; return L?(L.w||0):0; };
 
@@ -26644,7 +26674,10 @@ html.dark #ar-root{
     let mastered=0, retired=0, checking=0, leech=0, due=0, fresh=0, learning=0;
     keys.forEach(k=>{
       if(isRetired(k)){ retired++; mastered++; return; }
-      if(isMastered(k)){ mastered++; checking++; if(isReviewDue(k)) due++; return; }
+      /* only a card actually awaiting its 21-day look is 'checking'. A card
+         marked mastered by hand has no check pending and must not inflate it. */
+      if(isMastered(k)){ mastered++; const L=A.life[k]||{}; if(L.finalCheck) checking++;
+                         if(isReviewDue(k)) due++; return; }
       if(isLeech(k)){ leech++; return; }
       if(isNew(k)) fresh++; else learning++;
       if(isReviewDue(k)) due++;
@@ -26859,7 +26892,10 @@ html.dark #ar-root{
     save(false);
     if($('ar-modal') && $('ar-modal').style.display==='block') render();
   };
-  window.__arDueCount=function(sub){ try{ return queue(allKeys(sub||null)).length; }catch(e){ return 0; } };
+  /* The badge on the hub button means REVIEWS OWED. It used to call queue(),
+     which tops up with new cards, so a freshly imported subject with nothing
+     actually due announced 25 due and stayed there. */
+  window.__arDueCount=function(sub){ try{ return dueToday(allKeys(sub||null)).length; }catch(e){ return 0; } };
 
   /* ═══ IMPORT ══════════════════════════════════════════════════════════
      Several files at once. Each file names its own subject and chapter, so
@@ -26936,6 +26972,17 @@ html.dark #ar-root{
     });
     if(A.decks[d.id].autoNotes!==false)
       A.decks[d.id].notesHtml='';   /* v30 builds notes live, sorted by wrongs */
+
+    /* Progress belonging to cards this deck no longer contains. These are
+       invisible — they sit in A.life forever, sync to every device and quietly
+       count against nothing. Clear them whenever the deck is rewritten. */
+    const live={}; (A.decks[d.id].cards||[]).forEach(c=>{ live[c.id]=1; });
+    let stale=0;
+    Object.keys(A.life).forEach(k=>{
+      if(k.indexOf(d.id+'::')!==0) return;
+      if(!live[k.slice(d.id.length+2)]){ delete A.life[k]; stale++; }
+    });
+    if(stale) console.log('[AR] cleared '+stale+' orphan progress record(s) in '+d.chapter);
   }
 
   /* ═══ TIME LOG ════════════════════════════════════════════════════════
@@ -27139,6 +27186,29 @@ html.dark #ar-root{
   /* Topic buckets inside a chapter. This is how a 638-card chapter stays
      usable: 23 themes for OWS, 14 lectures for the vocab deck. Dropping it
      left the chapter screen with nothing but buttons. */
+  function masterBlock(d){
+    const mk=masterKeys(d), dk=deckKeys(d), st=stats(dk);
+    const dueN=dueToday(dk).length, newN=untouchedLeft(dk).length;
+    const badge = mk.length
+      ? '<span class="due">'+mk.length+' cards</span>'
+      : '<span class="ok">done today</span>';
+    return '<div class="row master" id="arMaster">'+
+      '<div style="flex:1">'+
+        '<div class="nm">'+esc(masterLabel(d))+'</div>'+
+        '<div class="mt">every card in this chapter, shuffled fresh \u00b7 '+
+          st.total+' total \u00b7 '+dueN+' due \u00b7 '+newN+' untouched</div>'+
+        '<div class="bar"><i style="width:'+st.pct+'%"></i></div>'+
+      '</div><div class="rt">'+badge+'</div></div>';
+  }
+  function wireMaster(d){
+    const el=$('arMaster'); if(!el) return;
+    el.onclick=()=>{
+      const mk=masterKeys(d);
+      if(!mk.length) return toast('Every card in this chapter is done for today');
+      /* reshuffled on every tap — the order is never the same twice */
+      startRun(shuffle(mk), masterLabel(d), d.id, true);
+    };
+  }
   function topicBlock(d){
     const ts=topicsOf(d);
     if(ts.length<2) return '';
@@ -27213,14 +27283,16 @@ html.dark #ar-root{
         ' never seen \u00b7 '+newN+' within today\u2019s allowance</div></div>'+
         '<div class="rt"><span class="pill n">'+(newN||untouched)+'</span></div></div>':'')+
       '<div class="btnrow">'+
-        '<button class="sec" id="arAll">Drill all '+st.total+'</button>'+
+        '<button class="sec" id="arAll">Drill all '+
+          dk.filter(k=>!isRetired(k)&&!answeredToday(k)).length+'</button>'+
         '<button class="sec" id="arNotes">Notes</button>'+
         '<button class="sec" id="arList">Cards</button>'+
         '<button class="sec" id="arInsD">Inspect</button>'+
         (nrD?'<button class="sec warn" id="arNRD">Need Recall &middot; '+nrD+'</button>':'')+
         (st.leech?'<button class="sec warn" id="arLeechD">Leeches &middot; '+st.leech+'</button>':'')+
         '<button class="sec warn" id="arDel">Delete chapter</button>'+
-      '</div>'+topicBlock(d)+'</div>';
+      '</div>'+masterBlock(d)+topicBlock(d)+'</div>';
+    wireMaster(d);
     wireTopics(d);
     if($('arRunDeck')) $('arRunDeck').onclick=()=>startRun(reviewQueue(dk),'Due \u00b7 '+d.chapter,d.id);
     if($('arNewDeck')) $('arNewDeck').onclick=()=>{
@@ -27449,6 +27521,34 @@ html.dark #ar-root{
     view = did? 'deck' : (curSub? 'sub':'home');
     render();
   }
+  /* ── MASTER RUN ───────────────────────────────────────────────────────────
+     Chapter-by-chapter drilling teaches you the chapter, not the subject. Every
+     card arrives with its neighbours as context, so you recognise rather than
+     recall, and you never find out that you cannot tell the Kol Revolt from the
+     Munda one when they are forty cards apart.
+
+     The MASTER row is the whole deck in one run, in a fresh random order every
+     single time it is opened. Not deck order, not a stable shuffle, not
+     scheduler order — a new permutation on every tap, so the sequence itself
+     can never become a memory aid.
+
+     It is a generated row, not a topic. The cards are the SAME cards, under the
+     same keys, so answering one here moves the identical record its chapter row
+     reads from. There is no second copy and no second progress trail. */
+  const masterLabel = d => 'MASTER ' + String(d.chapter||'').toUpperCase();
+  /* Fisher-Yates, unbiased, seeded from nothing — a different order per call. */
+  function shuffle(a){
+    const out=a.slice();
+    for(let i=out.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      const t=out[i]; out[i]=out[j]; out[j]=t;
+    }
+    return out;
+  }
+  /* Everything still in play: retired cards are finished, and a card answered
+     today has already moved to its next date. */
+  const masterKeys = d => deckKeys(d).filter(k=>!isRetired(k) && !answeredToday(k));
+
   /* topic buckets inside a chapter, self-collected pinned to the top */
   const FORGET_GROUP = '\u26a0 Forgetting';
   function topicsOf(d){
@@ -27628,7 +27728,11 @@ html.dark #ar-root{
       startRun(rest,'Leeches',null,true);
     };
     $('lkFree').onclick=async()=>{
-      ks.forEach(k=>{ const L=A.life[k]; if(L){ L.leech=false; L.w=LEECH_AT-2; L.rung=1; L.due=tomorrow(); } });
+      /* Releasing a leech must not rewrite history. Overwriting w with a made-up
+         number destroyed the real miss count, which is what Need Recall and the
+         notes sheet are sorted by. Clear the flag, keep the record. */
+      ks.forEach(k=>{ const L=A.life[k]; if(L){ L.leech=false; L.leechFreed=Date.now();
+        L.wstreak=0; L.rung=Math.max(1,L.rung||1); L.due=tomorrow(); } });
       await save(true); toast('Released'); render();
     };
   }
@@ -27661,6 +27765,8 @@ html.dark #ar-root{
         ? '<div class="row" style="border-color:#f0b8a8"><div><div class="nm">'+esc(d.file)+'</div><div class="mt" style="color:#b91c1c">'+esc(d.error)+'</div></div></div>'
         : '<div class="row" style="cursor:default"><div style="flex:1">'+
             '<div class="nm">'+esc(d.subject)+' › '+esc(d.chapter)+'</div>'+
+            (d.dupes?'<div class="mt" style="color:#b45309">⚠ '+d.dupes+
+              ' card(s) in this file share a prompt with another and were dropped</div>':'')+
             '<div class="mt">'+(d.isNew?'new chapter · '+d.added+' cards'
               :'+'+d.added+' new · '+d.updated+' updated · '+(d.existing-d.added)+' unchanged'+
                (d.orphan?' · '+d.orphan+' no longer in the file':''))+'</div>'+
