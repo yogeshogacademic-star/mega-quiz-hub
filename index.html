@@ -1811,7 +1811,27 @@ HINT: Minus-b plus-or-minus root-D, over 2a"
 
     // ── BUILD MARKER — update this every time you deliver a new file ──────────
     // This is what you check when uploading to a new chat to confirm it's latest.
-    const HUB_BUILD = '2026-08-27 · v30.1';
+    const HUB_BUILD = '2026-09-05 · v31.0';
+
+    // v31.0 — TODAY'S 5 deleted, POMO CHECKLIST in its place.
+    //   The old five-task gate is gone entirely (206 lines removed, not
+    //   patched): D.top5, t5*, the planner card and the sync hooks.
+    //   New: D.pomo — 5 fixed clock slots, 14 x 50min blocks plus 2 short
+    //   recall blocks, three verdicts per row (full / part / changed), manual
+    //   hours, midnight lock with a 06:00 grace window, and a month calendar
+    //   with per-week and per-month roll-ups.
+    //   Three bugs caught by the test harness before release:
+    //     1. part-minutes were forced onto the 20/30/40 menu, so a value
+    //        clamped to a 25min block sprang back up to 30 and reported more
+    //        time than the block can physically hold.
+    //     2. same defaulting error on the write path.
+    //     3. pmDay() persisted on every read, so merely rendering the calendar
+    //        minted empty 16-row records for every day on screen and pushed
+    //        them to every other device. Display reads now peek.
+    //   Also fixed: topicsOf() ordered topics by first appearance, so when an
+    //   import UPDATED existing cards in place (11 words in Lecture 25/26
+    //   already existed in earlier lectures) those lectures rendered buried
+    //   mid-list instead of at the end. Now sorted by leading number.
 
     // v28.6.5 — THE REASON DISCOUNT WAS *STILL* OUT OF ORDER AFTER v28.6.2.
     //   Two separate causes, both fixed here:
@@ -16195,14 +16215,13 @@ body.light select.inp option { background:white; }
     <div id="h-week-perf" style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-around"></div>
   </div>
 
-  <!-- ══════════ TODAY'S 5 — the only list that matters today ══════════ -->
+  <!-- ══════════ POMO CHECKLIST — 14 blocks across 5 fixed slots ══════════ -->
   <div class="card" style="margin-bottom:14px;border:1px solid rgba(79,110,247,.35)">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:14px;font-weight:900;color:var(--text)">✋ Today's 5</div>
-      <div id="t5-timeleft" style="font-size:11px;font-weight:900;color:var(--yellow)"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <div style="font-size:14px;font-weight:900;color:var(--text)">🍅 Pomo Checklist</div>
+      <div style="font-size:10px;font-weight:700;color:var(--muted)">50m blocks · locks at midnight</div>
     </div>
-    <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:12px">Five things. Not ten. Tick ✓ done, ✗ if it didn't happen.</div>
-    <div id="t5-list"></div>
+    <div id="pm-home"></div>
   </div>
 
   <!-- (Daily Checklist removed — replaced by the 🎯 Daily Drill tab) -->
@@ -16628,7 +16647,7 @@ body.light select.inp option { background:white; }
 function noteHtml(note){ return note ? '<div style="font-size:10px;color:#64748b;margin-top:3px;font-style:italic">&quot;'+note+'&quot;</div>' : ''; }
 // ════════════════ DATA ════════════════
 const STORE = 'warroom_v1';
-let D = { blocks:{}, logs:{}, debt:{}, streak:{count:0,last:''}, target:50, sleepLog:{}, wakeTarget:'05:00', sleepTarget:'23:30', weeklyTasks:[], wtWeekStart:'', wtArchive:[], top5:{}, meta:{} };
+let D = { blocks:{}, logs:{}, debt:{}, streak:{count:0,last:''}, target:50, sleepLog:{}, wakeTarget:'05:00', sleepTarget:'23:30', weeklyTasks:[], wtWeekStart:'', wtArchive:[], pomo:{}, meta:{} };
 
 const SUB_COLORS = {
   'Arithmetic':'#8b5cf6','Advanced Maths':'#6366f1','Reasoning':'#3b82f6',
@@ -16818,7 +16837,7 @@ function wrEachRecord(fn){
     Object.keys(e).forEach(i => { if(e[i] && typeof e[i] === 'object') fn('E|'+dk+'|'+i, e[i]); });
   });
   Object.keys(d.sleepLog||{}).forEach(dk => { if(d.sleepLog[dk] && typeof d.sleepLog[dk] === 'object') fn('S|'+dk, d.sleepLog[dk]); });
-  Object.keys(d.top5||{}).forEach(dk => (d.top5[dk]||[]).forEach(r => { if(r && r.id != null) fn('T5|'+dk+'|'+r.id, r); }));
+  Object.keys(d.pomo||{}).forEach(dk => (d.pomo[dk]||[]).forEach(r => { if(r && r.id != null) fn('PM|'+dk+'|'+r.id, r); }));
   (d.weeklyTasks||[]).forEach(s => {
     if(!s || !s.subject) return;
     fn('WS|'+s.subject, s);
@@ -16977,7 +16996,7 @@ window.__wrMergeCloud = function(cloudRaw){
     D.sleepLog = wrMergeMap(D.sleepLog, cloud.sleepLog, 'S', tomb);
 
     // Daily Top-5 — per-day list, same merge shape as logs/blocks
-    D.top5 = wrMergeByDay(D.top5, cloud.top5, d => 'T5|'+d, tomb);
+    D.pomo = wrMergeByDay(D.pomo, cloud.pomo, d => 'PM|'+d, tomb);
 
     // weekly tasks — subject groups merged by name, tasks inside merged by id
     (function(){
@@ -17205,7 +17224,7 @@ function load(){
   window.__wrQuiet = true;   // migrations below call save(); don't fire a sync per repair
   try{
     const r=localStorage.getItem(STORE); if(r) try{D=JSON.parse(r);}catch(e){}
-    D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||70; D.dailyTarget=D.dailyTarget||10; D.checklist=D.checklist||{}; D.sleepLog=D.sleepLog||{}; D.wakeTarget=D.wakeTarget||'05:00'; D.sleepTarget=D.sleepTarget||'23:30'; D.weeklyTasks=D.weeklyTasks||[]; D.wtWeekStart=D.wtWeekStart||''; D.wtArchive=D.wtArchive||[]; D.meta=D.meta||{}; D.dailyItems=D.dailyItems||dcDefaultItems(); D.dailyLog=D.dailyLog||{}; D.drill=D.drill||{}; D.top5=D.top5||{}; D.tomb=D.tomb||{};
+    D.blocks=D.blocks||{}; D.logs=D.logs||{}; D.debt=D.debt||{}; D.streak=D.streak||{count:0,last:''}; D.target=D.target||70; D.dailyTarget=D.dailyTarget||10; D.checklist=D.checklist||{}; D.sleepLog=D.sleepLog||{}; D.wakeTarget=D.wakeTarget||'05:00'; D.sleepTarget=D.sleepTarget||'23:30'; D.weeklyTasks=D.weeklyTasks||[]; D.wtWeekStart=D.wtWeekStart||''; D.wtArchive=D.wtArchive||[]; D.meta=D.meta||{}; D.dailyItems=D.dailyItems||dcDefaultItems(); D.dailyLog=D.dailyLog||{}; D.drill=D.drill||{}; D.pomo=D.pomo||{}; D.tomb=D.tomb||{};
     /* v28.6 — targets confirmed as 10/day, 70/week. Runs once; if you change
        them later by hand this never touches them again. */
     if(!D.meta._targets286){
@@ -21100,209 +21119,539 @@ window._wrAutoLog = function(entry) {
 };
 
 /* ══════════════════════════════════════════════════════════════════════════
-   TODAY'S 5  (v27.4)
-   Five tasks a day, ticked ✓ or crossed ✗. Stored per-date in D.top5 so it
-   cloud-syncs across devices via the same per-day merge the logs use.
-   A gate pops when you enter the Planner and keeps popping until all five
-   have been decided (done or crossed off). No carryover — each day is blank.
-   ══════════════════════════════════════════════════════════════════════════ */
-const T5_COUNT = 5;
+   POMO CHECKLIST  (v31.0)  — replaces TODAY'S 5 entirely.
 
-function t5Today(){
-  const key = todayStr();
-  if(!D.top5) D.top5 = {};
-  if(!Array.isArray(D.top5[key]) || !D.top5[key].length){
-    D.top5[key] = [];
-    for(let i=0;i<T5_COUNT;i++) D.top5[key].push({ id:'t5-'+key+'-'+i, text:'', status:'' });
-  }
-  // pad if an older/partial day came in from cloud
-  while(D.top5[key].length < T5_COUNT){
-    D.top5[key].push({ id:'t5-'+key+'-'+D.top5[key].length, text:'', status:'', pct:0 });
-  }
-  /* v28.5 — rows written before progress bars existed carry no pct. Backfill so
-     a task already ticked done still shows a full bar rather than an empty one. */
-  D.top5[key].forEach(r=>{ if(typeof r.pct!=='number') r.pct = (r.status==='done'?100:0); });
-  return D.top5[key];
+   Five fixed clock slots, 14 pomodoros of 50 min plus 2 short spare blocks.
+   Every row carries a task name and one of three verdicts:
+
+       ✓ full   did the whole block          → 1.0 toward x/14, full minutes
+       ~ part   did it but short (20/30/40)  → 0.5 toward x/14, chosen minutes
+       ↻ chg    full block, different task   → 1.0 toward x/14, full minutes
+       (blank)  no verdict. Not a cross, not a failure. Just blank.
+
+   The two spare blocks are Active Recall by default. They add minutes but do
+   NOT sit in the /14 denominator, so the headline number stays comparable
+   day to day.
+
+   Stored per-date in D.pomo, synced through the same per-day merge the logs
+   and the old top5 used, so a device that ticks a row wins on that row only.
+
+   The day LOCKS at midnight with a 06:00 grace window, so the late slot can
+   still be ticked after waking. Past days are read-only — the history is the
+   record, not a place to flatter it.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const PM_SLOTS = [
+  { id:'s1', label:'Slot 1', span:'5:30 – 8:30 am', rows:[
+      ['05:30','06:20',50,0], ['06:30','07:20',50,0], ['07:30','08:20',50,0] ] },
+  { id:'s2', label:'Slot 2', span:'9:00 am – 12:00 pm', rows:[
+      ['09:00','09:50',50,0], ['10:00','10:50',50,0], ['11:00','11:50',50,0] ] },
+  { id:'s3', label:'Slot 3', span:'1:15 – 3:15 pm', rows:[
+      ['13:15','14:05',50,0], ['14:15','15:05',50,0] ] },
+  { id:'s4', label:'Slot 4', span:'3:45 – 7:00 pm', rows:[
+      ['15:45','16:35',50,0], ['16:45','17:35',50,0], ['17:45','18:35',50,0],
+      ['18:35','19:00',25,1] ] },
+  { id:'s5', label:'Slot 5', span:'8:30 pm – 12:00 am', rows:[
+      ['20:30','21:20',50,0], ['21:30','22:20',50,0], ['22:30','23:20',50,0],
+      ['23:20','23:50',30,1] ] }
+];
+
+/* flat row definitions, index-stable — the id depends on this order, so rows
+   are only ever appended here, never reordered or removed */
+const PM_DEFS = (function(){
+  const out=[];
+  PM_SLOTS.forEach(s=>s.rows.forEach(r=>{
+    out.push({ slot:s.id, slotLabel:s.label, start:r[0], end:r[1], mins:r[2], spare:!!r[3] });
+  }));
+  return out;
+})();
+const PM_TOTAL = PM_DEFS.filter(d=>!d.spare).length;      // 14
+const PM_MAXMIN = PM_DEFS.reduce((n,d)=>n+d.mins,0);      // 755
+
+const PM_PART_CHOICES = [20,30,40];
+const PM_WHY = ['tired','interrupted','distracted'];
+
+/* ── time helpers ─────────────────────────────────────────────────────── */
+function pmToMin(hhmm){ const p=String(hhmm).split(':'); return (+p[0])*60 + (+p[1]); }
+function pmNowMin(){ const n=istNow(); return n.getHours()*60 + n.getMinutes(); }
+function pmFmt(hhmm){
+  const m=pmToMin(hhmm), h=Math.floor(m/60), mm=m%60;
+  const ap = h>=12 ? 'pm' : 'am';
+  let hh = h%12; if(hh===0) hh=12;
+  return hh + (mm ? ':'+String(mm).padStart(2,'0') : '') + ap;
+}
+function pmHrs(mins){
+  mins = Math.max(0, Math.round(mins||0));
+  const h=Math.floor(mins/60), m=mins%60;
+  return h ? (h+'h '+(m?m+'m':'').trim()).trim() : m+'m';
+}
+function pmDateKey(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function pmShiftDate(key, days){
+  const p=key.split('-').map(Number);
+  const d=new Date(p[0], p[1]-1, p[2]);
+  d.setDate(d.getDate()+days);
+  return pmDateKey(d);
+}
+/* Monday-start week key for the weekly roll-up */
+function pmWeekStart(key){
+  const p=key.split('-').map(Number);
+  const d=new Date(p[0], p[1]-1, p[2]);
+  const dow=(d.getDay()+6)%7;               // Mon=0 … Sun=6
+  d.setDate(d.getDate()-dow);
+  return pmDateKey(d);
 }
 
-function t5SetText(id, val){
-  const row = t5Today().find(r=>r.id===id); if(!row) return;
+/* ── the lock ─────────────────────────────────────────────────────────────
+   Today is always open. Yesterday stays open until 06:00 so the 8:30pm–12am
+   slot can be settled after sleep. Everything older is frozen. */
+function pmEditable(key){
+  const today = todayStr();
+  if(key === today) return true;
+  if(key === pmShiftDate(today, -1) && pmNowMin() < 6*60) return true;
+  return false;
+}
+
+/* ── the store ────────────────────────────────────────────────────────────
+   Rows are rebuilt against PM_DEFS every read, so a day pulled from an older
+   build (or a half-written cloud record) is repaired rather than trusted. */
+function pmDay(key, peek){
+  key = key || todayStr();
+  if(!D.pomo) D.pomo = {};
+  const existing = Array.isArray(D.pomo[key]) ? D.pomo[key] : [];
+  const byId = {};
+  existing.forEach(r=>{ if(r && r.id) byId[r.id] = r; });
+
+  const rows = PM_DEFS.map((def,i)=>{
+    const id = 'pm-'+key+'-'+i;
+    const old = byId[id] || {};
+    const st = (old.state==='full'||old.state==='part'||old.state==='chg') ? old.state : '';
+    let mins = +old.mins;
+    if(st==='full' || st==='chg') mins = def.mins;
+    else if(st==='part') mins = (mins>=5 && mins<=def.mins) ? mins : Math.min(30, def.mins);
+    else mins = 0;
+    return {
+      id, i,
+      slot: def.slot, start: def.start, end: def.end, cap: def.mins, spare: def.spare,
+      text: typeof old.text==='string' ? old.text : '',
+      state: st,
+      mins: mins,
+      why: PM_WHY.indexOf(old.why)>=0 ? old.why : '',
+      updatedAt: old.updatedAt || 0
+    };
+  });
+  /* Only persist a day that already exists or that is being written to. A
+     read for display must never mint an empty record — that is what bloated
+     the store and shipped blank days to every other device. */
+  if(!peek || Array.isArray(D.pomo[key])) D.pomo[key] = rows;
+  return rows;
+}
+
+/* ── scoring ──────────────────────────────────────────────────────────── */
+function pmScore(rows){
+  let score=0, mins=0, decided=0;
+  rows.forEach(r=>{
+    if(!r.state) return;
+    decided++;
+    mins += (r.mins||0);
+    if(r.spare) return;                       // spare adds hours, not /14
+    score += (r.state==='part') ? 0.5 : 1;
+  });
+  return { score, mins, decided, total: PM_TOTAL };
+}
+function pmScoreStr(s){
+  const n = (s.score % 1) ? s.score.toFixed(1) : String(s.score);
+  return n + '/' + s.total;
+}
+function pmSlotScore(rows, slotId){
+  const rs = rows.filter(r=>r.slot===slotId && !r.spare);
+  let n=0; rs.forEach(r=>{ if(r.state==='part') n+=0.5; else if(r.state) n+=1; });
+  return ((n%1)?n.toFixed(1):n) + '/' + rs.length;
+}
+function pmWeekMins(key){
+  const start = pmWeekStart(key);
+  let mins=0, score=0;
+  for(let i=0;i<7;i++){
+    const k = pmShiftDate(start, i);
+    if(!D.pomo || !Array.isArray(D.pomo[k])) continue;
+    const s = pmScore(pmDay(k, true));
+    mins += s.mins; score += s.score;
+  }
+  return { mins, score, start };
+}
+
+/* ── mutations ────────────────────────────────────────────────────────── */
+function pmSetText(key, id, val){
+  if(!pmEditable(key)) return;
+  const row = pmDay(key).find(r=>r.id===id); if(!row) return;
   row.text = val; row.updatedAt = Date.now();
   save();
-  t5RenderTimeLeft();
+  pmPaintHeader(key);
 }
-window.t5SetText = t5SetText;
+window.pmSetText = pmSetText;
 
-/* ── v28.5 per-task progress ────────────────────────────────────────────
-   A task was all-or-nothing: ✓ or ✗, nothing in between. Half-finished work
-   read as failure, which is both wrong and demoralising. Each row now carries
-   a 0-100 figure. Dragging to 100 ticks it done; pulling back off 100 releases
-   that tick, so the bar and the verdict can never disagree. */
-function t5SetPct(id, val){
-  const row = t5Today().find(r=>r.id===id); if(!row) return;
-  let p = Math.max(0, Math.min(100, Math.round(+val||0)));
-  row.pct = p;
-  if(p === 100 && row.text && row.text.trim()) row.status = 'done';
-  else if(row.status === 'done') row.status = '';
+/* Tapping the button you are already on clears the row back to blank. There
+   is no cross — a blank row at day's end already says what it says. */
+function pmSetState(key, id, st){
+  if(!pmEditable(key)) return;
+  const rows = pmDay(key);
+  const row = rows.find(r=>r.id===id); if(!row) return;
+  if(row.state === st){
+    row.state=''; row.mins=0; row.why='';
+  } else {
+    row.state = st;
+    if(st==='full' || st==='chg'){ row.mins = row.cap; row.why=''; }
+    else { row.mins = (row.mins>=5 && row.mins<=row.cap) ? row.mins : Math.min(30, row.cap); }
+  }
   row.updatedAt = Date.now();
   save();
-  t5RepaintPct(id);
-  t5RenderTimeLeft();
-  try{ if(document.getElementById('t5-gate')) t5RenderGate(); }catch(e){}
+  pmRenderRows(key); pmPaintHeader(key);
 }
-window.t5SetPct = t5SetPct;
+window.pmSetState = pmSetState;
 
-/* repaint in place rather than re-rendering the list — a full re-render while
-   the slider is under your finger drops the drag on mobile */
-function t5RepaintPct(id){
-  const row = t5Today().find(r=>r.id===id); if(!row) return;
-  const p = row.pct || 0;
-  document.querySelectorAll('[data-t5fill="'+id+'"]').forEach(el=>{
-    el.style.width = p + '%';
-    el.style.background = p>=100 ? '#10b981' : p>=50 ? '#3b82f6' : '#f59e0b';
-  });
-  document.querySelectorAll('[data-t5num="'+id+'"]').forEach(el=>{
-    el.textContent = p + '%';
-    el.style.color = p>=100 ? '#10b981' : 'var(--muted)';
-  });
-}
-
-function t5Mark(id, status){
-  const row = t5Today().find(r=>r.id===id); if(!row) return;
-  if(!row.text || !row.text.trim()){ alert('Write the task first'); return; }
-  row.status = (row.status===status) ? '' : status;   // tap again to undo
-  /* v28.5 — keep bar and verdict consistent: ticking done means 100%, and
-     un-ticking a full bar drops it back to 99 so it does not re-tick itself. */
-  if(row.status==='done') row.pct = 100;
-  else if(row.status==='' && (row.pct||0) >= 100) row.pct = 99;
+function pmSetPart(key, id, mins){
+  if(!pmEditable(key)) return;
+  const row = pmDay(key).find(r=>r.id===id); if(!row) return;
+  row.state='part';
+  row.mins = Math.min(row.cap, Math.max(5, +mins||30));
   row.updatedAt = Date.now();
-  save(); renderTop5();
-  try{ if(document.getElementById('t5-gate')) t5RenderGate(); }catch(e){}
-  if(t5AllDecided()) t5CloseGate();
+  save();
+  pmRenderRows(key); pmPaintHeader(key);
 }
-window.t5Mark = t5Mark;
+window.pmSetPart = pmSetPart;
 
-// "Decided" = every one of the five has text AND a ✓/✗ verdict.
-function t5AllDecided(){
-  const rows = t5Today();
-  return rows.every(r => r.text && r.text.trim() && (r.status==='done' || r.status==='miss'));
+function pmSetWhy(key, id, why){
+  if(!pmEditable(key)) return;
+  const row = pmDay(key).find(r=>r.id===id); if(!row) return;
+  row.why = (row.why===why) ? '' : why;
+  row.updatedAt = Date.now();
+  save();
+  pmRenderRows(key); 
 }
+window.pmSetWhy = pmSetWhy;
 
-// Hours:minutes remaining in the day (IST), so the clock stays visible.
-function t5TimeLeftStr(){
-  try{
-    const n = istNow();
-    const mins = (24*60) - (n.getHours()*60 + n.getMinutes());
-    const h = Math.floor(mins/60), m = mins%60;
-    return h+'h '+m+'m left today';
-  }catch(e){ return ''; }
-}
+/* ── rendering: one row ───────────────────────────────────────────────── */
+const PM_COL = { full:'#10b981', part:'#f59e0b', chg:'#3b82f6' };
 
-function t5RenderTimeLeft(){
-  const el = document.getElementById('t5-timeleft');
-  if(!el) return;
-  const rows = t5Today();
-  const done = rows.filter(r=>r.status==='done').length;
-  /* v28.5 — average across the five bars, so a day of half-done work reads as
-     progress instead of a row of zeros */
-  const avg = Math.round(rows.reduce((n,r)=>n+(r.pct||0),0) / Math.max(1,T5_COUNT));
-  el.textContent = '⏳ ' + t5TimeLeftStr() + ' · ' + done + '/' + T5_COUNT + ' done · ' + avg + '% overall';
-}
+function pmRowHtml(key, r, live, ro){
+  const col = PM_COL[r.state] || '';
+  const active = live && !ro;
+  const btn = (st, glyph, title)=>{
+    const on = r.state===st;
+    return `<button ${ro?'disabled':''} onclick="pmSetState('${key}','${r.id}','${st}')" title="${title}"
+      style="background:${on?PM_COL[st]:'transparent'};border:1px solid ${on?PM_COL[st]:'var(--border2)'};
+      color:${on?'#fff':'var(--muted)'};width:29px;height:29px;border-radius:8px;font-size:13px;
+      font-weight:900;cursor:${ro?'default':'pointer'};flex-shrink:0;opacity:${ro&&!on?.45:1}">${glyph}</button>`;
+  };
 
-function t5RowHtml(r, big){
-  const fs = big ? 13 : 12;
-  const doneOn = r.status==='done', missOn = r.status==='miss';
-  const txtStyle = doneOn ? 'text-decoration:line-through;color:var(--muted)'
-                 : missOn ? 'color:#f87171' : 'color:var(--text)';
-  return `<div style="display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--border)">
-      <input type="text" placeholder="task ${(r.id.split('-').pop()*1)+1}…"
+  const partRow = (r.state==='part' && !ro) ? `
+    <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:0 0 8px 4px">
+      ${PM_PART_CHOICES.filter(m=>m<r.cap).map(m=>`<button onclick="pmSetPart('${key}','${r.id}',${m})"
+        style="background:${r.mins===m?'#f59e0b':'transparent'};border:1px solid ${r.mins===m?'#f59e0b':'var(--border2)'};
+        color:${r.mins===m?'#fff':'var(--muted)'};padding:3px 9px;border-radius:7px;font-size:10px;font-weight:900;cursor:pointer">${m}m</button>`).join('')}
+      <span style="width:9px"></span>
+      ${PM_WHY.map(w=>`<button onclick="pmSetWhy('${key}','${r.id}','${w}')"
+        style="background:${r.why===w?'#334155':'transparent'};border:1px solid ${r.why===w?'#64748b':'var(--border)'};
+        color:${r.why===w?'#e2e8f0':'var(--muted)'};padding:3px 8px;border-radius:7px;font-size:10px;font-weight:700;cursor:pointer">${w}</button>`).join('')}
+    </div>` : '';
+
+  const readTag = ro && r.state==='part'
+    ? `<span style="font-size:10px;font-weight:800;color:#f59e0b;margin-left:6px">${r.mins}m${r.why?' · '+r.why:''}</span>` : '';
+
+  return `<div data-pmrow="${r.id}" style="border-bottom:1px solid var(--border);${active?'background:rgba(79,110,247,.09);border-left:3px solid #4f6ef7;padding-left:5px;margin-left:-5px;border-radius:6px 0 0 6px':''}">
+    <div style="display:flex;align-items:center;gap:7px;padding:7px 2px 5px">
+      <div style="min-width:74px;font-size:10px;font-weight:900;color:${col||'var(--muted)'};line-height:1.25">
+        ${pmFmt(r.start)}<br><span style="color:var(--muted);font-weight:700">${r.cap}m${r.spare?' ·rc':''}</span>
+      </div>
+      <input type="text" ${ro?'readonly':''} placeholder="${r.spare?'active recall…':'task…'}"
         value="${(r.text||'').replace(/"/g,'&quot;')}"
-        oninput="t5SetText('${r.id}',this.value)"
-        style="flex:1;background:var(--bg3);border:1px solid var(--border);padding:7px 9px;border-radius:8px;font-size:${fs}px;font-weight:700;${txtStyle}">
-      <button onclick="t5Mark('${r.id}','done')" title="Done"
-        style="background:${doneOn?'#10b981':'transparent'};border:1px solid ${doneOn?'#10b981':'var(--border2)'};color:${doneOn?'#fff':'var(--muted)'};width:30px;height:30px;border-radius:8px;font-size:13px;font-weight:900;cursor:pointer;flex-shrink:0">✓</button>
-      <button onclick="t5Mark('${r.id}','miss')" title="Didn't happen"
-        style="background:${missOn?'#ef4444':'transparent'};border:1px solid ${missOn?'#ef4444':'var(--border2)'};color:${missOn?'#fff':'var(--muted)'};width:30px;height:30px;border-radius:8px;font-size:13px;font-weight:900;cursor:pointer;flex-shrink:0">✗</button>
+        oninput="pmSetText('${key}','${r.id}',this.value)"
+        style="flex:1;min-width:0;background:var(--bg3);border:1px solid var(--border);padding:6px 8px;
+        border-radius:8px;font-size:12px;font-weight:700;color:${r.state?'var(--muted)':'var(--text)'};
+        ${r.state==='full'||r.state==='chg'?'text-decoration:line-through':''}">
+      ${readTag}
+      ${btn('full','✓','Full block')}
+      ${btn('part','~','Did it, but short')}
+      ${btn('chg','↻','Full block, different task')}
     </div>
-    ${t5PctHtml(r)}`;
+    ${partRow}
+  </div>`;
 }
 
-/* the progress row: a live bar plus the slider that drives it */
-function t5PctHtml(r){
-  const p = r.pct || 0;
-  const col = p>=100 ? '#10b981' : p>=50 ? '#3b82f6' : '#f59e0b';
-  return `<div style="display:flex;align-items:center;gap:9px;padding:0 2px 9px;border-bottom:1px solid var(--border)">
-      <div style="flex:1;height:7px;background:var(--bg3);border-radius:99px;overflow:hidden">
-        <div data-t5fill="${r.id}" style="width:${p}%;height:100%;background:${col};border-radius:99px;transition:width .15s"></div>
+/* ── rendering: the whole day ─────────────────────────────────────────── */
+function pmRowsHtml(key){
+  const rows = pmDay(key, true);
+  const ro = !pmEditable(key);
+  const now = pmNowMin();
+  const isToday = (key === todayStr());
+  return PM_SLOTS.map(s=>{
+    const mine = rows.filter(r=>r.slot===s.id);
+    return `<div style="margin-bottom:11px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:0 2px 5px">
+        <div style="font-size:11px;font-weight:900;color:#e2e8f0;letter-spacing:.3px">${s.label}
+          <span style="color:#64748b;font-weight:700;margin-left:6px">${s.span}</span></div>
+        <div style="font-size:11px;font-weight:900;color:#4f6ef7">${pmSlotScore(rows, s.id)}</div>
       </div>
-      <input type="range" min="0" max="100" step="5" value="${p}"
-        oninput="t5SetPct('${r.id}',this.value)"
-        style="flex:1;max-width:130px;accent-color:${col};cursor:pointer">
-      <span data-t5num="${r.id}" style="font-size:11px;font-weight:900;min-width:34px;text-align:right;color:${p>=100?'#10b981':'var(--muted)'}">${p}%</span>
+      ${mine.map(r=>{
+        const live = isToday && now >= pmToMin(r.start) && now < pmToMin(r.end);
+        return pmRowHtml(key, r, live, ro);
+      }).join('')}
     </div>`;
+  }).join('');
 }
 
-function renderTop5(){
-  const el = document.getElementById('t5-list');
-  if(!el) return;
-  el.innerHTML = t5Today().map(r=>t5RowHtml(r,false)).join('');
-  t5RenderTimeLeft();
-}
-window.renderTop5 = renderTop5;
-
-/* ── the gate ───────────────────────────────────────────────────────────
-   Fires on entering the Planner. Stays available until all five are
-   decided. Dismissible so it never traps you mid-task — but it comes back
-   on the next visit until the list is settled. */
-function t5RenderGate(){
-  const box = document.getElementById('t5-gate-rows');
-  if(box) box.innerHTML = t5Today().map(r=>t5RowHtml(r,true)).join('');
-  const tl = document.getElementById('t5-gate-timeleft');
-  if(tl){
-    const rows = t5Today();
-    const done = rows.filter(r=>r.status==='done').length;
-    const avg = Math.round(rows.reduce((n,r)=>n+(r.pct||0),0) / Math.max(1,T5_COUNT));
-    tl.textContent = '⏳ ' + t5TimeLeftStr() + ' · ' + done + '/' + T5_COUNT + ' done · ' + avg + '% overall';
-  }
+function pmHeaderHtml(key){
+  const s = pmScore(pmDay(key, true));
+  const wk = pmWeekMins(key);
+  const band = s.score>=14 ? '#10b981' : s.score>=11 ? '#4f6ef7' : '#fbbf24';
+  const ro = !pmEditable(key);
+  return `<div style="font-size:20px;font-weight:900;color:${band}">${pmScoreStr(s)}
+      <span style="font-size:14px;color:#e2e8f0"> · ${pmHrs(s.mins)}</span></div>
+    <div style="font-size:11px;font-weight:700;color:#94a3b8;margin-top:3px">
+      of ${PM_TOTAL} pomos · ${pmHrs(PM_MAXMIN)} max${ro?' · locked':''}</div>
+    <div style="font-size:11px;font-weight:900;color:#fbbf24;margin-top:5px">
+      This week: ${(wk.score%1?wk.score.toFixed(1):wk.score)} pomos · ${pmHrs(wk.mins)}</div>`;
 }
 
-function t5CloseGate(){
-  const ov = document.getElementById('t5-gate');
-  if(ov) ov.remove();
-  try{ renderTop5(); }catch(e){}
+function pmRenderRows(key){
+  const box = document.getElementById('pm-rows');
+  if(box) box.innerHTML = pmRowsHtml(key);
 }
-window.t5CloseGate = t5CloseGate;
+function pmPaintHeader(key){
+  const h = document.getElementById('pm-head');
+  if(h) h.innerHTML = pmHeaderHtml(key);
+  try{ pmRenderHomeCard(); }catch(e){}
+}
 
-function t5ShowGate(){
-  if(document.getElementById('t5-gate')) return;
+/* ── the gate ─────────────────────────────────────────────────────────────
+   Opens on entering the Planner, every time. It is the checklist, not a
+   nag — dismissible, and it reopens whenever you come back. */
+let PM_VIEW = 'day';        // 'day' | 'cal'
+let PM_DAYKEY = '';         // which date the day view is showing
+let PM_CALMON = '';         // 'YYYY-MM' the calendar is showing
+
+function pmShowGate(){
+  if(document.getElementById('pm-gate')) return;
+  PM_VIEW='day'; PM_DAYKEY = todayStr(); PM_CALMON = PM_DAYKEY.slice(0,7);
   const ov = document.createElement('div');
-  ov.id = 't5-gate';
-  ov.style.cssText = 'position:fixed;inset:0;z-index:2147483645;background:linear-gradient(160deg,#0b1120,#111827 60%,#020617);display:flex;align-items:center;justify-content:center;padding:20px;font-family:inherit;overflow-y:auto';
-  ov.innerHTML = `
-    <div style="max-width:470px;width:100%;color:#e2e8f0">
-      <div style="text-align:center;margin-bottom:14px">
-        <div style="font-size:40px;margin-bottom:4px">✋</div>
-        <div style="font-size:21px;font-weight:900;color:#fff">TODAY'S 5</div>
-        <div style="font-size:12px;font-weight:700;color:#94a3b8;line-height:1.5;margin-top:5px">
-          Not the whole syllabus. Five things you will actually finish today.
-        </div>
-        <div id="t5-gate-timeleft" style="font-size:12px;font-weight:900;color:#fbbf24;margin-top:7px"></div>
+  ov.id='pm-gate';
+  ov.style.cssText='position:fixed;inset:0;z-index:2147483645;background:linear-gradient(160deg,#0b1120,#111827 60%,#020617);display:flex;align-items:flex-start;justify-content:center;padding:16px 12px 28px;font-family:inherit;overflow-y:auto';
+  ov.innerHTML = `<div style="max-width:520px;width:100%;color:#e2e8f0">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px">
+        <div id="pm-head" style="flex:1;min-width:0"></div>
+        <button id="pm-gate-x" style="background:transparent;border:1px solid #334155;color:#94a3b8;width:32px;height:32px;border-radius:9px;font-size:15px;font-weight:900;cursor:pointer;flex-shrink:0">✕</button>
       </div>
-      <div id="t5-gate-rows" style="background:rgba(2,6,23,.55);border:1px solid #1e293b;border-radius:14px;padding:10px 13px;margin-bottom:14px"></div>
-      <button id="t5-gate-close" style="width:100%;background:#4f46e5;color:#fff;font-weight:900;font-size:15px;padding:13px;border:none;border-radius:12px;cursor:pointer;box-shadow:0 6px 20px rgba(79,70,229,.45)">Start the day →</button>
-      <div style="text-align:center;font-size:10px;color:#64748b;font-weight:700;margin-top:9px">Comes back each time you open the Planner until all 5 are ticked or crossed.</div>
+      <div style="display:flex;gap:7px;margin-bottom:12px">
+        <button id="pm-tab-day" style="flex:1;padding:8px;border-radius:9px;font-size:12px;font-weight:900;cursor:pointer;border:1px solid #4f46e5;background:#4f46e5;color:#fff">Today</button>
+        <button id="pm-tab-cal" style="flex:1;padding:8px;border-radius:9px;font-size:12px;font-weight:900;cursor:pointer;border:1px solid #1e293b;background:transparent;color:#94a3b8">History</button>
+      </div>
+      <div id="pm-body"></div>
+      <button id="pm-gate-close" style="width:100%;background:#4f46e5;color:#fff;font-weight:900;font-size:15px;padding:13px;border:none;border-radius:12px;cursor:pointer;box-shadow:0 6px 20px rgba(79,70,229,.45);margin-top:12px">Start the day →</button>
     </div>`;
   document.body.appendChild(ov);
-  t5RenderGate();
-  document.getElementById('t5-gate-close').onclick = t5CloseGate;
+  document.getElementById('pm-gate-x').onclick = pmCloseGate;
+  document.getElementById('pm-gate-close').onclick = pmCloseGate;
+  document.getElementById('pm-tab-day').onclick = ()=>pmSetView('day');
+  document.getElementById('pm-tab-cal').onclick = ()=>pmSetView('cal');
+  pmRenderGate();
+  setTimeout(pmScrollToNow, 120);
 }
-window.t5ShowGate = t5ShowGate;
+window.pmShowGate = pmShowGate;
 
-// keep the "time left" figure honest while the planner sits open
+function pmSetView(v){
+  PM_VIEW = v;
+  const a=document.getElementById('pm-tab-day'), b=document.getElementById('pm-tab-cal');
+  const on='border:1px solid #4f46e5;background:#4f46e5;color:#fff', off='border:1px solid #1e293b;background:transparent;color:#94a3b8';
+  const base='flex:1;padding:8px;border-radius:9px;font-size:12px;font-weight:900;cursor:pointer;';
+  if(a) a.style.cssText = base + (v==='day'?on:off);
+  if(b) b.style.cssText = base + (v==='cal'?on:off);
+  if(v==='day') PM_DAYKEY = todayStr();
+  pmRenderGate();
+  if(v==='day') setTimeout(pmScrollToNow, 80);
+}
+window.pmSetView = pmSetView;
+
+function pmRenderGate(){
+  const body = document.getElementById('pm-body'); if(!body) return;
+  if(PM_VIEW==='cal'){ body.innerHTML = pmCalHtml(); pmWireCal(); }
+  else {
+    body.innerHTML = `<div id="pm-rows" style="background:rgba(2,6,23,.55);border:1px solid #1e293b;border-radius:14px;padding:11px 12px"></div>`;
+    pmRenderRows(PM_DAYKEY);
+  }
+  const h=document.getElementById('pm-head'); if(h) h.innerHTML = pmHeaderHtml(PM_DAYKEY);
+}
+
+function pmScrollToNow(){
+  try{
+    const el = document.querySelector('#pm-rows [data-pmrow][style*="border-left:3px"]');
+    if(el && el.scrollIntoView) el.scrollIntoView({block:'center', behavior:'smooth'});
+  }catch(e){}
+}
+
+function pmCloseGate(){
+  const ov=document.getElementById('pm-gate'); if(ov) ov.remove();
+  try{ pmRenderHomeCard(); }catch(e){}
+}
+window.pmCloseGate = pmCloseGate;
+
+/* ── calendar history ─────────────────────────────────────────────────── */
+function pmMonthShift(delta){
+  const p = PM_CALMON.split('-').map(Number);
+  const d = new Date(p[0], p[1]-1+delta, 1);
+  PM_CALMON = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  pmRenderGate();
+}
+window.pmMonthShift = pmMonthShift;
+
+function pmOpenDay(key){
+  PM_VIEW='day'; PM_DAYKEY=key;
+  const a=document.getElementById('pm-tab-day'), b=document.getElementById('pm-tab-cal');
+  const base='flex:1;padding:8px;border-radius:9px;font-size:12px;font-weight:900;cursor:pointer;';
+  if(a) a.style.cssText = base+'border:1px solid #4f46e5;background:#4f46e5;color:#fff';
+  if(b) b.style.cssText = base+'border:1px solid #1e293b;background:transparent;color:#94a3b8';
+  pmRenderGate();
+}
+window.pmOpenDay = pmOpenDay;
+
+function pmDayHasData(key){
+  return !!(D.pomo && Array.isArray(D.pomo[key]) && D.pomo[key].some(r=>r && r.state));
+}
+
+function pmCalHtml(){
+  const p = PM_CALMON.split('-').map(Number);
+  const y=p[0], mo=p[1];
+  const first = new Date(y, mo-1, 1);
+  const days = new Date(y, mo, 0).getDate();
+  const lead = (first.getDay()+6)%7;                 // Mon-start
+  const MON = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const today = todayStr();
+
+  let cells='';
+  for(let i=0;i<lead;i++) cells += '<div></div>';
+  for(let d=1; d<=days; d++){
+    const key = y+'-'+String(mo).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const has = pmDayHasData(key);
+    const s = has ? pmScore(pmDay(key, true)) : null;
+    const pct = s ? Math.min(1, s.score/PM_TOTAL) : 0;
+    const bg = !has ? 'rgba(30,41,59,.35)'
+             : pct>=1 ? '#10b981' : pct>=.78 ? '#3b82f6' : pct>=.5 ? '#4f46e5' : pct>0 ? '#f59e0b' : 'rgba(30,41,59,.35)';
+    const fg = has && pct>=.5 ? '#fff' : '#94a3b8';
+    const ring = key===today ? 'box-shadow:0 0 0 2px #fbbf24;' : '';
+    cells += `<div data-pmcal="${key}" style="${ring}background:${bg};border-radius:9px;padding:5px 3px;text-align:center;cursor:pointer;min-height:40px">
+        <div style="font-size:10px;font-weight:800;color:${fg};opacity:.8">${d}</div>
+        <div style="font-size:11px;font-weight:900;color:${fg}">${s ? pmScoreStr(s).split('/')[0] : '·'}</div>
+      </div>`;
+  }
+
+  /* week roll-up rows for every week touching this month */
+  const weeks=[]; const seen={};
+  for(let d=1; d<=days; d++){
+    const key = y+'-'+String(mo).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const ws = pmWeekStart(key);
+    if(seen[ws]) continue; seen[ws]=1;
+    const w = pmWeekMins(key);
+    if(!w.mins && !w.score) continue;
+    const sp = ws.split('-');
+    weeks.push(`<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 2px;border-bottom:1px solid #1e293b;font-size:11px;font-weight:800">
+        <span style="color:#94a3b8">Week of ${(+sp[2])} ${MON[(+sp[1])-1].slice(0,3)}</span>
+        <span style="color:#e2e8f0">${(w.score%1?w.score.toFixed(1):w.score)} pomos · ${pmHrs(w.mins)}</span>
+      </div>`);
+  }
+
+  /* month footer */
+  let mScore=0, mMin=0, mDays=0;
+  const slotAgg={};
+  PM_SLOTS.forEach(s=>slotAgg[s.id]={n:0,max:0});
+  for(let d=1; d<=days; d++){
+    const key = y+'-'+String(mo).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    if(!pmDayHasData(key)) continue;
+    const rows = pmDay(key, true);
+    const s = pmScore(rows);
+    mScore+=s.score; mMin+=s.mins; mDays++;
+    rows.forEach(r=>{
+      if(r.spare) return;
+      slotAgg[r.slot].max++;
+      if(r.state==='part') slotAgg[r.slot].n+=0.5; else if(r.state) slotAgg[r.slot].n+=1;
+    });
+  }
+  let best='—', worst='—';
+  if(mDays){
+    const rates = PM_SLOTS.map(s=>({ l:s.label, r: slotAgg[s.id].max ? slotAgg[s.id].n/slotAgg[s.id].max : -1 }))
+                          .filter(x=>x.r>=0).sort((a,b)=>b.r-a.r);
+    if(rates.length){ best = rates[0].l+' ('+Math.round(rates[0].r*100)+'%)'; worst = rates[rates.length-1].l+' ('+Math.round(rates[rates.length-1].r*100)+'%)'; }
+  }
+
+  return `<div style="background:rgba(2,6,23,.55);border:1px solid #1e293b;border-radius:14px;padding:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <button data-pmmon="-1" style="background:transparent;border:1px solid #334155;color:#94a3b8;width:30px;height:30px;border-radius:8px;font-weight:900;cursor:pointer">‹</button>
+      <div style="font-size:13px;font-weight:900;color:#fff">${MON[mo-1]} ${y}</div>
+      <button data-pmmon="1" style="background:transparent;border:1px solid #334155;color:#94a3b8;width:30px;height:30px;border-radius:8px;font-weight:900;cursor:pointer">›</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:5px">
+      ${['M','T','W','T','F','S','S'].map(x=>`<div style="text-align:center;font-size:9px;font-weight:900;color:#475569">${x}</div>`).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">${cells}</div>
+    <div style="font-size:10px;color:#64748b;font-weight:700;margin-top:8px;text-align:center">Tap a day to see what you did</div>
+    ${weeks.length?`<div style="margin-top:12px;border-top:1px solid #1e293b;padding-top:8px">${weeks.join('')}</div>`:''}
+    <div style="margin-top:11px;background:rgba(15,23,42,.7);border-radius:10px;padding:9px 11px">
+      <div style="font-size:11px;font-weight:900;color:#e2e8f0;margin-bottom:4px">${MON[mo-1]} total</div>
+      <div style="font-size:11px;font-weight:800;color:#94a3b8;line-height:1.7">
+        ${(mScore%1?mScore.toFixed(1):mScore)} pomos · ${pmHrs(mMin)} · ${mDays} active day${mDays===1?'':'s'}<br>
+        Strongest: <span style="color:#10b981">${best}</span> · Weakest: <span style="color:#f87171">${worst}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function pmWireCal(){
+  document.querySelectorAll('[data-pmmon]').forEach(b=>{
+    b.onclick = ()=>pmMonthShift(+b.getAttribute('data-pmmon'));
+  });
+  document.querySelectorAll('[data-pmcal]').forEach(c=>{
+    c.onclick = ()=>pmOpenDay(c.getAttribute('data-pmcal'));
+  });
+}
+
+/* ── the compact card inside the Planner home ─────────────────────────── */
+function pmRenderHomeCard(){
+  const el = document.getElementById('pm-home'); if(!el) return;
+  const key = todayStr();
+  const rows = pmDay(key);
+  const s = pmScore(rows);
+  const now = pmNowMin();
+  let live = null, next = null;
+  rows.forEach(r=>{
+    if(now >= pmToMin(r.start) && now < pmToMin(r.end)) live = r;
+    if(!next && pmToMin(r.start) > now) next = r;
+  });
+  const line = live
+    ? `<span style="color:#4f6ef7">● now</span> ${pmFmt(live.start)}–${pmFmt(live.end)}${live.text?' · '+live.text.replace(/</g,'&lt;'):''}`
+    : next ? `next ${pmFmt(next.start)} · in ${pmHrs(pmToMin(next.start)-now)}`
+           : 'day done';
+  const band = s.score>=14 ? '#10b981' : s.score>=11 ? '#4f6ef7' : '#fbbf24';
+  el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <div style="min-width:0">
+        <div style="font-size:17px;font-weight:900;color:${band}">${pmScoreStr(s)}
+          <span style="font-size:12px;color:var(--text)"> · ${pmHrs(s.mins)}</span></div>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${line}</div>
+      </div>
+      <button onclick="pmShowGate()" style="background:#4f46e5;border:none;color:#fff;font-size:11px;font-weight:900;padding:8px 13px;border-radius:9px;cursor:pointer;flex-shrink:0">Open ›</button>
+    </div>
+    <div style="display:flex;gap:3px;margin-top:10px">
+      ${rows.filter(r=>!r.spare).map(r=>`<div title="${pmFmt(r.start)}" style="flex:1;height:6px;border-radius:99px;background:${PM_COL[r.state]||'var(--bg3)'}"></div>`).join('')}
+    </div>`;
+}
+window.pmRenderHomeCard = pmRenderHomeCard;
+window.renderTop5 = pmRenderHomeCard;   // old call sites keep working
+
+/* keep the live row and the "next in" figure honest while the planner sits open */
 setInterval(()=>{
   try{
-    t5RenderTimeLeft();
-    if(document.getElementById('t5-gate')) t5RenderGate();
+    pmRenderHomeCard();
+    if(document.getElementById('pm-gate') && PM_VIEW==='day' && PM_DAYKEY===todayStr()){
+      pmRenderRows(PM_DAYKEY); pmPaintHeader(PM_DAYKEY);
+    }
   }catch(e){}
 }, 60000);
 
@@ -22480,8 +22829,9 @@ window.plannerInit = function(){
   });
   renderHome();
   try{ if(typeof renderHubSnapshot==='function') renderHubSnapshot(); }catch(e){}
-  // Today's 5 gate — keeps appearing until all five are ticked or crossed
-  try{ if(!t5AllDecided()) setTimeout(t5ShowGate, 350); }catch(e){}
+  // Pomo checklist — this IS the planner popup, so it opens on every entry
+  try{ pmRenderHomeCard(); }catch(e){}
+  try{ setTimeout(pmShowGate, 350); }catch(e){}
 };
 
 // v27: the old _plannerSave() + _hookPlannerSync() pair is gone.
@@ -27563,7 +27913,22 @@ html.dark #ar-root{
       by[t].push(k);
     });
     const pinned=t=>/^lecture 00|self-collected|from mocks/i.test(t);
-    seen.sort((a,b)=> (pinned(b)?1:0)-(pinned(a)?1:0));
+    /* v31.0 — topics used to render in first-appearance order. When an import
+       UPDATES an existing card in place (11 words in Lecture 25/26 already
+       existed as earlier-lecture cards), the new lecture's first card sits mid
+       array, so Lecture 25 and 26 rendered buried between earlier lectures
+       instead of at the end. Order by the leading number when a topic has one,
+       so "Lecture 26" follows "Lecture 09" rather than "Lecture 2". */
+    const numOf=t=>{ const m=String(t).match(/(\d+)/); return m ? +m[1] : null; };
+    seen.sort((a,b)=>{
+      const pa=pinned(a)?1:0, pb=pinned(b)?1:0;
+      if(pa!==pb) return pb-pa;
+      const na=numOf(a), nb=numOf(b);
+      if(na!==null && nb!==null && na!==nb) return na-nb;
+      if(na!==null && nb===null) return -1;
+      if(na===null && nb!==null) return 1;
+      return String(a).localeCompare(String(b), undefined, {numeric:true, sensitivity:'base'});
+    });
     const out=seen.map(t=>({name:t, keys:by[t]}));
     if(forget.length) out.unshift({name:FORGET_GROUP, keys:forget, forget:true});
     return out;
